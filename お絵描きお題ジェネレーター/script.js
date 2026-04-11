@@ -1,0 +1,161 @@
+const TOPICS = {
+  people: [
+    '笑顔の女の子', '眠そうなサラリーマン', '傘をさす老人',
+    '走る子ども', '読書する学生', '料理中のシェフ',
+    '踊るダンサー', '自転車に乗る人', '傘の下の二人',
+    '夕日を眺める少年', '帽子をかぶった女性', '犬を散歩させる人',
+  ],
+  animal: [
+    '眠る猫', '走るコーギー', '飛ぶフクロウ',
+    '水中のクラゲ', '草を食べるキリン', '親子のパンダ',
+    '穴の中のウサギ', '岩の上のトカゲ', '葉の上のカエル',
+    'カゴの中のインコ', 'ジャンプするカンガルー', '海を泳くイルカ',
+  ],
+  landscape: [
+    '夕暮れの海', '霧の山', '雪の公園',
+    '春の桜並木', '夜の都市', '田んぼ道',
+    '雨上がりの虹', '夏の入道雲', '秋の紅葉の森',
+    '月夜の砂漠', '川沿いの小道', '嵐の前の空',
+  ],
+  object: [
+    '古い時計', '棚の上のコーヒーカップ', '窓際の植物',
+    'テーブルの上のランプ', '錆びた鍵', '積まれた本',
+    '割れた鏡', '缶詰の中の宝物', 'ガラス瓶と花',
+    '雨粒のついた窓', '使い古した靴', '手紙と封筒',
+  ],
+  fantasy: [
+    '空飛ぶクジラ', '魔法使いの帽子', 'ドラゴンと少女',
+    '水晶の城', '星を食べる生き物', '夢の図書館',
+    '人魚の洞窟', '光る森の精霊', '雲の上の村',
+    '時間を止める時計', '花から生まれた妖精', '月の神殿',
+  ],
+};
+
+const CATEGORY_NAMES = {
+  people: '人物',
+  animal: '動物',
+  landscape: '風景',
+  object: '物・小物',
+  fantasy: 'ファンタジー',
+};
+
+let currentTopic = null;
+let currentCategory = null;
+let favorites = [];
+
+const categorySelect = document.getElementById('category');
+const generateBtn = document.getElementById('generate-btn');
+const favoriteBtn = document.getElementById('favorite-btn');
+const topicText = document.getElementById('topic-text');
+const topicDisplay = document.getElementById('topic-display');
+const favoritesList = document.getElementById('favorites-list');
+const favCount = document.getElementById('fav-count');
+const clearFavoritesBtn = document.getElementById('clear-favorites-btn');
+
+function loadFavorites() {
+  const saved = localStorage.getItem('drawingTopicFavorites');
+  favorites = saved ? JSON.parse(saved) : [];
+  renderFavorites();
+}
+
+function saveFavorites() {
+  localStorage.setItem('drawingTopicFavorites', JSON.stringify(favorites));
+}
+
+function generateTopic() {
+  const cat = categorySelect.value;
+  let pool = [];
+
+  if (cat === 'all') {
+    Object.keys(TOPICS).forEach(k => {
+      TOPICS[k].forEach(t => pool.push({ text: t, category: k }));
+    });
+  } else {
+    TOPICS[cat].forEach(t => pool.push({ text: t, category: cat }));
+  }
+
+  const picked = pool[Math.floor(Math.random() * pool.length)];
+  currentTopic = picked.text;
+  currentCategory = picked.category;
+
+  topicDisplay.classList.remove('animate');
+  void topicDisplay.offsetWidth;
+  topicDisplay.classList.add('animate');
+  topicText.textContent = currentTopic;
+
+  favoriteBtn.disabled = false;
+  updateFavoriteBtn();
+}
+
+function isAlreadyFavorited() {
+  return favorites.some(f => f.text === currentTopic);
+}
+
+function updateFavoriteBtn() {
+  if (!currentTopic) return;
+  if (isAlreadyFavorited()) {
+    favoriteBtn.textContent = 'お気に入り済み ♥';
+    favoriteBtn.disabled = true;
+  } else {
+    favoriteBtn.textContent = 'お気に入りに追加 ♡';
+    favoriteBtn.disabled = false;
+  }
+}
+
+function addFavorite() {
+  if (!currentTopic || isAlreadyFavorited()) return;
+  favorites.unshift({ text: currentTopic, category: currentCategory });
+  saveFavorites();
+  renderFavorites();
+  updateFavoriteBtn();
+}
+
+function deleteFavorite(index) {
+  favorites.splice(index, 1);
+  saveFavorites();
+  renderFavorites();
+  updateFavoriteBtn();
+}
+
+function clearAllFavorites() {
+  if (!confirm('お気に入りを全部消してもいいですか？')) return;
+  favorites = [];
+  saveFavorites();
+  renderFavorites();
+  updateFavoriteBtn();
+}
+
+function renderFavorites() {
+  favCount.textContent = favorites.length;
+
+  if (favorites.length === 0) {
+    favoritesList.innerHTML = '<p class="empty-msg">まだお気に入りはありません</p>';
+    clearFavoritesBtn.style.display = 'none';
+    return;
+  }
+
+  clearFavoritesBtn.style.display = 'block';
+  favoritesList.innerHTML = favorites.map((f, i) => `
+    <div class="fav-item">
+      <span class="fav-label">
+        ${escapeHtml(f.text)}
+        <span class="fav-category">${CATEGORY_NAMES[f.category] || ''}</span>
+      </span>
+      <button class="fav-delete-btn" data-index="${i}" aria-label="削除">✕</button>
+    </div>
+  `).join('');
+
+  favoritesList.querySelectorAll('.fav-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => deleteFavorite(Number(btn.dataset.index)));
+  });
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+generateBtn.addEventListener('click', generateTopic);
+favoriteBtn.addEventListener('click', addFavorite);
+clearFavoritesBtn.addEventListener('click', clearAllFavorites);
+
+loadFavorites();
