@@ -1,0 +1,194 @@
+const STORAGE_KEY = 'calendar_events';
+
+let currentYear;
+let currentMonth;
+let events = {};
+
+function loadEvents() {
+  const data = localStorage.getItem(STORAGE_KEY);
+  events = data ? JSON.parse(data) : {};
+}
+
+function saveEvents() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+}
+
+function getDateKey(year, month, day) {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function renderCalendar() {
+  const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月',
+                      '7月', '8月', '9月', '10月', '11月', '12月'];
+  document.getElementById('monthTitle').textContent =
+    `${currentYear}年 ${monthNames[currentMonth]}`;
+
+  const grid = document.getElementById('calendarGrid');
+  grid.innerHTML = '';
+
+  const today = new Date();
+  const todayKey = getDateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+  // 空白セル
+  for (let i = 0; i < firstDay; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'day-cell empty';
+    grid.appendChild(empty);
+  }
+
+  // 日付セル
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateKey = getDateKey(currentYear, currentMonth, day);
+    const cell = document.createElement('div');
+    cell.className = 'day-cell';
+
+    const dayOfWeek = new Date(currentYear, currentMonth, day).getDay();
+    if (dayOfWeek === 0) cell.classList.add('sunday');
+    if (dayOfWeek === 6) cell.classList.add('saturday');
+    if (dateKey === todayKey) cell.classList.add('today');
+
+    const numEl = document.createElement('div');
+    numEl.className = 'day-num';
+    numEl.textContent = day;
+    cell.appendChild(numEl);
+
+    const dayEvents = events[dateKey] || [];
+    if (dayEvents.length > 0) {
+      const dotsEl = document.createElement('div');
+      dotsEl.className = 'event-dots';
+      const maxShow = 2;
+      dayEvents.slice(0, maxShow).forEach(ev => {
+        const dot = document.createElement('div');
+        dot.className = 'event-dot';
+        dot.textContent = ev;
+        dotsEl.appendChild(dot);
+      });
+      if (dayEvents.length > maxShow) {
+        const more = document.createElement('div');
+        more.className = 'event-dot';
+        more.style.background = '#aaa';
+        more.textContent = `+${dayEvents.length - maxShow}`;
+        dotsEl.appendChild(more);
+      }
+      cell.appendChild(dotsEl);
+    }
+
+    cell.addEventListener('click', () => openModal(dateKey));
+    grid.appendChild(cell);
+  }
+}
+
+// --- モーダル ---
+
+let currentDateKey = null;
+
+function openModal(dateKey) {
+  currentDateKey = dateKey;
+  const [year, month, day] = dateKey.split('-');
+  document.getElementById('modalDate').textContent =
+    `${year}年${parseInt(month)}月${parseInt(day)}日`;
+  renderEventList();
+  document.getElementById('eventInput').value = '';
+  document.getElementById('modalOverlay').classList.add('active');
+  document.getElementById('eventInput').focus();
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('active');
+  currentDateKey = null;
+}
+
+function renderEventList() {
+  const list = document.getElementById('eventList');
+  list.innerHTML = '';
+  const dayEvents = events[currentDateKey] || [];
+
+  if (dayEvents.length === 0) {
+    const empty = document.createElement('li');
+    empty.className = 'no-events';
+    empty.textContent = '予定はありません';
+    list.appendChild(empty);
+    return;
+  }
+
+  dayEvents.forEach((ev, index) => {
+    const item = document.createElement('li');
+    item.className = 'event-item';
+
+    const text = document.createElement('span');
+    text.className = 'event-text';
+    text.textContent = ev;
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'delete-btn';
+    delBtn.textContent = '×';
+    delBtn.addEventListener('click', () => deleteEvent(index));
+
+    item.appendChild(text);
+    item.appendChild(delBtn);
+    list.appendChild(item);
+  });
+}
+
+function addEvent() {
+  const input = document.getElementById('eventInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  if (!events[currentDateKey]) events[currentDateKey] = [];
+  events[currentDateKey].push(text);
+  saveEvents();
+  renderEventList();
+  renderCalendar();
+  input.value = '';
+  input.focus();
+}
+
+function deleteEvent(index) {
+  events[currentDateKey].splice(index, 1);
+  if (events[currentDateKey].length === 0) delete events[currentDateKey];
+  saveEvents();
+  renderEventList();
+  renderCalendar();
+}
+
+// --- イベントリスナー ---
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  currentMonth--;
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  renderCalendar();
+});
+
+document.getElementById('nextBtn').addEventListener('click', () => {
+  currentMonth++;
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  renderCalendar();
+});
+
+document.getElementById('modalClose').addEventListener('click', closeModal);
+
+document.getElementById('modalOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+});
+
+document.getElementById('addEventBtn').addEventListener('click', addEvent);
+
+document.getElementById('eventInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') addEvent();
+});
+
+// --- 初期化 ---
+
+function init() {
+  const now = new Date();
+  currentYear = now.getFullYear();
+  currentMonth = now.getMonth();
+  loadEvents();
+  renderCalendar();
+}
+
+init();
