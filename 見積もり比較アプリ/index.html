@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>見積もり比較アプリ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f5; color: #222; padding: 1.5rem 1rem; }
+  h1 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+  .note { font-size: 0.85rem; color: #666; margin-bottom: 1rem; }
+  .container { max-width: 900px; margin: 0 auto; }
+  form.add-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1fr 1fr auto; gap: 0.4rem; margin-bottom: 1rem; background: #fff; padding: 0.8rem; border: 1px solid #ddd; border-radius: 8px; }
+  input, button { padding: 0.5rem 0.6rem; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+  button { background: #333; color: #fff; border: 0; cursor: pointer; }
+  button:hover { background: #555; }
+  table { width: 100%; background: #fff; border-collapse: collapse; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+  th, td { padding: 0.6rem; border-bottom: 1px solid #eee; text-align: center; font-size: 0.9rem; }
+  th { background: #f9f9f9; font-weight: 600; }
+  td.cheapest { background: #fff4d6; font-weight: 600; color: #b8860b; }
+  .actions button { background: #e5e5e5; color: #333; padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+  .total { margin-top: 1rem; text-align: right; font-weight: 600; }
+</style>
+<script data-goatcounter="https://tmmygu40.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>見積もり比較アプリ</h1>
+    <p class="note">品目ごとに3社までの見積額を入力。最安値の業者を自動ハイライト。</p>
+    <form class="add-row" id="addForm">
+      <input type="text" id="item" placeholder="品目" required>
+      <input type="number" id="priceA" placeholder="A社 価格" min="0">
+      <input type="number" id="priceB" placeholder="B社 価格" min="0">
+      <input type="number" id="priceC" placeholder="C社 価格" min="0">
+      <input type="text" id="note" placeholder="メモ">
+      <button type="submit">追加</button>
+    </form>
+    <table id="tbl">
+      <thead><tr><th>品目</th><th>A社</th><th>B社</th><th>C社</th><th>最安</th><th>メモ</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="total" id="total"></div>
+  </div>
+<script>
+  const KEY = 'mitsumori-compare-v1';
+  const form = document.getElementById('addForm');
+  const tbody = document.querySelector('#tbl tbody');
+  const totalEl = document.getElementById('total');
+  let rows = JSON.parse(localStorage.getItem(KEY) || '[]');
+  const save = () => localStorage.setItem(KEY, JSON.stringify(rows));
+  const esc = s => (s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  function cheapest(r) {
+    const p = [r.a, r.b, r.c].map(x => x > 0 ? x : Infinity);
+    const m = Math.min(...p);
+    return m === Infinity ? -1 : p.indexOf(m);
+  }
+  function render() {
+    tbody.innerHTML = '';
+    let totalMin = 0;
+    const labels = ['A社','B社','C社'];
+    rows.forEach((r, i) => {
+      const c = cheapest(r);
+      const price = k => k > 0 ? '¥' + Number(k).toLocaleString() : '-';
+      tbody.insertAdjacentHTML('beforeend', `<tr>
+        <td>${esc(r.item)}</td>
+        <td class="${c===0?'cheapest':''}">${price(r.a)}</td>
+        <td class="${c===1?'cheapest':''}">${price(r.b)}</td>
+        <td class="${c===2?'cheapest':''}">${price(r.c)}</td>
+        <td>${c>=0?labels[c]:'-'}</td>
+        <td>${esc(r.note)}</td>
+        <td class="actions"><button data-i="${i}">削除</button></td>
+      </tr>`);
+      if (c >= 0) totalMin += [r.a,r.b,r.c][c];
+    });
+    tbody.querySelectorAll('button').forEach(b => b.onclick = () => {
+      rows.splice(Number(b.dataset.i), 1); save(); render();
+    });
+    totalEl.textContent = rows.length ? '最安合計: ¥' + totalMin.toLocaleString() : '';
+  }
+  form.onsubmit = e => {
+    e.preventDefault();
+    rows.push({
+      item: document.getElementById('item').value.trim(),
+      a: Number(document.getElementById('priceA').value) || 0,
+      b: Number(document.getElementById('priceB').value) || 0,
+      c: Number(document.getElementById('priceC').value) || 0,
+      note: document.getElementById('note').value.trim()
+    });
+    save(); render(); form.reset();
+    document.getElementById('item').focus();
+  };
+  render();
+</script>
+</body>
+</html>
