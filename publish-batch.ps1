@@ -58,6 +58,26 @@ $new = $curr + $apps.Count
 $idxAdd = ($apps | ForEach-Object { "    <li><a href=`"$_/`">$_</a></li>" }) -join "`r`n"
 $idx = Get-Content index.html -Raw -Encoding UTF8
 $idx = $idx.Replace('    <!-- APP_LIST_END -->', $idxAdd + "`r`n    <!-- APP_LIST_END -->")
+
+# (4b) 新着アプリ欄を先頭に追加（最新6件に絞る）
+$today = Get-Date -Format 'yyyy-MM-dd'
+$newItems = ($apps | ForEach-Object {
+    "    <li><a href=`"./$_/`">$_<span class=`"new-date`">公開日: $today</span></a></li>"
+}) -join "`r`n"
+$idx = $idx.Replace('    <!-- NEW_APPS_END -->', "    <!-- NEW_APPS_END -->`r`n" + $newItems)
+
+# 6件超え分を末尾から削除
+$blockMatch = [regex]::Match($idx, '(?s)(<ul class="new-apps">.*?</ul>)')
+if ($blockMatch.Success) {
+    $block = $blockMatch.Value
+    $liItems = [regex]::Matches($block, '(?s)<li>.*?</li>')
+    if ($liItems.Count -gt 6) {
+        $keepLines = ($liItems | Select-Object -First 6 | ForEach-Object { $_.Value }) -join "`r`n    "
+        $newBlock = "<ul class=`"new-apps`">`r`n    <!-- NEW_APPS_END -->`r`n    $keepLines`r`n  </ul>"
+        $idx = $idx.Replace($block, $newBlock)
+    }
+}
+
 [System.IO.File]::WriteAllText((Join-Path $PWD "index.html"), $idx, [System.Text.UTF8Encoding]::new($false))
 Write-Host "index.html updated"
 
