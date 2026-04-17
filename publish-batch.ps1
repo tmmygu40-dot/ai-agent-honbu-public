@@ -120,3 +120,33 @@ if (Test-Path $syncScript) {
 } else {
     Write-Host "警告: sync-missing.py が見つかりません（スキップ）" -ForegroundColor Yellow
 }
+
+# ── 公開後チェック（check-apps.py） ──────────────────────────────────
+$checkScript = Join-Path $pub "check-apps.py"
+if (Test-Path $checkScript) {
+    Write-Host ""
+    Write-Host "── 公開後チェック実行 ──" -ForegroundColor Cyan
+    python $checkScript
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "公開後チェック: 完了" -ForegroundColor Green
+    } else {
+        Write-Host "公開後チェック: エラーあり（上記ログ参照）" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "警告: check-apps.py が見つかりません（スキップ）" -ForegroundColor Yellow
+}
+
+# ── 修正候補抽出（make-fix-queue.py） ────────────────────────────────
+$queueScript = Join-Path $pub "make-fix-queue.py"
+if (Test-Path $queueScript) {
+    Write-Host ""
+    Write-Host "── 修正候補抽出 ──" -ForegroundColor Cyan
+    python $queueScript
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "修正候補抽出: 完了（fix-queue.json 参照）" -ForegroundColor Green
+    } else {
+        Write-Host "修正候補抽出: エラーあり（上記ログ参照）" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "警告: make-fix-queue.py が見つかりません（スキップ）" -ForegroundColor Yellow
+}
