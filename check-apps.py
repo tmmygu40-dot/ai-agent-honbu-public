@@ -1,5 +1,6 @@
 import json, re, sys, time, urllib.request, urllib.error, io
 from datetime import datetime
+from urllib.parse import quote
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 BASE = "https://tmmygu40-dot.github.io/ai-agent-honbu-public"
@@ -19,7 +20,7 @@ results = []
 ok = warn = ng = 0
 
 for app in apps:
-    url = f"{BASE}/{app}/"
+    url = f"{BASE}/{quote(app)}/"
     entry = {"app": app, "url": url, "status": None, "title": "", "blank": False, "js_suspect": False, "result": "", "note": ""}
 
     try:
