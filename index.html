@@ -150,6 +150,11 @@
     #top-favs ul li a:hover { border-color: #f5a623; box-shadow: 3px 3px 0 rgba(0,0,0,0.07); background: #fffbf4; }
     #top-favs .fav-link { font-size: 0.75rem; color: #bbb; margin-top: 0.6rem; display: block; text-decoration: none; }
     #top-favs .fav-link:hover { color: #f5a623; }
+    /* 新着アプリ ☆ボタン */
+    .new-apps li { position: relative; }
+    .new-apps li a { padding-right: 2.2rem; }
+    .fav-btn { position: absolute; top: 6px; right: 6px; background: none; border: none; cursor: pointer; font-size: 1.05rem; line-height: 1; padding: 3px 5px; color: #ccc; transition: color 0.15s; -webkit-tap-highlight-color: transparent; min-width: 28px; min-height: 28px; }
+    .fav-btn:hover, .fav-btn.active { color: #f5a623; }
   </style>
   <script type="application/ld+json">
   {
@@ -557,16 +562,53 @@
   </script>
   <script>
   (function(){
-    try {
-      var favs=JSON.parse(localStorage.getItem('ai_honbu_favs')||'[]');
-      if(!Array.isArray(favs)||favs.length===0) return;
-      var sec=document.getElementById('top-favs');
-      var list=document.getElementById('top-fav-list');
-      if(!sec||!list) return;
-      function esc(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-      list.innerHTML=favs.map(function(f){ return '<li><a href="'+esc(f.href)+'">'+esc(f.name)+'</a></li>'; }).join('');
+    var KEY='ai_honbu_favs';
+    function getFavs(){ try{ return JSON.parse(localStorage.getItem(KEY)||'[]'); }catch(e){ return []; } }
+    function setFavs(a){ try{ localStorage.setItem(KEY,JSON.stringify(a)); }catch(e){} }
+    function isFav(href){ return getFavs().some(function(f){ return f.href===href; }); }
+    function toggleFav(href,name){
+      var a=getFavs(), i=a.findIndex(function(f){ return f.href===href; });
+      if(i>=0) a.splice(i,1); else a.push({name:name,href:href});
+      setFavs(a);
+    }
+    function esc(s){ return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function renderFavSection(){
+      var favs=getFavs(), sec=document.getElementById('top-favs');
+      if(!sec) return;
+      if(favs.length===0){ sec.style.display='none'; return; }
       sec.style.display='';
-    } catch(e){}
+      var list=document.getElementById('top-fav-list');
+      if(list) list.innerHTML=favs.map(function(f){
+        return '<li><a href="'+esc(f.href)+'">'+esc(f.name)+'</a></li>';
+      }).join('');
+    }
+    function addStarButtons(){
+      document.querySelectorAll('.new-apps li').forEach(function(li){
+        var a=li.querySelector('a'); if(!a) return;
+        var href=a.getAttribute('href');
+        var name=a.childNodes[0] ? a.childNodes[0].textContent.trim() : a.textContent.trim();
+        var btn=document.createElement('button');
+        var on=isFav(href);
+        btn.className='fav-btn'+(on?' active':'');
+        btn.textContent=on?'★':'☆';
+        btn.title=on?'お気に入り解除':'お気に入りに追加';
+        btn.dataset.href=href;
+        btn.addEventListener('click',function(e){
+          e.preventDefault(); e.stopPropagation();
+          toggleFav(href,name);
+          var now=isFav(href);
+          btn.textContent=now?'★':'☆';
+          btn.classList.toggle('active',now);
+          btn.title=now?'お気に入り解除':'お気に入りに追加';
+          renderFavSection();
+        });
+        li.appendChild(btn);
+      });
+    }
+    document.addEventListener('DOMContentLoaded',function(){
+      renderFavSection();
+      addStarButtons();
+    });
   })();
   </script>
 </body>
