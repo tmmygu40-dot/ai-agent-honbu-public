@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>失業給付シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ラジオグループ */
+    .radio-group { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.35rem; }
+    .radio-group label {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.88rem; font-weight: 500; color: var(--text);
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 0.5rem 0.9rem; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .radio-group input[type="radio"] { width: auto; accent-color: var(--accent); }
+    .radio-group label:has(input:checked) {
+      border-color: var(--accent); background: var(--accent-light);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── スケジュールカード ── */
+    .schedule-list { list-style: none; }
+    .schedule-list li {
+      display: flex; align-items: flex-start; gap: 0.8rem;
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem;
+    }
+    .schedule-list li:last-child { border-bottom: none; }
+    .schedule-list .step-num {
+      flex-shrink: 0; width: 1.5rem; height: 1.5rem;
+      background: var(--accent); color: #fff;
+      border-radius: 50%; font-size: 0.72rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .schedule-list .step-body {}
+    .schedule-list .step-title { font-weight: 700; color: var(--text); }
+    .schedule-list .step-date { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.1rem; }
+
+    /* 注記 */
+    .note-box {
+      background: var(--accent-light); border-left: 3px solid var(--accent);
+      border-radius: 6px; padding: 0.8rem 1rem; font-size: 0.78rem;
+      color: var(--text-sub); line-height: 1.6; margin-top: 0.8rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>失業給付シミュレーター</h1>
+    <p class="subtitle">月給・勤続年数・離職理由 → 日額・給付日数・総受取額を即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">条件入力</p>
+
+    <div class="field">
+      <label for="monthly">直近3ヶ月の平均月給（円）</label>
+      <input type="number" id="monthly" placeholder="例: 280000" min="0">
+      <p class="hint">交通費・残業代など税引き前の総支給額の平均</p>
+    </div>
+
+    <div class="field">
+      <label for="age">離職時の年齢</label>
+      <select id="age">
+        <option value="">選択してください</option>
+        <option value="29">30歳未満</option>
+        <option value="32">30〜34歳</option>
+        <option value="39">35〜44歳</option>
+        <option value="52">45〜59歳</option>
+        <option value="62">60〜64歳</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="years">被保険者（雇用保険加入）期間</label>
+      <select id="years">
+        <option value="">選択してください</option>
+        <option value="0.5">1年未満</option>
+        <option value="3">1〜5年未満</option>
+        <option value="7">5〜10年未満</option>
+        <option value="15">10〜20年未満</option>
+        <option value="25">20〜30年未満</option>
+        <option value="35">30年以上</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>離職理由</label>
+      <div class="radio-group">
+        <label><input type="radio" name="reason" value="voluntary"> 自己都合</label>
+        <label><input type="radio" name="reason" value="involuntary"> 会社都合（特定受給）</label>
+        <label><input type="radio" name="reason" value="special"> 特定理由（契約満了等）</label>
+      </div>
+      <p class="hint" style="margin-top:0.4rem">自己都合：転職・個人的理由での退職　会社都合：リストラ・倒産等</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">失業給付を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総受取見込み額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- スケジュールカード -->
+  <div class="card" id="schedule-card" style="display:none">
+    <p class="card-title">受取スケジュール目安</p>
+    <ul class="schedule-list" id="schedule-list"></ul>
+    <div class="note-box">
+      ※ 実際の給付開始日はハローワークへの申請・認定日程によって異なります。<br>
+      ※ 数値は令和6年度（2024年8月〜2025年7月）の基準額を使用しています。毎年8月に改定されます。<br>
+      ※ 本シミュレーターは概算です。正確な金額はハローワークで確認してください。
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // ─── 給付率計算（厚生労働省の計算式に準拠）───
+  function calcBenefitRate(dailyWage, ageVal) {
+    var LOW = 5030;
+    if (ageVal <= 59) {
+      var HIGH = 12330;
+      if (dailyWage <= LOW) return 0.80;
+      if (dailyWage >= HIGH) return 0.50;
+      return 0.80 - 0.30 * (dailyWage - LOW) / (HIGH - LOW);
+    } else {
+      // 60〜64歳
+      var HIGH60 = 11920;
+      if (dailyWage <= LOW) return 0.80;
+      if (dailyWage >= HIGH60) return 0.45;
+      return 0.80 - 0.35 * (dailyWage - LOW) / (HIGH60 - LOW);
+    }
+  }
+
+  // 基本手当日額の上限（令和6年度）
+  function dailyMax(ageVal) {
+    if (ageVal <= 29) return 6800;
+    if (ageVal <= 44) return 7545;
+    if (ageVal <= 59) return 8295;
+    return 7150; // 60〜64歳
+  }
+
+  // 賃金日額の上限（令和6年度）
+  function dailyWageMax(ageVal) {
+    if (ageVal <= 29) return 13600;
+    if (ageVal <= 44) return 15100;
+    if (ageVal <= 59) return 16600;
+    return 15100;
+  }
+
+  // ─── 所定給付日数テーブル ───
+  // 自己都合（一般受給資格者）
+  var TABLE_VOLUNTARY = {
+    '0.5': 90, '3': 90, '7': 120, '15': 150, '25': 150, '35': 150
+  };
+
+  // 会社都合（特定受給資格者）・特定理由：年齢×勤続年数
+  var TABLE_INVOLUNTARY = {
+    29:  { '0.5': 90, '3':  90, '7': 120, '15': 180, '25': 210, '35': 240 },
+    32:  { '0.5': 90, '3':  90, '7': 180, '15': 210, '25': 240, '35': 270 },
+    39:  { '0.5': 90, '3':  90, '7': 180, '15': 240, '25': 270, '35': 330 },
+    52:  { '0.5': 90, '3': 180, '7': 240, '15': 270, '25': 330, '35': 360 },
+    62:  { '0.5': 90, '3': 150, '7': 180, '15': 210, '25': 240, '35': 270 }
+  };
+
+  function getGivenDays(ageVal, yearsVal, reason) {
+    var y = String(yearsVal);
+    if (reason === 'voluntary') {
+      return TABLE_VOLUNTARY[y] || 90;
+    } else {
+      var row = TABLE_INVOLUNTARY[ageVal];
+      return row ? (row[y] || 90) : 90;
+    }
+  }
+
+  function addDays(date, days) {
+    var d = new Date(date);
+    d.setDate(d.getDate() + days);
+    return d;
+  }
+  function addMonths(date, months) {
+    var d = new Date(date);
+    d.setMonth(d.getMonth() + months);
+    return d;
+  }
+  function fmtDate(d) {
+    return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日頃';
+  }
+
+  // ─── メイン計算 ───
+  function calc() {
+    var monthly = parseFloat(document.getElementById('monthly').value);
+    var ageVal  = parseInt(document.getElementById('age').value);
+    var yearsVal = document.getElementById('years').value;
+    var reasonEl = document.querySelector('input[name="reason"]:checked');
+
+    if (isNaN(monthly) || monthly <= 0) { showErr('月給を入力してください'); return; }
+    if (!ageVal)    { showErr('年齢を選択してください'); return; }
+    if (!yearsVal)  { showErr('雇用保険加入期間を選択してください'); return; }
+    if (!reasonEl)  { showErr('離職理由を選択してください'); return; }
+    var reason = reasonEl.value;
+
+    // 賃金日額（直近3ヶ月平均月給×3÷90）
+    var dailyWage = monthly * 3 / 90;
+    var dailyWageCap = dailyWageMax(ageVal);
+    var dailyWageClamped = Math.min(dailyWage, dailyWageCap);
+    var dailyWageFloor = 2869;
+    dailyWageClamped = Math.max(dailyWageClamped, dailyWageFloor);
+
+    // 給付率
+    var rate = calcBenefitRate(dailyWageClamped, ageVal);
+
+    // 基本手当日額（小数切り捨て、上限あり）
+    var dailyBenefit = Math.floor(dailyWageClamped * rate);
+    var cap = dailyMax(ageVal);
+    var dailyBenefitFinal = Math.min(dailyBenefit, cap);
+    var dailyBenefitFinal = Math.max(dailyBenefitFinal, 2196); // 下限
+
+    // 所定給付日数
+    var givenDays = getGivenDays(ageVal, parseFloat(yearsVal), reason);
+
+    // 総受取見込み
+    var total = dailyBenefitFinal * givenDays;
+
+    // 待機・給付制限
+    var waitDays = 7;
+    var restrictionMonths = (reason === 'voluntary') ? 2 : 0;
+
+    // スケジュール
+    var today = new Date();
+    var waitEnd = addDays(today, waitDays);
+    var benefitStart = addMonths(waitEnd, restrictionMonths);
+
+    // 結果表示
+    var level = total >= 500000 ? 'ok' : total >= 200000 ? 'warn' : 'warn';
+    showResult(level, fmt(total) + ' 円', '日額 ' + fmt(dailyBenefitFinal) + '円 × ' + givenDays + '日分');
+
+    var ageLabel = {29:'30歳未満', 32:'30〜34歳', 39:'35〜44歳', 52:'45〜59歳', 62:'60〜64歳'}[ageVal];
+    var reasonLabel = {voluntary:'自己都合', involuntary:'会社都合（特定受給）', special:'特定理由'}[reason];
+    var yearsLabel = {'0.5':'1年未満', '3':'1〜5年未満', '7':'5〜10年未満', '15':'10〜20年未満', '25':'20〜30年未満', '35':'30年以上'}[yearsVal];
+
+    showDetail([
+      ['月給（入力）',        fmt(monthly) + ' 円'],
+      ['賃金日額（計算値）',  fmt(Math.round(dailyWageClamped)) + ' 円'],
+      ['給付率',              Math.round(rate * 100) + ' %'],
+      ['基本手当日額',        fmt(dailyBenefitFinal) + ' 円', true],
+      ['所定給付日数',        givenDays + ' 日', true],
+      ['総受取見込み',        fmt(total) + ' 円', true],
+      ['─────────────────', ''],
+      ['年齢区分',            ageLabel],
+      ['加入期間',            yearsLabel],
+      ['離職理由',            reasonLabel],
+    ]);
+
+    // スケジュール
+    var steps = [
+      { title: '離職・ハローワーク申請', date: '退職後すぐ（1ヶ月以内推奨）', note: '' },
+      { title: '待機期間終了', date: '申請から7日後', note: '' },
+    ];
+    if (restrictionMonths > 0) {
+      steps.push({ title: '給付制限期間終了', date: '待機期間終了後 約2ヶ月後', note: '' });
+    }
+    steps.push({ title: '初回認定日・給付開始', date: reason === 'voluntary' ? '申請から約3ヶ月後' : '申請から約1ヶ月後', note: '' });
+    steps.push({ title: '給付終了目安', date: '給付開始から ' + Math.round(givenDays/28) + ' ヶ月後', note: '' });
+
+    var sl = document.getElementById('schedule-list');
+    sl.innerHTML = steps.map(function(s, i) {
+      return '<li>'
+        + '<span class="step-num">' + (i+1) + '</span>'
+        + '<span class="step-body">'
+        + '<div class="step-title">' + s.title + '</div>'
+        + '<div class="step-date">' + s.date + '</div>'
+        + '</span></li>';
+    }).join('');
+    document.getElementById('schedule-card').style.display = '';
+
+    // localStorage 保存
+    localStorage.setItem('shitsugyo_sim', JSON.stringify({
+      monthly: monthly, age: document.getElementById('age').value,
+      years: yearsVal, reason: reason
+    }));
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      if (r[0].startsWith('─')) return '<tr><td colspan="2" style="padding:0.2rem 0;"></td></tr>';
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('schedule-card').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage 復元
+  (function restore() {
+    try {
+      var s = localStorage.getItem('shitsugyo_sim');
+      if (!s) return;
+      var d = JSON.parse(s);
+      if (d.monthly) document.getElementById('monthly').value = d.monthly;
+      if (d.age)     document.getElementById('age').value = d.age;
+      if (d.years)   document.getElementById('years').value = d.years;
+      if (d.reason) {
+        var el = document.querySelector('input[name="reason"][value="' + d.reason + '"]');
+        if (el) el.checked = true;
+      }
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
