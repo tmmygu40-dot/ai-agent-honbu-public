@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>介護費用シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    /* タブ */
+    .tabs {
+      display: flex;
+      max-width: 600px;
+      margin: 0 auto 0.5rem;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 0.9rem 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      background: var(--card);
+      color: var(--text-sub);
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* 区切り小見出し */
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      letter-spacing: 0.06em;
+      margin: 1rem 0 0.6rem;
+      padding: 0.3rem 0.6rem;
+      background: var(--bg);
+      border-radius: 6px;
+    }
+
+    /* 限度額バッジ */
+    .limit-badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.2rem 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 比較結論カード */
+    .compare-card {
+      display: none;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .compare-top {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .compare-col {
+      padding: 1.2rem 1rem;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .compare-col:last-child { border-right: none; }
+    .compare-col.winner {
+      background: var(--ok-bg);
+    }
+    .compare-col-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 0.4rem;
+    }
+    .compare-col-value {
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .compare-col.winner .compare-col-value { color: var(--ok); }
+    .compare-col-badge {
+      display: inline-block;
+      margin-top: 0.4rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      background: var(--ok);
+      color: #fff;
+      border-radius: 100px;
+      padding: 0.1rem 0.6rem;
+    }
+    .compare-bottom {
+      padding: 1rem 1.2rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      background: var(--bg);
+    }
+    .compare-diff {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .compare-diff span { color: var(--accent); }
+    .compare-annual {
+      font-size: 0.82rem;
+      color: var(--text-sub);
+      margin-top: 0.3rem;
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-row td {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      padding-top: 0.8rem;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>介護費用シミュレーター</h1>
+    <p class="subtitle">在宅 vs 施設 — 月額費用を入力して即比較</p>
+  </header>
+
+  <!-- 共通設定 -->
+  <div class="card">
+    <p class="card-title">共通設定</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="careLevel">要介護度</label>
+        <select id="careLevel" onchange="updateLimit()">
+          <option value="0">要支援1</option>
+          <option value="1">要支援2</option>
+          <option value="2">要介護1</option>
+          <option value="3">要介護2</option>
+          <option value="4" selected>要介護3</option>
+          <option value="5">要介護4</option>
+          <option value="6">要介護5</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="copay">自己負担割合</label>
+        <select id="copay">
+          <option value="1" selected>1割</option>
+          <option value="2">2割</option>
+          <option value="3">3割</option>
+        </select>
+      </div>
+    </div>
+    <p class="limit-badge" id="limitBadge">介護保険限度額：270,480円/月（3割負担上限：81,144円）</p>
+  </div>
+
+  <!-- タブ -->
+  <div class="tabs" style="max-width:600px;margin:0 auto 0.5rem;">
+    <button class="tab-btn active" onclick="switchTab('home')">在宅介護</button>
+    <button class="tab-btn" onclick="switchTab('facility')">施設介護</button>
+  </div>
+
+  <!-- 在宅介護パネル -->
+  <div id="panel-home" class="tab-panel active">
+    <div class="card">
+      <p class="card-title">在宅介護の費用（月額・円）</p>
+
+      <p class="section-label">介護保険サービス費（自己負担分）</p>
+      <div class="field">
+        <label for="h_homoHelp">訪問介護（ホームヘルプ）</label>
+        <input type="number" id="h_homoHelp" placeholder="例: 15000" min="0">
+      </div>
+      <div class="field">
+        <label for="h_dayService">デイサービス・デイケア</label>
+        <input type="number" id="h_dayService" placeholder="例: 30000" min="0">
+      </div>
+      <div class="field">
+        <label for="h_homeNursing">訪問看護</label>
+        <input type="number" id="h_homeNursing" placeholder="例: 10000" min="0">
+      </div>
+      <div class="field">
+        <label for="h_rental">福祉用具レンタル</label>
+        <input type="number" id="h_rental" placeholder="例: 5000" min="0">
+      </div>
+      <div class="field">
+        <label for="h_otherInsurance">その他の保険サービス</label>
+        <input type="number" id="h_otherInsurance" placeholder="例: 0" min="0">
+      </div>
+
+      <p class="section-label">介護保険外の費用</p>
+      <div class="field">
+        <label for="h_supplies">介護用品・消耗品（おむつ等）</label>
+        <input type="number" id="h_supplies" placeholder="例: 15000" min="0">
+      </div>
+      <div class="field">
+        <label for="h_food">食費の追加分（介護食・配食サービス等）</label>
+        <input type="number" id="h_food" placeholder="例: 10000" min="0">
+      </div>
+      <div class="field">
+        <label for="h_transport">交通費・通院費</label>
+        <input type="number" id="h_transport" placeholder="例: 5000" min="0">
+      </div>
+      <div class="field">
+        <label for="h_other">その他（住宅改修費用の月割り等）</label>
+        <input type="number" id="h_other" placeholder="例: 5000" min="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- 施設介護パネル -->
+  <div id="panel-facility" class="tab-panel">
+    <div class="card">
+      <p class="card-title">施設介護の費用（月額・円）</p>
+
+      <div class="field">
+        <label for="facilityType">施設タイプで自動入力</label>
+        <select id="facilityType" onchange="applyPreset()">
+          <option value="">— 施設を選んで自動入力 —</option>
+          <option value="tokuyo">特別養護老人ホーム（特養）</option>
+          <option value="roken">介護老人保健施設（老健）</option>
+          <option value="yuryou">介護付き有料老人ホーム</option>
+          <option value="group">グループホーム</option>
+          <option value="sakou">サービス付き高齢者住宅（サ高住）</option>
+        </select>
+        <p class="hint">選ぶと目安額が自動入力されます。数値は直接変更できます。</p>
+      </div>
+
+      <p class="section-label">居住費・基本費</p>
+      <div class="field">
+        <label for="f_room">居住費（部屋代・管理費）</label>
+        <input type="number" id="f_room" placeholder="例: 80000" min="0">
+      </div>
+      <div class="field">
+        <label for="f_food">食費</label>
+        <input type="number" id="f_food" placeholder="例: 40000" min="0">
+      </div>
+
+      <p class="section-label">介護サービス費（自己負担分）</p>
+      <div class="field">
+        <label for="f_care">介護サービス費</label>
+        <input type="number" id="f_care" placeholder="例: 25000" min="0">
+        <p class="hint">要介護度・自己負担割合によって変わります</p>
+      </div>
+
+      <p class="section-label">その他</p>
+      <div class="field">
+        <label for="f_other">日用品・医療費・交通費 等</label>
+        <input type="number" id="f_other" placeholder="例: 15000" min="0">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">在宅 vs 施設を比較する</button>
+
+  <!-- 比較結論カード -->
+  <div class="compare-card" id="compareCard">
+    <div class="compare-top">
+      <div class="compare-col" id="homeCol">
+        <p class="compare-col-label">在宅介護</p>
+        <p class="compare-col-value" id="homeTotal">—</p>
+        <p style="font-size:0.75rem;color:var(--text-sub);margin-top:0.2rem;">円/月</p>
+      </div>
+      <div class="compare-col" id="facilityCol">
+        <p class="compare-col-label">施設介護</p>
+        <p class="compare-col-value" id="facilityTotal">—</p>
+        <p style="font-size:0.75rem;color:var(--text-sub);margin-top:0.2rem;">円/月</p>
+      </div>
+    </div>
+    <div class="compare-bottom">
+      <p class="compare-diff" id="diffText">—</p>
+      <p class="compare-annual" id="annualText">—</p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">費用内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LIMITS = [50320, 105310, 167650, 197050, 270480, 309380, 362170];
+  var LEVEL_NAMES = ['要支援1','要支援2','要介護1','要介護2','要介護3','要介護4','要介護5'];
+
+  var PRESETS = {
+    tokuyo:  { room: 60000,  food: 42000, care: 22000, other: 10000 },
+    roken:   { room: 60000,  food: 42000, care: 25000, other: 12000 },
+    yuryou:  { room: 100000, food: 42000, care: 30000, other: 20000 },
+    group:   { room: 80000,  food: 42000, care: 22000, other: 12000 },
+    sakou:   { room: 90000,  food: 30000, care: 20000, other: 15000 }
+  };
+
+  function updateLimit() {
+    var idx = parseInt(document.getElementById('careLevel').value);
+    var copay = parseInt(document.getElementById('copay').value);
+    var limit = LIMITS[idx];
+    var oop = Math.round(limit * copay / 10);
+    document.getElementById('limitBadge').textContent =
+      '介護保険限度額：' + fmt(limit) + '円/月（' + copay + '割自己負担上限：' + fmt(oop) + '円）';
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(function(b, i) {
+      b.classList.toggle('active', (i === 0 && tab === 'home') || (i === 1 && tab === 'facility'));
+    });
+    document.getElementById('panel-home').classList.toggle('active', tab === 'home');
+    document.getElementById('panel-facility').classList.toggle('active', tab === 'facility');
+  }
+
+  function applyPreset() {
+    var type = document.getElementById('facilityType').value;
+    if (!type) return;
+    var p = PRESETS[type];
+    document.getElementById('f_room').value  = p.room;
+    document.getElementById('f_food').value  = p.food;
+    document.getElementById('f_care').value  = p.care;
+    document.getElementById('f_other').value = p.other;
+  }
+
+  function getNum(id) {
+    var v = parseFloat(document.getElementById(id).value);
+    return isNaN(v) || v < 0 ? 0 : v;
+  }
+
+  function calc() {
+    // 在宅合計
+    var h_ins = getNum('h_homoHelp') + getNum('h_dayService') + getNum('h_homeNursing')
+              + getNum('h_rental') + getNum('h_otherInsurance');
+    var h_out = getNum('h_supplies') + getNum('h_food') + getNum('h_transport') + getNum('h_other');
+    var homeTotal = h_ins + h_out;
+
+    // 施設合計
+    var f_room  = getNum('f_room');
+    var f_food  = getNum('f_food');
+    var f_care  = getNum('f_care');
+    var f_other = getNum('f_other');
+    var facilityTotal = f_room + f_food + f_care + f_other;
+
+    if (homeTotal === 0 && facilityTotal === 0) {
+      showErr('費用を入力してください');
+      return;
+    }
+
+    var diff = Math.abs(homeTotal - facilityTotal);
+    var homeWins = homeTotal <= facilityTotal;
+    var annual = diff * 12;
+
+    // 比較カード
+    var cc = document.getElementById('compareCard');
+    cc.style.display = '';
+
+    document.getElementById('homeTotal').textContent = fmt(homeTotal);
+    document.getElementById('facilityTotal').textContent = fmt(facilityTotal);
+
+    var homeCol = document.getElementById('homeCol');
+    var facCol  = document.getElementById('facilityCol');
+    homeCol.classList.toggle('winner', homeWins);
+    facCol.classList.toggle('winner', !homeWins);
+
+    // バッジ
+    var oldBadges = document.querySelectorAll('.compare-col-badge');
+    oldBadges.forEach(function(b){ b.remove(); });
+    var badge = document.createElement('span');
+    badge.className = 'compare-col-badge';
+    badge.textContent = '月額が安い';
+    (homeWins ? homeCol : facCol).appendChild(badge);
+
+    if (diff === 0) {
+      document.getElementById('diffText').innerHTML = '在宅・施設の費用は同額です';
+      document.getElementById('annualText').textContent = '';
+    } else {
+      var cheaper = homeWins ? '在宅介護' : '施設介護';
+      document.getElementById('diffText').innerHTML =
+        '<span>' + cheaper + '</span>の方が月額 <span>' + fmt(diff) + '円</span> 安い';
+      document.getElementById('annualText').textContent =
+        '年間差額：約 ' + fmt(annual) + ' 円（' + fmt(Math.round(annual/10000)*10000) + '円）';
+    }
+
+    // 内訳
+    var rows = [];
+    rows.push(['section', '在宅介護の内訳', '']);
+    rows.push(['normal', '介護保険サービス費（自己負担）', fmt(h_ins) + '円']);
+    if (getNum('h_homoHelp'))       rows.push(['sub', '　訪問介護', fmt(getNum('h_homoHelp')) + '円']);
+    if (getNum('h_dayService'))     rows.push(['sub', '　デイサービス・デイケア', fmt(getNum('h_dayService')) + '円']);
+    if (getNum('h_homeNursing'))    rows.push(['sub', '　訪問看護', fmt(getNum('h_homeNursing')) + '円']);
+    if (getNum('h_rental'))         rows.push(['sub', '　福祉用具レンタル', fmt(getNum('h_rental')) + '円']);
+    if (getNum('h_otherInsurance')) rows.push(['sub', '　その他保険サービス', fmt(getNum('h_otherInsurance')) + '円']);
+    rows.push(['normal', '保険外費用', fmt(h_out) + '円']);
+    if (getNum('h_supplies'))   rows.push(['sub', '　介護用品・消耗品', fmt(getNum('h_supplies')) + '円']);
+    if (getNum('h_food'))       rows.push(['sub', '　食費追加分', fmt(getNum('h_food')) + '円']);
+    if (getNum('h_transport'))  rows.push(['sub', '　交通費・通院費', fmt(getNum('h_transport')) + '円']);
+    if (getNum('h_other'))      rows.push(['sub', '　その他', fmt(getNum('h_other')) + '円']);
+    rows.push(['hl', '在宅合計', fmt(homeTotal) + '円']);
+
+    rows.push(['section', '施設介護の内訳', '']);
+    rows.push(['normal', '居住費', fmt(f_room) + '円']);
+    rows.push(['normal', '食費', fmt(f_food) + '円']);
+    rows.push(['normal', '介護サービス費', fmt(f_care) + '円']);
+    rows.push(['normal', 'その他', fmt(f_other) + '円']);
+    rows.push(['hl', '施設合計', fmt(facilityTotal) + '円']);
+
+    rows.push(['hl', '月額差額', fmt(diff) + '円']);
+
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      if (r[0] === 'section') return '<tr class="section-row"><td colspan="2">' + r[1] + '</td></tr>';
+      if (r[0] === 'hl') return '<tr class="hl"><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>';
+      if (r[0] === 'sub') return '<tr><td style="color:var(--text-sub);font-size:0.82rem;">' + r[1] + '</td><td>' + r[2] + '</td></tr>';
+      return '<tr><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+
+    save();
+  }
+
+  function showErr(msg) {
+    document.getElementById('compareCard').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    alert(msg);
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage
+  var FIELDS = ['careLevel','copay','h_homoHelp','h_dayService','h_homeNursing','h_rental',
+    'h_otherInsurance','h_supplies','h_food','h_transport','h_other',
+    'f_room','f_food','f_care','f_other'];
+
+  function save() {
+    var data = {};
+    FIELDS.forEach(function(id) { data[id] = document.getElementById(id).value; });
+    localStorage.setItem('kaigo_sim_v1', JSON.stringify(data));
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem('kaigo_sim_v1');
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      FIELDS.forEach(function(id) {
+        if (data[id] !== undefined) document.getElementById(id).value = data[id];
+      });
+      updateLimit();
+    } catch(e) {}
+  }
+
+  load();
+  updateLimit();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
