@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>調達断絶リスクチェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      align-items: end;
+    }
+    .input-row.five { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; }
+    .field label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.25rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.75rem;
+      font-size: 0.92rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 0.75rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 2px dashed var(--accent); border-radius: var(--radius);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-add:hover { background: #ffecd4; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* サマリーグリッド */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .summary-item {
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 0.9rem 0.8rem;
+      text-align: center;
+    }
+    .summary-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .summary-value { font-size: 1.4rem; font-weight: 900; color: var(--accent); }
+    .summary-item.danger .summary-value { color: var(--ng); }
+
+    /* 品目カード */
+    .item-list { max-width: 640px; margin: 0 auto; }
+    .item-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow);
+    }
+    .item-card.ok   { border-color: var(--ok);   background: var(--ok-bg); }
+    .item-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .item-card.ng   { border-color: var(--ng);    background: var(--ng-bg); }
+
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .item-name { font-size: 1rem; font-weight: 800; }
+    .badge {
+      font-size: 0.72rem; font-weight: 800;
+      padding: 0.25rem 0.7rem; border-radius: 20px;
+      letter-spacing: 0.06em;
+    }
+    .ok   .badge { background: var(--ok);   color: #fff; }
+    .warn .badge { background: var(--warn); color: #fff; }
+    .ng   .badge { background: var(--ng);   color: #fff; }
+
+    .item-days {
+      font-size: 2rem; font-weight: 900; line-height: 1;
+      margin-bottom: 0.3rem;
+    }
+    .ok   .item-days { color: var(--ok); }
+    .warn .item-days { color: var(--warn); }
+    .ng   .item-days { color: var(--ng); }
+
+    .item-days-label { font-size: 0.78rem; color: var(--text-sub); margin-bottom: 0.75rem; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.45rem 0.2rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; }
+    .detail-table .hl td:last-child { color: var(--accent); }
+
+    /* 入力フォームの品目行 */
+    .item-input-row {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 0.9rem;
+      margin-bottom: 0.75rem;
+      position: relative;
+    }
+    .item-input-row .row-top {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .item-input-row .row-bottom {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 0.5rem;
+    }
+    .btn-del {
+      background: var(--ng-bg); color: var(--ng);
+      border: 1px solid var(--ng); border-radius: 7px;
+      font-size: 0.78rem; font-weight: 700;
+      padding: 0.4rem 0.75rem; cursor: pointer; white-space: nowrap;
+      align-self: end;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 480px) {
+      .item-input-row .row-bottom { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>調達断絶リスクチェッカー</h1>
+    <p class="subtitle">仕入れ先停止時の在庫持続日数と代替調達コストを即計算</p>
+  </header>
+
+  <!-- 入力フォーム -->
+  <div class="card" id="formCard">
+    <p class="card-title">品目入力</p>
+    <div id="itemInputs"></div>
+    <button class="btn-add" onclick="addItemInput()">＋ 品目を追加</button>
+  </div>
+
+  <button class="btn-calc" onclick="calcAll()">リスクを計算する</button>
+
+  <!-- 結果エリア -->
+  <div id="resultArea" style="display:none">
+    <!-- サマリー -->
+    <div class="card" style="max-width:640px">
+      <p class="card-title">全品目サマリー</p>
+      <div class="summary-grid">
+        <div class="summary-item" id="s1">
+          <div class="summary-label">品目数</div>
+          <div class="summary-value" id="sv1">—</div>
+        </div>
+        <div class="summary-item danger" id="s2">
+          <div class="summary-label">最短持続日数</div>
+          <div class="summary-value" id="sv2">—</div>
+        </div>
+        <div class="summary-item" id="s3">
+          <div class="summary-label">NG品目数</div>
+          <div class="summary-value" id="sv3">—</div>
+        </div>
+        <div class="summary-item" id="s4">
+          <div class="summary-label">月間コスト増合計</div>
+          <div class="summary-value" id="sv4">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 品目別リスト -->
+    <div class="item-list" id="itemResults"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'chotatsuZessetu_items';
+  var itemCount = 0;
+
+  function addItemInput(name, stock, daily, normalPrice, altPrice) {
+    itemCount++;
+    var id = itemCount;
+    var div = document.createElement('div');
+    div.className = 'item-input-row';
+    div.id = 'item-' + id;
+    div.innerHTML =
+      '<div class="row-top">' +
+        '<div class="field">' +
+          '<label>品目名</label>' +
+          '<input type="text" id="name-' + id + '" placeholder="例: 小麦粉" value="' + (name||'') + '">' +
+        '</div>' +
+        (itemCount > 1 ? '<button class="btn-del" onclick="removeItem(' + id + ')">削除</button>' : '<div></div>') +
+      '</div>' +
+      '<div class="row-bottom">' +
+        '<div class="field">' +
+          '<label>在庫数</label>' +
+          '<input type="number" id="stock-' + id + '" placeholder="例: 500" min="0" value="' + (stock||'') + '">' +
+        '</div>' +
+        '<div class="field">' +
+          '<label>1日消費量</label>' +
+          '<input type="number" id="daily-' + id + '" placeholder="例: 20" min="0.01" step="any" value="' + (daily||'') + '">' +
+        '</div>' +
+        '<div class="field">' +
+          '<label>通常単価（円）</label>' +
+          '<input type="number" id="normal-' + id + '" placeholder="例: 100" min="0" value="' + (normalPrice||'') + '">' +
+        '</div>' +
+        '<div class="field">' +
+          '<label>代替単価（円）</label>' +
+          '<input type="number" id="alt-' + id + '" placeholder="例: 150" min="0" value="' + (altPrice||'') + '">' +
+        '</div>' +
+      '</div>';
+    document.getElementById('itemInputs').appendChild(div);
+  }
+
+  function removeItem(id) {
+    var el = document.getElementById('item-' + id);
+    if (el) el.remove();
+  }
+
+  function getItems() {
+    var rows = document.getElementById('itemInputs').querySelectorAll('.item-input-row');
+    var items = [];
+    rows.forEach(function(row) {
+      var id = row.id.replace('item-', '');
+      var name       = (document.getElementById('name-' + id)   || {}).value || '';
+      var stock      = parseFloat((document.getElementById('stock-' + id) || {}).value);
+      var daily      = parseFloat((document.getElementById('daily-' + id) || {}).value);
+      var normalPrice= parseFloat((document.getElementById('normal-' + id)||{}).value);
+      var altPrice   = parseFloat((document.getElementById('alt-' + id)   ||{}).value);
+      if (name && !isNaN(stock) && !isNaN(daily) && daily > 0) {
+        items.push({ name: name, stock: stock, daily: daily, normalPrice: normalPrice, altPrice: altPrice });
+      }
+    });
+    return items;
+  }
+
+  function calcAll() {
+    var items = getItems();
+    if (items.length === 0) {
+      alert('品目名・在庫数・1日消費量を入力してください');
+      return;
+    }
+
+    // save
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+
+    var results = items.map(function(it) {
+      var days = it.daily > 0 ? it.stock / it.daily : 0;
+      var level = days >= 30 ? 'ok' : days >= 14 ? 'warn' : 'ng';
+      var monthCostUp = (!isNaN(it.altPrice) && !isNaN(it.normalPrice))
+        ? (it.altPrice - it.normalPrice) * it.daily * 30
+        : null;
+      return { name: it.name, days: days, level: level, monthCostUp: monthCostUp,
+               stock: it.stock, daily: it.daily, normalPrice: it.normalPrice, altPrice: it.altPrice };
+    });
+
+    // サマリー
+    var ngCount = results.filter(function(r){ return r.level === 'ng'; }).length;
+    var minDays = Math.min.apply(null, results.map(function(r){ return r.days; }));
+    var totalCostUp = results.reduce(function(sum, r){ return sum + (r.monthCostUp || 0); }, 0);
+
+    document.getElementById('sv1').textContent = results.length + ' 品目';
+    document.getElementById('sv2').textContent = minDays.toFixed(1) + ' 日';
+    document.getElementById('sv3').textContent = ngCount + ' 品目';
+    document.getElementById('sv4').textContent = totalCostUp > 0 ? fmt(totalCostUp) + ' 円/月' : '—';
+
+    // 品目別
+    var html = '';
+    results.forEach(function(r) {
+      var badge = r.level === 'ok' ? '安全' : r.level === 'warn' ? '要注意' : '危険';
+      var rows = '<tr><td>現在庫</td><td>' + fmt(r.stock) + '</td></tr>'
+               + '<tr><td>1日消費量</td><td>' + r.daily + '</td></tr>';
+      if (!isNaN(r.normalPrice)) rows += '<tr><td>通常仕入れ単価</td><td>' + fmt(r.normalPrice) + ' 円</td></tr>';
+      if (!isNaN(r.altPrice))    rows += '<tr><td>代替仕入れ単価</td><td>' + fmt(r.altPrice) + ' 円</td></tr>';
+      if (r.monthCostUp !== null) {
+        rows += '<tr class="hl"><td>月間コスト増（30日）</td><td>' + (r.monthCostUp >= 0 ? '+' : '') + fmt(r.monthCostUp) + ' 円</td></tr>';
+      }
+      html +=
+        '<div class="item-card ' + r.level + '">' +
+          '<div class="item-header">' +
+            '<span class="item-name">' + esc(r.name) + '</span>' +
+            '<span class="badge">' + badge + '</span>' +
+          '</div>' +
+          '<div class="item-days">' + r.days.toFixed(1) + ' 日</div>' +
+          '<div class="item-days-label">仕入れ先停止時の在庫持続日数</div>' +
+          '<table class="detail-table"><tbody>' + rows + '</tbody></table>' +
+        '</div>';
+    });
+    document.getElementById('itemResults').innerHTML = html;
+    document.getElementById('resultArea').style.display = '';
+    document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // 初期化
+  (function init() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        var items = JSON.parse(saved);
+        items.forEach(function(it) {
+          addItemInput(it.name, it.stock, it.daily, it.normalPrice, it.altPrice);
+        });
+        return;
+      } catch(e) {}
+    }
+    addItemInput();
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
