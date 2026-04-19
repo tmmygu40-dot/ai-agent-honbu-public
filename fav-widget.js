@@ -11,7 +11,7 @@
 
   // href を ./フォルダ名/ 形式に正規化
   var parts=window.location.pathname.replace(/\/$/,'').split('/').filter(Boolean);
-  var folder=parts[parts.length-1]||'';
+  var folder=decodeURIComponent(parts[parts.length-1]||'');
   var href='./'+folder+'/';
 
   // アプリ名取得（h1優先、なければtitle）
