@@ -49,25 +49,30 @@ if ($ok) {
     }
 }
 
-# --- (2) Get truth: all app folders with index.html ---
+# --- (2) Get truth: git-committed folders + current batch only ---
+# This prevents untracked local folders from appearing in index.html
 if ($ok) {
+    $committedDirs = @{}
+    (git -c core.quotepath=false ls-tree HE        Where-Object { $_ } |
+        ForEach-Object { $committedDirs[$_] = $true }
+
     $allApps = Get-ChildItem $pub -Directory |
-               Where-Object { Test-Path "$($_.FullName)\index.html" } |
+               Where-Object {
+                   Test-Path "$($_.FullName)\index.html" -and
+                   ($committedDirs.ContainsKey($_.Name) -or $_.Name -in $apps)
+               } |
                Sort-Object Name |
                Select-Object -ExpandProperty Name
 
-    Write-Host "Total app folders: $($allApps.Count)" -ForegroundColor Cyan
+    Write-Host "Total app folders (git+batch): $($allApps.Count)" -ForegroundColor Cyan
 }
 
 # --- (3) Regenerate index.html all-apps section (IndexOf method) ---
 if ($ok) {
     $idx = [System.IO.File]::ReadAllText("$pub\index.html", [System.Text.Encoding]::UTF8)
 
-    $ulTag     = '<ul id="all-apps"'
-    $endMarker = '<!-- APP_LIST_END -->'
-
-    $ulPos  = $idx.IndexOf($ulTag)
-    $endPos = $idx.IndexOf($endMarker)
+    $ulPos  = $idx.IndexOf('<ul id="all-apps"')
+    $endPos = $idx.IndexOf('<!-- APP_LIST_END -->')
 
     if ($ulPos -lt 0) {
         Write-Host "STOP: all-apps ul tag not found." -ForegroundColor Red
@@ -89,7 +94,7 @@ if ($ok) {
 
         $newIdx = $before + "`r`n" + $newLiLines + "`r`n    " + $after
 
-        # --- New-apps section: add new items, deduplicate, keep 6 ---
+        # Add to new-apps section
         $today    = Get-Date -Format 'yyyy-MM-dd'
         $newItems = ($apps | ForEach-Object {
             "    <li><a href=""./$_/"">$_<span class=""new-date"">Published: $today</span></a></li>"
@@ -101,18 +106,11 @@ if ($ok) {
         if ($blockMatch.Success) {
             $block   = $blockMatch.Value
             $liItems = [regex]::Matches($block, '(?s)<li>.*?</li>')
-
-            $seen   = @{}
-            $unique = @()
+            $seen = @{}; $unique = @()
             foreach ($li in $liItems) {
-                $hrefMatch = [regex]::Match($li.Value, 'href="([^"]*)"')
-                $href = if ($hrefMatch.Success) { $hrefMatch.Groups[1].Value } else { $li.Value }
-                if (-not $seen.ContainsKey($href)) {
-                    $seen[$href] = $true
-                    $unique += $li.Value
-                }
+                $h = ([regex]::Match($li.Value, 'href="([^"]*)"')).Groups[1].Value
+                if (-not $seen.ContainsKey($h)) { $seen[$h] = $true; $unique += $li.Value }
             }
-
             $keepItems = $unique | Select-Object -First 6
             $keepLines = $keepItems -join "`r`n    "
             $newBlock  = "<ul class=""new-apps"">`r`n    <!-- NEW_APPS_END -->`r`n    $keepLines`r`n  </ul>"
@@ -127,12 +125,10 @@ if ($ok) {
 # --- (4) Regenerate PUBLISHED.md table (line-by-line safe method) ---
 if ($ok) {
     $mdLines = [System.IO.File]::ReadAllText("$pub\PUBLISHED.md", [System.Text.Encoding]::UTF8) -split "`r?`n"
-
-    $sepIdx = -1
+    $sepIdx  = -1
     for ($i = 0; $i -lt $mdLines.Count; $i++) {
         if ($mdLines[$i] -match '^\|----') { $sepIdx = $i; break }
     }
-
     if ($sepIdx -lt 0) {
         Write-Host "STOP: PUBLISHED.md table separator not found." -ForegroundColor Red
         $ok = $false
@@ -143,18 +139,13 @@ if ($ok) {
     $headerLines = $mdLines[0..$sepIdx] | ForEach-Object {
         $_ -replace '## 公開アプリ \(\d+件\)', "## 公開アプリ ($($allApps.Count)件)"
     }
-
     $footerStart = $sepIdx + 1
-    while ($footerStart -lt $mdLines.Count -and $mdLines[$footerStart] -match '^\|') {
-        $footerStart++
-    }
-
+    while ($footerStart -lt $mdLines.Count -and $mdLines[$footerStart] -match '^\|') { $footerStart++ }
     $footerLines = if ($footerStart -lt $mdLines.Count) { $mdLines[$footerStart..($mdLines.Count - 1)] } else { @() }
 
     $newRows = for ($i = 0; $i -lt $allApps.Count; $i++) {
         "| $($i + 1)  | ``$($allApps[$i])/`` | $($allApps[$i]) |"
     }
-
     $newPubMd = (@() + $headerLines + $newRows + $footerLines) -join "`r`n"
     [System.IO.File]::WriteAllText("$pub\PUBLISHED.md", $newPubMd, [System.Text.UTF8Encoding]::new($false))
     Write-Host "PUBLISHED.md updated (regenerated, $($allApps.Count) rows)" -ForegroundColor Green
@@ -163,10 +154,9 @@ if ($ok) {
 # --- (5) 3-point consistency check before commit ---
 if ($ok) {
     Write-Host "`n-- 3-point check --" -ForegroundColor Cyan
-
     $checkIdx    = [System.IO.File]::ReadAllText("$pub\index.html",   [System.Text.Encoding]::UTF8)
     $checkMd     = [System.IO.File]::ReadAllText("$pub\PUBLISHED.md", [System.Text.Encoding]::UTF8)
-    $folderCount = (Get-ChildItem $pub -Directory | Where-Object { Test-Path "$($_.FullName)\index.html" }).Count
+    $folderCount = $allApps.Count
     $linkCount   = ([regex]::Matches($checkIdx, '<li><a href="\./[^"]+/">[^<]+</a></li>')).Count
     $mdCount     = if ($checkMd -match '## 公開アプリ \((\d+)件\)') { [int]$Matches[1] } else { -1 }
 
@@ -176,19 +166,15 @@ if ($ok) {
 
     if ($folderCount -ne $linkCount -or $folderCount -ne $mdCount) {
         Write-Host "`n3-point MISMATCH. Commit/push aborted." -ForegroundColor Red
-
         $errorLogPath = "$honbu\ERROR_LOG.md"
         $now   = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
         $entry = "`r`n`r`n---`r`n`r`n## $now 3-point mismatch during publish`r`n`r`n" +
-            "- App folders: $folderCount`r`n" +
-            "- index.html links: $linkCount`r`n" +
-            "- PUBLISHED.md count: $mdCount`r`n" +
-            "- Target apps: $($apps -join ', ')`r`n" +
+            "- App folders: $folderCount`r`n- index.html links: $linkCount`r`n" +
+            "- PUBLISHED.md count: $mdCount`r`n- Target apps: $($apps -join ', ')`r`n" +
             "- Mismatch detected. Commit/push blocked.`r`n"
-
         if (Test-Path $errorLogPath) {
-            $existing = [System.IO.File]::ReadAllText($errorLogPath, [System.Text.Encoding]::UTF8)
-            [System.IO.File]::WriteAllText($errorLogPath, $existing.TrimEnd() + $entry, [System.Text.UTF8Encoding]::new($false))
+            $e = [System.IO.File]::ReadAllText($errorLogPath, [System.Text.Encoding]::UTF8)
+            [System.IO.File]::WriteAllText($errorLogPath, $e.TrimEnd() + $entry, [System.Text.UTF8Encoding]::new($false))
         } else {
             [System.IO.File]::WriteAllText($errorLogPath, "# ERROR_LOG`r`n" + $entry, [System.Text.UTF8Encoding]::new($false))
         }
@@ -203,7 +189,6 @@ if ($ok) {
 if ($ok) {
     git add -- index.html PUBLISHED.md
     foreach ($a in $apps) { git add -- $a }
-
     $prev = $folderCount - $apps.Count
     $msg  = "add: $($apps.Count) apps / $prev->$folderCount"
     git commit -m $msg
@@ -223,7 +208,6 @@ if ($ok) {
 
 if ($ok) {
     Write-Host "`nDone: $($apps.Count) apps published ($($folderCount - $apps.Count) -> $folderCount)" -ForegroundColor Green
-
     foreach ($script in @("sync-missing.py", "check-apps.py", "make-fix-queue.py")) {
         $path = Join-Path $pub $script
         if (Test-Path $path) {
