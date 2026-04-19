@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>店舗家賃採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 業種目安バッジ ── */
+    .benchmark-row {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .bm-badge {
+      font-size: 0.72rem; font-weight: 600; padding: 0.3rem 0.6rem;
+      border-radius: 6px; border: 1.5px solid var(--border);
+      color: var(--text-sub); background: var(--bg);
+      cursor: pointer; transition: all 0.12s;
+    }
+    .bm-badge.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .input-suffix {
+      position: relative;
+    }
+    .input-suffix input { padding-right: 2.5rem; }
+    .input-suffix span {
+      position: absolute; right: 0.9rem; top: 50%;
+      transform: translateY(-50%); font-size: 0.85rem; color: var(--text-sub);
+      pointer-events: none;
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.6rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.25rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-judgment {
+      display: inline-block;
+      font-size: 1rem; font-weight: 800; padding: 0.3rem 1rem;
+      border-radius: 99px; margin-bottom: 0.6rem;
+    }
+    .ok   .result-judgment { background: var(--ok);   color: #fff; }
+    .warn .result-judgment { background: var(--warn); color: #fff; }
+    .ng   .result-judgment { background: var(--ng);   color: #fff; }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.6; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.6rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ok-row td:last-child { color: var(--ok); }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+
+    /* ── 目安テーブル ── */
+    .bench-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .bench-table th { background: var(--bg); font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      padding: 0.45rem 0.4rem; text-align: left; border-bottom: 1.5px solid var(--border); }
+    .bench-table td { padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--border); color: var(--text-sub); }
+    .bench-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .bench-table tr.active-row td { color: var(--accent); font-weight: 700; }
+    .bench-table tr.active-row td:last-child { color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>店舗家賃採算チェッカー</h1>
+    <p class="subtitle">売上対比で家賃の重さを即判定・移転判断をサポート</p>
+  </header>
+
+  <!-- 業種選択カード -->
+  <div class="card">
+    <p class="card-title">業種を選ぶ</p>
+    <div class="benchmark-row" id="genreRow">
+      <button class="bm-badge active" data-genre="飲食" data-ok="10" data-ng="15" onclick="selectGenre(this)">
+        飲食（目安 10〜15%）
+      </button>
+      <button class="bm-badge" data-genre="小売" data-ok="8" data-ng="12" onclick="selectGenre(this)">
+        小売（目安 8〜12%）
+      </button>
+      <button class="bm-badge" data-genre="サービス" data-ok="8" data-ng="12" onclick="selectGenre(this)">
+        サービス（目安 8〜12%）
+      </button>
+      <button class="bm-badge" data-genre="事務所" data-ok="5" data-ng="8" onclick="selectGenre(this)">
+        事務所（目安 5〜8%）
+      </button>
+    </div>
+    <p class="hint" style="font-size:0.72rem; color:var(--text-sub);">※ 一般的な目安です。業態・立地により異なります。</p>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">数字を入力</p>
+    <div class="field">
+      <label for="sales">月間売上</label>
+      <div class="input-suffix">
+        <input type="number" id="sales" placeholder="例: 1500000" min="0" inputmode="numeric">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="rent">月間家賃（共益費込み）</label>
+      <div class="input-suffix">
+        <input type="number" id="rent" placeholder="例: 150000" min="0" inputmode="numeric">
+        <span>円</span>
+      </div>
+      <p class="hint">共益費・管理費がある場合は合算して入力してください</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算を判定する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">現在の家賃比率</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-judgment" id="rj">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">詳細</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 業種別目安カード -->
+  <div class="card">
+    <p class="card-title">業種別 適正家賃比率の目安</p>
+    <table class="bench-table">
+      <thead>
+        <tr><th>業種</th><th>適正ライン</th><th>要注意ライン</th></tr>
+      </thead>
+      <tbody>
+        <tr id="b-飲食"><td>飲食</td><td>〜10%</td><td>10〜15%</td></tr>
+        <tr id="b-小売"><td>小売</td><td>〜8%</td><td>8〜12%</td></tr>
+        <tr id="b-サービス"><td>サービス</td><td>〜8%</td><td>8〜12%</td></tr>
+        <tr id="b-事務所"><td>事務所</td><td>〜5%</td><td>5〜8%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <script>
+  // 業種データ
+  var selectedGenre = '飲食';
+  var selectedOk    = 10;
+  var selectedNg    = 15;
+
+  function selectGenre(el) {
+    document.querySelectorAll('.bm-badge').forEach(function(b) { b.classList.remove('active'); });
+    el.classList.add('active');
+    selectedGenre = el.dataset.genre;
+    selectedOk    = parseFloat(el.dataset.ok);
+    selectedNg    = parseFloat(el.dataset.ng);
+    // 目安テーブルのハイライト更新
+    document.querySelectorAll('.bench-table tbody tr').forEach(function(r) { r.classList.remove('active-row'); });
+    var row = document.getElementById('b-' + selectedGenre);
+    if (row) row.classList.add('active-row');
+    save();
+  }
+
+  function calc() {
+    var sales = parseFloat(document.getElementById('sales').value);
+    var rent  = parseFloat(document.getElementById('rent').value);
+    if (isNaN(sales) || isNaN(rent) || sales <= 0 || rent < 0) {
+      showErr('売上と家賃を正しく入力してください'); return;
+    }
+
+    var ratio        = rent / sales * 100;
+    var ratioStr     = ratio.toFixed(1) + '%';
+    var maxAffordRent = sales * selectedOk / 100;           // 適正上限での最大家賃
+    var reqSales      = selectedOk > 0 ? rent / selectedOk * 100 : 0; // 現家賃が適正になる必要売上
+    var diff          = rent - maxAffordRent;               // 現家賃 - 適正上限家賃
+
+    var level, judgment, note;
+    if (ratio <= selectedOk) {
+      level = 'ok';
+      judgment = '適正';
+      note = '家賃比率は適正水準内です。現状維持で問題ありません。';
+    } else if (ratio <= selectedNg) {
+      level = 'warn';
+      judgment = '要注意';
+      note = '家賃比率がやや高めです。売上増加か費用削減を検討しましょう。';
+    } else {
+      level = 'ng';
+      judgment = '危険水域';
+      note = '家賃比率が高すぎます。売上改善か移転・交渉を早急に検討してください。';
+    }
+
+    showResult(level, ratioStr, judgment, note);
+    showDetail([
+      ['月間売上',               fmt(sales) + ' 円'],
+      ['月間家賃',               fmt(rent) + ' 円'],
+      ['家賃比率',               ratioStr,           true],
+      ['業種：' + selectedGenre + 'の適正上限', selectedOk + ' %'],
+      ['危険ライン',             selectedNg + ' %'],
+      ['現在の超過額',           diff > 0 ? '+' + fmt(diff) + ' 円' : '範囲内', diff > 0 ? 'ng' : 'ok'],
+      ['適正家賃の上限（目安）', fmt(maxAffordRent) + ' 円'],
+      ['現家賃が適正になる必要売上', fmt(reqSales) + ' 円'],
+    ]);
+
+    save();
+  }
+
+  function showResult(level, val, judgment, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rj').textContent = judgment;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      var cls = r[2] === true ? ' class="hl"' : r[2] === 'ng' ? ' class="ng-row"' : r[2] === 'ok' ? ' class="ok-row"' : '';
+      return '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠';
+    document.getElementById('rj').textContent = 'エラー';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── localStorage ──
+  function save() {
+    localStorage.setItem('tenpo_genre',  selectedGenre);
+    localStorage.setItem('tenpo_ok',     selectedOk);
+    localStorage.setItem('tenpo_ng',     selectedNg);
+    localStorage.setItem('tenpo_sales',  document.getElementById('sales').value);
+    localStorage.setItem('tenpo_rent',   document.getElementById('rent').value);
+  }
+  function load() {
+    var genre = localStorage.getItem('tenpo_genre');
+    if (genre) {
+      var btn = document.querySelector('.bm-badge[data-genre="' + genre + '"]');
+      if (btn) selectGenre(btn);
+    }
+    var s = localStorage.getItem('tenpo_sales');
+    var r = localStorage.getItem('tenpo_rent');
+    if (s) document.getElementById('sales').value = s;
+    if (r) document.getElementById('rent').value  = r;
+  }
+  load();
+
+  // 初期ハイライト
+  (function() {
+    var row = document.getElementById('b-' + selectedGenre);
+    if (row) row.classList.add('active-row');
+  })();
+  </script>
+</body>
+</html>

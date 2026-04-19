@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>賃金改定影響チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 入力グリッド */
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .field-row .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-head td {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+      color: var(--accent); padding-top: 0.9rem; padding-bottom: 0.2rem;
+      border-bottom: none;
+    }
+
+    /* ── セクション区切り ── */
+    .section-divider {
+      max-width: 600px; margin: 0 auto 0.5rem;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+      color: var(--text-sub); padding: 0 0.2rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>賃金改定影響チェッカー</h1>
+    <p class="subtitle">最低賃金引上げで人件費がいくら増えるか即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">人件費 入力</p>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="currentWage">現行時給（円）</label>
+        <input type="number" id="currentWage" placeholder="例: 1013" min="0">
+        <p class="hint">改定前の時給</p>
+      </div>
+      <div class="field">
+        <label for="newWage">新時給（円）</label>
+        <input type="number" id="newWage" placeholder="例: 1050" min="0">
+        <p class="hint">改定後の時給</p>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="employees">対象従業員数（人）</label>
+        <input type="number" id="employees" placeholder="例: 5" min="1">
+      </div>
+      <div class="field">
+        <label for="monthlyHours">月間労働時間（時間/人）</label>
+        <input type="number" id="monthlyHours" placeholder="例: 160" min="0">
+        <p class="hint">1人あたり平均</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- オプション：売上・価格転嫁 -->
+  <div class="card">
+    <p class="card-title">価格転嫁シミュレーション（任意）</p>
+    <div class="field">
+      <label for="monthlySales">月間売上（円）※任意</label>
+      <input type="number" id="monthlySales" placeholder="例: 3000000" min="0">
+      <p class="hint">入力すると値上げ必要率も計算されます</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">人件費増加額を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月間人件費増加額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">詳細内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  const KEYS = ['currentWage','newWage','employees','monthlyHours','monthlySales'];
+
+  // localStorage 復元
+  window.addEventListener('DOMContentLoaded', function() {
+    var saved = localStorage.getItem('chinginChecker');
+    if (!saved) return;
+    try {
+      var data = JSON.parse(saved);
+      KEYS.forEach(function(k) {
+        if (data[k] !== undefined) document.getElementById(k).value = data[k];
+      });
+    } catch(e) {}
+  });
+
+  function saveStorage() {
+    var data = {};
+    KEYS.forEach(function(k) { data[k] = document.getElementById(k).value; });
+    localStorage.setItem('chinginChecker', JSON.stringify(data));
+  }
+
+  function calc() {
+    var currentWage   = parseFloat(document.getElementById('currentWage').value);
+    var newWage       = parseFloat(document.getElementById('newWage').value);
+    var employees     = parseFloat(document.getElementById('employees').value);
+    var monthlyHours  = parseFloat(document.getElementById('monthlyHours').value);
+    var monthlySales  = parseFloat(document.getElementById('monthlySales').value);
+
+    if (isNaN(currentWage) || isNaN(newWage) || isNaN(employees) || isNaN(monthlyHours)) {
+      showErr('現行時給・新時給・従業員数・月間労働時間を入力してください');
+      return;
+    }
+    if (newWage <= currentWage) {
+      showErr('新時給は現行時給より高い値を入力してください');
+      return;
+    }
+
+    saveStorage();
+
+    var wageDiff         = newWage - currentWage;                       // 1人1時間の増加
+    var monthlyIncPer    = wageDiff * monthlyHours;                     // 1人あたり月増加
+    var monthlyInc       = monthlyIncPer * employees;                   // 全員合計 月増加
+    var annualInc        = monthlyInc * 12;                             // 年間増加
+
+    // 増加率
+    var currentMonthly   = currentWage * monthlyHours * employees;
+    var increaseRate     = currentMonthly > 0 ? (monthlyInc / currentMonthly * 100) : 0;
+
+    // 結論カードの level
+    var level = increaseRate < 3 ? 'ok' : increaseRate < 8 ? 'warn' : 'ng';
+    var noteText = level === 'ok'   ? '増加幅は比較的小さい水準です'
+                 : level === 'warn' ? '一定の負担増です。価格転嫁・業務効率化を検討しましょう'
+                 : '大きな負担増です。値上げ・シフト見直し・省力化が急務です';
+
+    showResult(level, '+' + fmt(monthlyInc) + ' 円/月', noteText);
+
+    // 内訳テーブル
+    var rows = [
+      ['【時給変化】', '', false, true],
+      ['現行時給',        fmt(currentWage)  + ' 円', false],
+      ['新時給',          fmt(newWage)       + ' 円', false],
+      ['1時間あたり増加', '+' + fmt(wageDiff) + ' 円', false],
+
+      ['【月間影響】', '', false, true],
+      ['1人あたり月増加',   '+' + fmt(monthlyIncPer) + ' 円', false],
+      ['全従業員 月増加合計', '+' + fmt(monthlyInc)   + ' 円', true],
+      ['人件費増加率',       '+' + increaseRate.toFixed(1) + ' %', false],
+
+      ['【年間影響】', '', false, true],
+      ['年間増加合計', '+' + fmt(annualInc) + ' 円', true],
+    ];
+
+    // 価格転嫁
+    if (!isNaN(monthlySales) && monthlySales > 0) {
+      var neededRate = (monthlyInc / monthlySales * 100);
+      rows.push(['【価格転嫁目安】', '', false, true]);
+      rows.push(['月間売上',           fmt(monthlySales) + ' 円', false]);
+      rows.push(['必要値上げ率（目安）', '+' + neededRate.toFixed(2) + ' %', true]);
+      rows.push(['月10万円の商品なら', '+' + fmt(100000 * neededRate / 100) + ' 円値上げ相当', false]);
+    }
+
+    showDetail(rows);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      if (r[3]) {
+        return '<tr class="section-head"><td colspan="2">' + r[0] + '</td></tr>';
+      }
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

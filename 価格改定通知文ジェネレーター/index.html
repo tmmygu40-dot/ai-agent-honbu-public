@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>価格改定通知文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    /* ── 品目行 ── */
+    .item-list { margin-bottom: 0.75rem; }
+    .item-row {
+      display: grid;
+      grid-template-columns: 1fr 90px auto;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .item-row input {
+      padding: 0.6rem 0.7rem;
+      font-size: 0.95rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+    .item-row input:focus { border-color: var(--accent); background: #fff; }
+    .item-row .col-name { font-size: 0.82rem; }
+    .item-row .col-rate { text-align: right; }
+    .item-row .col-rate input { text-align: right; }
+
+    .btn-del-item {
+      width: 32px; height: 32px;
+      border: 1.5px solid #e8ddd0;
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ng);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .btn-del-item:hover { background: var(--ng-bg); }
+
+    .btn-add-item {
+      display: block; width: 100%;
+      padding: 0.55rem;
+      font-size: 0.88rem; font-weight: 700;
+      background: var(--accent-light);
+      color: var(--accent);
+      border: 1.5px dashed var(--accent);
+      border-radius: 9px;
+      cursor: pointer;
+      margin-top: 0.25rem;
+    }
+    .btn-add-item:hover { background: #ffe8c2; }
+
+    .item-header {
+      display: grid;
+      grid-template-columns: 1fr 90px auto;
+      gap: 0.5rem;
+      font-size: 0.73rem;
+      color: var(--text-sub);
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      padding: 0 0.1rem;
+    }
+    .item-header span:last-child { width: 32px; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 通知文カード ── */
+    .notice-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .notice-card .card-title { color: var(--accent); }
+    .notice-text {
+      font-size: 0.92rem;
+      line-height: 1.9;
+      color: var(--text);
+      white-space: pre-wrap;
+      background: #faf8f5;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      min-height: 100px;
+    }
+    .btn-copy {
+      display: block; width: 100%;
+      padding: 0.8rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: #fff;
+      color: var(--accent);
+      border: 2px solid var(--accent);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: var(--accent-light); }
+    .btn-copy.copied {
+      background: var(--ok-bg);
+      color: var(--ok);
+      border-color: var(--ok);
+    }
+
+    /* ── テンプレート選択 ── */
+    .template-tabs {
+      display: flex; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 0.4rem 0.85rem;
+      font-size: 0.8rem; font-weight: 600;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text-sub);
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .item-row { grid-template-columns: 1fr 75px 32px; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>価格改定通知文ジェネレーター</h1>
+    <p class="subtitle">値上げ率・品目・理由を入れるだけで取引先向け通知文を自動生成</p>
+  </header>
+
+  <!-- 基本情報カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+
+    <div class="field">
+      <label for="sender">差出人（会社名・屋号）</label>
+      <input type="text" id="sender" placeholder="例：株式会社〇〇">
+    </div>
+    <div class="field">
+      <label for="recipient">宛先</label>
+      <input type="text" id="recipient" placeholder="例：各取引先様・〇〇株式会社 御中">
+    </div>
+    <div class="field">
+      <label for="effective-date">改定実施日</label>
+      <input type="text" id="effective-date" placeholder="例：2026年6月1日">
+    </div>
+  </div>
+
+  <!-- 品目カード -->
+  <div class="card">
+    <p class="card-title">改定品目・値上げ率</p>
+    <div class="item-header">
+      <span>品目名</span>
+      <span>値上げ率(%)</span>
+      <span></span>
+    </div>
+    <div class="item-list" id="itemList"></div>
+    <button class="btn-add-item" onclick="addItem()">＋ 品目を追加</button>
+  </div>
+
+  <!-- 値上げ理由カード -->
+  <div class="card">
+    <p class="card-title">値上げ理由</p>
+
+    <div class="field">
+      <label>主な理由（複数選択可）</label>
+      <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.75rem;">
+        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.88rem;cursor:pointer;"><input type="checkbox" value="原材料費の高騰" onchange="updateReasonText()"> 原材料費の高騰</label>
+        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.88rem;cursor:pointer;"><input type="checkbox" value="エネルギーコストの上昇" onchange="updateReasonText()"> エネルギーコスト上昇</label>
+        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.88rem;cursor:pointer;"><input type="checkbox" value="人件費の増加" onchange="updateReasonText()"> 人件費の増加</label>
+        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.88rem;cursor:pointer;"><input type="checkbox" value="物流・輸送コストの上昇" onchange="updateReasonText()"> 物流・輸送コスト上昇</label>
+        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.88rem;cursor:pointer;"><input type="checkbox" value="為替変動（円安）の影響" onchange="updateReasonText()"> 為替変動（円安）</label>
+        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.88rem;cursor:pointer;"><input type="checkbox" value="関税コストの増加" onchange="updateReasonText()"> 関税コストの増加</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="reason-text">理由の詳細・補足（任意）</label>
+      <textarea id="reason-text" placeholder="例：昨今の資材価格の高騰により、これ以上の自社努力では現行価格の維持が困難な状況となりました。"></textarea>
+    </div>
+  </div>
+
+  <!-- テンプレート選択 -->
+  <div class="card">
+    <p class="card-title">通知文スタイル</p>
+    <div class="template-tabs">
+      <button class="tab-btn active" onclick="setTpl(0,this)">丁寧・標準</button>
+      <button class="tab-btn" onclick="setTpl(1,this)">簡潔・短め</button>
+      <button class="tab-btn" onclick="setTpl(2,this)">詫び状スタイル</button>
+    </div>
+    <p style="font-size:0.78rem;color:var(--text-sub);">スタイルを選んで「通知文を生成する」を押してください</p>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">通知文を生成する</button>
+
+  <!-- 通知文カード -->
+  <div class="notice-card" id="noticeCard">
+    <p class="card-title">生成された通知文</p>
+    <div class="notice-text" id="noticeText"></div>
+    <button class="btn-copy" id="copyBtn" onclick="copyText()">コピーする</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var selectedTpl = 0;
+
+  // 初期化
+  window.onload = function() {
+    var saved = loadData();
+    if (saved) {
+      if (saved.sender) document.getElementById('sender').value = saved.sender;
+      if (saved.recipient) document.getElementById('recipient').value = saved.recipient;
+      if (saved.effectiveDate) document.getElementById('effective-date').value = saved.effectiveDate;
+      if (saved.reasonText) document.getElementById('reason-text').value = saved.reasonText;
+      if (saved.checkedReasons) {
+        var boxes = document.querySelectorAll('input[type=checkbox]');
+        boxes.forEach(function(box) {
+          if (saved.checkedReasons.indexOf(box.value) >= 0) box.checked = true;
+        });
+      }
+      if (saved.items && saved.items.length > 0) {
+        saved.items.forEach(function(item) { addItem(item.name, item.rate); });
+        return;
+      }
+    }
+    addItem(); addItem();
+  };
+
+  function addItem(name, rate) {
+    var list = document.getElementById('itemList');
+    var row = document.createElement('div');
+    row.className = 'item-row';
+    row.innerHTML =
+      '<input type="text" class="col-name" placeholder="例：商品A" value="' + (name || '') + '">' +
+      '<input type="number" class="col-rate" placeholder="例：10" min="0" max="999" step="0.1" value="' + (rate || '') + '">' +
+      '<button class="btn-del-item" onclick="delItem(this)" title="削除">×</button>';
+    list.appendChild(row);
+  }
+
+  function delItem(btn) {
+    var list = document.getElementById('itemList');
+    if (list.children.length <= 1) return;
+    btn.parentElement.remove();
+  }
+
+  function setTpl(idx, btn) {
+    selectedTpl = idx;
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+
+  function updateReasonText() {
+    var boxes = document.querySelectorAll('input[type=checkbox]:checked');
+    if (boxes.length === 0) return;
+    var reasons = Array.from(boxes).map(function(b){ return b.value; });
+    var current = document.getElementById('reason-text').value.trim();
+    if (current === '') {
+      document.getElementById('reason-text').value = reasons.join('・') + 'が続いており、現行価格の維持が困難な状況となりました。';
+    }
+  }
+
+  function getItems() {
+    var rows = document.querySelectorAll('#itemList .item-row');
+    var items = [];
+    rows.forEach(function(row) {
+      var name = row.querySelector('.col-name').value.trim();
+      var rate = row.querySelector('.col-rate').value.trim();
+      if (name && rate) items.push({ name: name, rate: parseFloat(rate) });
+    });
+    return items;
+  }
+
+  function generate() {
+    var sender = document.getElementById('sender').value.trim();
+    var recipient = document.getElementById('recipient').value.trim() || '各取引先様';
+    var effectiveDate = document.getElementById('effective-date').value.trim();
+    var reasonText = document.getElementById('reason-text').value.trim();
+    var items = getItems();
+
+    if (!effectiveDate) { alert('改定実施日を入力してください'); return; }
+    if (items.length === 0) { alert('品目と値上げ率を1件以上入力してください'); return; }
+    if (!reasonText) { alert('値上げ理由を入力してください'); return; }
+
+    var today = new Date();
+    var dateStr = today.getFullYear() + '年' + (today.getMonth()+1) + '月' + today.getDate() + '日';
+
+    var itemLines = items.map(function(it) {
+      return '　・' + it.name + '：現行価格より ' + it.rate + '% 値上げ';
+    }).join('\n');
+
+    var text = '';
+
+    if (selectedTpl === 0) {
+      // 丁寧・標準
+      text =
+        dateStr + '\n\n' +
+        recipient + '\n\n' +
+        (sender ? sender + '\n\n' : '') +
+        '拝啓　時下ますますご清祥のこととお慶び申し上げます。\n' +
+        '平素は格別のご愛顧を賜り、厚く御礼申し上げます。\n\n' +
+        'さて、このたびは誠に恐縮ではございますが、' +
+        reasonText +
+        '\n\nつきましては、下記の通り価格を改定させていただきたく、ご案内申し上げます。\n\n' +
+        '【改定内容】\n' + itemLines + '\n\n' +
+        '【改定実施日】　' + effectiveDate + '\n\n' +
+        '大変ご迷惑をおかけすることとなり、誠に申し訳ございません。\n' +
+        '何卒ご理解とご了承を賜りますよう、お願い申し上げます。\n\n' +
+        '今後とも変わらぬご支援ご愛顧を賜りますようお願い申し上げます。\n\n' +
+        '敬具';
+    } else if (selectedTpl === 1) {
+      // 簡潔・短め
+      text =
+        dateStr + '\n\n' +
+        recipient + '\n\n' +
+        (sender ? sender + '\n\n' : '') +
+        '価格改定のご案内\n\n' +
+        reasonText + '\n\n' +
+        'このたび、下記の通り価格を改定いたします。\n\n' +
+        '【改定内容】\n' + itemLines + '\n\n' +
+        '【実施日】　' + effectiveDate + '\n\n' +
+        'ご理解のほどよろしくお願い申し上げます。';
+    } else {
+      // 詫び状スタイル
+      text =
+        dateStr + '\n\n' +
+        recipient + '\n\n' +
+        (sender ? sender + '\n\n' : '') +
+        '価格改定のお願い\n\n' +
+        '平素は格別のお引き立てを賜り、誠にありがとうございます。\n\n' +
+        'このたびは、' + reasonText + '\n' +
+        'このような状況により、誠に不本意ではございますが、\n' +
+        '下記の通り価格を改定せざるを得ない状況となりました。\n\n' +
+        '【改定内容】\n' + itemLines + '\n\n' +
+        '【改定実施日】　' + effectiveDate + '\n\n' +
+        '長年にわたりご愛顧いただいている中、このようなお願いをすることとなり、\n' +
+        '誠に申し訳なく、心よりお詫び申し上げます。\n\n' +
+        '引き続き品質の維持・向上に努めてまいりますので、\n' +
+        '何卒ご理解くださいますようお願い申し上げます。\n\n' +
+        '今後とも変わらぬご愛顧を賜りますよう、よろしくお願い申し上げます。';
+    }
+
+    document.getElementById('noticeText').textContent = text;
+    var nc = document.getElementById('noticeCard');
+    nc.style.display = '';
+    nc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // コピーボタンをリセット
+    var copyBtn = document.getElementById('copyBtn');
+    copyBtn.classList.remove('copied');
+    copyBtn.textContent = 'コピーする';
+
+    // localStorage 保存
+    saveData({
+      sender: sender,
+      recipient: recipient,
+      effectiveDate: effectiveDate,
+      reasonText: reasonText,
+      items: getItems(),
+      checkedReasons: Array.from(document.querySelectorAll('input[type=checkbox]:checked')).map(function(b){ return b.value; })
+    });
+  }
+
+  function copyText() {
+    var text = document.getElementById('noticeText').textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        flashCopied();
+      }).catch(function() {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flashCopied(); } catch(e) { alert('コピーに失敗しました'); }
+    document.body.removeChild(ta);
+  }
+
+  function flashCopied() {
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = 'コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'コピーする';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+
+  function saveData(data) {
+    try { localStorage.setItem('kakaku-notice-v1', JSON.stringify(data)); } catch(e) {}
+  }
+  function loadData() {
+    try { return JSON.parse(localStorage.getItem('kakaku-notice-v1')); } catch(e) { return null; }
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

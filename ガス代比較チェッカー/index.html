@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ガス代比較チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --propane: #2563eb; --propane-bg: #eff6ff;
+      --city: #15803d;    --city-bg: #f0fdf4;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-title.propane { color: var(--propane); }
+    .card-title.city    { color: var(--city); }
+
+    .gas-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+    }
+    .gas-grid .card { margin: 0; }
+
+    @media (max-width: 520px) {
+      .gas-grid { grid-template-columns: 1fr; }
+    }
+
+    .field { margin-bottom: 0.9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.85rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.7rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    .preset-row {
+      display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;
+    }
+    .preset-btn {
+      font-size: 0.72rem; padding: 0.3rem 0.65rem;
+      border: 1px solid var(--border); border-radius: 20px;
+      background: var(--bg); color: var(--text-sub);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .preset-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table thead tr { background: var(--bg); }
+    .detail-table th { padding: 0.5rem 0.3rem; font-size: 0.75rem; font-weight: 700;
+      color: var(--text-sub); text-align: right; border-bottom: 2px solid var(--border); }
+    .detail-table th:first-child { text-align: left; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); text-align: right;
+      border-bottom: 1px solid var(--border); }
+    .detail-table td:first-child { text-align: left; font-weight: 600; color: var(--text); }
+    .detail-table tr:last-child td { border-bottom: none; }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .td-propane { color: var(--propane) !important; font-weight: 700 !important; }
+    .td-city    { color: var(--city)    !important; font-weight: 700 !important; }
+    .td-diff    { color: var(--accent)  !important; font-weight: 700 !important; }
+
+    .badge {
+      display: inline-block; padding: 0.15rem 0.5rem;
+      border-radius: 20px; font-size: 0.7rem; font-weight: 700;
+      margin-left: 0.4rem; vertical-align: middle;
+    }
+    .badge-propane { background: var(--propane-bg); color: var(--propane); }
+    .badge-city    { background: var(--city-bg);    color: var(--city); }
+    .badge-same    { background: #f3f4f6;            color: #6b7280; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .guide-note {
+      max-width: 600px; margin: 0 auto 1rem;
+      padding: 0.75rem 1rem; background: var(--accent-light);
+      border-radius: var(--radius); border: 1px solid #fde68a;
+      font-size: 0.75rem; color: var(--text-sub); line-height: 1.6;
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⛽ ガス代比較チェッカー</h1>
+    <p class="subtitle">プロパン vs 都市ガス — 月額・ランニングコストを即比較</p>
+  </header>
+
+  <div class="guide-note">
+    💡 プロパン参考単価：約 500 円/m³ ／ 都市ガス参考単価：約 150 円/m³（全国平均目安）
+  </div>
+
+  <!-- 入力 -->
+  <div class="gas-grid">
+    <!-- プロパン -->
+    <div class="card">
+      <p class="card-title propane">🟦 プロパンガス</p>
+      <div class="preset-row">
+        <button class="preset-btn" onclick="applyPreset('p')">全国平均</button>
+      </div>
+      <div class="field">
+        <label>基本料金（円/月）</label>
+        <input type="number" id="pBase" placeholder="1500" min="0">
+      </div>
+      <div class="field">
+        <label>単価（円/m³）</label>
+        <input type="number" id="pUnit" placeholder="500" min="0" step="0.01">
+        <p class="hint">全国平均 約500円/m³</p>
+      </div>
+      <div class="field">
+        <label>月間使用量（m³）</label>
+        <input type="number" id="pUsage" placeholder="10" min="0" step="0.1">
+      </div>
+    </div>
+
+    <!-- 都市ガス -->
+    <div class="card">
+      <p class="card-title city">🟩 都市ガス</p>
+      <div class="preset-row">
+        <button class="preset-btn" onclick="applyPreset('c')">全国平均</button>
+      </div>
+      <div class="field">
+        <label>基本料金（円/月）</label>
+        <input type="number" id="cBase" placeholder="750" min="0">
+      </div>
+      <div class="field">
+        <label>単価（円/m³）</label>
+        <input type="number" id="cUnit" placeholder="150" min="0" step="0.01">
+        <p class="hint">全国平均 約150円/m³</p>
+      </div>
+      <div class="field">
+        <label>月間使用量（m³）</label>
+        <input type="number" id="cUsage" placeholder="30" min="0" step="0.1">
+        <p class="hint">都市ガスはm³換算で多め</p>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">比較する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label" id="rl">判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">ランニングコスト比較</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>期間</th>
+          <th>🟦 プロパン</th>
+          <th>🟩 都市ガス</th>
+          <th>差額</th>
+        </tr>
+      </thead>
+      <tbody id="db"></tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var PRESETS = {
+    p: { base: 1500, unit: 500,  usage: 10 },
+    c: { base: 750,  unit: 150,  usage: 30 }
+  };
+
+  function applyPreset(type) {
+    var p = PRESETS[type];
+    if (type === 'p') {
+      setVal('pBase',  p.base);
+      setVal('pUnit',  p.unit);
+      setVal('pUsage', p.usage);
+    } else {
+      setVal('cBase',  p.base);
+      setVal('cUnit',  p.unit);
+      setVal('cUsage', p.usage);
+    }
+    saveStorage();
+  }
+
+  function setVal(id, v) { document.getElementById(id).value = v; }
+  function getNum(id)    { return parseFloat(document.getElementById(id).value) || 0; }
+
+  function calc() {
+    var pBase  = getNum('pBase');
+    var pUnit  = getNum('pUnit');
+    var pUsage = getNum('pUsage');
+    var cBase  = getNum('cBase');
+    var cUnit  = getNum('cUnit');
+    var cUsage = getNum('cUsage');
+
+    if ((pBase === 0 && pUnit === 0) || (cBase === 0 && cUnit === 0)) {
+      showErr('両方の料金情報を入力してください');
+      return;
+    }
+
+    var pMonthly = pBase + pUnit * pUsage;
+    var cMonthly = cBase + cUnit * cUsage;
+    var diff     = pMonthly - cMonthly;
+    var absDiff  = Math.abs(diff);
+
+    var cheaper, level, label, note;
+    if (diff > 0) {
+      cheaper = '都市ガスが安い';
+      level   = 'ok';
+      label   = '都市ガスの方がお得';
+      note    = '月額 ' + fmt(absDiff) + ' 円 安く、年間 ' + fmt(absDiff * 12) + ' 円の節約になります';
+    } else if (diff < 0) {
+      cheaper = 'プロパンが安い';
+      level   = 'warn';
+      label   = 'プロパンガスの方がお得';
+      note    = '月額 ' + fmt(absDiff) + ' 円 安く、年間 ' + fmt(absDiff * 12) + ' 円の節約になります';
+    } else {
+      cheaper = '両者ほぼ同額';
+      level   = 'warn';
+      label   = '差額なし';
+      note    = '月額はほぼ同じです';
+    }
+
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rl').textContent = label;
+    document.getElementById('rv').textContent = cheaper;
+    document.getElementById('rn').textContent = note;
+
+    var rows = [
+      { period: '月額',  p: pMonthly,     c: cMonthly,     d: diff },
+      { period: '年間',  p: pMonthly*12,  c: cMonthly*12,  d: diff*12 },
+      { period: '5年',   p: pMonthly*60,  c: cMonthly*60,  d: diff*60 },
+      { period: '10年',  p: pMonthly*120, c: cMonthly*120, d: diff*120 },
+    ];
+
+    var html = rows.map(function(r, i) {
+      var dCls = r.d > 0 ? 'td-city' : r.d < 0 ? 'td-propane' : '';
+      var sign = r.d > 0 ? '都市▼ ' : r.d < 0 ? 'PP▼ ' : '±';
+      var isHL = i === 0 ? ' class="hl"' : '';
+      return '<tr' + isHL + '>'
+        + '<td>' + r.period + '</td>'
+        + '<td class="td-propane">' + fmt(r.p) + ' 円</td>'
+        + '<td class="td-city">' + fmt(r.c) + ' 円</td>'
+        + '<td class="' + dCls + '">' + sign + fmt(Math.abs(r.d)) + ' 円</td>'
+        + '</tr>';
+    }).join('');
+
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+
+    saveStorage();
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rl').textContent = 'エラー';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  /* ── localStorage ── */
+  var LS_KEY = 'gas-checker-v1';
+  var FIELDS  = ['pBase','pUnit','pUsage','cBase','cUnit','cUsage'];
+
+  function saveStorage() {
+    var data = {};
+    FIELDS.forEach(function(id) { data[id] = document.getElementById(id).value; });
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadStorage() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      FIELDS.forEach(function(id) { if (data[id] !== undefined) document.getElementById(id).value = data[id]; });
+    } catch(e) {}
+  }
+
+  FIELDS.forEach(function(id) {
+    document.getElementById(id).addEventListener('input', saveStorage);
+  });
+
+  loadStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

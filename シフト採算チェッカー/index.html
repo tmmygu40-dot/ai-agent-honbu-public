@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シフト採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力行 ── */
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 0.5rem;
+      align-items: end;
+      margin-bottom: 0.75rem;
+    }
+    .input-row:last-of-type { margin-bottom: 0; }
+    .field { }
+    .field label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.25rem; }
+    .field input {
+      width: 100%; padding: 0.6rem 0.7rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    .btn-del {
+      padding: 0.6rem 0.7rem;
+      background: var(--ng-bg); color: var(--ng);
+      border: 1.5px solid #fecaca; border-radius: 9px;
+      cursor: pointer; font-size: 1rem; font-weight: 700;
+      line-height: 1;
+    }
+    .btn-del:hover { background: #fee2e2; }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 0.75rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 2px dashed var(--accent); border-radius: var(--radius);
+      cursor: pointer;
+    }
+    .btn-add:hover { background: #ffecd0; }
+
+    /* ── 計算ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    .detail-table thead tr { border-bottom: 2px solid var(--border); }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table th { padding: 0.45rem 0.3rem; color: var(--text-sub); font-size: 0.74rem; font-weight: 600; text-align: right; }
+    .detail-table th:first-child { text-align: left; }
+    .detail-table td { padding: 0.55rem 0.3rem; text-align: right; }
+    .detail-table td:first-child { text-align: left; font-weight: 600; color: var(--text); }
+    .detail-table .total-row td { font-weight: 800; border-top: 2px solid var(--border); color: var(--text); }
+    .badge {
+      display: inline-block; padding: 0.15rem 0.5rem;
+      border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge-warn { background: var(--warn-bg);  color: var(--warn); }
+    .badge-ng   { background: var(--ng-bg);    color: var(--ng);   }
+
+    /* ── FL目安 ── */
+    .legend {
+      max-width: 600px; margin: 0 auto 1rem;
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+      font-size: 0.74rem; padding: 0 0.2rem;
+    }
+    .legend span {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.2rem 0.6rem; border-radius: 999px; font-weight: 600;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 480px) {
+      .input-row {
+        grid-template-columns: 1fr 1fr;
+      }
+      .input-row .field:first-child { grid-column: 1 / -1; }
+      .input-row .btn-del { grid-column: 2; justify-self: end; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>シフト採算チェッカー</h1>
+    <p class="subtitle">時間帯ごとの売上・人件費を入力 → FL比率で採算を即判定</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">時間帯入力</p>
+    <div id="rowsContainer"></div>
+  </div>
+
+  <button class="btn-add" onclick="addRow()">＋ 時間帯を追加</button>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算チェック</button>
+
+  <!-- FL目安 -->
+  <div class="legend">
+    <span style="background:var(--ok-bg);color:var(--ok)">● 優良：FL 30%以下</span>
+    <span style="background:var(--warn-bg);color:var(--warn)">● 適正：FL 30〜40%</span>
+    <span style="background:var(--ng-bg);color:var(--ng)">● 要注意：FL 40%超</span>
+  </div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">全時間帯合計 FL比率</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">時間帯別採算一覧</p>
+    <div style="overflow-x:auto">
+      <table class="detail-table">
+        <thead>
+          <tr>
+            <th>時間帯</th>
+            <th>売上</th>
+            <th>人件費</th>
+            <th>FL比率</th>
+            <th>判定</th>
+          </tr>
+        </thead>
+        <tbody id="detailBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var rowId = 0;
+
+  var PRESETS = [
+    { label: '11:00〜14:00', sales: '', labor: '' },
+    { label: '14:00〜17:00', sales: '', labor: '' },
+    { label: '17:00〜22:00', sales: '', labor: '' },
+  ];
+
+  function addRow(label, sales, labor) {
+    var id = ++rowId;
+    var container = document.getElementById('rowsContainer');
+    var div = document.createElement('div');
+    div.className = 'input-row';
+    div.id = 'row-' + id;
+    div.innerHTML =
+      '<div class="field">' +
+        '<label>時間帯</label>' +
+        '<input type="text" id="label-' + id + '" placeholder="例: 11:00〜14:00" value="' + (label || '') + '">' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>売上（円）</label>' +
+        '<input type="number" id="sales-' + id + '" placeholder="例: 80000" min="0" value="' + (sales || '') + '">' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>人件費（円）</label>' +
+        '<input type="number" id="labor-' + id + '" placeholder="例: 24000" min="0" value="' + (labor || '') + '">' +
+      '</div>' +
+      '<button class="btn-del" onclick="delRow(' + id + ')">×</button>';
+    container.appendChild(div);
+    save();
+  }
+
+  function delRow(id) {
+    var el = document.getElementById('row-' + id);
+    if (el) el.remove();
+    save();
+  }
+
+  function getRows() {
+    var rows = [];
+    var container = document.getElementById('rowsContainer');
+    var divs = container.querySelectorAll('.input-row');
+    divs.forEach(function(div) {
+      var idMatch = div.id.match(/row-(\d+)/);
+      if (!idMatch) return;
+      var i = idMatch[1];
+      var label = document.getElementById('label-' + i);
+      var sales = document.getElementById('sales-' + i);
+      var labor = document.getElementById('labor-' + i);
+      if (label && sales && labor) {
+        rows.push({
+          id: i,
+          label: label.value.trim() || ('時間帯' + i),
+          sales: parseFloat(sales.value) || 0,
+          labor: parseFloat(labor.value) || 0,
+        });
+      }
+    });
+    return rows;
+  }
+
+  function calc() {
+    var rows = getRows();
+    if (rows.length === 0) {
+      alert('時間帯を1件以上入力してください。');
+      return;
+    }
+
+    var hasValue = rows.some(function(r){ return r.sales > 0 || r.labor > 0; });
+    if (!hasValue) {
+      alert('売上または人件費を入力してください。');
+      return;
+    }
+
+    var totalSales = 0, totalLabor = 0;
+    rows.forEach(function(r){ totalSales += r.sales; totalLabor += r.labor; });
+
+    var totalFL = totalSales > 0 ? (totalLabor / totalSales * 100) : 0;
+    var level = flLevel(totalFL);
+    var msg = flNote(totalFL, totalSales, totalLabor);
+
+    // 結論カード
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = totalFL.toFixed(1) + ' %';
+    document.getElementById('rn').textContent = msg;
+
+    // 内訳テーブル
+    var tbody = document.getElementById('detailBody');
+    var html = rows.map(function(r){
+      var fl = r.sales > 0 ? (r.labor / r.sales * 100) : null;
+      var lv = fl !== null ? flLevel(fl) : 'warn';
+      var flStr = fl !== null ? fl.toFixed(1) + '%' : '—';
+      return '<tr>' +
+        '<td>' + esc(r.label) + '</td>' +
+        '<td>' + fmt(r.sales) + '円</td>' +
+        '<td>' + fmt(r.labor) + '円</td>' +
+        '<td>' + flStr + '</td>' +
+        '<td><span class="badge badge-' + lv + '">' + flLabel(lv) + '</span></td>' +
+        '</tr>';
+    }).join('');
+
+    // 合計行
+    html += '<tr class="total-row">' +
+      '<td>合計</td>' +
+      '<td>' + fmt(totalSales) + '円</td>' +
+      '<td>' + fmt(totalLabor) + '円</td>' +
+      '<td>' + totalFL.toFixed(1) + '%</td>' +
+      '<td><span class="badge badge-' + level + '">' + flLabel(level) + '</span></td>' +
+      '</tr>';
+
+    tbody.innerHTML = html;
+    document.getElementById('detail').style.display = '';
+    save();
+    window.scrollTo({ top: document.getElementById('result').offsetTop - 20, behavior: 'smooth' });
+  }
+
+  function flLevel(fl) {
+    if (fl <= 30) return 'ok';
+    if (fl <= 40) return 'warn';
+    return 'ng';
+  }
+  function flLabel(level) {
+    return level === 'ok' ? '優良' : level === 'warn' ? '適正' : '要注意';
+  }
+  function flNote(fl, sales, labor) {
+    var profit = sales - labor;
+    if (fl <= 30) return '人件費率は優良です。利益貢献度が高いシフトです。（人件費以外のコスト管理も継続して）';
+    if (fl <= 40) return '人件費率は適正範囲内です。売上向上でさらに改善できます。';
+    return 'FL比率が高めです。売上アップまたはシフト人員の調整を検討してください。';
+  }
+
+  function fmt(n) {
+    if (!n && n !== 0) return '—';
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── localStorage ──
+  function save() {
+    var rows = getRows();
+    try { localStorage.setItem('shift-checker-rows', JSON.stringify(rows)); } catch(e){}
+  }
+
+  function load() {
+    try {
+      var saved = localStorage.getItem('shift-checker-rows');
+      if (saved) {
+        var rows = JSON.parse(saved);
+        if (Array.isArray(rows) && rows.length > 0) {
+          rows.forEach(function(r){ addRow(r.label, r.sales || '', r.labor || ''); });
+          return;
+        }
+      }
+    } catch(e){}
+    // デフォルト3行
+    PRESETS.forEach(function(p){ addRow(p.label, p.sales, p.labor); });
+  }
+
+  // 入力変更時に自動保存
+  document.addEventListener('input', function(e){
+    if (e.target && e.target.closest && e.target.closest('#rowsContainer')) {
+      save();
+    }
+  });
+
+  load();
+  </script>
+
+</body>
+</html>

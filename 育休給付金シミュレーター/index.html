@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>育休給付金シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .summary-item {
+      background: var(--accent-light);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 0.8rem;
+      text-align: center;
+    }
+    .summary-item .s-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .summary-item .s-value { font-size: 1.3rem; font-weight: 900; color: var(--accent); }
+    .summary-item.minus .s-value { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table thead tr { border-bottom: 2px solid var(--border); }
+    .detail-table tbody tr { border-bottom: 1px solid var(--border); }
+    .detail-table tbody tr:last-child { border-bottom: none; }
+    .detail-table th { padding: 0.5rem 0.3rem; font-size: 0.75rem; color: var(--text-sub); font-weight: 700; text-align: right; }
+    .detail-table th:first-child { text-align: left; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); text-align: right; }
+    .detail-table td:first-child { text-align: left; font-weight: 600; color: var(--text); }
+    .detail-table .phase-67 td:first-child { color: var(--ok); }
+    .detail-table .phase-50 td:first-child { color: var(--warn); }
+    .detail-table .total-row { background: var(--accent-light); font-weight: 700; }
+    .detail-table .total-row td { color: var(--text); border-top: 2px solid var(--border); }
+    .detail-table .minus-col { color: var(--ng) !important; }
+
+    /* ── 注記 ── */
+    .note-box {
+      background: #f8f5f0;
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.8rem 1rem;
+      font-size: 0.78rem;
+      color: var(--text-sub);
+      line-height: 1.6;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>育休給付金シミュレーター</h1>
+    <p class="subtitle">育休中の給付金・手取り減を計算して取得計画を立てる</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="salary">月給（手取り）</label>
+      <input type="number" id="salary" placeholder="例: 250000" min="0">
+      <p class="hint">税・社会保険料控除後の手取り月収を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="months">育休取得期間（月数）</label>
+      <input type="number" id="months" placeholder="例: 12" min="1" max="24">
+      <p class="hint">1〜24ヶ月で入力（最大2年）</p>
+    </div>
+    <div class="field">
+      <label for="startDate">育休開始月（任意）</label>
+      <input type="month" id="startDate">
+      <p class="hint">入力すると月別内訳に年月を表示します</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="resultCard">
+    <p class="result-label">育休中の給付金総額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリーカード -->
+  <div class="card" id="summaryCard" style="display:none">
+    <p class="card-title">収支サマリー</p>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <div class="note-box">
+      育休中は社会保険料・住民税（翌年）が軽減されるため、給付金の実質手取りはほぼ全額です。<br>
+      ※ 住民税は前年所得に基づくため、育休1年目は通常通り課税される場合があります。
+    </div>
+  </div>
+
+  <!-- 月別内訳カード -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">月別内訳</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>月</th>
+          <th>給付率</th>
+          <th>給付金</th>
+          <th>手取り減</th>
+        </tr>
+      </thead>
+      <tbody id="detailBody"></tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+    var STORAGE_KEY = 'ikukyuSim';
+
+    // 起動時に前回値を復元
+    window.addEventListener('DOMContentLoaded', function() {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      try {
+        var d = JSON.parse(saved);
+        if (d.salary)    document.getElementById('salary').value    = d.salary;
+        if (d.months)    document.getElementById('months').value    = d.months;
+        if (d.startDate) document.getElementById('startDate').value = d.startDate;
+      } catch(e) {}
+    });
+
+    function calc() {
+      var salary    = parseFloat(document.getElementById('salary').value);
+      var months    = parseInt(document.getElementById('months').value, 10);
+      var startDate = document.getElementById('startDate').value; // "YYYY-MM" or ""
+
+      if (isNaN(salary) || salary <= 0) { alert('月給を正しく入力してください'); return; }
+      if (isNaN(months) || months < 1 || months > 24) { alert('育休期間を1〜24で入力してください'); return; }
+
+      // 保存
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ salary: salary, months: months, startDate: startDate }));
+
+      // 計算
+      var totalBenefit = 0;
+      var totalLoss    = 0;
+      var rows = [];
+
+      for (var i = 0; i < months; i++) {
+        var rate   = (i < 6) ? 0.67 : 0.50;
+        var label  = (i < 6) ? '67%' : '50%';
+        var benefit = salary * rate;
+        var loss    = salary - benefit;
+
+        var monthLabel;
+        if (startDate) {
+          var parts = startDate.split('-');
+          var y = parseInt(parts[0], 10);
+          var m = parseInt(parts[1], 10) + i;
+          while (m > 12) { m -= 12; y++; }
+          monthLabel = y + '年' + m + '月';
+        } else {
+          monthLabel = (i + 1) + 'ヶ月目';
+        }
+
+        totalBenefit += benefit;
+        totalLoss    += loss;
+        rows.push({ label: monthLabel, rate: label, benefit: benefit, loss: loss, phase: (i < 6 ? 67 : 50) });
+      }
+
+      // 結論カード
+      var rc = document.getElementById('resultCard');
+      rc.className = 'result-card ok';
+      rc.style.display = '';
+      document.getElementById('rv').textContent = fmt(totalBenefit) + ' 円';
+      document.getElementById('rn').textContent =
+        '育休' + months + 'ヶ月間の給付金総額です（社会保険料免除のため実質ほぼ全額受取）';
+
+      // サマリー
+      var sg = document.getElementById('summaryGrid');
+      sg.innerHTML =
+        '<div class="summary-item">'
+          + '<p class="s-label">給付金総額</p>'
+          + '<p class="s-value">' + fmtMan(totalBenefit) + '</p>'
+        + '</div>'
+        + '<div class="summary-item minus">'
+          + '<p class="s-label">手取り減少総額</p>'
+          + '<p class="s-value">-' + fmtMan(totalLoss) + '</p>'
+        + '</div>'
+        + '<div class="summary-item">'
+          + '<p class="s-label">月平均給付金</p>'
+          + '<p class="s-value">' + fmt(totalBenefit / months) + '円</p>'
+        + '</div>'
+        + '<div class="summary-item minus">'
+          + '<p class="s-label">月平均手取り減</p>'
+          + '<p class="s-value">-' + fmt(totalLoss / months) + '円</p>'
+        + '</div>';
+      document.getElementById('summaryCard').style.display = '';
+
+      // 月別内訳
+      var tbody = document.getElementById('detailBody');
+      var html = rows.map(function(r) {
+        return '<tr class="phase-' + r.phase + '">'
+          + '<td>' + r.label + '</td>'
+          + '<td style="color:var(--text-sub)">' + r.rate + '</td>'
+          + '<td>' + fmt(r.benefit) + '円</td>'
+          + '<td class="minus-col">-' + fmt(r.loss) + '円</td>'
+          + '</tr>';
+      }).join('');
+      html += '<tr class="total-row">'
+        + '<td>合計</td>'
+        + '<td>—</td>'
+        + '<td>' + fmt(totalBenefit) + '円</td>'
+        + '<td class="minus-col">-' + fmt(totalLoss) + '円</td>'
+        + '</tr>';
+      tbody.innerHTML = html;
+      document.getElementById('detailCard').style.display = '';
+    }
+
+    function fmt(n) {
+      return Math.round(n).toLocaleString('ja-JP');
+    }
+    function fmtMan(n) {
+      var man = Math.round(n / 10000);
+      return man.toLocaleString('ja-JP') + '万円';
+    }
+  </script>
+
+</body>
+</html>

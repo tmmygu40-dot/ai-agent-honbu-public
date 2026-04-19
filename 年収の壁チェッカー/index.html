@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>年収の壁チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── アラートボックス ── */
+    .alert-box {
+      background: var(--ng-bg);
+      border: 2px solid var(--ng);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .alert-title { font-size: 0.9rem; font-weight: 800; color: var(--ng); margin-bottom: 0.4rem; }
+    .alert-body { font-size: 0.82rem; color: #7f1d1d; line-height: 1.7; }
+    .alert-body strong { font-weight: 800; }
+
+    /* ── 壁比較カード ── */
+    .section-header {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+      max-width: 600px; margin: 0 auto 0.6rem;
+      padding: 0 0.2rem;
+    }
+    .wall-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 0.7rem;
+      max-width: 600px;
+    }
+    .wall-card.current-zone { border-color: var(--accent); border-width: 2.5px; }
+    .wall-card.danger-zone  { border-color: var(--ng);     border-width: 2px; background: var(--ng-bg); }
+
+    .wc-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .wc-name { font-size: 0.85rem; font-weight: 700; }
+    .wc-badge {
+      font-size: 0.68rem; font-weight: 700;
+      padding: 0.15rem 0.55rem;
+      border-radius: 999px;
+    }
+    .badge-safe    { background: #f0fdf4; color: #15803d; }
+    .badge-caution { background: #fffbeb; color: #b45309; }
+    .badge-danger  { background: #fef2f2; color: #b91c1c; }
+    .badge-current { background: var(--accent); color: #fff; }
+
+    .wc-tedori-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+      margin-bottom: 0.4rem;
+    }
+    .wc-tedori { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.03em; }
+    .wc-unit   { font-size: 0.85rem; color: var(--text-sub); }
+    .wc-diff   {
+      font-size: 0.78rem; font-weight: 700;
+      padding: 0.1rem 0.45rem;
+      border-radius: 6px;
+      margin-left: auto;
+    }
+    .diff-up   { background: #f0fdf4; color: #15803d; }
+    .diff-down { background: #fef2f2; color: #b91c1c; }
+
+    .wc-breakdown {
+      font-size: 0.73rem; color: var(--text-sub);
+      padding-top: 0.45rem; border-top: 1px solid var(--border);
+    }
+    .wc-note {
+      font-size: 0.76rem; color: var(--ng); font-weight: 600;
+      margin-top: 0.35rem;
+    }
+
+    /* ── 解説カード ── */
+    .info-list { list-style: none; }
+    .info-list li {
+      padding: 0.65rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.83rem; line-height: 1.65;
+    }
+    .info-list li:last-child { border-bottom: none; padding-bottom: 0; }
+    .info-list .iwall { font-weight: 800; color: var(--accent); margin-right: 0.3rem; }
+
+    /* ── フッター ── */
+    .note-text { display: block; text-align: center; margin-top: 1.5rem; font-size: 0.72rem; color: var(--text-sub); padding: 0 1rem; line-height: 1.6; }
+    .back-link { display: block; text-align: center; margin-top: 0.8rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>年収の壁チェッカー</h1>
+    <p class="subtitle">103万・130万・150万円を超えると手取りがどう変わるか即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">あなたの収入</p>
+    <div class="field">
+      <label for="nenshu">現在の年収（万円）</label>
+      <input type="number" id="nenshu" placeholder="例: 120" min="0" max="300" step="0.1" inputmode="decimal">
+      <p class="hint">パート・アルバイトの年間収入合計を入力してください</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">手取りを確認する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">現在の手取り（推計）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 逆転アラート -->
+  <div class="alert-box" id="alert-box" style="display:none">
+    <div class="alert-title">⚠ 130万円の壁に要注意！</div>
+    <div class="alert-body" id="alert-body"></div>
+  </div>
+
+  <!-- 現在の手取り内訳 -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">現在の手取り内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 壁比較セクション -->
+  <div id="wall-section" style="display:none">
+    <p class="section-header">▼ 各壁を超えた場合の手取り比較</p>
+    <div id="wall-cards"></div>
+  </div>
+
+  <!-- 壁の解説カード -->
+  <div class="card">
+    <p class="card-title">各壁のポイント</p>
+    <ul class="info-list">
+      <li><span class="iwall">103万円の壁</span>所得税が発生する。配偶者控除→配偶者特別控除に切り替わるが金額は同額（38万円）で、扶養者の税負担はほぼ変わらない。</li>
+      <li><span class="iwall">106万円の壁</span>51人以上の企業に勤務し、週20時間・月8.8万円以上の場合は社会保険加入義務（2024年10月〜）。本アプリは130万円の壁で計算。</li>
+      <li><span class="iwall">130万円の壁</span>配偶者の社保の扶養から外れ、自分で健康保険・年金に加入。保険料が年約19万円発生し、手取りが急減する「逆転現象」が起きやすい。</li>
+      <li><span class="iwall">150万円の壁</span>配偶者特別控除が段階的に減少し始め、扶養者の税負担が増加する。201万円超でゼロになる。</li>
+    </ul>
+  </div>
+
+  <span class="note-text">※ 計算は概算です。実際の金額は税務署・年金事務所にご確認ください。<br>社会保険料は協会けんぽ（健保4.99%+厚年9.15%+雇保0.6%）で算出。</span>
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'nenshu-kabe-v1';
+
+  window.onload = function() {
+    var saved = localStorage.getItem(LS_KEY);
+    if (saved) document.getElementById('nenshu').value = saved;
+  };
+
+  // 給与所得控除（万円単位）
+  function kyuyoKojo(n) {
+    if (n <= 55) return n;
+    if (n <= 162.5) return 55;
+    if (n <= 180) return n * 0.4 - 10;
+    if (n <= 360) return n * 0.3 + 8;
+    if (n <= 660) return n * 0.2 + 44;
+    return n * 0.1 + 110;
+  }
+
+  // 手取り計算（万円単位）
+  function calcTedori(n) {
+    var kojo    = kyuyoKojo(n);
+    var shotoku = Math.max(0, n - kojo);
+
+    // 所得税（基礎控除48万・復興税2.1%込み）
+    var taxBase   = Math.max(0, shotoku - 48);
+    var stax = 0;
+    if (taxBase > 0) {
+      if (taxBase <= 195)      stax = taxBase * 0.05;
+      else if (taxBase <= 330) stax = taxBase * 0.10 - 9.75;
+      else                     stax = taxBase * 0.20 - 42.75;
+      stax = Math.round(stax * 1.021 * 10) / 10;
+    }
+
+    // 住民税（基礎控除43万、年収100万超から）
+    var jmtax = 0;
+    if (n > 100) {
+      var jmBase = Math.max(0, shotoku - 43);
+      if (jmBase > 0) {
+        jmtax = Math.round((jmBase * 0.10 + 0.5) * 10) / 10;
+      }
+    }
+
+    // 社会保険料（130万円超で加入: 健保4.99%+厚年9.15%+雇保0.6% ≒ 14.74%）
+    var shakai = 0;
+    if (n > 130) {
+      shakai = Math.round(n * 0.1474 * 10) / 10;
+    }
+
+    var tedori = Math.round((n - stax - jmtax - shakai) * 10) / 10;
+    return { n: n, shotoku: shotoku, stax: stax, jmtax: jmtax, shakai: shakai, tedori: tedori };
+  }
+
+  function getZoneInfo(n) {
+    if (n <= 103) return { cls: 'ok',   desc: '103万円以下：所得税なし・社保扶養内' };
+    if (n <= 130) return { cls: 'warn', desc: '103万円超〜130万以下：所得税あり・社保は扶養内' };
+    if (n <= 150) return { cls: 'ng',   desc: '130万円超：社会保険料が発生（手取り要注意）' };
+    return { cls: 'ng', desc: '150万円超：配偶者特別控除も段階的に減少' };
+  }
+
+  function f(n) { return n.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+  function calc() {
+    var nStr = document.getElementById('nenshu').value.trim();
+    var n = parseFloat(nStr);
+    if (isNaN(n) || n < 0) { alert('年収を入力してください'); return; }
+    if (n > 300) { alert('300万円以下の年収を対象としています'); return; }
+    localStorage.setItem(LS_KEY, nStr);
+
+    var cur  = calcTedori(n);
+    var zone = getZoneInfo(n);
+
+    // ── 結論カード ──
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + zone.cls;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = f(cur.tedori) + ' 万円';
+    document.getElementById('rn').textContent = zone.desc;
+
+    // ── 内訳テーブル ──
+    var rows = [['年収', f(n) + ' 万円']];
+    if (cur.stax  > 0) rows.push(['所得税（復興税込）', '－' + f(cur.stax)  + ' 万円']);
+    if (cur.jmtax > 0) rows.push(['住民税（目安）',     '－' + f(cur.jmtax) + ' 万円']);
+    if (cur.shakai> 0) rows.push(['社会保険料（推計）', '－' + f(cur.shakai)+ ' 万円']);
+    rows.push(['手取り', f(cur.tedori) + ' 万円']);
+    document.getElementById('db').innerHTML = rows.map(function(r, i) {
+      return '<tr' + (i === rows.length - 1 ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+
+    // ── 逆転アラート（118〜145万円付近） ──
+    var alertBox = document.getElementById('alert-box');
+    if (n >= 118 && n <= 145) {
+      var just130 = calcTedori(130);
+      var just129 = calcTedori(129);
+      var diff = Math.round((just130.tedori - just129.tedori) * 10) / 10;
+      document.getElementById('alert-body').innerHTML =
+        'あなたの年収は <strong>130万円の壁に近い</strong> 位置にあります。<br>' +
+        '129万円の手取り：<strong>' + f(just129.tedori) + ' 万円</strong>　→　' +
+        '130万円の手取り：<strong>' + f(just130.tedori) + ' 万円</strong><br>' +
+        '社保加入で <strong style="color:var(--ng)">' + f(diff) + ' 万円</strong> の急減が発生します。<br>' +
+        '130万円を超えるなら、社保加入後もプラスになる水準まで稼ぐ計画を検討してください。';
+      alertBox.style.display = '';
+    } else {
+      alertBox.style.display = 'none';
+    }
+
+    // ── 壁比較カード ──
+    var walls = [
+      { n: 103, label: '103万円ちょうど',  badgeCls: 'badge-safe',    badgeText: '所得税発生ライン' },
+      { n: 130, label: '130万円ちょうど',  badgeCls: 'badge-danger',  badgeText: '社保加入ライン'  },
+      { n: 150, label: '150万円ちょうど',  badgeCls: 'badge-caution', badgeText: '配偶者控除減少ライン' },
+    ];
+
+    var html = makeWallCard(cur, '現在（' + f(n) + '万円）', 'badge-current', '現在', null, true);
+    walls.forEach(function(w) {
+      var wc   = calcTedori(w.n);
+      var diff = Math.round((wc.tedori - cur.tedori) * 10) / 10;
+      var isDanger = w.n === 130;
+      html += makeWallCard(wc, w.label, w.badgeCls, w.badgeText, diff, false, isDanger);
+    });
+
+    document.getElementById('wall-cards').innerHTML = html;
+    document.getElementById('wall-section').style.display = '';
+  }
+
+  function makeWallCard(data, label, badgeCls, badgeText, diff, isCurrent, isDanger) {
+    var cardCls = isCurrent ? 'wall-card current-zone' : (isDanger ? 'wall-card danger-zone' : 'wall-card');
+
+    var diffHtml = '';
+    if (diff !== null) {
+      var sign = diff >= 0 ? '+' : '';
+      diffHtml = '<span class="wc-diff ' + (diff >= 0 ? 'diff-up' : 'diff-down') + '">'
+               + sign + f(diff) + '万</span>';
+    }
+
+    var items = [];
+    if (data.stax  > 0) items.push('所得税 ' + f(data.stax)   + '万');
+    if (data.jmtax > 0) items.push('住民税 ' + f(data.jmtax)  + '万');
+    if (data.shakai> 0) items.push('社保 '  + f(data.shakai) + '万');
+    if (!items.length) items.push('税・社保負担なし');
+
+    var noteHtml = '';
+    if (isDanger) {
+      var before = calcTedori(data.n - 1);
+      var d = Math.round((data.tedori - before.tedori) * 10) / 10;
+      noteHtml = '<div class="wc-note">⚠ ' + f(before.n) + '万円の手取り ' + f(before.tedori)
+               + '万円と比べ ' + f(d) + '万円の急減</div>';
+    }
+
+    var tedoriColor = (isDanger && !isCurrent) ? 'color:var(--ng)' : '';
+
+    return '<div class="' + cardCls + '">' +
+      '<div class="wc-top"><span class="wc-name">' + label + '</span>'
+      + '<span class="wc-badge ' + badgeCls + '">' + badgeText + '</span></div>' +
+      '<div class="wc-tedori-row">'
+      + '<span class="wc-tedori" style="' + tedoriColor + '">' + f(data.tedori) + '</span>'
+      + '<span class="wc-unit">万円</span>'
+      + diffHtml + '</div>' +
+      '<div class="wc-breakdown">' + items.join('　｜　') + '</div>' +
+      noteHtml +
+    '</div>';
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

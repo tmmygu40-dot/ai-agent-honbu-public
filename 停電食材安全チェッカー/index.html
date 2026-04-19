@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>停電食材安全チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── セクション見出し ── */
+    .section-heading {
+      font-size: 0.88rem; font-weight: 700; color: var(--text);
+      margin-bottom: 0.75rem; margin-top: 0.25rem;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .section-heading .icon { font-size: 1rem; }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 区切り ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 個別判定バッジ ── */
+    .badge-row { display: flex; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .badge {
+      flex: 1; min-width: 120px;
+      border-radius: 10px; padding: 0.8rem 0.6rem; text-align: center;
+      border: 1.5px solid var(--border);
+    }
+    .badge.ok   { background: var(--ok-bg);   border-color: var(--ok);   }
+    .badge.warn { background: var(--warn-bg); border-color: var(--warn); }
+    .badge.ng   { background: var(--ng-bg);   border-color: var(--ng);   }
+    .badge-icon { font-size: 1.4rem; margin-bottom: 0.2rem; }
+    .badge-name { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.25rem; }
+    .badge-status { font-size: 0.95rem; font-weight: 900; }
+    .badge.ok   .badge-status { color: var(--ok); }
+    .badge.warn .badge-status { color: var(--warn); }
+    .badge.ng   .badge-status { color: var(--ng); }
+    .badge-time { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* ── 対処法 ── */
+    .action-list { list-style: none; margin-top: 0.5rem; }
+    .action-list li {
+      padding: 0.5rem 0.5rem 0.5rem 1.5rem;
+      position: relative; font-size: 0.84rem;
+      border-bottom: 1px solid var(--border); color: var(--text);
+    }
+    .action-list li:last-child { border-bottom: none; }
+    .action-list li::before { content: "→"; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⚡ 停電食材安全チェッカー</h1>
+    <p class="subtitle">停電時の冷蔵庫・冷凍庫の保冷時間と食材の安全性を即チェック</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">停電情報を入力</p>
+
+    <div class="field">
+      <label for="elapsed">停電からの経過時間（時間）</label>
+      <input type="number" id="elapsed" placeholder="例: 3" min="0" step="0.5">
+      <p class="hint">現時点での停電経過時間を入力してください</p>
+    </div>
+
+    <hr class="divider">
+    <p class="section-heading"><span class="icon">🧊</span>冷蔵庫の状態</p>
+
+    <div class="field">
+      <label for="fridgeFill">食材の入り具合</label>
+      <select id="fridgeFill">
+        <option value="low">少ない（1/4以下）</option>
+        <option value="mid" selected>普通（半分程度）</option>
+        <option value="full">多い（3/4以上）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="fridgeOpen">停電後に扉を開けた回数</label>
+      <input type="number" id="fridgeOpen" placeholder="例: 2" min="0" value="0">
+      <p class="hint">開けるたびに保冷時間が約30分短縮されます</p>
+    </div>
+
+    <hr class="divider">
+    <p class="section-heading"><span class="icon">❄️</span>冷凍庫の状態</p>
+
+    <div class="field">
+      <label for="freezerFill">食材の入り具合</label>
+      <select id="freezerFill">
+        <option value="low">少ない（1/4以下）</option>
+        <option value="mid" selected>普通（半分程度）</option>
+        <option value="full">多い（ほぼ満杯）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="freezerOpen">停電後に扉を開けた回数</label>
+      <input type="number" id="freezerOpen" placeholder="例: 1" min="0" value="0">
+      <p class="hint">開けるたびに保冷時間が約2時間短縮されます</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">安全性を判定する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 個別判定カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">冷蔵庫・冷凍庫の状況</p>
+    <div class="badge-row" id="badgeRow"></div>
+
+    <table class="detail-table">
+      <tbody id="db"></tbody>
+    </table>
+  </div>
+
+  <!-- 対処法カード -->
+  <div class="card" id="actionCard" style="display:none">
+    <p class="card-title">今すぐやること</p>
+    <ul class="action-list" id="actionList"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var FRIDGE_BASE = { low: 2, mid: 4, full: 6 };    // 冷蔵庫 保冷時間（時間）
+  var FREEZER_BASE = { low: 24, mid: 36, full: 48 }; // 冷凍庫 保冷時間（時間）
+  var FRIDGE_OPEN_PENALTY  = 0.5; // 1回開けるごとの短縮（時間）
+  var FREEZER_OPEN_PENALTY = 2;   // 1回開けるごとの短縮（時間）
+
+  function getLevel(elapsed, safe) {
+    if (safe <= 0) return 'ng';
+    var ratio = elapsed / safe;
+    if (ratio < 0.5) return 'ok';
+    if (ratio < 0.8) return 'warn';
+    return 'ng';
+  }
+
+  function levelLabel(level) {
+    if (level === 'ok')   return '安全';
+    if (level === 'warn') return '注意';
+    return '危険';
+  }
+
+  function overallLevel(a, b) {
+    if (a === 'ng' || b === 'ng') return 'ng';
+    if (a === 'warn' || b === 'warn') return 'warn';
+    return 'ok';
+  }
+
+  function fmt(h) {
+    if (h <= 0) return '0時間';
+    var hh = Math.floor(h);
+    var mm = Math.round((h - hh) * 60);
+    if (mm === 0) return hh + '時間';
+    return hh + '時間' + mm + '分';
+  }
+
+  function getActions(fridgeLevel, freezerLevel, fridgeSafe, freezerSafe, elapsed) {
+    var acts = [];
+    if (fridgeLevel === 'ng' || freezerLevel === 'ng') {
+      acts.push('扉を開けて中身を確認し、傷みやすい食材（肉・魚・乳製品・開封済み食品）は破棄を検討してください');
+    }
+    if (fridgeLevel === 'ng') {
+      acts.push('冷蔵庫の肉・魚・生もの・開封済みの惣菜は食べないでください（食中毒リスクあり）');
+    }
+    if (freezerLevel === 'ng') {
+      acts.push('冷凍品が解凍されている場合は早めに調理・加熱してください。再冷凍は避けてください');
+    }
+    if (fridgeLevel === 'warn') {
+      acts.push('冷蔵庫は安全時間の終盤です。扉の開閉を最小限にして、傷みやすい食材を優先的に消費してください');
+    }
+    if (freezerLevel === 'warn') {
+      acts.push('冷凍庫は安全時間の終盤です。扉を開けないようにして保冷時間を延ばしてください');
+    }
+    if (fridgeLevel === 'ok' && freezerLevel === 'ok') {
+      acts.push('今は安全な状態です。扉の開閉を必要最低限にして保冷時間をできるだけ延ばしてください');
+      acts.push('停電が続く場合は、クーラーボックスと保冷剤を準備しておくと安心です');
+    }
+    acts.push('復電後は庫内温度が十分に下がったことを確認してから通常使用してください（目安：復電後2〜4時間）');
+    return acts;
+  }
+
+  function calc() {
+    var elapsed      = parseFloat(document.getElementById('elapsed').value);
+    var fridgeFill   = document.getElementById('fridgeFill').value;
+    var fridgeOpen   = parseInt(document.getElementById('fridgeOpen').value) || 0;
+    var freezerFill  = document.getElementById('freezerFill').value;
+    var freezerOpen  = parseInt(document.getElementById('freezerOpen').value) || 0;
+
+    if (isNaN(elapsed) || elapsed < 0) {
+      showResult('ng', '⚠️ 入力エラー', '停電からの経過時間を入力してください');
+      document.getElementById('detail').style.display = 'none';
+      document.getElementById('actionCard').style.display = 'none';
+      return;
+    }
+
+    var fridgeSafe  = Math.max(0, FRIDGE_BASE[fridgeFill]  - fridgeOpen  * FRIDGE_OPEN_PENALTY);
+    var freezerSafe = Math.max(0, FREEZER_BASE[freezerFill] - freezerOpen * FREEZER_OPEN_PENALTY);
+
+    var fridgeLevel  = getLevel(elapsed, fridgeSafe);
+    var freezerLevel = getLevel(elapsed, freezerSafe);
+    var overall      = overallLevel(fridgeLevel, freezerLevel);
+
+    var fridgeRemain  = Math.max(0, fridgeSafe  - elapsed);
+    var freezerRemain = Math.max(0, freezerSafe - elapsed);
+
+    var resultText = overall === 'ok'   ? '現在は安全な状態です'
+                   : overall === 'warn' ? '注意が必要です'
+                   : '危険な状態の可能性があります';
+    var resultNote = overall === 'ok'
+      ? '扉の開閉を最小限にして保冷時間を保ちましょう'
+      : overall === 'warn'
+      ? '傷みやすい食材を優先的に消費し、扉の開閉を控えてください'
+      : '傷みやすい食材は廃棄を検討してください。食べるときは必ず加熱してください';
+
+    showResult(overall, resultText, resultNote);
+
+    // バッジ
+    var badgeHtml = '';
+    badgeHtml += '<div class="badge ' + fridgeLevel + '">'
+      + '<div class="badge-icon">🧊</div>'
+      + '<div class="badge-name">冷蔵庫</div>'
+      + '<div class="badge-status">' + levelLabel(fridgeLevel) + '</div>'
+      + '<div class="badge-time">残り ' + fmt(fridgeRemain) + '</div>'
+      + '</div>';
+    badgeHtml += '<div class="badge ' + freezerLevel + '">'
+      + '<div class="badge-icon">❄️</div>'
+      + '<div class="badge-name">冷凍庫</div>'
+      + '<div class="badge-status">' + levelLabel(freezerLevel) + '</div>'
+      + '<div class="badge-time">残り ' + fmt(freezerRemain) + '</div>'
+      + '</div>';
+    document.getElementById('badgeRow').innerHTML = badgeHtml;
+
+    // 内訳テーブル
+    var fillLabel = { low: '少ない', mid: '普通', full: '多い' };
+    var rows = [
+      ['停電経過時間', elapsed + ' 時間'],
+      ['冷蔵庫 充填量', fillLabel[fridgeFill]],
+      ['冷蔵庫 扉開回数', fridgeOpen + ' 回'],
+      ['冷蔵庫 保冷可能時間', fmt(fridgeSafe), true],
+      ['冷凍庫 充填量', fillLabel[freezerFill]],
+      ['冷凍庫 扉開回数', freezerOpen + ' 回'],
+      ['冷凍庫 保冷可能時間', fmt(freezerSafe), true],
+    ];
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+
+    // 対処法
+    var actions = getActions(fridgeLevel, freezerLevel, fridgeSafe, freezerSafe, elapsed);
+    document.getElementById('actionList').innerHTML = actions.map(function(a) {
+      return '<li>' + a + '</li>';
+    }).join('');
+    document.getElementById('actionCard').style.display = '';
+
+    // localStorage 保存
+    try {
+      localStorage.setItem('teiden_checker', JSON.stringify({
+        elapsed: elapsed,
+        fridgeFill: fridgeFill,
+        fridgeOpen: fridgeOpen,
+        freezerFill: freezerFill,
+        freezerOpen: freezerOpen
+      }));
+    } catch(e) {}
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  // 前回入力の復元
+  (function() {
+    try {
+      var saved = localStorage.getItem('teiden_checker');
+      if (!saved) return;
+      var d = JSON.parse(saved);
+      if (d.elapsed !== undefined) document.getElementById('elapsed').value = d.elapsed;
+      if (d.fridgeFill)  document.getElementById('fridgeFill').value  = d.fridgeFill;
+      if (d.fridgeOpen !== undefined)  document.getElementById('fridgeOpen').value  = d.fridgeOpen;
+      if (d.freezerFill) document.getElementById('freezerFill').value = d.freezerFill;
+      if (d.freezerOpen !== undefined) document.getElementById('freezerOpen').value = d.freezerOpen;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

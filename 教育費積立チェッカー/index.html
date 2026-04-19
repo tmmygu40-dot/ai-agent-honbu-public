@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教育費積立チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .stage-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    @media (max-width: 400px) {
+      .stage-grid { grid-template-columns: 1fr; }
+    }
+    .stage-item { }
+    .stage-item label { font-size: 0.8rem; font-weight: 600; color: var(--text-sub); display: block; margin-bottom: 0.3rem; }
+    .stage-item select {
+      width: 100%; padding: 0.6rem 0.75rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; -webkit-appearance: none;
+    }
+    .stage-item select:focus { border-color: var(--accent); background: #fff; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .skip td { opacity: 0.4; font-style: italic; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .age-badge {
+      display: inline-block;
+      background: var(--accent-light);
+      color: var(--accent);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 99px;
+      margin-left: 0.4rem;
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>教育費積立チェッカー</h1>
+    <p class="subtitle">年齢と進学コースを入れるだけで毎月の積立額を即計算</p>
+  </header>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="age">子どもの現在年齢</label>
+      <select id="age">
+        <option value="">選択してください</option>
+        <option value="0">0歳（生まれたばかり）</option>
+        <option value="1">1歳</option>
+        <option value="2">2歳</option>
+        <option value="3">3歳</option>
+        <option value="4">4歳</option>
+        <option value="5">5歳</option>
+        <option value="6">6歳</option>
+        <option value="7">7歳</option>
+        <option value="8">8歳</option>
+        <option value="9">9歳</option>
+        <option value="10">10歳</option>
+        <option value="11">11歳</option>
+        <option value="12">12歳</option>
+        <option value="13">13歳</option>
+        <option value="14">14歳</option>
+        <option value="15">15歳</option>
+        <option value="16">16歳</option>
+        <option value="17">17歳</option>
+      </select>
+      <p class="hint">0〜17歳（大学入学前まで対応）</p>
+    </div>
+    <div class="field">
+      <label for="savings">現在の教育費貯蓄額（円）</label>
+      <input type="number" id="savings" placeholder="例: 500000" min="0">
+      <p class="hint">すでに貯めた分を差し引いて計算します（0でもOK）</p>
+    </div>
+  </div>
+
+  <!-- 進学コース選択 -->
+  <div class="card">
+    <p class="card-title">進学コース選択</p>
+    <div class="stage-grid">
+      <div class="stage-item">
+        <label>幼稚園 <span class="age-badge">3〜5歳</span></label>
+        <select id="s-yochien">
+          <option value="public">公立（66万円）</option>
+          <option value="private">私立（158万円）</option>
+          <option value="none">なし（保育園等）</option>
+        </select>
+      </div>
+      <div class="stage-item">
+        <label>小学校 <span class="age-badge">6〜11歳</span></label>
+        <select id="s-sho">
+          <option value="public">公立（193万円）</option>
+          <option value="private">私立（959万円）</option>
+        </select>
+      </div>
+      <div class="stage-item">
+        <label>中学校 <span class="age-badge">12〜14歳</span></label>
+        <select id="s-chu">
+          <option value="public">公立（153万円）</option>
+          <option value="private">私立（422万円）</option>
+        </select>
+      </div>
+      <div class="stage-item">
+        <label>高校 <span class="age-badge">15〜17歳</span></label>
+        <select id="s-ko">
+          <option value="public">公立（137万円）</option>
+          <option value="private">私立（290万円）</option>
+        </select>
+      </div>
+      <div class="stage-item" style="grid-column: 1 / -1;">
+        <label>大学 <span class="age-badge">18〜21歳</span></label>
+        <select id="s-dai">
+          <option value="national">国公立（243万円）</option>
+          <option value="private-lit">私立文系（396万円）</option>
+          <option value="private-sci">私立理系（542万円）</option>
+          <option value="none">進学しない</option>
+        </select>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:0.75rem">※費用は文科省統計データをもとにした目安金額です</p>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">毎月の積立額を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">毎月の必要積立額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // 教育費データ（万円 → 円）
+  var COSTS = {
+    yochien: { public: 660000, private: 1580000, none: 0 },
+    sho:     { public: 1930000, private: 9590000 },
+    chu:     { public: 1530000, private: 4220000 },
+    ko:      { public: 1370000, private: 2900000 },
+    dai:     { national: 2430000, 'private-lit': 3960000, 'private-sci': 5420000, none: 0 }
+  };
+
+  // 各段階の開始年齢
+  var STAGE_START = { yochien: 3, sho: 6, chu: 12, ko: 15, dai: 18 };
+  var STAGE_LABELS = {
+    yochien: '幼稚園（3〜5歳）',
+    sho:     '小学校（6〜11歳）',
+    chu:     '中学校（12〜14歳）',
+    ko:      '高校（15〜17歳）',
+    dai:     '大学（18〜21歳）'
+  };
+  var STAGE_KEYS = ['yochien', 'sho', 'chu', 'ko', 'dai'];
+
+  function loadSaved() {
+    try {
+      var d = JSON.parse(localStorage.getItem('edu-checker') || '{}');
+      if (d.age !== undefined) document.getElementById('age').value = d.age;
+      if (d.savings !== undefined) document.getElementById('savings').value = d.savings;
+      var stages = ['yochien', 'sho', 'chu', 'ko', 'dai'];
+      stages.forEach(function(k) {
+        if (d[k]) document.getElementById('s-' + k).value = d[k];
+      });
+    } catch(e) {}
+  }
+
+  function saveData(age, savings) {
+    var d = { age: age, savings: savings };
+    ['yochien', 'sho', 'chu', 'ko', 'dai'].forEach(function(k) {
+      d[k] = document.getElementById('s-' + k).value;
+    });
+    try { localStorage.setItem('edu-checker', JSON.stringify(d)); } catch(e) {}
+  }
+
+  function calc() {
+    var ageStr = document.getElementById('age').value;
+    if (ageStr === '') { showErr('子どもの年齢を選択してください'); return; }
+    var age = parseInt(ageStr);
+    var savings = parseFloat(document.getElementById('savings').value) || 0;
+
+    if (age >= 18) {
+      showErr('大学入学年齢（18歳）以上は積立計算の対象外です');
+      document.getElementById('detail').style.display = 'none';
+      return;
+    }
+
+    var yearsLeft = 18 - age; // 大学入学まで
+    var totalCost = 0;
+    var rows = [];
+
+    STAGE_KEYS.forEach(function(k) {
+      var stageAge = STAGE_START[k];
+      var chosen = document.getElementById('s-' + k).value;
+      var cost = (COSTS[k] && COSTS[k][chosen] !== undefined) ? COSTS[k][chosen] : 0;
+      var skipped = age >= stageAge + (k === 'yochien' ? 3 : k === 'sho' ? 6 : k === 'chu' ? 3 : k === 'ko' ? 3 : 4);
+      // 大学はコスト計上するが積立対象（18歳時に一括想定せず、積立に含む）
+      var label = STAGE_LABELS[k];
+      var costLabel = cost > 0 ? fmt(cost) + ' 円' : '0 円（なし）';
+      if (skipped && k !== 'dai') {
+        rows.push([label, costLabel, false, true]); // 既に終わった段階
+      } else {
+        totalCost += cost;
+        rows.push([label, costLabel, false, false]);
+      }
+    });
+
+    var needed = Math.max(0, totalCost - savings);
+    var months = Math.max(1, yearsLeft * 12);
+    var monthly = Math.ceil(needed / months);
+
+    saveData(ageStr, savings);
+
+    var level = monthly <= 20000 ? 'ok' : monthly <= 50000 ? 'warn' : 'ng';
+    var noteBase = '積立年数：' + yearsLeft + '年（' + months + 'ヶ月） ／ 教育費総額：' + fmt(totalCost) + '円';
+    if (savings > 0) noteBase += ' ／ 現在の貯蓄：' + fmt(savings) + '円';
+
+    showResult(level, fmt(monthly) + ' 円／月', noteBase);
+
+    var tableRows = rows.concat([
+      ['教育費合計', fmt(totalCost) + ' 円', true, false],
+    ]);
+    if (savings > 0) {
+      tableRows.push(['現在の貯蓄', '－' + fmt(savings) + ' 円', false, false]);
+      tableRows.push(['不足額', fmt(needed) + ' 円', false, false]);
+    }
+    tableRows.push(['積立年数', yearsLeft + '年（' + months + 'ヶ月）', false, false]);
+    tableRows.push(['月額積立目安', fmt(monthly) + ' 円', true, false]);
+
+    showDetail(tableRows);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      var cls = r[2] ? ' class="hl"' : r[3] ? ' class="skip"' : '';
+      return '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '—', msg);
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  loadSaved();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
