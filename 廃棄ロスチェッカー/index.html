@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>廃棄ロスチェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 3列入力グリッド ── */
+    .input-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.7rem; margin-bottom: 1rem; }
+    @media (max-width: 480px) { .input-grid { grid-template-columns: 1fr; } }
+
+    /* ── ボタン ── */
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.8rem; margin-bottom: 0;
+    }
+    .summary-item {
+      background: var(--accent-light); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.9rem 0.8rem; text-align: center;
+    }
+    .summary-item.full { grid-column: 1 / -1; }
+    .summary-label { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.3rem; letter-spacing: 0.04em; }
+    .summary-value { font-size: 1.4rem; font-weight: 900; color: var(--accent); }
+    .summary-item.ng-item { background: var(--ng-bg); border-color: var(--ng); }
+    .summary-item.ng-item .summary-value { color: var(--ng); }
+
+    /* ── 品目リスト ── */
+    .item-list { list-style: none; }
+    .item-row {
+      display: flex; align-items: center;
+      border-bottom: 1px solid var(--border); padding: 0.7rem 0;
+      gap: 0.5rem;
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-rank {
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      min-width: 1.6rem; text-align: center;
+    }
+    .item-rank.top1 { color: var(--ng); font-size: 0.85rem; }
+    .item-name { flex: 1; font-size: 0.95rem; font-weight: 600; }
+    .item-detail { font-size: 0.78rem; color: var(--text-sub); }
+    .item-loss {
+      font-size: 1rem; font-weight: 800;
+      min-width: 5rem; text-align: right;
+    }
+    .item-loss.high { color: var(--ng); }
+    .item-loss.mid  { color: var(--warn); }
+    .item-loss.low  { color: var(--ok); }
+    .btn-del {
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 6px; padding: 0.25rem 0.55rem;
+      font-size: 0.78rem; color: var(--text-sub); cursor: pointer;
+      flex-shrink: 0;
+    }
+    .btn-del:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── 空状態 ── */
+    .empty-msg {
+      text-align: center; color: var(--text-sub); font-size: 0.88rem;
+      padding: 1.5rem 0;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>廃棄ロスチェッカー</h1>
+    <p class="subtitle">商品ごとの廃棄量と仕入れ単価から月次ロス金額を即把握</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="input-grid">
+      <div class="field">
+        <label for="iName">品目名</label>
+        <input type="text" id="iName" placeholder="例：食パン">
+      </div>
+      <div class="field">
+        <label for="iQty">廃棄量（個/g/等）</label>
+        <input type="number" id="iQty" placeholder="例：5" min="0" step="any">
+      </div>
+      <div class="field">
+        <label for="iPrice">仕入れ単価（円）</label>
+        <input type="number" id="iPrice" placeholder="例：120" min="0" step="any">
+        <p class="hint">1個・1gあたりの仕入れ値</p>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addItem()">＋ 追加する</button>
+
+  <!-- サマリーカード -->
+  <div class="card" id="summaryCard" style="display:none">
+    <p class="card-title">月次ロス サマリー</p>
+    <div class="summary-grid">
+      <div class="summary-item full ng-item">
+        <p class="summary-label">月次ロス合計</p>
+        <p class="summary-value" id="totalLoss">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="summary-label">品目数</p>
+        <p class="summary-value" id="itemCount">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="summary-label">最大ロス品目</p>
+        <p class="summary-value" id="topItem" style="font-size:1rem">—</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 品目一覧カード -->
+  <div class="card" id="listCard" style="display:none">
+    <p class="card-title">品目別ロス一覧（ロス大きい順）</p>
+    <ul class="item-list" id="itemList"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+    var LS_KEY = 'haikiLossChecker_v1';
+    var items = [];
+
+    function load() {
+      try {
+        var raw = localStorage.getItem(LS_KEY);
+        if (raw) items = JSON.parse(raw);
+      } catch(e) { items = []; }
+    }
+
+    function save() {
+      localStorage.setItem(LS_KEY, JSON.stringify(items));
+    }
+
+    function addItem() {
+      var name  = document.getElementById('iName').value.trim();
+      var qty   = parseFloat(document.getElementById('iQty').value);
+      var price = parseFloat(document.getElementById('iPrice').value);
+
+      if (!name) { alert('品目名を入力してください'); return; }
+      if (isNaN(qty) || qty < 0)   { alert('廃棄量を正しく入力してください'); return; }
+      if (isNaN(price) || price < 0) { alert('仕入れ単価を正しく入力してください'); return; }
+
+      items.push({
+        id: Date.now(),
+        name: name,
+        qty: qty,
+        price: price,
+        loss: qty * price
+      });
+
+      save();
+      clearInputs();
+      render();
+    }
+
+    function deleteItem(id) {
+      items = items.filter(function(it) { return it.id !== id; });
+      save();
+      render();
+    }
+
+    function clearInputs() {
+      document.getElementById('iName').value  = '';
+      document.getElementById('iQty').value   = '';
+      document.getElementById('iPrice').value = '';
+      document.getElementById('iName').focus();
+    }
+
+    function render() {
+      var summaryCard = document.getElementById('summaryCard');
+      var listCard    = document.getElementById('listCard');
+
+      if (items.length === 0) {
+        summaryCard.style.display = 'none';
+        listCard.style.display    = 'none';
+        return;
+      }
+
+      // ロス大きい順にソート
+      var sorted = items.slice().sort(function(a, b) { return b.loss - a.loss; });
+
+      // 合計
+      var total = items.reduce(function(sum, it) { return sum + it.loss; }, 0);
+      var maxLoss = sorted[0].loss;
+
+      // サマリー更新
+      summaryCard.style.display = '';
+      document.getElementById('totalLoss').textContent = '¥' + fmt(total);
+      document.getElementById('itemCount').textContent = items.length + '品目';
+      document.getElementById('topItem').textContent   = sorted[0].name;
+
+      // リスト更新
+      listCard.style.display = '';
+      var ul = document.getElementById('itemList');
+      ul.innerHTML = sorted.map(function(it, idx) {
+        var ratio = total > 0 ? it.loss / total : 0;
+        var lossClass = ratio >= 0.4 ? 'high' : ratio >= 0.2 ? 'mid' : 'low';
+        var rankClass = idx === 0 ? 'top1' : '';
+        var rankLabel = idx === 0 ? '🔴' : (idx + 1) + '位';
+        return '<li class="item-row">'
+          + '<span class="item-rank ' + rankClass + '">' + rankLabel + '</span>'
+          + '<span class="item-name">' + esc(it.name) + '</span>'
+          + '<span class="item-detail">' + fmt(it.qty) + ' × ¥' + fmt(it.price) + '</span>'
+          + '<span class="item-loss ' + lossClass + '">¥' + fmt(it.loss) + '</span>'
+          + '<button class="btn-del" onclick="deleteItem(' + it.id + ')">削除</button>'
+          + '</li>';
+      }).join('');
+    }
+
+    function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+    function esc(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Enter キーで追加
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') addItem();
+    });
+
+    load();
+    render();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
