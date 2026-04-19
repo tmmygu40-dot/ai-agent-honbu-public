@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>トランプ関税仕入れコスト試算アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* 品目入力行 */
+    .item-row {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.75rem;
+      position: relative;
+    }
+    .item-row .item-name-row {
+      display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.65rem;
+    }
+    .item-row .item-num {
+      font-size: 0.72rem; font-weight: 800; color: var(--accent);
+      background: var(--accent-light); border-radius: 5px;
+      padding: 0.15rem 0.45rem; white-space: nowrap;
+    }
+    .item-row input[type="text"] {
+      flex: 1; padding: 0.55rem 0.75rem;
+      font-size: 0.92rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: #fff; color: var(--text);
+      outline: none;
+    }
+    .item-row input[type="text"]:focus { border-color: var(--accent); }
+
+    .item-fields {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.55rem;
+    }
+    @media (max-width: 480px) {
+      .item-fields { grid-template-columns: 1fr; }
+    }
+    .item-field label {
+      display: block; font-size: 0.7rem; font-weight: 600;
+      color: var(--text-sub); margin-bottom: 0.2rem;
+    }
+    .item-field input[type="number"] {
+      width: 100%; padding: 0.5rem 0.65rem;
+      font-size: 0.92rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: #fff; color: var(--text);
+      outline: none;
+    }
+    .item-field input[type="number"]:focus { border-color: var(--accent); }
+    .item-field .hint { font-size: 0.65rem; color: var(--text-sub); margin-top: 0.15rem; }
+
+    .preset-row {
+      display: flex; gap: 0.4rem; flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+    .preset-btn {
+      font-size: 0.68rem; font-weight: 700;
+      padding: 0.28rem 0.55rem;
+      background: var(--accent-light); color: var(--accent);
+      border: 1px solid var(--accent); border-radius: 6px;
+      cursor: pointer; white-space: nowrap;
+    }
+    .preset-btn:hover { background: var(--accent); color: #fff; }
+
+    .del-btn {
+      position: absolute; top: 0.7rem; right: 0.75rem;
+      font-size: 1rem; color: var(--text-sub);
+      background: none; border: none; cursor: pointer; line-height: 1;
+      padding: 0.2rem 0.35rem;
+      border-radius: 5px;
+    }
+    .del-btn:hover { background: var(--ng-bg); color: var(--ng); }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 0.6rem; padding: 0.75rem;
+      font-size: 0.92rem; font-weight: 700;
+      background: #fff; color: var(--accent);
+      border: 2px dashed var(--accent); border-radius: var(--radius);
+      cursor: pointer;
+    }
+    .btn-add:hover { background: var(--accent-light); }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0.5rem auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00;
+    }
+
+    /* 結果カード */
+    .result-item {
+      border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 0.9rem 1rem; margin-bottom: 0.6rem;
+      background: var(--card);
+    }
+    .result-item.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-item.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-item.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-item-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .result-item-name { font-size: 0.95rem; font-weight: 800; color: var(--text); }
+    .badge {
+      font-size: 0.68rem; font-weight: 800; border-radius: 6px;
+      padding: 0.2rem 0.55rem; letter-spacing: 0.05em;
+    }
+    .badge.ok   { background: var(--ok);   color: #fff; }
+    .badge.warn { background: var(--warn); color: #fff; }
+    .badge.ng   { background: var(--ng);   color: #fff; }
+
+    .mini-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .mini-table tr { border-bottom: 1px solid var(--border); }
+    .mini-table tr:last-child { border-bottom: none; }
+    .mini-table td { padding: 0.35rem 0.2rem; color: var(--text-sub); }
+    .mini-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .mini-table .hl td { font-weight: 700; }
+    .mini-table .ok-row td:last-child { color: var(--ok); }
+    .mini-table .ng-row td:last-child { color: var(--ng); }
+    .mini-table .warn-row td:last-child { color: var(--warn); }
+
+    /* サマリーグリッド */
+    .summary-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem;
+    }
+    @media (max-width: 420px) {
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .sg-item { background: var(--bg); border-radius: 10px; padding: 0.75rem 0.9rem; }
+    .sg-label { font-size: 0.68rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.25rem; }
+    .sg-val { font-size: 1.05rem; font-weight: 800; color: var(--text); }
+    .sg-val.ok-color { color: var(--ok); }
+    .sg-val.ng-color { color: var(--ng); }
+    .sg-val.warn-color { color: var(--warn); }
+    .sg-val.accent { color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>トランプ関税 仕入れコスト試算アプリ</h1>
+  <p class="subtitle">関税率変動が品目別の仕入れコスト・粗利に与える影響を即試算</p>
+</header>
+
+<!-- 品目入力 -->
+<div class="card">
+  <p class="card-title">品目の入力</p>
+  <div id="itemList"></div>
+</div>
+
+<button class="btn-add" onclick="addItem()">＋ 品目を追加する</button>
+<button class="btn-calc" onclick="calc()">関税コストを試算する</button>
+
+<!-- 結果 -->
+<div id="resultsSection" style="display:none">
+  <div class="card">
+    <p class="card-title">サマリー</p>
+    <div class="summary-grid" id="summaryGrid"></div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">品目別 試算結果</p>
+    <div id="resultList"></div>
+  </div>
+</div>
+
+<a class="back-link" href="../index.html">← トップへ戻る</a>
+
+<script>
+var LS_KEY = 'trump_tariff_calc_v1';
+var items = [];
+
+function makeItem(name, cost, oldRate, newRate, price) {
+  return {
+    name:    name    || '',
+    cost:    cost    != null ? cost    : '',
+    oldRate: oldRate != null ? oldRate : 0,
+    newRate: newRate != null ? newRate : 0,
+    price:   price   != null ? price   : ''
+  };
+}
+
+function addItem(data) {
+  var d = data || makeItem();
+  items.push(d);
+  renderItems();
+}
+
+function removeItem(idx) {
+  items.splice(idx, 1);
+  renderItems();
+}
+
+function getVal(id) {
+  var el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+function readItems() {
+  for (var i = 0; i < items.length; i++) {
+    items[i].name    = getVal('name_'    + i);
+    items[i].cost    = parseFloat(getVal('cost_'    + i)) || 0;
+    items[i].oldRate = parseFloat(getVal('oldRate_' + i)) || 0;
+    items[i].newRate = parseFloat(getVal('newRate_' + i)) || 0;
+    items[i].price   = parseFloat(getVal('price_'   + i)) || 0;
+  }
+}
+
+function renderItems() {
+  var html = '';
+  for (var i = 0; i < items.length; i++) {
+    var d = items[i];
+    html += '<div class="item-row">';
+    html += '<div class="item-name-row">';
+    html += '<span class="item-num">品目 ' + (i + 1) + '</span>';
+    html += '<input type="text" id="name_' + i + '" placeholder="例：スニーカー" value="' + esc(d.name) + '">';
+    html += '</div>';
+    html += '<div class="item-fields">';
+    html += field('cost_' + i,    '仕入れ値（円/個）', d.cost,    '例: 5000', '仕入れ1個あたりの現行価格（関税前）');
+    html += field('oldRate_' + i, '旧関税率（%）',     d.oldRate, '例: 7.5',  '変更前の関税率');
+    html += field('newRate_' + i, '新関税率（%）',     d.newRate, '例: 34',   '変更後（トランプ関税後）の関税率');
+    html += field('price_' + i,   '販売価格（円/個）', d.price,   '例: 9800', '');
+    html += '</div>';
+    // プリセット
+    html += '<div class="preset-row">';
+    html += '<span style="font-size:0.65rem;color:var(--text-sub);align-self:center">新関税率プリセット：</span>';
+    ['10', '25', '34', '145'].forEach(function(r) {
+      html += '<button class="preset-btn" onclick="setNewRate(' + i + ',' + r + ')">+' + r + '%</button>';
+    });
+    html += '</div>';
+    // 削除
+    html += '<button class="del-btn" onclick="removeItem(' + i + ')" title="削除">✕</button>';
+    html += '</div>';
+  }
+  document.getElementById('itemList').innerHTML = html || '<p style="color:var(--text-sub);font-size:0.85rem;text-align:center;padding:0.5rem">「＋ 品目を追加する」から追加してください</p>';
+}
+
+function field(id, label, val, ph, hint) {
+  var v = (val !== '' && val != null) ? val : '';
+  var h = hint ? '<p class="hint">' + hint + '</p>' : '';
+  return '<div class="item-field">'
+    + '<label for="' + id + '">' + label + '</label>'
+    + '<input type="number" id="' + id + '" placeholder="' + ph + '" value="' + v + '" min="0" step="any">'
+    + h
+    + '</div>';
+}
+
+function setNewRate(idx, rate) {
+  var el = document.getElementById('newRate_' + idx);
+  if (el) { el.value = rate; }
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function calc() {
+  if (items.length === 0) { alert('品目を追加してください'); return; }
+  readItems();
+
+  var totalCostIncrease = 0;
+  var totalGrossProfit  = 0;
+  var totalSales        = 0;
+  var resultHtml = '';
+
+  for (var i = 0; i < items.length; i++) {
+    var d = items[i];
+    var name    = d.name || ('品目 ' + (i + 1));
+    var cost    = d.cost    || 0;
+    var oldRate = d.oldRate || 0;
+    var newRate = d.newRate || 0;
+    var price   = d.price   || 0;
+
+    // 計算
+    var oldLandedCost = cost * (1 + oldRate / 100);
+    var newLandedCost = cost * (1 + newRate / 100);
+    var costIncrease  = newLandedCost - oldLandedCost;
+    var grossProfit   = price - newLandedCost;
+    var grossRate     = price > 0 ? (grossProfit / price * 100) : 0;
+
+    totalCostIncrease += costIncrease;
+    totalGrossProfit  += grossProfit;
+    totalSales        += price;
+
+    // 判定
+    var level, badge;
+    if (grossRate >= 20) {
+      level = 'ok'; badge = '採算OK';
+    } else if (grossRate >= 10) {
+      level = 'warn'; badge = '要注意';
+    } else {
+      level = 'ng'; badge = (grossProfit < 0 ? '赤字' : '採算悪化');
+    }
+
+    resultHtml += '<div class="result-item ' + level + '">';
+    resultHtml += '<div class="result-item-header">';
+    resultHtml += '<span class="result-item-name">' + esc(name) + '</span>';
+    resultHtml += '<span class="badge ' + level + '">' + badge + '</span>';
+    resultHtml += '</div>';
+    resultHtml += '<table class="mini-table"><tbody>';
+    resultHtml += tr('旧仕入れ原価（関税込）', fmt(oldLandedCost) + ' 円', '');
+    resultHtml += tr('新仕入れ原価（関税込）', fmt(newLandedCost) + ' 円', 'ng-row');
+    resultHtml += tr('コスト増加額', '+' + fmt(costIncrease) + ' 円', costIncrease > 0 ? 'ng-row' : 'ok-row');
+    resultHtml += tr('販売価格', fmt(price) + ' 円', '');
+    resultHtml += tr('粗利額', fmt(grossProfit) + ' 円', grossProfit >= 0 ? 'ok-row' : 'ng-row');
+    resultHtml += tr('粗利率', fmt1(grossRate) + ' %', grossRate >= 20 ? 'ok-row' : grossRate >= 10 ? 'warn-row' : 'ng-row');
+    resultHtml += '</tbody></table>';
+    resultHtml += '</div>';
+  }
+
+  document.getElementById('resultList').innerHTML = resultHtml;
+
+  // サマリー
+  var totalGrossRate = totalSales > 0 ? (totalGrossProfit / totalSales * 100) : 0;
+  var summaryClass   = totalGrossRate >= 20 ? 'ok-color' : totalGrossRate >= 10 ? 'warn-color' : 'ng-color';
+  document.getElementById('summaryGrid').innerHTML =
+    sg('品目数',             items.length + ' 品目',          'accent') +
+    sg('合計コスト増加',     '+' + fmt(totalCostIncrease) + ' 円', 'ng-color') +
+    sg('合計粗利（試算後）', fmt(totalGrossProfit) + ' 円',   totalGrossProfit >= 0 ? 'ok-color' : 'ng-color') +
+    sg('平均粗利率',         fmt1(totalGrossRate) + ' %',     summaryClass) +
+    sg('合計販売額',         fmt(totalSales) + ' 円',          '') +
+    sg('関税率変更',         items.length + ' 品目対象',       'accent');
+
+  document.getElementById('resultsSection').style.display = '';
+  save();
+}
+
+function tr(label, val, cls) {
+  return '<tr class="' + cls + '"><td>' + label + '</td><td>' + val + '</td></tr>';
+}
+function sg(label, val, cls) {
+  return '<div class="sg-item"><div class="sg-label">' + label + '</div>'
+       + '<div class="sg-val ' + cls + '">' + val + '</div></div>';
+}
+function fmt(n)  { return Math.round(n).toLocaleString('ja-JP'); }
+function fmt1(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+
+function save() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(items));
+  } catch(e) {}
+}
+
+function load() {
+  try {
+    var d = JSON.parse(localStorage.getItem(LS_KEY));
+    if (Array.isArray(d) && d.length > 0) {
+      items = d.map(function(x) {
+        return makeItem(x.name, x.cost, x.oldRate, x.newRate, x.price);
+      });
+      renderItems();
+      return;
+    }
+  } catch(e) {}
+  // デフォルト：1品目空で表示
+  addItem();
+}
+
+load();
+</script>
+
+<script src="../fav-widget.js"></script>
+</body>
+</html>
