@@ -1,18 +1,36 @@
-﻿(function(){
+(function(){
   var KEY='ai_honbu_favs';
   function getFavs(){try{return JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){return[];}}
   function setFavs(a){try{localStorage.setItem(KEY,JSON.stringify(a));}catch(e){}}
-  function isFav(href){return getFavs().some(function(f){return f.href===href;});}
+
+  // href を ./フォルダ名/ 形式に正規化して比較
+  function normalizeHref(h){
+    try{ h=decodeURIComponent(h); }catch(e){}
+    // /ai-agent-honbu-public/アプリ名/ → ./アプリ名/
+    h=h.replace(/^.*\/ai-agent-honbu-public\//,'./');
+    // /アプリ名/ → ./アプリ名/
+    h=h.replace(/^\/([^/]+\/?)$/,'./$1');
+    // ./アプリ名 → ./アプリ名/
+    if(!/\/$/.test(h)) h=h+'/';
+    // アプリ名/ → ./アプリ名/
+    if(!/^\.\//.test(h)) h='./'+h;
+    return h;
+  }
+
+  function isFav(href){
+    var n=normalizeHref(href);
+    return getFavs().some(function(f){return normalizeHref(f.href)===n;});
+  }
   function toggleFav(href,name){
-    var a=getFavs(),i=a.findIndex(function(f){return f.href===href;});
-    if(i>=0)a.splice(i,1);else a.push({name:name,href:href});
+    var n=normalizeHref(href);
+    var a=getFavs();
+    var i=a.findIndex(function(f){return normalizeHref(f.href)===n;});
+    if(i>=0) a.splice(i,1); else a.push({name:name,href:normalizeHref(href)});
     setFavs(a);
   }
 
-  // href を ./フォルダ名/ 形式に正規化
-  var parts=window.location.pathname.replace(/\/$/,'').split('/').filter(Boolean);
-  var folder=decodeURIComponent(parts[parts.length-1]||'');
-  var href='./'+folder+'/';
+  // 現在ページの href を正規化
+  var href=normalizeHref(window.location.pathname);
 
   // アプリ名取得（h1優先、なければtitle）
   var h1=document.querySelector('h1');
