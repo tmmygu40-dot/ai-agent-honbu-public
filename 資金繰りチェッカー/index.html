@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>資金繰りチェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 残高フォーム ── */
+    .balance-row {
+      display: flex; gap: 0.75rem; align-items: flex-end;
+    }
+    .balance-row .field { flex: 1; margin-bottom: 0; }
+    .balance-row .btn-set {
+      flex-shrink: 0; padding: 0.72rem 1.2rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* ── 支払い追加フォーム ── */
+    .add-form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .add-form-grid .full { grid-column: 1 / -1; }
+    .add-form-grid .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-add {
+      display: block; width: 100%;
+      padding: 0.8rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      transition: transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active { transform: translateY(2px); }
+
+    .btn-check {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-check:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 支払いリスト ── */
+    .payment-list { list-style: none; }
+    .payment-item {
+      display: flex; align-items: center;
+      gap: 0.6rem;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .payment-item:last-child { border-bottom: none; }
+    .payment-info { flex: 1; min-width: 0; }
+    .payment-name { font-size: 0.92rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .payment-meta { font-size: 0.76rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .payment-amount { font-size: 1rem; font-weight: 700; color: var(--ng); flex-shrink: 0; }
+    .btn-del {
+      flex-shrink: 0; padding: 0.3rem 0.6rem;
+      font-size: 0.75rem; background: var(--ng-bg);
+      color: var(--ng); border: 1px solid var(--ng);
+      border-radius: 6px; cursor: pointer;
+    }
+    .empty-msg { font-size: 0.85rem; color: var(--text-sub); text-align: center; padding: 1rem 0; }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table th {
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      text-align: left; padding: 0.4rem 0.3rem;
+      border-bottom: 2px solid var(--border);
+    }
+    .detail-table th:last-child, .detail-table td:last-child { text-align: right; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td.bold { font-weight: 600; color: var(--text); }
+    .detail-table tr.danger td { color: var(--ng); font-weight: 700; }
+    .detail-table tr.danger td.bal { color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .current-balance-display {
+      text-align: center; padding: 0.4rem 0 0.6rem;
+      font-size: 0.85rem; color: var(--text-sub);
+    }
+    .current-balance-display span {
+      font-size: 1.3rem; font-weight: 900; color: var(--accent); margin-left: 0.3rem;
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>資金繰りチェッカー</h1>
+    <p class="subtitle">支払い期日と口座残高から資金ショートの危険日を即判断</p>
+  </header>
+
+  <!-- 口座残高設定 -->
+  <div class="card">
+    <p class="card-title">口座残高</p>
+    <div class="balance-row">
+      <div class="field">
+        <label for="balance">現在の口座残高（円）</label>
+        <input type="number" id="balance" placeholder="例: 500000" min="0">
+      </div>
+      <button class="btn-set" onclick="setBalance()">設定</button>
+    </div>
+    <div class="current-balance-display" id="balanceDisplay" style="display:none">
+      現在の残高：<span id="balanceVal">0</span> 円
+    </div>
+  </div>
+
+  <!-- 支払い予定追加 -->
+  <div class="card">
+    <p class="card-title">支払い予定を追加</p>
+    <div class="add-form-grid">
+      <div class="field full">
+        <label for="payName">取引先名</label>
+        <input type="text" id="payName" placeholder="例: ○○株式会社">
+      </div>
+      <div class="field">
+        <label for="payAmount">金額（円）</label>
+        <input type="number" id="payAmount" placeholder="例: 80000" min="1">
+      </div>
+      <div class="field">
+        <label for="payDate">支払い期日</label>
+        <input type="date" id="payDate">
+      </div>
+    </div>
+    <button class="btn-add" onclick="addPayment()">＋ 追加</button>
+  </div>
+
+  <!-- 支払い予定一覧 -->
+  <div class="card">
+    <p class="card-title">支払い予定一覧</p>
+    <ul class="payment-list" id="paymentList">
+      <li class="empty-msg" id="emptyMsg">支払い予定が登録されていません</li>
+    </ul>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-check" onclick="check()">資金ショートを診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="resultCard">
+    <p class="result-label" id="resultLabel">診断結果</p>
+    <p class="result-value" id="resultValue">—</p>
+    <p class="result-note" id="resultNote"></p>
+  </div>
+
+  <!-- 残高推移カード -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">残高推移（支払い期日順）</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>支払い期日</th>
+          <th>取引先</th>
+          <th>支払額</th>
+          <th>残高</th>
+        </tr>
+      </thead>
+      <tbody id="detailBody"></tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'shikin_checker_v1';
+
+  var state = {
+    balance: 0,
+    payments: []
+  };
+
+  function load() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try { state = JSON.parse(saved); } catch(e) {}
+    }
+    renderBalance();
+    renderList();
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function setBalance() {
+    var val = parseFloat(document.getElementById('balance').value);
+    if (isNaN(val) || val < 0) { alert('正しい金額を入力してください'); return; }
+    state.balance = val;
+    save();
+    renderBalance();
+    document.getElementById('balance').value = '';
+  }
+
+  function renderBalance() {
+    var disp = document.getElementById('balanceDisplay');
+    if (state.balance > 0 || state.balance === 0 && state.payments.length > 0) {
+      disp.style.display = '';
+      document.getElementById('balanceVal').textContent = fmt(state.balance);
+    } else {
+      disp.style.display = 'none';
+    }
+  }
+
+  function addPayment() {
+    var name = document.getElementById('payName').value.trim();
+    var amount = parseFloat(document.getElementById('payAmount').value);
+    var date = document.getElementById('payDate').value;
+
+    if (!name) { alert('取引先名を入力してください'); return; }
+    if (isNaN(amount) || amount <= 0) { alert('正しい金額を入力してください'); return; }
+    if (!date) { alert('支払い期日を選択してください'); return; }
+
+    state.payments.push({ id: Date.now(), name: name, amount: amount, date: date });
+    save();
+    renderList();
+
+    document.getElementById('payName').value = '';
+    document.getElementById('payAmount').value = '';
+    document.getElementById('payDate').value = '';
+  }
+
+  function deletePayment(id) {
+    state.payments = state.payments.filter(function(p) { return p.id !== id; });
+    save();
+    renderList();
+  }
+
+  function renderList() {
+    var list = document.getElementById('paymentList');
+    var empty = document.getElementById('emptyMsg');
+
+    if (state.payments.length === 0) {
+      list.innerHTML = '';
+      list.appendChild(empty);
+      empty.style.display = '';
+      return;
+    }
+
+    var sorted = state.payments.slice().sort(function(a, b) { return a.date.localeCompare(b.date); });
+    list.innerHTML = sorted.map(function(p) {
+      return '<li class="payment-item">'
+        + '<div class="payment-info">'
+        + '<div class="payment-name">' + esc(p.name) + '</div>'
+        + '<div class="payment-meta">' + fmtDate(p.date) + '</div>'
+        + '</div>'
+        + '<div class="payment-amount">−' + fmt(p.amount) + ' 円</div>'
+        + '<button class="btn-del" onclick="deletePayment(' + p.id + ')">削除</button>'
+        + '</li>';
+    }).join('');
+  }
+
+  function check() {
+    if (state.payments.length === 0) {
+      showResult('warn', '支払い予定なし', '支払い予定を登録してから診断してください。');
+      document.getElementById('detailCard').style.display = 'none';
+      return;
+    }
+
+    var balance = state.balance;
+    var sorted = state.payments.slice().sort(function(a, b) { return a.date.localeCompare(b.date); });
+
+    var rows = [];
+    var dangerDate = null;
+    var runningBalance = balance;
+
+    for (var i = 0; i < sorted.length; i++) {
+      var p = sorted[i];
+      runningBalance -= p.amount;
+      rows.push({
+        date: p.date,
+        name: p.name,
+        amount: p.amount,
+        balance: runningBalance,
+        danger: runningBalance < 0
+      });
+      if (runningBalance < 0 && dangerDate === null) {
+        dangerDate = p.date;
+      }
+    }
+
+    // 結論カード
+    if (dangerDate !== null) {
+      showResult('ng', '⚠️ 資金ショートあり', '危険日：' + fmtDate(dangerDate) + '\n残高が不足します。早急に資金手当てが必要です。');
+    } else {
+      showResult('ok', '資金ショートなし', '支払い後の最終残高：' + fmt(runningBalance) + ' 円\n現在の支払い予定は口座残高の範囲内です。');
+    }
+
+    // 推移テーブル
+    var tbody = document.getElementById('detailBody');
+    tbody.innerHTML = rows.map(function(r) {
+      var cls = r.danger ? ' class="danger"' : '';
+      return '<tr' + cls + '>'
+        + '<td class="bold">' + fmtDate(r.date) + '</td>'
+        + '<td>' + esc(r.name) + '</td>'
+        + '<td style="text-align:right">−' + fmt(r.amount) + ' 円</td>'
+        + '<td class="bal" style="text-align:right;font-weight:600;color:' + (r.balance < 0 ? 'var(--ng)' : 'var(--ok)') + '">'
+        + fmt(r.balance) + ' 円</td>'
+        + '</tr>';
+    }).join('');
+    document.getElementById('detailCard').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var card = document.getElementById('resultCard');
+    card.className = 'result-card ' + level;
+    card.style.display = '';
+    document.getElementById('resultLabel').textContent = '診断結果';
+    document.getElementById('resultValue').textContent = val;
+    document.getElementById('resultNote').textContent = note;
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmtDate(d) {
+    var parts = d.split('-');
+    return parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+  }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
