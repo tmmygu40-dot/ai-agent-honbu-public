@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>廃棄ロス削減効果チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 入力行（横並び） */
+    .input-row { display: flex; gap: 0.6rem; align-items: flex-end; }
+    .input-row .field { flex: 1; margin-bottom: 0; }
+    .input-row .field-sm { flex: 0 0 90px; }
+
+    /* ── ボタン ── */
+    .btn-add {
+      padding: 0.72rem 1.1rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+    .btn-add:active { opacity: 0.8; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── サマリー数値 ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .summary-item {
+      background: var(--accent-light);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.75rem 0.9rem;
+      text-align: center;
+    }
+    .summary-item .s-label { font-size: 0.7rem; color: var(--text-sub); margin-bottom: 0.25rem; }
+    .summary-item .s-val { font-size: 1.25rem; font-weight: 900; color: var(--accent); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table th {
+      text-align: left; font-size: 0.72rem; font-weight: 700;
+      color: var(--text-sub); padding: 0.4rem 0.3rem;
+      border-bottom: 2px solid var(--border);
+    }
+    .detail-table th:not(:first-child) { text-align: right; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); border-bottom: 1px solid var(--border); }
+    .detail-table td:not(:first-child) { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table tr:last-child td { border-bottom: none; }
+
+    /* 削除ボタン */
+    .btn-del {
+      background: none; border: none; color: var(--ng);
+      font-size: 0.85rem; cursor: pointer; padding: 0.1rem 0.4rem;
+    }
+    .btn-del:hover { opacity: 0.7; }
+
+    /* ── 設定行 ── */
+    .setting-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      font-size: 0.88rem;
+    }
+    .setting-row label { color: var(--text-sub); font-weight: 600; white-space: nowrap; }
+    .setting-row input {
+      width: 80px; padding: 0.45rem 0.7rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: var(--bg);
+      outline: none; text-align: right;
+    }
+    .setting-row input:focus { border-color: var(--accent); background: #fff; }
+    .setting-row span { color: var(--text-sub); font-size: 0.82rem; }
+
+    /* 空状態 */
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1.5rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .summary-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>廃棄ロス削減効果チェッカー</h1>
+    <p class="subtitle">廃棄ロスを入力するだけで削減余地と利益改善額を計算</p>
+  </header>
+
+  <!-- 設定カード -->
+  <div class="card">
+    <p class="card-title">削減目標設定</p>
+    <div class="setting-row">
+      <label for="targetRate">目標削減率</label>
+      <input type="number" id="targetRate" value="30" min="1" max="100" step="1">
+      <span>% 削減を目指す</span>
+    </div>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="input-row">
+      <div class="field">
+        <label for="itemName">品目名</label>
+        <input type="text" id="itemName" placeholder="例: 食パン" maxlength="30">
+      </div>
+    </div>
+    <div style="height:0.6rem"></div>
+    <div class="input-row">
+      <div class="field">
+        <label for="itemQty">月間廃棄数</label>
+        <input type="number" id="itemQty" placeholder="例: 50" min="0" step="1">
+      </div>
+      <div class="field">
+        <label for="itemUnit">単位</label>
+        <input type="text" id="itemUnit" placeholder="個" maxlength="5">
+      </div>
+      <div class="field">
+        <label for="itemCost">1個あたり原価（円）</label>
+        <input type="number" id="itemCost" placeholder="例: 120" min="0" step="1">
+      </div>
+    </div>
+    <div style="height:0.9rem"></div>
+    <button class="btn-add" onclick="addItem()">追加する</button>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calculate()">削減効果を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="resultCard">
+    <p class="result-label">月間 利益改善見込み額</p>
+    <p class="result-value" id="resultValue">—</p>
+    <p class="result-note"  id="resultNote"></p>
+  </div>
+
+  <!-- サマリーカード -->
+  <div class="card" id="summaryCard" style="display:none">
+    <p class="card-title">削減効果サマリー</p>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <p class="s-label">現在の月間廃棄コスト</p>
+        <p class="s-val" id="sTotalCost">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="s-label">目標削減率</p>
+        <p class="s-val" id="sTargetRate">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="s-label">削減余地（月）</p>
+        <p class="s-val" id="sReducible">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="s-label">年間節約見込み</p>
+        <p class="s-val" id="sAnnual">—</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 品目一覧カード -->
+  <div class="card" id="listCard">
+    <p class="card-title">品目一覧</p>
+    <div id="listBody"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var items = [];
+
+  // localStorage読み込み
+  (function() {
+    try {
+      var saved = localStorage.getItem('haiki_items');
+      if (saved) items = JSON.parse(saved);
+      var rate = localStorage.getItem('haiki_rate');
+      if (rate) document.getElementById('targetRate').value = rate;
+    } catch(e) {}
+    renderList();
+  })();
+
+  function save() {
+    try {
+      localStorage.setItem('haiki_items', JSON.stringify(items));
+      localStorage.setItem('haiki_rate', document.getElementById('targetRate').value);
+    } catch(e) {}
+  }
+
+  function addItem() {
+    var name = document.getElementById('itemName').value.trim();
+    var qty  = parseFloat(document.getElementById('itemQty').value);
+    var unit = document.getElementById('itemUnit').value.trim() || '個';
+    var cost = parseFloat(document.getElementById('itemCost').value);
+
+    if (!name) { alert('品目名を入力してください'); return; }
+    if (isNaN(qty) || qty < 0) { alert('廃棄数を正しく入力してください'); return; }
+    if (isNaN(cost) || cost < 0) { alert('原価を正しく入力してください'); return; }
+
+    items.push({ name: name, qty: qty, unit: unit, cost: cost });
+    save();
+    renderList();
+
+    // 入力クリア
+    document.getElementById('itemName').value = '';
+    document.getElementById('itemQty').value = '';
+    document.getElementById('itemUnit').value = '';
+    document.getElementById('itemCost').value = '';
+    document.getElementById('itemName').focus();
+  }
+
+  function deleteItem(idx) {
+    items.splice(idx, 1);
+    save();
+    renderList();
+    // 計算結果リセット
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('summaryCard').style.display = 'none';
+  }
+
+  function renderList() {
+    var el = document.getElementById('listBody');
+    if (items.length === 0) {
+      el.innerHTML = '<p class="empty-msg">品目がまだ登録されていません</p>';
+      return;
+    }
+    var html = '<table class="detail-table">'
+      + '<thead><tr>'
+      + '<th>品目</th><th>廃棄数/月</th><th>原価(円)</th><th>廃棄コスト/月</th><th></th>'
+      + '</tr></thead><tbody>';
+    items.forEach(function(item, i) {
+      var totalCost = item.qty * item.cost;
+      html += '<tr>'
+        + '<td>' + esc(item.name) + '</td>'
+        + '<td>' + fmt(item.qty) + item.unit + '</td>'
+        + '<td>' + fmt(item.cost) + '円</td>'
+        + '<td>' + fmt(totalCost) + '円</td>'
+        + '<td><button class="btn-del" onclick="deleteItem(' + i + ')">削除</button></td>'
+        + '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  function calculate() {
+    if (items.length === 0) {
+      alert('品目を1件以上追加してください');
+      return;
+    }
+    var rate = parseFloat(document.getElementById('targetRate').value);
+    if (isNaN(rate) || rate <= 0 || rate > 100) {
+      alert('目標削減率を1〜100の間で入力してください');
+      return;
+    }
+
+    // 月間廃棄コスト合計
+    var totalCost = items.reduce(function(sum, item) {
+      return sum + item.qty * item.cost;
+    }, 0);
+
+    // 削減余地
+    var reducible = totalCost * (rate / 100);
+    var annual    = reducible * 12;
+
+    // 判定
+    var level, note;
+    if (reducible >= 100000) {
+      level = 'ok';
+      note  = '月10万円以上の改善余地あり。今すぐ廃棄削減に取り組む価値が大きいです。';
+    } else if (reducible >= 20000) {
+      level = 'warn';
+      note  = '月' + fmt(reducible) + '円の改善余地があります。優先的に取り組みましょう。';
+    } else {
+      level = 'ng';
+      note  = '現状の削減余地は小さめです。廃棄数の再確認や原価見直しも検討してください。';
+    }
+
+    // 結論カード
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('resultValue').textContent = fmt(reducible) + ' 円/月';
+    document.getElementById('resultNote').textContent  = note;
+
+    // サマリー
+    document.getElementById('sTotalCost').textContent  = fmt(totalCost) + '円';
+    document.getElementById('sTargetRate').textContent = rate + '%';
+    document.getElementById('sReducible').textContent  = fmt(reducible) + '円';
+    document.getElementById('sAnnual').textContent     = fmt(annual) + '円';
+    document.getElementById('summaryCard').style.display = '';
+
+    // スクロール
+    document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    save();
+  }
+
+  // Enter キー対応
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') {
+      var inputs = ['itemName','itemQty','itemUnit','itemCost'];
+      var idx = inputs.indexOf(e.target.id);
+      if (idx >= 0 && idx < inputs.length - 1) {
+        document.getElementById(inputs[idx + 1]).focus();
+      } else if (idx === inputs.length - 1) {
+        addItem();
+      }
+    }
+  });
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  </script>
+
+</body>
+</html>
