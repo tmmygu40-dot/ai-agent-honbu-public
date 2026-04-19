@@ -1,4 +1,4 @@
-﻿# publish-batch.ps1 — 公開バッチ（git自動化版 / 引数対応）
+# publish-batch.ps1 — 公開バッチ（安全版 / 再生成方式）
 #
 # 使い方:
 #   手動実行: $apps を編集 → .\publish-batch.ps1
@@ -9,161 +9,201 @@ param(
     [string[]]$InputApps
 )
 
-$dev = "C:\Users\tmmyg\OneDrive\デスクトップ\AIエージェント本部"
-$pub = "C:\Users\tmmyg\OneDrive\デスクトップ\ai-agent-honbu-public"
+$dev   = "C:\Users\tmmyg\OneDrive\デスクトップ\AIエージェント本部"
+$pub   = "C:\Users\tmmyg\OneDrive\デスクトップ\ai-agent-honbu-public"
+$honbu = "C:\Users\tmmyg\OneDrive\デスクトップ\AIエージェント本部"
 
 # ===== 手動実行用リスト（-InputApps 指定がない場合のみ使用） =====
 $apps = @()
 # ================================================================
 
-# 引数が渡されていれば優先
-if ($InputApps -and $InputApps.Count -gt 0) {
-    $apps = $InputApps
-}
+if ($InputApps -and $InputApps.Count -gt 0) { $apps = $InputApps }
 
-$ErrorActionPreference = 'Stop'
 Set-Location $pub
 
-function Fail($msg) {
-    Write-Host "中止: $msg" -ForegroundColor Red
-    exit 1
+# ── 停止ヘルパー（exit 1 不使用） ─────────────────────────────────────
+function Stop-WithMessage($msg) {
+    Write-Host "`n中止: $msg" -ForegroundColor Red
+    Read-Host "Enterで終了"
+    return $false
 }
+
+# ── ERROR_LOG.md 追記ヘルパー ─────────────────────────────────────────
+function Write-ErrorLog($detail) {
+    $errorLogPath = "$honbu\ERROR_LOG.md"
+    $now   = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+    $entry = "`r`n`r`n---`r`n`r`n## $now 公開処理中にエラー検出`r`n`r`n$detail`r`n"
+    if (Test-Path $errorLogPath) {
+        $existing = [System.IO.File]::ReadAllText($errorLogPath, [System.Text.Encoding]::UTF8)
+        [System.IO.File]::WriteAllText($errorLogPath, $existing.TrimEnd() + $entry, [System.Text.UTF8Encoding]::new($false))
+    } else {
+        [System.IO.File]::WriteAllText($errorLogPath, "# ERROR_LOG`r`n" + $entry, [System.Text.UTF8Encoding]::new($false))
+    }
+    Write-Host "ERROR_LOG.md に記録しました" -ForegroundColor Yellow
+}
+
+$ok = $true
 
 # 空チェック
 if (-not $apps -or $apps.Count -eq 0) {
-    Fail "公開するアプリが指定されていません"
+    Write-Host "中止: 公開するアプリが指定されていません" -ForegroundColor Red
+    $ok = $false
 }
 
-# (1) dev 存在チェック
-$missing = $apps | Where-Object { -not (Test-Path "$dev\$_") }
-if ($missing) {
-    Fail ("devに以下がありません: " + ($missing -join ', '))
+# 件数制限（最大10件）
+if ($ok -and $apps.Count -gt 10) {
+    Write-Host "中止: 一度に公開できるのは最大10件です（指定: $($apps.Count) 件）" -ForegroundColor Red
+    Write-Host "10件以下に分けて実行してください。" -ForegroundColor Yellow
+    $ok = $false
 }
 
-# (2) コピー
-foreach ($a in $apps) {
-    Copy-Item -Recurse -Force "$dev\$a" "$pub\$a"
-    Write-Host "Copied: $a"
-}
-
-# (3) 現在件数
-$pubMd = Get-Content PUBLISHED.md -Raw -Encoding UTF8
-if ($pubMd -notmatch '## 公開アプリ \((\d+)件\)') {
-    Fail "PUBLISHED.md 見出し不明"
-}
-$curr = [int]$Matches[1]
-$new = $curr + $apps.Count
-
-# (4) index.html 更新
-$idxAdd = ($apps | ForEach-Object { "    <li><a href=`"$_/`">$_</a></li>" }) -join "`r`n"
-$idx = Get-Content index.html -Raw -Encoding UTF8
-$idx = $idx.Replace('    <!-- APP_LIST_END -->', $idxAdd + "`r`n    <!-- APP_LIST_END -->")
-
-# (4b) 新着アプリ欄を先頭に追加（最新6件に絞る）
-$today = Get-Date -Format 'yyyy-MM-dd'
-$newItems = ($apps | ForEach-Object {
-    "    <li><a href=`"./$_/`">$_<span class=`"new-date`">公開日: $today</span></a></li>"
-}) -join "`r`n"
-$idx = $idx.Replace('    <!-- NEW_APPS_END -->', "    <!-- NEW_APPS_END -->`r`n" + $newItems)
-
-# 6件超え分を末尾から削除
-$blockMatch = [regex]::Match($idx, '(?s)(<ul class="new-apps">.*?</ul>)')
-if ($blockMatch.Success) {
-    $block = $blockMatch.Value
-    $liItems = [regex]::Matches($block, '(?s)<li>.*?</li>')
-    if ($liItems.Count -gt 6) {
-        $keepLines = ($liItems | Select-Object -First 6 | ForEach-Object { $_.Value }) -join "`r`n    "
-        $newBlock = "<ul class=`"new-apps`">`r`n    <!-- NEW_APPS_END -->`r`n    $keepLines`r`n  </ul>"
-        $idx = $idx.Replace($block, $newBlock)
+# dev 存在チェック
+if ($ok) {
+    $missing = $apps | Where-Object { -not (Test-Path "$dev\$_") }
+    if ($missing) {
+        Write-Host "中止: devに以下がありません: $($missing -join ', ')" -ForegroundColor Red
+        $ok = $false
     }
 }
 
-[System.IO.File]::WriteAllText((Join-Path $PWD "index.html"), $idx, [System.Text.UTF8Encoding]::new($false))
-Write-Host "index.html updated"
-
-# (5) PUBLISHED.md 更新
-$n = $curr + 1
-$rows = @()
-foreach ($a in $apps) {
-    $rows += "| $n | ``$a/`` | $a |"
-    $n++
+# (1) コピー
+if ($ok) {
+    foreach ($a in $apps) {
+        Copy-Item -Recurse -Force "$dev\$a" "$pub\$a"
+        Write-Host "Copied: $a"
+    }
 }
-$pubAdd = $rows -join "`r`n"
-$m = [regex]::Matches($pubMd, '\| \d+ \|[^\r\n]+\|')
-$last = $m[$m.Count - 1].Value
-$pubMd = $pubMd.Replace($last, $last + "`r`n" + $pubAdd)
-$pubMd = $pubMd -replace '## 公開アプリ \(\d+件\)', ("## 公開アプリ (" + $new + "件)")
-[System.IO.File]::WriteAllText((Join-Path $PWD "PUBLISHED.md"), $pubMd, [System.Text.UTF8Encoding]::new($false))
-Write-Host "PUBLISHED.md updated ($curr → $new 件)"
+
+# (2) コピー後の実フォルダ一覧を取得（これが唯一の正）
+if ($ok) {
+    $allApps = Get-ChildItem $pub -Directory |
+               Where-Object { Test-Path "$($_.FullName)\index.html" } |
+               Sort-Object Name |
+               Select-Object -ExpandProperty Name
+
+    Write-Host "`n実アプリフォルダ数: $($allApps.Count) 件" -ForegroundColor Cyan
+}
+
+# (3) index.html の all-apps セクションを再生成
+if ($ok) {
+    $idx = [System.IO.File]::ReadAllText("$pub\index.html", [System.Text.Encoding]::UTF8)
+
+    $newLiLines = ($allApps | ForEach-Object {
+        "    <li><a href=`"./$_/`">$_</a></li>"
+    }) -join "`r`n"
+
+    $pattern  = '(?s)(<ul id="all-apps"[^>]*>)\s*.*?(<!-- APP_LIST_END --></ul>)'
+    $newBlock = '$1' + "`r`n" + $newLiLines + "`r`n    " + '$2'
+    $newIdx   = [regex]::Replace($idx, $pattern, $newBlock)
+
+    if ($newIdx -eq $idx) {
+        Write-Host "中止: index.html の all-apps 置換失敗" -ForegroundColor Red
+        Write-ErrorLog "index.html の all-apps セクション置換に失敗しました。"
+        $ok = $false
+    } else {
+        # 新着アプリ欄を先頭に追加（最新6件に絞る）
+        $today    = Get-Date -Format 'yyyy-MM-dd'
+        $newItems = ($apps | ForEach-Object {
+            "    <li><a href=`"./$_/`">$_<span class=`"new-date`">公開日: $today</span></a></li>"
+        }) -join "`r`n"
+        $newIdx = $newIdx.Replace('    <!-- NEW_APPS_END -->', "    <!-- NEW_APPS_END -->`r`n" + $newItems)
+
+        $blockMatch = [regex]::Match($newIdx, '(?s)(<ul class="new-apps">.*?</ul>)')
+        if ($blockMatch.Success) {
+            $block   = $blockMatch.Value
+            $liItems = [regex]::Matches($block, '(?s)<li>.*?</li>')
+            if ($liItems.Count -gt 6) {
+                $keepLines = ($liItems | Select-Object -First 6 | ForEach-Object { $_.Value }) -join "`r`n    "
+                $newBlock2 = "<ul class=`"new-apps`">`r`n    <!-- NEW_APPS_END -->`r`n    $keepLines`r`n  </ul>"
+                $newIdx    = $newIdx.Replace($block, $newBlock2)
+            }
+        }
+
+        [System.IO.File]::WriteAllText("$pub\index.html", $newIdx, [System.Text.UTF8Encoding]::new($false))
+        Write-Host "index.html 更新完了" -ForegroundColor Green
+    }
+}
+
+# (4) PUBLISHED.md の表全体を再生成
+if ($ok) {
+    $pubMd = [System.IO.File]::ReadAllText("$pub\PUBLISHED.md", [System.Text.Encoding]::UTF8)
+
+    $headerMatch = [regex]::Match($pubMd, '(?s)^(.*?\|----[^\r\n]+\|[\r\n]+)')
+    $footerMatch = [regex]::Match($pubMd, '(?s)(\r?\n---\r?\n## 運用ルール.*?)$')
+
+    if (-not $headerMatch.Success -or -not $footerMatch.Success) {
+        Write-Host "中止: PUBLISHED.md の構造抽出失敗" -ForegroundColor Red
+        Write-ErrorLog "PUBLISHED.md のヘッダー/フッター抽出に失敗しました。"
+        $ok = $false
+    } else {
+        $mdHeader = $headerMatch.Groups[1].Value -replace '## 公開アプリ \(\d+件\)', "## 公開アプリ ($($allApps.Count)件)"
+        $mdFooter = $footerMatch.Groups[1].Value
+
+        $rows = for ($i = 0; $i -lt $allApps.Count; $i++) {
+            "| $($i + 1)  | ``$($allApps[$i])/`` | $($allApps[$i]) |"
+        }
+        $newPubMd = $mdHeader + ($rows -join "`r`n") + $mdFooter
+        [System.IO.File]::WriteAllText("$pub\PUBLISHED.md", $newPubMd, [System.Text.UTF8Encoding]::new($false))
+        Write-Host "PUBLISHED.md 更新完了" -ForegroundColor Green
+    }
+}
+
+# (5) 3点整合チェック（commit/push 前）
+if ($ok) {
+    Write-Host "`n── 3点整合チェック ──" -ForegroundColor Cyan
+
+    $checkIdx    = [System.IO.File]::ReadAllText("$pub\index.html",   [System.Text.Encoding]::UTF8)
+    $checkMd     = [System.IO.File]::ReadAllText("$pub\PUBLISHED.md", [System.Text.Encoding]::UTF8)
+    $folderCount = (Get-ChildItem $pub -Directory | Where-Object { Test-Path "$($_.FullName)\index.html" }).Count
+    $linkCount   = ([regex]::Matches($checkIdx, '<li><a href="\./[^"]+/">[^<]+</a></li>')).Count
+    $mdCount     = if ($checkMd -match '## 公開アプリ \((\d+)件\)') { [int]$Matches[1] } else { -1 }
+
+    Write-Host "  実アプリフォルダ数  : $folderCount 件"
+    Write-Host "  index.html リンク数 : $linkCount 件"
+    Write-Host "  PUBLISHED.md 件数   : $mdCount 件"
+
+    if ($folderCount -ne $linkCount -or $folderCount -ne $mdCount) {
+        Write-Host "`n3点不一致。commit/push を中止します。" -ForegroundColor Red
+        Write-ErrorLog "- 実アプリフォルダ数: $folderCount 件`r`n- index.html リンク数: $linkCount 件`r`n- PUBLISHED.md 件数: $mdCount 件`r`n- 公開対象: $($apps -join ', ')`r`n- 3点不一致を検出。commit/push前に停止。手動確認が必要。"
+        $ok = $false
+    } else {
+        Write-Host "3点一致OK。commit / push に進みます。" -ForegroundColor Green
+    }
+}
 
 # (6) git add / commit / push
-git add -- index.html PUBLISHED.md
-if ($LASTEXITCODE -ne 0) {
-    Fail "git add (files) failed"
-}
+if ($ok) {
+    git add -- index.html PUBLISHED.md
+    foreach ($a in $apps) { git add -- $a }
 
-foreach ($a in $apps) {
-    git add -- $a
+    $curr = $folderCount - $apps.Count
+    $msg  = "add: $($apps.Count) apps / $curr→$folderCount 件"
+    git commit -m $msg
     if ($LASTEXITCODE -ne 0) {
-        Fail "git add $a failed"
+        Write-Host "中止: git commit 失敗" -ForegroundColor Red
+        $ok = $false
     }
 }
 
-$msg = "add: $($apps.Count) apps / $curr→$new 件"
-git commit -m $msg
-if ($LASTEXITCODE -ne 0) {
-    Fail "git commit failed"
-}
-
-git push origin main
-if ($LASTEXITCODE -ne 0) {
-    Fail "git push failed"
-}
-
-Write-Host ""
-Write-Host "完了: $($apps.Count) 件公開 ($curr → $new)" -ForegroundColor Green
-
-# ── 整合チェック（sync-missing.py） ─────────────────────────────────
-$syncScript = Join-Path $pub "sync-missing.py"
-if (Test-Path $syncScript) {
-    Write-Host ""
-    Write-Host "── 整合チェック実行 ──" -ForegroundColor Cyan
-    python $syncScript
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "整合チェック: 問題なし" -ForegroundColor Green
-    } else {
-        Write-Host "整合チェック: 補完不可アプリあり（上記ログ参照）" -ForegroundColor Yellow
+if ($ok) {
+    git push origin main
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "中止: git push 失敗" -ForegroundColor Red
+        $ok = $false
     }
-} else {
-    Write-Host "警告: sync-missing.py が見つかりません（スキップ）" -ForegroundColor Yellow
 }
 
-# ── 公開後チェック（check-apps.py） ──────────────────────────────────
-$checkScript = Join-Path $pub "check-apps.py"
-if (Test-Path $checkScript) {
-    Write-Host ""
-    Write-Host "── 公開後チェック実行 ──" -ForegroundColor Cyan
-    python $checkScript
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "公開後チェック: 完了" -ForegroundColor Green
-    } else {
-        Write-Host "公開後チェック: エラーあり（上記ログ参照）" -ForegroundColor Yellow
+if ($ok) {
+    Write-Host "`n完了: $($apps.Count) 件公開 ($($folderCount - $apps.Count) → $folderCount)" -ForegroundColor Green
+
+    # 後処理スクリプト
+    foreach ($script in @("sync-missing.py", "check-apps.py", "make-fix-queue.py")) {
+        $path = Join-Path $pub $script
+        if (Test-Path $path) {
+            Write-Host "`n── $script 実行 ──" -ForegroundColor Cyan
+            python $path
+        }
     }
-} else {
-    Write-Host "警告: check-apps.py が見つかりません（スキップ）" -ForegroundColor Yellow
 }
 
-# ── 修正候補抽出（make-fix-queue.py） ────────────────────────────────
-$queueScript = Join-Path $pub "make-fix-queue.py"
-if (Test-Path $queueScript) {
-    Write-Host ""
-    Write-Host "── 修正候補抽出 ──" -ForegroundColor Cyan
-    python $queueScript
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "修正候補抽出: 完了（fix-queue.json 参照）" -ForegroundColor Green
-    } else {
-        Write-Host "修正候補抽出: エラーあり（上記ログ参照）" -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "警告: make-fix-queue.py が見つかりません（スキップ）" -ForegroundColor Yellow
-}
+Read-Host "`nEnterで終了"
