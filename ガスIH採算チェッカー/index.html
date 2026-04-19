@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ガス→IH採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 比較カード ── */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .compare-item {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 0.75rem;
+      text-align: center;
+    }
+    .compare-item .ci-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .compare-item .ci-val { font-size: 1.3rem; font-weight: 900; color: var(--text); }
+    .compare-item .ci-unit { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.1rem; }
+    .compare-item.accent-item { border-color: var(--accent); background: var(--accent-light); }
+    .compare-item.accent-item .ci-val { color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>ガス→IH採算チェッカー</h1>
+    <p class="subtitle">IH調理器への切り替えコストと節約効果を即計算</p>
+  </header>
+
+  <!-- 入力カード：現在のガス代 -->
+  <div class="card">
+    <p class="card-title">現在のガス状況</p>
+    <div class="field">
+      <label for="gasMonthly">月々のガス代（調理分） <span style="color:var(--text-sub);font-weight:400;">円</span></label>
+      <input type="number" id="gasMonthly" placeholder="例: 3000" min="0">
+      <p class="hint">調理に使っている分だけ入力（給湯・暖房は除く目安）</p>
+    </div>
+    <div class="field">
+      <label for="gasBasic">ガス基本料金（月） <span style="color:var(--text-sub);font-weight:400;">円</span></label>
+      <input type="number" id="gasBasic" placeholder="例: 800" min="0">
+      <p class="hint">IHに切り替えてガス解約できる場合は基本料金も節約になります（給湯をガスで使う場合は0）</p>
+    </div>
+  </div>
+
+  <!-- 入力カード：IH後の電気代 -->
+  <div class="card">
+    <p class="card-title">IH切り替え後の電気代増加</p>
+    <div class="field">
+      <label for="elecIncrease">電気代の増加見込み（月） <span style="color:var(--text-sub);font-weight:400;">円</span></label>
+      <input type="number" id="elecIncrease" placeholder="例: 1500" min="0">
+      <p class="hint">IH使用で増える電気代の目安（一般的に月1,000〜2,000円程度）</p>
+    </div>
+  </div>
+
+  <!-- 入力カード：初期費用 -->
+  <div class="card">
+    <p class="card-title">初期費用</p>
+    <div class="field">
+      <label for="ihCost">IH調理器の本体価格 <span style="color:var(--text-sub);font-weight:400;">円</span></label>
+      <input type="number" id="ihCost" placeholder="例: 60000" min="0">
+    </div>
+    <div class="field">
+      <label for="workCost">工事・設置費用 <span style="color:var(--text-sub);font-weight:400;">円</span></label>
+      <input type="number" id="workCost" placeholder="例: 20000" min="0">
+      <p class="hint">電気工事・取付け工事費など（不要なら0）</p>
+    </div>
+    <div class="field">
+      <label for="otherCost">その他費用（撤去費など） <span style="color:var(--text-sub);font-weight:400;">円</span></label>
+      <input type="number" id="otherCost" placeholder="例: 5000" min="0">
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">回収年数</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 比較グリッド -->
+  <div class="card" id="compareCard" style="display:none">
+    <p class="card-title">月次・年次 節約効果</p>
+    <div class="compare-grid">
+      <div class="compare-item accent-item">
+        <p class="ci-label">月々の節約額</p>
+        <p class="ci-val" id="cMon">—</p>
+        <p class="ci-unit">円/月</p>
+      </div>
+      <div class="compare-item accent-item">
+        <p class="ci-label">年間の節約額</p>
+        <p class="ci-val" id="cYear">—</p>
+        <p class="ci-unit">円/年</p>
+      </div>
+      <div class="compare-item">
+        <p class="ci-label">初期費用合計</p>
+        <p class="ci-val" id="cInit">—</p>
+        <p class="ci-unit">円</p>
+      </div>
+      <div class="compare-item">
+        <p class="ci-label">10年間の累計節約</p>
+        <p class="ci-val" id="c10y">—</p>
+        <p class="ci-unit">円</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'gasIhChecker_v1';
+
+  window.addEventListener('DOMContentLoaded', function() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      setVal('gasMonthly', d.gasMonthly);
+      setVal('gasBasic',   d.gasBasic);
+      setVal('elecIncrease', d.elecIncrease);
+      setVal('ihCost',    d.ihCost);
+      setVal('workCost',  d.workCost);
+      setVal('otherCost', d.otherCost);
+    } catch(e) {}
+  });
+
+  function setVal(id, v) {
+    if (v !== undefined && v !== null && v !== '') {
+      document.getElementById(id).value = v;
+    }
+  }
+
+  function calc() {
+    var gasMonthly   = parseFloat(document.getElementById('gasMonthly').value)   || 0;
+    var gasBasic     = parseFloat(document.getElementById('gasBasic').value)     || 0;
+    var elecIncrease = parseFloat(document.getElementById('elecIncrease').value) || 0;
+    var ihCost       = parseFloat(document.getElementById('ihCost').value)       || 0;
+    var workCost     = parseFloat(document.getElementById('workCost').value)     || 0;
+    var otherCost    = parseFloat(document.getElementById('otherCost').value)    || 0;
+
+    if (gasMonthly === 0 && gasBasic === 0 && elecIncrease === 0 && ihCost === 0) {
+      showErr('少なくとも現在のガス代かIH本体価格を入力してください');
+      return;
+    }
+
+    // 月次節約額 = ガス調理費 + ガス基本料 - 電気代増加分
+    var monthlySave = gasMonthly + gasBasic - elecIncrease;
+    var yearlySave  = monthlySave * 12;
+    var initTotal   = ihCost + workCost + otherCost;
+    var save10y     = monthlySave * 12 * 10;
+
+    // 回収年数
+    var level, rvText, rnText;
+    if (monthlySave <= 0) {
+      level  = 'ng';
+      rvText = '節約にならない';
+      rnText = '現在の設定では、電気代増加がガス代節約を上回ります。電気代増加見込みを見直してください。';
+    } else if (initTotal === 0) {
+      level  = 'ok';
+      rvText = '初期費用なし';
+      rnText = '初期費用0円で月' + fmt(monthlySave) + '円の節約になります。';
+    } else {
+      var recoveryYears = initTotal / yearlySave;
+      if (recoveryYears <= 3) {
+        level = 'ok';
+        rvText = recoveryYears.toFixed(1) + ' 年で回収';
+        rnText = '短期間で回収でき、切り替えのメリットが大きいです。';
+      } else if (recoveryYears <= 7) {
+        level = 'warn';
+        rvText = recoveryYears.toFixed(1) + ' 年で回収';
+        rnText = '回収に時間がかかりますが、長期的には節約になります。';
+      } else if (recoveryYears <= 15) {
+        level = 'warn';
+        rvText = recoveryYears.toFixed(1) + ' 年で回収';
+        rnText = '回収年数が長めです。機器の寿命（10〜15年）と照らし合わせて判断してください。';
+      } else {
+        level = 'ng';
+        rvText = recoveryYears.toFixed(1) + ' 年で回収';
+        rnText = '回収に' + Math.ceil(recoveryYears) + '年以上かかります。機器の寿命を超える可能性があり、採算が取りにくい状況です。';
+      }
+    }
+
+    showResult(level, rvText, rnText);
+
+    // 比較グリッド
+    document.getElementById('cMon').textContent  = fmt(monthlySave);
+    document.getElementById('cYear').textContent = fmt(yearlySave);
+    document.getElementById('cInit').textContent = fmt(initTotal);
+    document.getElementById('c10y').textContent  = fmt(save10y);
+    document.getElementById('compareCard').style.display = '';
+
+    // 内訳
+    var rows = [
+      ['ガス調理費（月）',         fmt(gasMonthly)    + ' 円'],
+      ['ガス基本料（節約分/月）',   fmt(gasBasic)      + ' 円'],
+      ['電気代増加（月）',         '－' + fmt(elecIncrease) + ' 円'],
+      ['月次節約額',               fmt(monthlySave)   + ' 円', true],
+      ['年間節約額',               fmt(yearlySave)    + ' 円', true],
+      ['IH本体',                  fmt(ihCost)        + ' 円'],
+      ['工事・設置費',             fmt(workCost)      + ' 円'],
+      ['その他費用',               fmt(otherCost)     + ' 円'],
+      ['初期費用合計',             fmt(initTotal)     + ' 円', true],
+    ];
+    if (monthlySave > 0 && initTotal > 0) {
+      rows.push(['回収年数', (initTotal / yearlySave).toFixed(1) + ' 年', true]);
+    }
+    showDetail(rows);
+
+    // localStorage保存
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      gasMonthly: gasMonthly, gasBasic: gasBasic,
+      elecIncrease: elecIncrease, ihCost: ihCost,
+      workCost: workCost, otherCost: otherCost
+    }));
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('compareCard').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
