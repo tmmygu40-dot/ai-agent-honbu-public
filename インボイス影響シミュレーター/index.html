@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>インボイス影響シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 結論カード */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* 比較テーブル */
+    .compare-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .compare-table th {
+      background: var(--bg); padding: 0.6rem 0.5rem;
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      border-bottom: 2px solid var(--border); text-align: left;
+    }
+    .compare-table th:not(:first-child) { text-align: right; }
+    .compare-table td { padding: 0.65rem 0.5rem; border-bottom: 1px solid var(--border); color: var(--text-sub); }
+    .compare-table td:not(:first-child) { text-align: right; font-weight: 600; color: var(--text); }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table .best-row td { background: var(--ok-bg); color: var(--ok); font-weight: 700; }
+    .compare-table .best-row td:first-child::after { content: ' ★'; font-size: 0.7rem; }
+
+    /* サマリーグリッド */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin-bottom: 0;
+    }
+    .sg-item { background: var(--bg); border-radius: 10px; padding: 0.85rem 1rem; }
+    .sg-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .sg-val { font-size: 1.15rem; font-weight: 800; color: var(--text); }
+    .sg-val.accent { color: var(--accent); }
+    .sg-val.ok-color { color: var(--ok); }
+    .sg-val.ng-color { color: var(--ng); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>インボイス影響シミュレーター</h1>
+    <p class="subtitle">登録で手取りがいくら減るか・3方式を即比較</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+
+    <div class="field">
+      <label for="income">年収（税込・クライアントから受け取る総額）</label>
+      <input type="number" id="income" placeholder="例: 5000000" min="0">
+      <p class="hint">消費税込みの年間請求総額を入力してください（円）</p>
+    </div>
+
+    <div class="field">
+      <label for="expRate">経費率（%）</label>
+      <input type="number" id="expRate" placeholder="例: 20" min="0" max="99" step="0.1">
+      <p class="hint">年収に対する経費の割合（本則課税の仕入税額控除の計算に使用）</p>
+    </div>
+
+    <div class="field">
+      <label for="kasyoRate">簡易課税のみなし仕入れ率</label>
+      <select id="kasyoRate">
+        <option value="0.90">第1種（卸売業） 90%</option>
+        <option value="0.80">第2種（小売業） 80%</option>
+        <option value="0.70">第3種（製造業等） 70%</option>
+        <option value="0.60">第4種（飲食業等） 60%</option>
+        <option value="0.50" selected>第5種（サービス業・IT等） 50%</option>
+        <option value="0.40">第6種（不動産業） 40%</option>
+      </select>
+      <p class="hint">フリーランス・IT・コンサルは第5種（50%）が一般的</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">最も有利な方式での手取り減少額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリーグリッド -->
+  <div class="card" id="summaryCard" style="display:none">
+    <p class="card-title">概要</p>
+    <div class="summary-grid" id="summaryGrid"></div>
+  </div>
+
+  <!-- 3方式比較テーブル -->
+  <div class="card" id="compareCard" style="display:none">
+    <p class="card-title">3方式 比較</p>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>方式</th>
+          <th>納税額</th>
+          <th>手取り減少</th>
+        </tr>
+      </thead>
+      <tbody id="compareBody"></tbody>
+    </table>
+  </div>
+
+  <!-- 計算根拠 -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">計算根拠</p>
+    <table class="detail-table"><tbody id="detailBody"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'invoice_sim_v1';
+
+  function calc() {
+    var income   = parseFloat(document.getElementById('income').value);
+    var expRate  = parseFloat(document.getElementById('expRate').value);
+    var kashoRate = parseFloat(document.getElementById('kasyoRate').value);
+
+    if (isNaN(income) || income <= 0) { alert('年収を入力してください'); return; }
+    if (isNaN(expRate) || expRate < 0 || expRate >= 100) { alert('経費率を0〜99の間で入力してください'); return; }
+
+    var TAX_RATE = 0.10;
+
+    // 課税売上（税抜）= 年収 / 1.1
+    var taxableBase = income / (1 + TAX_RATE);
+    // 受取消費税
+    var taxReceived = taxableBase * TAX_RATE;
+    // 課税経費（税抜）
+    var expenseBase  = taxableBase * (expRate / 100);
+    // 経費に係る仕入税額控除
+    var taxCredit = expenseBase * TAX_RATE;
+
+    // ① 2割特例：受取消費税 × 20%
+    var tax2wari  = taxReceived * 0.20;
+    // ② 簡易課税：受取消費税 × (1 - みなし仕入れ率)
+    var taxKanyi  = taxReceived * (1 - kashoRate);
+    // ③ 本則課税：受取消費税 - 仕入税額控除
+    var taxHonsoku = taxReceived - taxCredit;
+    if (taxHonsoku < 0) taxHonsoku = 0;
+
+    // 最小の納税額
+    var minTax = Math.min(tax2wari, taxKanyi, taxHonsoku);
+    var bestName = minTax === tax2wari ? '2割特例'
+                 : minTax === taxKanyi  ? '簡易課税'
+                 : '本則課税';
+
+    // 手取り（登録前）は消費税を丸々もらっていた（免税）
+    // 登録後は納税分が減る → 手取り減少 = 納税額
+
+    // 結論カード
+    var level = minTax <= 100000 ? 'ok' : minTax <= 300000 ? 'warn' : 'ng';
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = fmt(minTax) + ' 円 / 年';
+    document.getElementById('rn').textContent =
+      '最も有利な方式：' + bestName +
+      '｜登録前に比べ年間 ' + fmt(minTax) + ' 円の手取り減少';
+
+    // サマリーグリッド
+    document.getElementById('summaryGrid').innerHTML =
+      sg('課税売上（税抜）', fmt(Math.round(taxableBase)) + ' 円', '') +
+      sg('受取消費税', fmt(Math.round(taxReceived)) + ' 円', 'accent') +
+      sg('最小納税額', fmt(Math.round(minTax)) + ' 円', level === 'ok' ? 'ok-color' : level === 'warn' ? '' : 'ng-color') +
+      sg('最有利方式', bestName, 'accent');
+    document.getElementById('summaryCard').style.display = '';
+
+    // 3方式比較テーブル
+    var rows = [
+      { name: '2割特例', tax: tax2wari   },
+      { name: '簡易課税（みなし' + Math.round(kashoRate*100) + '%）', tax: taxKanyi },
+      { name: '本則課税（実額控除）', tax: taxHonsoku },
+    ];
+    rows.sort(function(a,b){ return a.tax - b.tax; });
+    var bestTax = rows[0].tax;
+    document.getElementById('compareBody').innerHTML = rows.map(function(r){
+      var isBest = r.tax === bestTax;
+      return '<tr class="' + (isBest ? 'best-row' : '') + '">' +
+        '<td>' + r.name + '</td>' +
+        '<td>' + fmt(Math.round(r.tax)) + ' 円</td>' +
+        '<td>▼' + fmt(Math.round(r.tax)) + ' 円</td>' +
+        '</tr>';
+    }).join('');
+    document.getElementById('compareCard').style.display = '';
+
+    // 計算根拠
+    var details = [
+      ['年収（税込・総額）',           fmt(Math.round(income)) + ' 円'],
+      ['課税売上（税抜 = 年収÷1.1）',  fmt(Math.round(taxableBase)) + ' 円'],
+      ['受取消費税（課税売上×10%）',    fmt(Math.round(taxReceived)) + ' 円'],
+      ['経費率',                        expRate + ' %'],
+      ['課税経費（税抜）',              fmt(Math.round(expenseBase)) + ' 円'],
+      ['仕入税額控除（課税経費×10%）',  fmt(Math.round(taxCredit)) + ' 円'],
+    ];
+    document.getElementById('detailBody').innerHTML = details.map(function(d){
+      return '<tr><td>' + d[0] + '</td><td>' + d[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detailCard').style.display = '';
+
+    // localStorage保存
+    save({ income: income, expRate: expRate, kasyoRate: kashoRate });
+  }
+
+  function sg(label, val, cls) {
+    return '<div class="sg-item">' +
+      '<div class="sg-label">' + label + '</div>' +
+      '<div class="sg-val ' + cls + '">' + val + '</div>' +
+      '</div>';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function save(data) {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e){}
+  }
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!d) return;
+      if (d.income    != null) document.getElementById('income').value    = d.income;
+      if (d.expRate   != null) document.getElementById('expRate').value   = d.expRate;
+      if (d.kasyoRate != null) document.getElementById('kasyoRate').value = d.kasyoRate;
+    } catch(e){}
+  }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
