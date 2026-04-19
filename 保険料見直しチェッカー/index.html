@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>保険料見直しチェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 0.85rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.65rem 0.85rem;
+      font-size: 0.97rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 60px; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.9rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-add:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+
+    .btn-diagnose {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: #1c4ed8; color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #1e3a8a;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-diagnose:active { transform: translateY(3px); box-shadow: 0 1px 0 #1e3a8a; }
+
+    /* 保険リスト */
+    .ins-list { list-style: none; }
+    .ins-item {
+      display: flex; align-items: flex-start; gap: 0.7rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .ins-item:last-child { border-bottom: none; }
+    .ins-body { flex: 1; }
+    .ins-name { font-size: 0.95rem; font-weight: 700; }
+    .ins-type { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.45rem; border-radius: 4px; background: var(--accent-light); color: var(--accent); margin-left: 0.4rem; vertical-align: middle; }
+    .ins-fee { font-size: 1rem; font-weight: 800; color: var(--accent); margin-top: 0.2rem; }
+    .ins-coverage { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.15rem; line-height: 1.4; }
+    .btn-del {
+      flex-shrink: 0; background: none; border: 1.5px solid var(--border);
+      border-radius: 7px; width: 2rem; height: 2rem;
+      font-size: 1rem; cursor: pointer; color: var(--text-sub);
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-del:hover { border-color: var(--ng); color: var(--ng); }
+
+    .empty-note { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1.5rem 0; }
+
+    /* 結論カード */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.6; }
+
+    /* サマリーグリッド */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin: 0 auto 1rem; max-width: 600px;
+    }
+    .sg-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); text-align: center;
+    }
+    .sg-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .sg-value { font-size: 1.3rem; font-weight: 900; color: var(--text); }
+
+    /* 内訳テーブル */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* 注意事項リスト */
+    .advice-list { list-style: none; margin-top: 0.5rem; }
+    .advice-item {
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      font-size: 0.82rem; line-height: 1.5; padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .advice-item:last-child { border-bottom: none; }
+    .advice-badge {
+      flex-shrink: 0; font-size: 0.7rem; font-weight: 700;
+      padding: 0.1rem 0.4rem; border-radius: 4px;
+    }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng);   }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>保険料見直しチェッカー</h1>
+    <p class="subtitle">保険料合計と保障内容から過剰・不足を即チェック</p>
+  </header>
+
+  <!-- 月収入（任意） -->
+  <div class="card">
+    <p class="card-title">月収入（任意）</p>
+    <div class="field">
+      <label for="income">月収入（円）</label>
+      <input type="number" id="income" placeholder="例: 300000" min="0">
+      <p style="font-size:0.72rem;color:var(--text-sub);margin-top:0.25rem">入力すると収入比率で適正かも判定します（未入力でも利用可）</p>
+    </div>
+  </div>
+
+  <!-- 保険追加フォーム -->
+  <div class="card">
+    <p class="card-title">保険を追加</p>
+    <div class="row2">
+      <div class="field">
+        <label for="ins-type">保険の種類</label>
+        <select id="ins-type">
+          <option value="生命保険">生命保険</option>
+          <option value="医療保険">医療保険</option>
+          <option value="がん保険">がん保険</option>
+          <option value="火災保険">火災保険</option>
+          <option value="自動車保険">自動車保険</option>
+          <option value="学資保険">学資保険</option>
+          <option value="介護保険">介護保険</option>
+          <option value="就業不能保険">就業不能保険</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="ins-name">保険名</label>
+        <input type="text" id="ins-name" placeholder="例: ○○生命 定期">
+      </div>
+    </div>
+    <div class="field">
+      <label for="ins-fee">月額保険料（円）</label>
+      <input type="number" id="ins-fee" placeholder="例: 8000" min="0">
+    </div>
+    <div class="field">
+      <label for="ins-coverage">主な保障内容（任意）</label>
+      <textarea id="ins-coverage" placeholder="例: 死亡保障1000万円、60歳払込済み"></textarea>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addIns()">＋ 保険を追加する</button>
+
+  <!-- 登録済みリスト -->
+  <div class="card" id="list-card">
+    <p class="card-title">登録済み保険 <span id="ins-count" style="color:var(--text-sub);font-weight:400">（0件）</span></p>
+    <ul class="ins-list" id="ins-list">
+      <li class="empty-note" id="empty-note">まだ保険が登録されていません</li>
+    </ul>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-diagnose" onclick="diagnose()">保険を診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリー -->
+  <div class="summary-grid" id="summary-grid" style="display:none">
+    <div class="sg-card">
+      <p class="sg-label">月額合計</p>
+      <p class="sg-value" id="sg-monthly">—</p>
+    </div>
+    <div class="sg-card">
+      <p class="sg-label">年間合計</p>
+      <p class="sg-value" id="sg-yearly">—</p>
+    </div>
+    <div class="sg-card">
+      <p class="sg-label">収入比率</p>
+      <p class="sg-value" id="sg-ratio">—</p>
+    </div>
+    <div class="sg-card">
+      <p class="sg-label">登録件数</p>
+      <p class="sg-value" id="sg-count">—</p>
+    </div>
+  </div>
+
+  <!-- カテゴリ内訳 -->
+  <div class="card" id="detail-card" style="display:none">
+    <p class="card-title">カテゴリ別内訳</p>
+    <table class="detail-table"><tbody id="cat-table"></tbody></table>
+  </div>
+
+  <!-- アドバイス -->
+  <div class="card" id="advice-card" style="display:none">
+    <p class="card-title">診断アドバイス</p>
+    <ul class="advice-list" id="advice-list"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEY = 'ins-checker-v1';
+  var items = [];
+
+  function load() {
+    try {
+      var d = localStorage.getItem(KEY);
+      items = d ? JSON.parse(d) : [];
+    } catch(e) { items = []; }
+    render();
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(items)); } catch(e) {}
+  }
+
+  function addIns() {
+    var type = document.getElementById('ins-type').value;
+    var name = document.getElementById('ins-name').value.trim();
+    var fee  = parseFloat(document.getElementById('ins-fee').value);
+    var cov  = document.getElementById('ins-coverage').value.trim();
+
+    if (!name) { alert('保険名を入力してください'); return; }
+    if (isNaN(fee) || fee < 0) { alert('月額保険料を正しく入力してください'); return; }
+
+    items.push({ id: Date.now(), type: type, name: name, fee: fee, coverage: cov });
+    save();
+    render();
+
+    // フォームリセット（種類以外）
+    document.getElementById('ins-name').value = '';
+    document.getElementById('ins-fee').value = '';
+    document.getElementById('ins-coverage').value = '';
+  }
+
+  function delIns(id) {
+    items = items.filter(function(it) { return it.id !== id; });
+    save();
+    render();
+  }
+
+  function render() {
+    var ul = document.getElementById('ins-list');
+    var emptyNote = document.getElementById('empty-note');
+    ul.innerHTML = '';
+
+    if (items.length === 0) {
+      ul.appendChild(emptyNote);
+      document.getElementById('ins-count').textContent = '（0件）';
+      return;
+    }
+
+    document.getElementById('ins-count').textContent = '（' + items.length + '件）';
+    items.forEach(function(it) {
+      var li = document.createElement('li');
+      li.className = 'ins-item';
+      li.innerHTML =
+        '<div class="ins-body">'
+        + '<span class="ins-name">' + esc(it.name) + '</span>'
+        + '<span class="ins-type">' + esc(it.type) + '</span>'
+        + '<div class="ins-fee">月額 ' + fmt(it.fee) + ' 円</div>'
+        + (it.coverage ? '<div class="ins-coverage">' + esc(it.coverage) + '</div>' : '')
+        + '</div>'
+        + '<button class="btn-del" onclick="delIns(' + it.id + ')" title="削除">×</button>';
+      ul.appendChild(li);
+    });
+  }
+
+  function diagnose() {
+    if (items.length === 0) {
+      alert('保険を1件以上登録してください');
+      return;
+    }
+
+    var income = parseFloat(document.getElementById('income').value) || 0;
+    var total  = items.reduce(function(s, it) { return s + it.fee; }, 0);
+    var yearly = total * 12;
+
+    // カテゴリ集計
+    var catMap = {};
+    items.forEach(function(it) {
+      if (!catMap[it.type]) catMap[it.type] = { count: 0, fee: 0 };
+      catMap[it.type].count++;
+      catMap[it.type].fee += it.fee;
+    });
+
+    // 判定
+    var level = 'ok';
+    var mainMsg = '適正';
+    var noteLines = [];
+
+    if (income > 0) {
+      var ratio = total / income * 100;
+      if (ratio > 10) {
+        level = 'ng';
+        mainMsg = '過剰の可能性';
+        noteLines.push('収入比率が' + ratio.toFixed(1) + '%と高め（目安：5〜10%）');
+      } else if (ratio > 5) {
+        if (level === 'ok') level = 'warn';
+        mainMsg = '要確認';
+        noteLines.push('収入比率は' + ratio.toFixed(1) + '%（目安の上限付近）');
+      } else {
+        noteLines.push('収入比率は' + ratio.toFixed(1) + '%で適正範囲内');
+      }
+    }
+
+    // 不足チェック（医療・生命）
+    var hasIryou = catMap['医療保険'] && catMap['医療保険'].count > 0;
+    var hasSeimei = catMap['生命保険'] && catMap['生命保険'].count > 0;
+    if (!hasIryou && !hasSeimei) {
+      if (level === 'ok') level = 'warn';
+      mainMsg = '不足の可能性';
+      noteLines.push('生命保険・医療保険が未登録（最低限必要な保険が不足している可能性）');
+    } else if (!hasIryou) {
+      if (level === 'ok') level = 'warn';
+      noteLines.push('医療保険が未登録');
+    } else if (!hasSeimei) {
+      // 独身なら不問でも良いので警告のみ
+      noteLines.push('生命保険が未登録（扶養家族がいる場合は要検討）');
+    }
+
+    // 同一カテゴリ過剰チェック
+    Object.keys(catMap).forEach(function(cat) {
+      if (catMap[cat].count >= 3) {
+        if (level === 'ok') level = 'warn';
+        noteLines.push(cat + 'が' + catMap[cat].count + '件（重複の可能性）');
+      }
+    });
+
+    if (noteLines.length === 0 && level === 'ok') {
+      noteLines.push('保険の構成は適正です');
+    }
+
+    // 表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = mainMsg;
+    document.getElementById('rn').textContent = noteLines.join(' / ');
+
+    // サマリー
+    var sg = document.getElementById('summary-grid');
+    sg.style.display = '';
+    document.getElementById('sg-monthly').textContent = fmt(total) + ' 円';
+    document.getElementById('sg-yearly').textContent  = fmt(yearly) + ' 円';
+    document.getElementById('sg-ratio').textContent   = income > 0 ? (total/income*100).toFixed(1) + ' %' : '—';
+    document.getElementById('sg-count').textContent   = items.length + ' 件';
+
+    // カテゴリ内訳
+    var catTb = document.getElementById('cat-table');
+    catTb.innerHTML = '';
+    Object.keys(catMap).forEach(function(cat) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + esc(cat) + '（' + catMap[cat].count + '件）</td><td>' + fmt(catMap[cat].fee) + ' 円/月</td>';
+      catTb.appendChild(tr);
+    });
+    var trTotal = document.createElement('tr');
+    trTotal.className = 'hl';
+    trTotal.innerHTML = '<td>合計（' + items.length + '件）</td><td>' + fmt(total) + ' 円/月</td>';
+    catTb.appendChild(trTotal);
+    document.getElementById('detail-card').style.display = '';
+
+    // アドバイス
+    var advices = buildAdvices(catMap, income, total);
+    var al = document.getElementById('advice-list');
+    al.innerHTML = '';
+    advices.forEach(function(a) {
+      var li = document.createElement('li');
+      li.className = 'advice-item';
+      li.innerHTML = '<span class="advice-badge badge-' + a.type + '">' + badgeLabel(a.type) + '</span><span>' + a.msg + '</span>';
+      al.appendChild(li);
+    });
+    document.getElementById('advice-card').style.display = '';
+  }
+
+  function buildAdvices(catMap, income, total) {
+    var list = [];
+
+    if (income > 0) {
+      var ratio = total / income * 100;
+      if (ratio > 10) {
+        list.push({ type: 'ng', msg: '保険料が月収の' + ratio.toFixed(1) + '%です。一般的な目安（5〜10%）を超えています。不要な保障の解約・縮小を検討してください。' });
+      } else if (ratio > 5) {
+        list.push({ type: 'warn', msg: '保険料が月収の' + ratio.toFixed(1) + '%です。目安内ですが上限付近です。定期的に見直しましょう。' });
+      } else {
+        list.push({ type: 'ok', msg: '保険料は月収の' + ratio.toFixed(1) + '%で適正範囲です。' });
+      }
+    }
+
+    if (!(catMap['医療保険'] && catMap['医療保険'].count > 0)) {
+      list.push({ type: 'warn', msg: '医療保険が未登録です。入院・手術時の費用リスクがあります。' });
+    }
+    if (!(catMap['生命保険'] && catMap['生命保険'].count > 0)) {
+      list.push({ type: 'warn', msg: '生命保険が未登録です。扶養家族がいる場合は検討が必要です。' });
+    }
+    if (!(catMap['火災保険'] && catMap['火災保険'].count > 0)) {
+      list.push({ type: 'warn', msg: '火災保険が未登録です。持ち家・賃貸ともに加入が基本です。' });
+    }
+
+    Object.keys(catMap).forEach(function(cat) {
+      if (catMap[cat].count >= 2 && cat !== 'その他') {
+        list.push({ type: 'warn', msg: cat + 'が' + catMap[cat].count + '件あります。保障の重複がないか確認してください。' });
+      }
+    });
+
+    if (catMap['がん保険'] && catMap['がん保険'].count > 0 && catMap['医療保険'] && catMap['医療保険'].count > 0) {
+      list.push({ type: 'ok', msg: '医療保険とがん保険の両方に加入しています。がん特約の重複がないか確認しましょう。' });
+    }
+
+    if (list.length === 0) {
+      list.push({ type: 'ok', msg: '基本的な保険構成は整っています。定期的な見直しで最新状態を保ちましょう。' });
+    }
+
+    return list;
+  }
+
+  function badgeLabel(type) {
+    return type === 'ok' ? '適正' : type === 'warn' ? '注意' : '要対応';
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // Enterキー対応
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      var btn = document.querySelector('.btn-add');
+      if (document.activeElement.closest('.card') && btn) btn.click();
+    }
+  });
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
