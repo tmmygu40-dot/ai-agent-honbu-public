@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>キャンセル損失チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2カラム入力 ── */
+    .field-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+    .field-row .field { margin-bottom: 0; flex: 1; }
+
+    /* ── セクション区切り ── */
+    .section-sep {
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--text-sub); letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin: 1.2rem 0 0.8rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .loss td:last-child { color: var(--ng); }
+    .detail-table .gain td:last-child { color: var(--ok); }
+
+    /* ── アドバイスボックス ── */
+    .advice-box {
+      display: none;
+      max-width: 600px; margin: 0 auto 1rem;
+      padding: 1rem 1.2rem;
+      background: var(--accent-light);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.85rem; line-height: 1.7;
+      color: var(--text);
+    }
+    .advice-box .advice-title {
+      font-weight: 700; color: var(--accent);
+      font-size: 0.8rem; letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+    .advice-box ul { padding-left: 1.2rem; }
+    .advice-box li { margin-bottom: 0.25rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📋 キャンセル損失チェッカー</h1>
+    <p class="subtitle">予約キャンセルの月間損失と違約金設定の回収効果を即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">① 予約・キャンセル状況</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="reservations">月間予約数（件）</label>
+        <input type="number" id="reservations" placeholder="例: 100" min="0">
+      </div>
+      <div class="field">
+        <label for="unitPrice">客単価（円）</label>
+        <input type="number" id="unitPrice" placeholder="例: 5000" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="cancelRate">キャンセル率（%）</label>
+      <input type="number" id="cancelRate" placeholder="例: 10" min="0" max="100" step="0.1">
+      <p class="hint">月間予約数のうちキャンセルになる割合</p>
+    </div>
+
+    <p class="section-sep">② 違約金設定（任意）</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="penaltyRate">違約金率（%）</label>
+        <input type="number" id="penaltyRate" placeholder="例: 50" min="0" max="100" step="1">
+        <p class="hint">客単価に対する違約金の割合</p>
+      </div>
+      <div class="field">
+        <label for="collectionRate">回収率（%）</label>
+        <input type="number" id="collectionRate" placeholder="例: 70" min="0" max="100" step="1">
+        <p class="hint">違約金を実際に回収できる割合</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">損失と回収効果を計算する</button>
+
+  <!-- 結論カード（純損失） -->
+  <div class="result-card" id="result">
+    <p class="result-label">月間 純損失</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- アドバイスボックス -->
+  <div class="advice-box" id="advice">
+    <p class="advice-title">💡 違約金設定のポイント</p>
+    <ul id="advice-list"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEYS = ['reservations','unitPrice','cancelRate','penaltyRate','collectionRate'];
+
+  // localStorage 読み込み
+  window.addEventListener('load', function() {
+    KEYS.forEach(function(k) {
+      var v = localStorage.getItem('cancel-checker-' + k);
+      if (v !== null) document.getElementById(k).value = v;
+    });
+  });
+
+  // localStorage 保存
+  function saveInputs() {
+    KEYS.forEach(function(k) {
+      localStorage.setItem('cancel-checker-' + k, document.getElementById(k).value);
+    });
+  }
+
+  function calc() {
+    var reservations    = parseFloat(document.getElementById('reservations').value);
+    var unitPrice       = parseFloat(document.getElementById('unitPrice').value);
+    var cancelRate      = parseFloat(document.getElementById('cancelRate').value);
+    var penaltyRate     = parseFloat(document.getElementById('penaltyRate').value) || 0;
+    var collectionRate  = parseFloat(document.getElementById('collectionRate').value) || 0;
+
+    if (isNaN(reservations) || isNaN(unitPrice) || isNaN(cancelRate)) {
+      showErr('月間予約数・客単価・キャンセル率を入力してください');
+      return;
+    }
+    if (cancelRate < 0 || cancelRate > 100) {
+      showErr('キャンセル率は0〜100%で入力してください');
+      return;
+    }
+
+    saveInputs();
+
+    // 計算
+    var cancelCount     = reservations * (cancelRate / 100);           // キャンセル件数
+    var salesLoss       = cancelCount * unitPrice;                     // 売上損失額
+    var penaltyPerCase  = unitPrice * (penaltyRate / 100);             // 1件あたり違約金
+    var recoveredCount  = cancelCount * (collectionRate / 100);        // 回収できる件数
+    var recovery        = recoveredCount * penaltyPerCase;             // 回収効果（違約金収入）
+    var netLoss         = salesLoss - recovery;                        // 純損失
+
+    // 回収率（損失に対する回収割合）
+    var recoveryRatio   = salesLoss > 0 ? (recovery / salesLoss * 100) : 0;
+
+    // 判定
+    var level;
+    if (penaltyRate === 0 || collectionRate === 0) {
+      level = 'ng';
+    } else if (recoveryRatio >= 50) {
+      level = 'warn';
+    } else {
+      level = 'ng';
+    }
+    if (recoveryRatio >= 80) level = 'ok';
+
+    var noteText;
+    if (penaltyRate === 0 || collectionRate === 0) {
+      noteText = '違約金未設定のため損失はすべて未回収です';
+    } else {
+      noteText = '損失の ' + recoveryRatio.toFixed(1) + '% を違約金で回収できます';
+    }
+
+    showResult(level, '▼ ' + fmt(netLoss) + ' 円', noteText);
+
+    showDetail([
+      ['月間予約数',               fmt(reservations) + ' 件'],
+      ['キャンセル件数',           fmt(cancelCount) + ' 件（キャンセル率 ' + cancelRate + '%）'],
+      ['売上損失額',               fmt(salesLoss) + ' 円', false, 'loss'],
+      ['1件あたり違約金',          penaltyRate > 0 ? fmt(penaltyPerCase) + ' 円（客単価の ' + penaltyRate + '%）' : '未設定'],
+      ['違約金回収件数',           penaltyRate > 0 ? fmt(recoveredCount) + ' 件（回収率 ' + collectionRate + '%）' : '—'],
+      ['違約金による回収効果',      penaltyRate > 0 ? fmt(recovery) + ' 円' : '—', false, 'gain'],
+      ['純損失（損失 − 回収）',    fmt(netLoss) + ' 円', true],
+    ]);
+
+    // アドバイス
+    showAdvice(salesLoss, recovery, netLoss, recoveryRatio, penaltyRate, cancelRate);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      var cls = r[2] ? ' class="hl"' : (r[3] ? ' class="' + r[3] + '"' : '');
+      return '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showAdvice(loss, recovery, netLoss, ratio, penaltyRate, cancelRate) {
+    var tips = [];
+    if (penaltyRate === 0) {
+      tips.push('違約金を設定することで損失の一部を回収できる可能性があります');
+      tips.push('業界標準は前日キャンセル50%、当日100%が多い傾向があります');
+    } else if (ratio < 30) {
+      tips.push('回収率が低い場合は、事前決済・クレジットカード保証の導入が効果的です');
+      tips.push('違約金率を上げるか、決済手段の多様化で回収率改善が見込めます');
+    } else if (ratio >= 50) {
+      tips.push('違約金設定により半分以上の損失を回収できています');
+      tips.push('さらなる改善には無断キャンセル防止のリマインド連絡も効果的です');
+    }
+    if (cancelRate >= 20) {
+      tips.push('キャンセル率が高めです。予約確認メールや前日リマインドで削減効果が期待できます');
+    }
+    tips.push('純損失 ' + fmt(netLoss) + ' 円 のうち、違約金設定なしの場合は ' + fmt(loss) + ' 円 が全額損失になります');
+
+    var adv = document.getElementById('advice');
+    document.getElementById('advice-list').innerHTML = tips.map(function(t) {
+      return '<li>' + t + '</li>';
+    }).join('');
+    adv.style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('advice').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
