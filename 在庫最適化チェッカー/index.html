@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在庫最適化チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 700px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力グリッド ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem 1rem;
+    }
+    @media (max-width: 480px) {
+      .input-grid { grid-template-columns: 1fr; }
+    }
+    .field { margin-bottom: 0; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 700px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-secondary {
+      padding: 0.6rem 1.1rem; font-size: 0.88rem; font-weight: 700;
+      background: var(--bg); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 9px; cursor: pointer;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-secondary:hover { background: var(--accent-light); }
+    .btn-danger {
+      padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 700;
+      background: none; color: var(--ng);
+      border: 1.5px solid var(--ng); border-radius: 7px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── 商品一覧テーブル ── */
+    .items-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.85rem; margin-top: 0.75rem;
+    }
+    .items-table th {
+      background: var(--bg); color: var(--text-sub);
+      font-weight: 700; font-size: 0.75rem;
+      padding: 0.5rem 0.4rem; text-align: center;
+      border-bottom: 2px solid var(--border);
+    }
+    .items-table td {
+      padding: 0.65rem 0.4rem; border-bottom: 1px solid var(--border);
+      text-align: center; vertical-align: middle;
+    }
+    .items-table tr:last-child td { border-bottom: none; }
+    .items-table td.name { text-align: left; font-weight: 600; min-width: 80px; }
+
+    /* ── ステータスバッジ ── */
+    .badge {
+      display: inline-block; padding: 0.25rem 0.6rem;
+      border-radius: 20px; font-size: 0.75rem; font-weight: 800;
+      letter-spacing: 0.04em; white-space: nowrap;
+    }
+    .badge.ok   { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok); }
+    .badge.warn { background: var(--warn-bg);  color: var(--warn); border: 1px solid var(--warn); }
+    .badge.ng   { background: var(--ng-bg);    color: var(--ng);   border: 1px solid var(--ng); }
+
+    /* ── 空状態 ── */
+    .empty-state {
+      text-align: center; padding: 2rem 1rem;
+      color: var(--text-sub); font-size: 0.88rem;
+    }
+
+    /* ── 数式説明 ── */
+    .formula-box {
+      background: var(--accent-light); border: 1px solid #f5d89a;
+      border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1rem;
+      font-size: 0.8rem; color: var(--text-sub); line-height: 1.7;
+    }
+    .formula-box strong { color: var(--accent); }
+
+    /* ── スクロール対応 ── */
+    .table-wrap { overflow-x: auto; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📦 在庫最適化チェッカー</h1>
+    <p class="subtitle">販売速度・リードタイムから安全在庫と発注点を自動計算</p>
+  </header>
+
+  <!-- 数式説明 -->
+  <div class="card" style="max-width:700px">
+    <div class="formula-box">
+      <strong>安全在庫</strong> ＝ 安全係数 × 日次販売数 × √リードタイム<br>
+      <strong>発注点</strong> ＝ 日次販売数 × リードタイム ＋ 安全在庫<br>
+      <span style="font-size:0.75rem">安全係数の目安：1.28＝90%／<strong>1.65＝95%</strong>／2.05＝98%</span>
+    </div>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品を追加</p>
+    <div class="input-grid">
+      <div class="field full">
+        <label for="itemName">商品名</label>
+        <input type="text" id="itemName" placeholder="例: 商品A">
+      </div>
+      <div class="field">
+        <label for="dailySales">日次販売数（個/日）</label>
+        <input type="number" id="dailySales" placeholder="例: 10" min="0" step="0.1">
+      </div>
+      <div class="field">
+        <label for="leadTime">リードタイム（日）</label>
+        <input type="number" id="leadTime" placeholder="例: 7" min="1">
+      </div>
+      <div class="field">
+        <label for="safetyFactor">安全係数</label>
+        <input type="number" id="safetyFactor" placeholder="例: 1.65" min="0" step="0.01" value="1.65">
+        <p class="hint">95%サービス水準＝1.65</p>
+      </div>
+      <div class="field">
+        <label for="currentStock">現在庫数（個）</label>
+        <input type="number" id="currentStock" placeholder="例: 50" min="0">
+        <p class="hint">空白でも追加できます</p>
+      </div>
+    </div>
+    <div style="margin-top:1rem">
+      <button class="btn-secondary" onclick="addItem()">＋ 追加する</button>
+    </div>
+  </div>
+
+  <!-- 一覧カード -->
+  <div class="card" id="listCard">
+    <p class="card-title">商品一覧</p>
+    <div id="itemsContainer">
+      <div class="empty-state">商品を追加してください</div>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'zaiko-saiteki-checker-v1';
+  var items = [];
+
+  // ── 初期化 ──
+  function init() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try { items = JSON.parse(saved); } catch(e) { items = []; }
+    }
+    renderList();
+  }
+
+  // ── 保存 ──
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+
+  // ── 計算 ──
+  function calcItem(item) {
+    var safetyStock = item.safetyFactor * item.dailySales * Math.sqrt(item.leadTime);
+    var reorderPoint = item.dailySales * item.leadTime + safetyStock;
+    return {
+      safetyStock: Math.ceil(safetyStock),
+      reorderPoint: Math.ceil(reorderPoint)
+    };
+  }
+
+  // ── ステータス判定 ──
+  function getStatus(item, reorderPoint) {
+    if (item.currentStock === null || item.currentStock === undefined || item.currentStock === '') {
+      return null;
+    }
+    var stock = Number(item.currentStock);
+    if (stock <= reorderPoint) {
+      return 'ng'; // 発注点以下 → 要発注
+    } else if (stock <= reorderPoint * 1.3) {
+      return 'warn'; // 発注点の130%以下 → 余裕少
+    } else {
+      return 'ok'; // 十分
+    }
+  }
+
+  // ── リスト描画 ──
+  function renderList() {
+    var container = document.getElementById('itemsContainer');
+    if (items.length === 0) {
+      container.innerHTML = '<div class="empty-state">商品を追加してください</div>';
+      return;
+    }
+
+    var html = '<div class="table-wrap"><table class="items-table">'
+      + '<thead><tr>'
+      + '<th>商品名</th>'
+      + '<th>日次販売</th>'
+      + '<th>LT(日)</th>'
+      + '<th>安全係数</th>'
+      + '<th>安全在庫</th>'
+      + '<th>発注点</th>'
+      + '<th>現在庫</th>'
+      + '<th>ステータス</th>'
+      + '<th></th>'
+      + '</tr></thead><tbody>';
+
+    items.forEach(function(item, idx) {
+      var calc = calcItem(item);
+      var status = getStatus(item, calc.reorderPoint);
+      var stockDisplay = (item.currentStock !== null && item.currentStock !== '' && item.currentStock !== undefined)
+        ? Number(item.currentStock).toLocaleString()
+        : '—';
+
+      var badgeHtml = '';
+      if (status === 'ng') {
+        badgeHtml = '<span class="badge ng">⚠ 要発注</span>';
+      } else if (status === 'warn') {
+        badgeHtml = '<span class="badge warn">△ 余裕少</span>';
+      } else if (status === 'ok') {
+        badgeHtml = '<span class="badge ok">✓ 適正</span>';
+      } else {
+        badgeHtml = '<span style="color:var(--text-sub);font-size:0.8rem">—</span>';
+      }
+
+      html += '<tr>'
+        + '<td class="name">' + escHtml(item.name) + '</td>'
+        + '<td>' + item.dailySales + '</td>'
+        + '<td>' + item.leadTime + '</td>'
+        + '<td>' + item.safetyFactor + '</td>'
+        + '<td><strong>' + calc.safetyStock.toLocaleString() + '</strong></td>'
+        + '<td><strong>' + calc.reorderPoint.toLocaleString() + '</strong></td>'
+        + '<td>' + stockDisplay + '</td>'
+        + '<td>' + badgeHtml + '</td>'
+        + '<td><button class="btn-danger" onclick="removeItem(' + idx + ')">削除</button></td>'
+        + '</tr>';
+    });
+
+    html += '</tbody></table></div>';
+
+    // 要発注件数サマリー
+    var ngCount = items.filter(function(item) {
+      var c = calcItem(item);
+      return getStatus(item, c.reorderPoint) === 'ng';
+    }).length;
+
+    if (ngCount > 0) {
+      html = '<div style="background:var(--ng-bg);border:1.5px solid var(--ng);border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.75rem;font-size:0.88rem;font-weight:700;color:var(--ng);">'
+        + '⚠ 発注が必要な商品が <strong>' + ngCount + '件</strong> あります'
+        + '</div>' + html;
+    }
+
+    container.innerHTML = html;
+  }
+
+  // ── 追加 ──
+  function addItem() {
+    var name = document.getElementById('itemName').value.trim();
+    var dailySales = parseFloat(document.getElementById('dailySales').value);
+    var leadTime = parseFloat(document.getElementById('leadTime').value);
+    var safetyFactor = parseFloat(document.getElementById('safetyFactor').value);
+    var currentStockVal = document.getElementById('currentStock').value.trim();
+    var currentStock = currentStockVal !== '' ? parseFloat(currentStockVal) : null;
+
+    if (!name) { alert('商品名を入力してください'); return; }
+    if (isNaN(dailySales) || dailySales < 0) { alert('日次販売数を正しく入力してください'); return; }
+    if (isNaN(leadTime) || leadTime < 1) { alert('リードタイムを1以上で入力してください'); return; }
+    if (isNaN(safetyFactor) || safetyFactor < 0) { alert('安全係数を正しく入力してください'); return; }
+
+    items.push({
+      name: name,
+      dailySales: dailySales,
+      leadTime: leadTime,
+      safetyFactor: safetyFactor,
+      currentStock: currentStock
+    });
+
+    save();
+    renderList();
+
+    // フォームリセット
+    document.getElementById('itemName').value = '';
+    document.getElementById('dailySales').value = '';
+    document.getElementById('leadTime').value = '';
+    document.getElementById('safetyFactor').value = '1.65';
+    document.getElementById('currentStock').value = '';
+    document.getElementById('itemName').focus();
+  }
+
+  // ── 削除 ──
+  function removeItem(idx) {
+    items.splice(idx, 1);
+    save();
+    renderList();
+  }
+
+  // ── エスケープ ──
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Enterキーで追加 ──
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.activeElement && document.activeElement.closest('.card')) {
+      addItem();
+    }
+  });
+
+  init();
+  </script>
+
+</body>
+</html>
