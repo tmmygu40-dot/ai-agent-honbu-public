@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>欠品防止チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 品目リスト ── */
+    .items-wrap { max-width: 600px; margin: 0 auto 1rem; }
+    .item-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.8rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: flex-start;
+      gap: 0.8rem;
+    }
+    .item-card.status-ng   { border-color: var(--ng);   background: var(--ng-bg);   }
+    .item-card.status-warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .item-card.status-ok   { border-color: var(--ok);    background: var(--ok-bg);   }
+
+    .item-badge {
+      flex-shrink: 0;
+      font-size: 0.7rem; font-weight: 800; letter-spacing: 0.04em;
+      padding: 0.25rem 0.55rem; border-radius: 6px; margin-top: 0.1rem;
+      white-space: nowrap;
+    }
+    .status-ng   .item-badge { background: var(--ng);   color: #fff; }
+    .status-warn .item-badge { background: var(--warn);  color: #fff; }
+    .status-ok   .item-badge { background: var(--ok);    color: #fff; }
+
+    .item-body { flex: 1; min-width: 0; }
+    .item-name { font-size: 1rem; font-weight: 800; margin-bottom: 0.3rem; word-break: break-all; }
+    .item-meta { font-size: 0.8rem; color: var(--text-sub); line-height: 1.6; }
+    .item-meta span { margin-right: 0.8rem; }
+
+    .item-del {
+      flex-shrink: 0;
+      background: none; border: none; cursor: pointer;
+      font-size: 1.1rem; color: var(--text-sub); padding: 0.2rem;
+      line-height: 1;
+    }
+    .item-del:hover { color: var(--ng); }
+
+    .empty-msg {
+      text-align: center; color: var(--text-sub);
+      font-size: 0.88rem; padding: 2rem 1rem;
+    }
+
+    /* ── 凡例 ── */
+    .legend-row {
+      display: flex; gap: 0.8rem; flex-wrap: wrap;
+      max-width: 600px; margin: 0 auto 1rem;
+      padding: 0 0.5rem;
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: var(--text-sub); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-dot.ng   { background: var(--ng);   }
+    .legend-dot.warn { background: var(--warn);  }
+    .legend-dot.ok   { background: var(--ok);    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📦 欠品防止チェッカー</h1>
+    <p class="subtitle">リードタイムと在庫残日数から発注タイミングを即判断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="field">
+      <label for="itemName">品目名</label>
+      <input type="text" id="itemName" placeholder="例: A商品、コーヒー豆">
+    </div>
+    <div class="field">
+      <label for="stockDays">在庫残日数（日）</label>
+      <input type="number" id="stockDays" placeholder="例: 10" min="0" step="1">
+      <p class="hint">現在の在庫が何日分残っているか</p>
+    </div>
+    <div class="field">
+      <label for="leadDays">発注リードタイム（日）</label>
+      <input type="number" id="leadDays" placeholder="例: 7" min="1" step="1">
+      <p class="hint">発注から入荷まで何日かかるか</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="addItem()">追加して判定する</button>
+
+  <!-- 凡例 -->
+  <div class="legend-row">
+    <div class="legend-item"><span class="legend-dot ng"></span>今すぐ発注！（在庫残 ≤ リードタイム）</div>
+    <div class="legend-item"><span class="legend-dot warn"></span>もうすぐ発注（在庫残 ≤ リードタイム×1.5）</div>
+    <div class="legend-item"><span class="legend-dot ok"></span>まだ余裕あり</div>
+  </div>
+
+  <!-- 品目一覧 -->
+  <div class="items-wrap" id="itemsWrap">
+    <div class="empty-msg">まだ品目が登録されていません。<br>上のフォームから追加してください。</div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'kekkinhoshi_items_v1';
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; }
+  }
+  function save(items) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+
+  function getStatus(stockDays, leadDays) {
+    if (stockDays <= leadDays) return 'ng';
+    if (stockDays <= leadDays * 1.5) return 'warn';
+    return 'ok';
+  }
+  function getLabel(status) {
+    if (status === 'ng')   return '今すぐ発注！';
+    if (status === 'warn') return 'もうすぐ発注';
+    return 'まだ余裕あり';
+  }
+  function getNote(status, stockDays, leadDays) {
+    var margin = stockDays - leadDays;
+    if (status === 'ng')   return '在庫残(' + stockDays + '日) ≤ リードタイム(' + leadDays + '日)。今すぐ発注してください！';
+    if (status === 'warn') return '余裕は約 ' + margin + ' 日。発注を検討してください。';
+    return '在庫残(' + stockDays + '日)。リードタイム(' + leadDays + '日)を ' + margin + ' 日上回っています。';
+  }
+
+  function addItem() {
+    var name  = document.getElementById('itemName').value.trim();
+    var stock = parseInt(document.getElementById('stockDays').value, 10);
+    var lead  = parseInt(document.getElementById('leadDays').value, 10);
+
+    if (!name) { alert('品目名を入力してください'); return; }
+    if (isNaN(stock) || stock < 0) { alert('在庫残日数を正しく入力してください'); return; }
+    if (isNaN(lead) || lead < 1)   { alert('発注リードタイムを1以上で入力してください'); return; }
+
+    var items = load();
+    items.push({ id: Date.now(), name: name, stock: stock, lead: lead });
+    // 危険度が高い順に並べ替え
+    items.sort(function(a, b) {
+      var sa = statusOrder(getStatus(a.stock, a.lead));
+      var sb = statusOrder(getStatus(b.stock, b.lead));
+      if (sa !== sb) return sa - sb;
+      return a.stock - b.stock;
+    });
+    save(items);
+
+    // 入力クリア
+    document.getElementById('itemName').value = '';
+    document.getElementById('stockDays').value = '';
+    document.getElementById('leadDays').value = '';
+    document.getElementById('itemName').focus();
+
+    render();
+  }
+
+  function statusOrder(s) {
+    if (s === 'ng')   return 0;
+    if (s === 'warn') return 1;
+    return 2;
+  }
+
+  function deleteItem(id) {
+    var items = load().filter(function(it) { return it.id !== id; });
+    save(items);
+    render();
+  }
+
+  function render() {
+    var items = load();
+    var wrap  = document.getElementById('itemsWrap');
+
+    if (items.length === 0) {
+      wrap.innerHTML = '<div class="empty-msg">まだ品目が登録されていません。<br>上のフォームから追加してください。</div>';
+      return;
+    }
+
+    wrap.innerHTML = items.map(function(it) {
+      var status = getStatus(it.stock, it.lead);
+      var label  = getLabel(status);
+      var note   = getNote(status, it.stock, it.lead);
+      return '<div class="item-card status-' + status + '">'
+        + '<span class="item-badge">' + label + '</span>'
+        + '<div class="item-body">'
+        + '<div class="item-name">' + esc(it.name) + '</div>'
+        + '<div class="item-meta">'
+        + '<span>在庫残 <strong>' + it.stock + '</strong> 日</span>'
+        + '<span>リードタイム <strong>' + it.lead + '</strong> 日</span>'
+        + '</div>'
+        + '<div class="item-meta" style="margin-top:0.2rem;">' + esc(note) + '</div>'
+        + '</div>'
+        + '<button class="item-del" onclick="deleteItem(' + it.id + ')" title="削除">✕</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
+  }
+
+  render();
+  </script>
+</body>
+</html>
