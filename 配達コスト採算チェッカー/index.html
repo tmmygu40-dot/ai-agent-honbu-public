@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>配達コスト採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2カラム入力グリッド ── */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1rem; }
+    .field-row .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-sub {
+      display: inline-block; padding: 0.5rem 1rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-reset {
+      display: inline-block; padding: 0.5rem 1rem;
+      font-size: 0.82rem; font-weight: 600;
+      background: #f3f4f6; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer;
+      margin-left: 0.5rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 採算グリッド ── */
+    .sansan-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.8rem; margin-bottom: 1rem;
+    }
+    .sansan-box {
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.8rem 1rem; text-align: center;
+    }
+    .sansan-box .sb-label { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .sansan-box .sb-val { font-size: 1.4rem; font-weight: 900; color: var(--text); }
+    .sansan-box .sb-unit { font-size: 0.72rem; color: var(--text-sub); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── ルート比較テーブル ── */
+    .route-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    .route-table th {
+      background: var(--bg); padding: 0.5rem 0.5rem;
+      font-size: 0.75rem; color: var(--text-sub); font-weight: 700;
+      border-bottom: 2px solid var(--border); text-align: left;
+    }
+    .route-table td { padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--border); }
+    .route-table tr:last-child td { border-bottom: none; }
+    .route-table .badge {
+      display: inline-block; padding: 0.15rem 0.5rem; border-radius: 99px;
+      font-size: 0.72rem; font-weight: 700;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng);   }
+    .btn-del { background: none; border: none; color: #ccc; cursor: pointer; font-size: 1rem; }
+    .btn-del:hover { color: var(--ng); }
+
+    /* ── ルート追加フォーム ── */
+    .route-form-row {
+      display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto;
+      gap: 0.5rem; align-items: end; margin-bottom: 0.8rem;
+    }
+    @media (max-width: 500px) {
+      .route-form-row { grid-template-columns: 1fr 1fr; }
+      .route-form-row .route-name-field { grid-column: 1 / -1; }
+    }
+    .route-form-row .field { margin-bottom: 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>配達コスト採算チェッカー</h1>
+    <p class="subtitle">燃料費高騰で配達1件あたりの採算がとれているか即チェック</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本設定</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="price">配達単価（円/件）</label>
+        <input type="number" id="price" placeholder="例: 300" min="0">
+      </div>
+      <div class="field">
+        <label for="monthly">月間配達件数（件）</label>
+        <input type="number" id="monthly" placeholder="例: 200" min="0">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="fuel_price">燃料単価（円/L）</label>
+        <input type="number" id="fuel_price" placeholder="例: 175" min="0">
+      </div>
+      <div class="field">
+        <label for="mileage">燃費（km/L）</label>
+        <input type="number" id="mileage" placeholder="例: 15" min="0.1" step="0.1">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="distance">1件あたり走行距離（km）</label>
+        <input type="number" id="distance" placeholder="例: 5" min="0" step="0.1">
+      </div>
+      <div class="field">
+        <label for="other_cost">その他変動費（円/件）</label>
+        <input type="number" id="other_cost" placeholder="例: 30" min="0">
+        <p class="hint">梱包・消耗品など（任意）</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算チェック</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">1件あたり採算</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 採算グリッド -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <div class="sansan-grid" id="sansan-grid"></div>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- ルート別比較 -->
+  <div class="card">
+    <p class="card-title">ルート別採算リスト</p>
+    <!-- ルート追加フォーム -->
+    <div class="route-form-row">
+      <div class="field route-name-field">
+        <label for="r_name">ルート名</label>
+        <input type="text" id="r_name" placeholder="例: 市内配達">
+      </div>
+      <div class="field">
+        <label for="r_price">単価（円）</label>
+        <input type="number" id="r_price" placeholder="300" min="0">
+      </div>
+      <div class="field">
+        <label for="r_dist">距離（km）</label>
+        <input type="number" id="r_dist" placeholder="5" min="0" step="0.1">
+      </div>
+      <div class="field">
+        <label for="r_other">他費用（円）</label>
+        <input type="number" id="r_other" placeholder="30" min="0">
+      </div>
+      <div style="display:flex;align-items:flex-end;">
+        <button class="btn-sub" onclick="addRoute()">追加</button>
+      </div>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text-sub);margin-bottom:0.8rem;">※ 燃料単価・燃費は基本設定の値を使用します</p>
+    <div id="route-list-wrap">
+      <table class="route-table" id="route-table" style="display:none">
+        <thead>
+          <tr>
+            <th>ルート名</th>
+            <th>単価</th>
+            <th>燃料費/件</th>
+            <th>採算/件</th>
+            <th>判定</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="route-tbody"></tbody>
+      </table>
+      <p id="route-empty" style="font-size:0.82rem;color:var(--text-sub);">ルートを追加するとここに一覧が表示されます</p>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'haitatu_cost_checker_v1';
+  var LS_ROUTE = 'haitatu_cost_routes_v1';
+  var routes = [];
+
+  // ── 保存・読込 ──
+  function save() {
+    var d = {
+      price: document.getElementById('price').value,
+      monthly: document.getElementById('monthly').value,
+      fuel_price: document.getElementById('fuel_price').value,
+      mileage: document.getElementById('mileage').value,
+      distance: document.getElementById('distance').value,
+      other_cost: document.getElementById('other_cost').value
+    };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch(e) {}
+  }
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      ['price','monthly','fuel_price','mileage','distance','other_cost'].forEach(function(k) {
+        if (d[k] !== undefined) document.getElementById(k).value = d[k];
+      });
+    } catch(e) {}
+    try {
+      routes = JSON.parse(localStorage.getItem(LS_ROUTE) || '[]');
+    } catch(e) { routes = []; }
+    renderRoutes();
+  }
+  function saveRoutes() {
+    try { localStorage.setItem(LS_ROUTE, JSON.stringify(routes)); } catch(e) {}
+  }
+
+  // ── メイン計算 ──
+  function calc() {
+    var price      = parseFloat(document.getElementById('price').value);
+    var monthly    = parseFloat(document.getElementById('monthly').value);
+    var fuel_price = parseFloat(document.getElementById('fuel_price').value);
+    var mileage    = parseFloat(document.getElementById('mileage').value);
+    var distance   = parseFloat(document.getElementById('distance').value);
+    var other_cost = parseFloat(document.getElementById('other_cost').value) || 0;
+
+    if (isNaN(price) || isNaN(monthly) || isNaN(fuel_price) || isNaN(mileage) || isNaN(distance)) {
+      showErr('配達単価・月間件数・燃料単価・燃費・走行距離を入力してください');
+      return;
+    }
+    if (mileage <= 0) { showErr('燃費は0より大きい値を入力してください'); return; }
+
+    var fuel_per   = distance / mileage * fuel_price;  // 燃料費/件
+    var total_cost = fuel_per + other_cost;             // 総コスト/件
+    var margin     = price - total_cost;                // 採算/件
+    var monthly_pl = margin * monthly;                  // 月間損益
+
+    var level = margin >= 200 ? 'ok' : margin >= 0 ? 'warn' : 'ng';
+    var badge = level === 'ok' ? '黒字' : level === 'warn' ? 'ギリギリ' : '赤字';
+    var msg   = level === 'ok'   ? '1件あたり' + fmt(margin) + '円の利益があります'
+              : level === 'warn' ? '利益はありますが余裕が薄い状態です。燃料費上昇に要注意'
+              : '1件あたり' + fmt(Math.abs(margin)) + '円の赤字です。単価交渉または配達見直しが必要';
+
+    showResult(level, badge + '  ' + (margin >= 0 ? '+' : '') + fmt(margin) + '円/件', msg);
+
+    // 採算グリッド
+    document.getElementById('sansan-grid').innerHTML =
+      sBox('燃料費/件', fmt(Math.round(fuel_per)), '円') +
+      sBox('総コスト/件', fmt(Math.round(total_cost)), '円') +
+      sBox('採算/件', (margin >= 0 ? '+' : '') + fmt(Math.round(margin)), '円') +
+      sBox('月間損益', (monthly_pl >= 0 ? '+' : '') + fmt(Math.round(monthly_pl)), '円');
+
+    // 内訳テーブル
+    showDetail([
+      ['配達単価',         fmt(price) + ' 円'],
+      ['燃料費（' + distance + 'km÷' + mileage + 'km/L×' + fuel_price + '円）', fmt(Math.round(fuel_per)) + ' 円'],
+      ['その他変動費',     fmt(other_cost) + ' 円'],
+      ['総コスト/件',      fmt(Math.round(total_cost)) + ' 円', true],
+      ['採算/件',          (margin >= 0 ? '+' : '') + fmt(Math.round(margin)) + ' 円', true],
+      ['月間損益（×' + fmt(monthly) + '件）', (monthly_pl >= 0 ? '+' : '') + fmt(Math.round(monthly_pl)) + ' 円'],
+    ]);
+
+    save();
+  }
+
+  function sBox(label, val, unit) {
+    return '<div class="sansan-box"><div class="sb-label">' + label + '</div>'
+         + '<div class="sb-val">' + val + '</div>'
+         + '<div class="sb-unit">' + unit + '</div></div>';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── ルート別比較 ──
+  function getFuelPrice() { return parseFloat(document.getElementById('fuel_price').value) || 0; }
+  function getMileage()   { return parseFloat(document.getElementById('mileage').value)    || 15; }
+
+  function addRoute() {
+    var name  = document.getElementById('r_name').value.trim();
+    var price = parseFloat(document.getElementById('r_price').value);
+    var dist  = parseFloat(document.getElementById('r_dist').value);
+    var other = parseFloat(document.getElementById('r_other').value) || 0;
+    if (!name || isNaN(price) || isNaN(dist)) {
+      alert('ルート名・単価・距離を入力してください');
+      return;
+    }
+    routes.push({ name: name, price: price, dist: dist, other: other });
+    saveRoutes();
+    renderRoutes();
+    document.getElementById('r_name').value = '';
+    document.getElementById('r_price').value = '';
+    document.getElementById('r_dist').value = '';
+    document.getElementById('r_other').value = '';
+  }
+
+  function delRoute(i) {
+    routes.splice(i, 1);
+    saveRoutes();
+    renderRoutes();
+  }
+
+  function renderRoutes() {
+    var fp  = getFuelPrice();
+    var mpg = getMileage();
+    var tbody = document.getElementById('route-tbody');
+    var tbl   = document.getElementById('route-table');
+    var empty = document.getElementById('route-empty');
+
+    if (routes.length === 0) {
+      tbl.style.display = 'none';
+      empty.style.display = '';
+      return;
+    }
+    tbl.style.display = '';
+    empty.style.display = 'none';
+
+    tbody.innerHTML = routes.map(function(r, i) {
+      var fuel   = mpg > 0 ? r.dist / mpg * fp : 0;
+      var margin = r.price - fuel - r.other;
+      var level  = margin >= 200 ? 'ok' : margin >= 0 ? 'warn' : 'ng';
+      var badge  = level === 'ok' ? '黒字' : level === 'warn' ? 'ギリギリ' : '赤字';
+      return '<tr>'
+        + '<td>' + esc(r.name) + '</td>'
+        + '<td>' + fmt(r.price) + '円</td>'
+        + '<td>' + fmt(Math.round(fuel)) + '円</td>'
+        + '<td style="font-weight:700">' + (margin >= 0 ? '+' : '') + fmt(Math.round(margin)) + '円</td>'
+        + '<td><span class="badge badge-' + level + '">' + badge + '</span></td>'
+        + '<td><button class="btn-del" onclick="delRoute(' + i + ')" title="削除">✕</button></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── 起動 ──
+  window.addEventListener('DOMContentLoaded', load);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
