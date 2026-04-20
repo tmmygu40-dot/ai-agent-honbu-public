@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4月値上げ食品 家計コスト試算ツール</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 0.85rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.68rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.7rem; }
+
+    /* プリセットボタン */
+    .preset-area { margin: 0 auto 1rem; max-width: 600px; }
+    .preset-label { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.4rem; padding: 0 0.1rem; }
+    .preset-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .preset-btn {
+      padding: 0.35rem 0.75rem; font-size: 0.78rem; font-weight: 600;
+      border: 1.5px solid var(--border); border-radius: 20px;
+      background: var(--card); color: var(--text-sub); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .preset-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.95rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 結論カード */
+    .result-card {
+      background: var(--warn-bg);
+      border: 2px solid var(--warn);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; color: var(--warn); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* 品目テーブル */
+    .item-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .item-table thead tr { border-bottom: 2px solid var(--border); }
+    .item-table thead th { padding: 0.4rem 0.3rem; font-size: 0.75rem; font-weight: 700; color: var(--text-sub); text-align: left; }
+    .item-table thead th:last-child { text-align: right; }
+    .item-table tbody tr { border-bottom: 1px solid var(--border); }
+    .item-table tbody tr:last-child { border-bottom: none; }
+    .item-table tbody td { padding: 0.55rem 0.3rem; color: var(--text-sub); vertical-align: middle; }
+    .item-table tbody td.food-name { font-weight: 600; color: var(--text); max-width: 100px; word-break: break-all; }
+    .item-table tbody td.cost-inc { text-align: right; font-weight: 700; color: var(--warn); }
+    .item-table .del-btn {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text-sub); font-size: 0.75rem; padding: 0.2rem 0.45rem;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .item-table .del-btn:hover { background: var(--ng-bg); border-color: var(--ng); color: var(--ng); }
+
+    .empty-msg { text-align: center; padding: 1.5rem 0; font-size: 0.85rem; color: var(--text-sub); }
+
+    .year-note {
+      text-align: center; font-size: 0.78rem; color: var(--text-sub);
+      margin: 0 auto 0.5rem; max-width: 600px; padding: 0 1rem;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>4月値上げ食品 家計コスト試算ツール</h1>
+    <p class="subtitle">食品の値上げ前後の価格を入力して、月間の家計コスト増加額を即計算</p>
+  </header>
+
+  <!-- 結論カード（常時表示・動的更新） -->
+  <div class="result-card" id="resultCard">
+    <p class="result-label">月間コスト増加合計</p>
+    <p class="result-value" id="totalVal">— 円</p>
+    <p class="result-note" id="totalNote">食品を追加すると合計が表示されます</p>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">食品を追加</p>
+    <div class="field">
+      <label for="foodName">食品名</label>
+      <input type="text" id="foodName" placeholder="例：食パン（1斤）">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="priceOld">値上げ前の価格（円）</label>
+        <input type="number" id="priceOld" placeholder="例：198" min="0">
+      </div>
+      <div class="field">
+        <label for="priceNew">値上げ後の価格（円）</label>
+        <input type="number" id="priceNew" placeholder="例：238" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="timesPerMonth">月間購入回数（回/月）</label>
+      <input type="number" id="timesPerMonth" placeholder="例：4" min="1">
+    </div>
+  </div>
+
+  <!-- プリセット -->
+  <div class="preset-area">
+    <p class="preset-label">よく値上がりした食品から選ぶ（クリックで食品名をセット）</p>
+    <div class="preset-list" id="presetList"></div>
+  </div>
+
+  <button class="btn-add" onclick="addItem()">＋ この食品を追加する</button>
+
+  <!-- 品目一覧カード -->
+  <div class="card" id="listCard">
+    <p class="card-title">品目一覧</p>
+    <div id="listBody"></div>
+  </div>
+
+  <p class="year-note" id="yearNote"></p>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'april_price_items_v1';
+
+  var PRESETS = [
+    { name: '食パン（1斤）',       old: 198, nw: 238 },
+    { name: '牛乳（1L）',          old: 238, nw: 268 },
+    { name: 'バター（200g）',       old: 398, nw: 458 },
+    { name: 'マヨネーズ（400g）',   old: 298, nw: 358 },
+    { name: '小麦粉（1kg）',        old: 198, nw: 248 },
+    { name: 'サラダ油（900g）',     old: 298, nw: 368 },
+    { name: '砂糖（1kg）',          old: 238, nw: 278 },
+    { name: 'ハム（100g）',         old: 198, nw: 238 },
+    { name: 'スライスチーズ（6枚）', old: 198, nw: 238 },
+    { name: '卵（10個）',           old: 258, nw: 298 },
+    { name: 'コーヒー（200g）',     old: 598, nw: 698 },
+    { name: 'みそ（750g）',         old: 298, nw: 358 },
+  ];
+
+  var items = [];
+
+  function load() {
+    try {
+      var saved = localStorage.getItem(LS_KEY);
+      if (saved) items = JSON.parse(saved);
+    } catch(e) { items = []; }
+  }
+
+  function save() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(items)); } catch(e) {}
+  }
+
+  function addItem() {
+    var name  = document.getElementById('foodName').value.trim();
+    var old   = parseFloat(document.getElementById('priceOld').value);
+    var nw    = parseFloat(document.getElementById('priceNew').value);
+    var times = parseFloat(document.getElementById('timesPerMonth').value);
+
+    if (!name)           { alert('食品名を入力してください'); return; }
+    if (isNaN(old) || old < 0) { alert('値上げ前の価格を入力してください'); return; }
+    if (isNaN(nw)  || nw  < 0) { alert('値上げ後の価格を入力してください'); return; }
+    if (isNaN(times) || times < 1) { alert('月間購入回数を入力してください（1以上）'); return; }
+    if (nw <= old) {
+      if (!confirm('値上げ後の価格が値上げ前以下です。このまま追加しますか？')) return;
+    }
+
+    items.push({ name: name, old: old, nw: nw, times: times });
+    save();
+
+    document.getElementById('foodName').value = '';
+    document.getElementById('priceOld').value = '';
+    document.getElementById('priceNew').value = '';
+    document.getElementById('timesPerMonth').value = '';
+    document.getElementById('foodName').focus();
+
+    render();
+  }
+
+  function removeItem(idx) {
+    items.splice(idx, 1);
+    save();
+    render();
+  }
+
+  function render() {
+    var tbody = document.getElementById('listBody');
+    if (items.length === 0) {
+      tbody.innerHTML = '<p class="empty-msg">まだ食品が追加されていません</p>';
+      document.getElementById('totalVal').textContent = '— 円';
+      document.getElementById('totalNote').textContent = '食品を追加すると合計が表示されます';
+      document.getElementById('yearNote').textContent = '';
+      return;
+    }
+
+    var total = 0;
+    var rows = '';
+    rows += '<table class="item-table"><thead><tr>'
+          + '<th>食品名</th><th>前（円）</th><th>後（円）</th><th>回/月</th><th>増加額/月</th><th></th>'
+          + '</tr></thead><tbody>';
+
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      var inc = (it.nw - it.old) * it.times;
+      total += inc;
+      var incStr = inc >= 0
+        ? '+' + fmt(inc) + '円'
+        : '▼' + fmt(Math.abs(inc)) + '円';
+      rows += '<tr>'
+            + '<td class="food-name">' + esc(it.name) + '</td>'
+            + '<td>' + fmt(it.old) + '</td>'
+            + '<td>' + fmt(it.nw) + '</td>'
+            + '<td>' + it.times + '</td>'
+            + '<td class="cost-inc">' + incStr + '</td>'
+            + '<td><button class="del-btn" onclick="removeItem(' + i + ')">削除</button></td>'
+            + '</tr>';
+    }
+    rows += '</tbody></table>';
+    tbody.innerHTML = rows;
+
+    document.getElementById('totalVal').textContent = (total >= 0 ? '+' : '') + fmt(total) + ' 円';
+    var yearTotal = total * 12;
+    document.getElementById('totalNote').textContent =
+      items.length + '品目 合計 ／ 年間換算：' + (yearTotal >= 0 ? '+' : '') + fmt(yearTotal) + ' 円の負担増';
+    document.getElementById('yearNote').textContent =
+      '※ 価格は参考値です。実際の購入価格・頻度に合わせて調整してください';
+  }
+
+  function buildPresets() {
+    var area = document.getElementById('presetList');
+    PRESETS.forEach(function(p) {
+      var btn = document.createElement('button');
+      btn.className = 'preset-btn';
+      btn.textContent = p.name;
+      btn.onclick = function() {
+        document.getElementById('foodName').value  = p.name;
+        document.getElementById('priceOld').value  = p.old;
+        document.getElementById('priceNew').value  = p.nw;
+        document.getElementById('timesPerMonth').focus();
+      };
+      area.appendChild(btn);
+    });
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  load();
+  buildPresets();
+  render();
+
+  // Enterキーで追加
+  ['foodName','priceOld','priceNew','timesPerMonth'].forEach(function(id) {
+    document.getElementById(id).addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') addItem();
+    });
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
