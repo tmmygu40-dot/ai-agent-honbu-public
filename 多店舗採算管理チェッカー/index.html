@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>多店舗採算管理チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 0.85rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.65rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 入力グリッド ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.6rem;
+      margin-bottom: 0.85rem;
+    }
+    @media (max-width: 480px) {
+      .input-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ── ボタン ── */
+    .btn-add {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1rem; padding: 0.85rem;
+      font-size: 1rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.2);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+
+    .btn-reset {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 0.65rem;
+      font-size: 0.88rem; font-weight: 600;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+
+    /* ── 店舗カード一覧 ── */
+    .store-list { max-width: 640px; margin: 0 auto; }
+
+    .store-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 0.75rem;
+      position: relative;
+    }
+    .store-card.ok-card  { border-color: var(--ok);  background: var(--ok-bg); }
+    .store-card.warn-card { border-color: var(--warn); background: var(--warn-bg); }
+    .store-card.ng-card  { border-color: var(--ng);  background: var(--ng-bg); }
+
+    .store-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .store-name { font-size: 1rem; font-weight: 800; }
+    .store-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.55rem;
+      border-radius: 99px; letter-spacing: 0.04em;
+    }
+    .ok-card  .store-badge { background: var(--ok);  color: #fff; }
+    .warn-card .store-badge { background: var(--warn); color: #fff; }
+    .ng-card  .store-badge { background: var(--ng);  color: #fff; }
+
+    .store-profit {
+      font-size: 1.45rem; font-weight: 900; letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+    }
+    .ok-card  .store-profit { color: var(--ok); }
+    .warn-card .store-profit { color: var(--warn); }
+    .ng-card  .store-profit { color: var(--ng); }
+
+    .store-detail-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .store-detail-table td { padding: 0.3rem 0.2rem; color: var(--text-sub); }
+    .store-detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+
+    .btn-delete {
+      position: absolute; top: 0.7rem; right: 0.8rem;
+      background: none; border: none; color: var(--text-sub);
+      font-size: 1.1rem; cursor: pointer; line-height: 1;
+      padding: 0.2rem 0.4rem;
+    }
+    .btn-delete:hover { color: var(--ng); }
+
+    /* ── サマリーカード ── */
+    .summary-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 420px) {
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .summary-item { text-align: center; }
+    .summary-item .s-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.25rem; }
+    .summary-item .s-value { font-size: 1.25rem; font-weight: 900; }
+    .summary-item.is-ng .s-value { color: var(--ng); }
+    .summary-item.is-ok .s-value { color: var(--ok); }
+
+    /* ── 閉店優先度ランキング ── */
+    .ranking-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--ng);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+      background: var(--ng-bg);
+    }
+
+    .rank-list { list-style: none; }
+    .rank-item {
+      display: flex; align-items: center;
+      padding: 0.55rem 0;
+      border-bottom: 1px solid rgba(185,28,28,0.15);
+      font-size: 0.88rem;
+    }
+    .rank-item:last-child { border-bottom: none; }
+    .rank-num {
+      width: 1.8rem; height: 1.8rem;
+      border-radius: 50%;
+      background: var(--ng); color: #fff;
+      font-size: 0.8rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-right: 0.7rem;
+    }
+    .rank-name { flex: 1; font-weight: 700; }
+    .rank-profit { font-weight: 800; color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.88rem; padding: 1.5rem 0; }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>多店舗採算管理チェッカー</h1>
+    <p class="subtitle">複数店舗の採算を一覧管理・赤字店舗と閉店優先度を即特定</p>
+  </header>
+
+  <!-- 店舗入力カード -->
+  <div class="card">
+    <p class="card-title">店舗を追加</p>
+    <div class="field">
+      <label for="storeName">店舗名</label>
+      <input type="text" id="storeName" placeholder="例：新宿店">
+    </div>
+    <div class="input-grid">
+      <div class="field">
+        <label for="sales">月次売上（万円）</label>
+        <input type="number" id="sales" placeholder="例: 500" min="0" step="0.1">
+      </div>
+      <div class="field">
+        <label for="fixedCost">固定費（万円）</label>
+        <input type="number" id="fixedCost" placeholder="例: 150" min="0" step="0.1">
+        <p class="hint">家賃・人件費など</p>
+      </div>
+      <div class="field">
+        <label for="variableRate">変動費率（%）</label>
+        <input type="number" id="variableRate" placeholder="例: 40" min="0" max="100" step="0.1">
+        <p class="hint">原価率・仕入比率</p>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addStore()">+ この店舗を追加</button>
+
+  <!-- サマリーカード -->
+  <div class="summary-card" id="summaryCard">
+    <p class="card-title" style="color:#1c1917">全店舗サマリー</p>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <table class="store-detail-table" id="summaryDetail"></table>
+  </div>
+
+  <!-- 閉店優先度ランキング -->
+  <div class="ranking-card" id="rankingCard">
+    <p class="card-title" style="color:var(--ng)">閉店優先度ランキング（赤字店舗）</p>
+    <ul class="rank-list" id="rankList"></ul>
+  </div>
+
+  <!-- 店舗一覧 -->
+  <div class="store-list" id="storeList"></div>
+
+  <button class="btn-reset" onclick="resetAll()" id="resetBtn" style="display:none">全データをリセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+
+  <script>
+    var STORAGE_KEY = 'tansho_stores_v1';
+    var stores = [];
+
+    function loadStores() {
+      try {
+        var saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) stores = JSON.parse(saved);
+      } catch(e) { stores = []; }
+    }
+
+    function saveStores() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stores));
+    }
+
+    function calcStore(s) {
+      var variableCost = s.sales * (s.variableRate / 100);
+      var grossProfit  = s.sales - variableCost;
+      var opProfit     = grossProfit - s.fixedCost;
+      var opMargin     = s.sales > 0 ? (opProfit / s.sales * 100) : 0;
+      var bep          = s.variableRate < 100
+        ? s.fixedCost / (1 - s.variableRate / 100)
+        : Infinity;
+      return {
+        variableCost: variableCost,
+        grossProfit:  grossProfit,
+        opProfit:     opProfit,
+        opMargin:     opMargin,
+        bep:          bep
+      };
+    }
+
+    function addStore() {
+      var name     = document.getElementById('storeName').value.trim();
+      var sales    = parseFloat(document.getElementById('sales').value);
+      var fixed    = parseFloat(document.getElementById('fixedCost').value);
+      var varRate  = parseFloat(document.getElementById('variableRate').value);
+
+      if (!name) { alert('店舗名を入力してください'); return; }
+      if (isNaN(sales) || sales < 0) { alert('月次売上を正しく入力してください'); return; }
+      if (isNaN(fixed) || fixed < 0) { alert('固定費を正しく入力してください'); return; }
+      if (isNaN(varRate) || varRate < 0 || varRate > 100) { alert('変動費率を0〜100で入力してください'); return; }
+
+      stores.push({
+        id: Date.now(),
+        name: name,
+        sales: sales,
+        fixedCost: fixed,
+        variableRate: varRate
+      });
+      saveStores();
+
+      document.getElementById('storeName').value = '';
+      document.getElementById('sales').value = '';
+      document.getElementById('fixedCost').value = '';
+      document.getElementById('variableRate').value = '';
+
+      render();
+    }
+
+    function deleteStore(id) {
+      stores = stores.filter(function(s) { return s.id !== id; });
+      saveStores();
+      render();
+    }
+
+    function render() {
+      var listEl = document.getElementById('storeList');
+
+      if (stores.length === 0) {
+        listEl.innerHTML = '<p class="empty-msg">店舗を追加してください</p>';
+        document.getElementById('summaryCard').style.display = 'none';
+        document.getElementById('rankingCard').style.display = 'none';
+        document.getElementById('resetBtn').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('resetBtn').style.display = 'block';
+
+      // 各店舗計算
+      var calcResults = stores.map(function(s) {
+        return { store: s, calc: calcStore(s) };
+      });
+
+      // 店舗カード描画
+      listEl.innerHTML = calcResults.map(function(r) {
+        var s = r.store;
+        var c = r.calc;
+        var level = c.opProfit < 0 ? 'ng' : c.opMargin >= 10 ? 'ok' : 'warn';
+        var badge = level === 'ok' ? '黒字' : level === 'warn' ? '要注意' : '赤字';
+        var cardClass = level + '-card';
+
+        return '<div class="store-card ' + cardClass + '">'
+          + '<button class="btn-delete" onclick="deleteStore(' + s.id + ')">✕</button>'
+          + '<div class="store-header">'
+          +   '<span class="store-name">' + esc(s.name) + '</span>'
+          +   '<span class="store-badge">' + badge + '</span>'
+          + '</div>'
+          + '<p class="store-profit">' + fmtP(c.opProfit) + ' 万円</p>'
+          + '<table class="store-detail-table">'
+          + '<tr><td>月次売上</td><td>' + fmt(s.sales) + ' 万円</td></tr>'
+          + '<tr><td>変動費（' + s.variableRate + '%）</td><td>▲' + fmt(c.variableCost) + ' 万円</td></tr>'
+          + '<tr><td>粗利益</td><td>' + fmtP(c.grossProfit) + ' 万円</td></tr>'
+          + '<tr><td>固定費</td><td>▲' + fmt(s.fixedCost) + ' 万円</td></tr>'
+          + '<tr><td>営業利益</td><td>' + fmtP(c.opProfit) + ' 万円</td></tr>'
+          + '<tr><td>営業利益率</td><td>' + c.opMargin.toFixed(1) + ' %</td></tr>'
+          + (isFinite(c.bep) ? '<tr><td>損益分岐点売上</td><td>' + fmt(c.bep) + ' 万円</td></tr>' : '')
+          + '</table>'
+          + '</div>';
+      }).join('');
+
+      // サマリー計算
+      var totalSales  = 0, totalFixed = 0, totalProfit = 0;
+      var ngCount = 0, warnCount = 0, okCount = 0;
+      calcResults.forEach(function(r) {
+        totalSales   += r.store.sales;
+        totalFixed   += r.store.fixedCost;
+        totalProfit  += r.calc.opProfit;
+        if (r.calc.opProfit < 0)                   ngCount++;
+        else if (r.calc.opMargin < 10)              warnCount++;
+        else                                        okCount++;
+      });
+
+      var summaryCard = document.getElementById('summaryCard');
+      summaryCard.style.display = '';
+
+      var overallLevel = totalProfit < 0 ? 'is-ng' : '';
+      document.getElementById('summaryGrid').innerHTML =
+        '<div class="summary-item ' + overallLevel + '">'
+        +  '<p class="s-label">全店合計利益</p>'
+        +  '<p class="s-value">' + fmtP(totalProfit) + '万円</p>'
+        + '</div>'
+        + '<div class="summary-item ' + (ngCount > 0 ? 'is-ng' : '') + '">'
+        +  '<p class="s-label">赤字店舗数</p>'
+        +  '<p class="s-value">' + ngCount + '店 / ' + stores.length + '店</p>'
+        + '</div>'
+        + '<div class="summary-item is-ok">'
+        +  '<p class="s-label">黒字店舗数</p>'
+        +  '<p class="s-value">' + okCount + '店</p>'
+        + '</div>';
+
+      // 閉店優先度ランキング（赤字店舗のみ、利益が少ない順）
+      var ngStores = calcResults
+        .filter(function(r) { return r.calc.opProfit < 0; })
+        .sort(function(a, b) { return a.calc.opProfit - b.calc.opProfit });
+
+      var rankingCard = document.getElementById('rankingCard');
+      if (ngStores.length > 0) {
+        rankingCard.style.display = '';
+        document.getElementById('rankList').innerHTML = ngStores.map(function(r, i) {
+          return '<li class="rank-item">'
+            + '<span class="rank-num">' + (i + 1) + '</span>'
+            + '<span class="rank-name">' + esc(r.store.name) + '</span>'
+            + '<span class="rank-profit">' + fmtP(r.calc.opProfit) + ' 万円/月</span>'
+            + '</li>';
+        }).join('');
+      } else {
+        rankingCard.style.display = 'none';
+      }
+    }
+
+    function resetAll() {
+      if (!confirm('全店舗データを削除します。よろしいですか？')) return;
+      stores = [];
+      saveStores();
+      render();
+    }
+
+    function fmt(n) {
+      return parseFloat(n.toFixed(1)).toLocaleString('ja-JP');
+    }
+    function fmtP(n) {
+      return (n >= 0 ? '' : '▲') + parseFloat(Math.abs(n).toFixed(1)).toLocaleString('ja-JP');
+    }
+    function esc(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // 初期化
+    loadStores();
+    render();
+  </script>
+
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
