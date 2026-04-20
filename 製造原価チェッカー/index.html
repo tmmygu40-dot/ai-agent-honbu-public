@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>製造原価チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #0f766e;
+      --accent-light: #f0fdfa;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+    .row2 .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #0d5e57, 0 6px 16px rgba(15,118,110,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #0d5e57, 0 2px 8px rgba(15,118,110,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .summary-item {
+      display: none; background: var(--card);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 1rem; text-align: center; box-shadow: var(--shadow);
+    }
+    .summary-item .s-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .summary-item .s-value { font-size: 1.3rem; font-weight: 900; color: var(--accent); }
+    .summary-item .s-unit  { font-size: 0.72rem; color: var(--text-sub); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); background: var(--accent-light); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .sep td { border-top: 2px solid var(--border); padding-top: 0.7rem; font-weight: 700; color: var(--text); }
+    .detail-table .sep td:last-child { color: var(--accent); }
+
+    /* ── リセットボタン ── */
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.6rem;
+      font-size: 0.88rem; font-weight: 600; color: var(--text-sub);
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 9px; cursor: pointer;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>製造原価チェッカー</h1>
+    <p class="subtitle">設備・電力・人件費から1個あたりの製造原価と採算ラインを即計算</p>
+  </header>
+
+  <!-- 入力カード：材料費 -->
+  <div class="card">
+    <p class="card-title">材料費</p>
+    <div class="field">
+      <label for="materialCost">材料費（円/個）</label>
+      <input type="number" id="materialCost" placeholder="例: 500" min="0">
+      <p class="hint">製品1個に使う原材料・部品の費用合計</p>
+    </div>
+  </div>
+
+  <!-- 入力カード：人件費 -->
+  <div class="card">
+    <p class="card-title">人件費</p>
+    <div class="row2">
+      <div class="field">
+        <label for="laborRate">時給（円/時間）</label>
+        <input type="number" id="laborRate" placeholder="例: 1200" min="0">
+      </div>
+      <div class="field">
+        <label for="laborHours">加工時間（時間/個）</label>
+        <input type="number" id="laborHours" placeholder="例: 0.5" min="0" step="0.01">
+        <p class="hint">例: 30分 → 0.5</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 入力カード：設備・電力費 -->
+  <div class="card">
+    <p class="card-title">設備・電力費</p>
+    <div class="row2">
+      <div class="field">
+        <label for="power">消費電力（kW）</label>
+        <input type="number" id="power" placeholder="例: 2.5" min="0" step="0.01">
+      </div>
+      <div class="field">
+        <label for="machineHours">稼働時間（時間/個）</label>
+        <input type="number" id="machineHours" placeholder="例: 0.5" min="0" step="0.01">
+      </div>
+    </div>
+    <div class="field">
+      <label for="electricRate">電気代（円/kWh）</label>
+      <input type="number" id="electricRate" placeholder="例: 30" min="0" step="0.1">
+      <p class="hint">設備電力費 = 消費電力 × 稼働時間 × 電気代単価</p>
+    </div>
+  </div>
+
+  <!-- 入力カード：その他・採算設定 -->
+  <div class="card">
+    <p class="card-title">その他費用・採算設定</p>
+    <div class="field">
+      <label for="otherCost">その他費用按分（円/個）</label>
+      <input type="number" id="otherCost" placeholder="例: 100" min="0" value="0">
+      <p class="hint">間接費・償却費・包装費など個数按分した金額</p>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="targetMargin">目標粗利率（%）</label>
+        <input type="number" id="targetMargin" placeholder="例: 30" min="0" max="99" value="30">
+      </div>
+      <div class="field">
+        <label for="currentPrice">現在の売価（円/個）<span style="font-weight:400;font-size:0.72rem">任意</span></label>
+        <input type="number" id="currentPrice" placeholder="未入力OK" min="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">製造原価を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">製造原価（1個あたり）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- サマリー -->
+  <div class="summary-grid">
+    <div class="summary-item" id="si-breakeven">
+      <p class="s-label">採算ライン売価</p>
+      <p class="s-value" id="sv-breakeven">—</p>
+      <p class="s-unit">円/個</p>
+    </div>
+    <div class="summary-item" id="si-margin">
+      <p class="s-label" id="sl-margin">売価との差額</p>
+      <p class="s-value" id="sv-margin">—</p>
+      <p class="s-unit">円/個</p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">コスト内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <button class="btn-reset" onclick="resetForm()" style="display:none" id="btn-reset">入力をリセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'seizou_genka_checker_v1';
+
+  // 起動時にlocalStorageから復元
+  window.addEventListener('load', function() {
+    var saved = localStorage.getItem(LS_KEY);
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      var ids = ['materialCost','laborRate','laborHours','power','machineHours','electricRate','otherCost','targetMargin','currentPrice'];
+      ids.forEach(function(id) { if (d[id] !== undefined) document.getElementById(id).value = d[id]; });
+    } catch(e) {}
+  });
+
+  function save() {
+    var ids = ['materialCost','laborRate','laborHours','power','machineHours','electricRate','otherCost','targetMargin','currentPrice'];
+    var d = {};
+    ids.forEach(function(id) { d[id] = document.getElementById(id).value; });
+    localStorage.setItem(LS_KEY, JSON.stringify(d));
+  }
+
+  function calc() {
+    save();
+
+    var material    = parseFloat(document.getElementById('materialCost').value) || 0;
+    var laborRate   = parseFloat(document.getElementById('laborRate').value);
+    var laborHours  = parseFloat(document.getElementById('laborHours').value);
+    var power       = parseFloat(document.getElementById('power').value) || 0;
+    var machHours   = parseFloat(document.getElementById('machineHours').value) || 0;
+    var electricRate= parseFloat(document.getElementById('electricRate').value) || 0;
+    var other       = parseFloat(document.getElementById('otherCost').value) || 0;
+    var margin      = parseFloat(document.getElementById('targetMargin').value);
+    var sellPrice   = parseFloat(document.getElementById('currentPrice').value);
+
+    // 必須チェック
+    if (isNaN(laborRate) || isNaN(laborHours)) {
+      showErr('時給と加工時間は必須です');
+      return;
+    }
+    if (isNaN(margin) || margin < 0 || margin >= 100) {
+      showErr('目標粗利率は0〜99%で入力してください');
+      return;
+    }
+
+    // 計算
+    var laborCost    = laborRate * laborHours;
+    var machineCost  = power * machHours * electricRate;
+    var totalCost    = material + laborCost + machineCost + other;
+    var breakeven    = totalCost / (1 - margin / 100);
+
+    // 結論カード（売価あり→比較、なし→原価だけ表示）
+    var level, mainNote;
+    if (!isNaN(sellPrice) && sellPrice > 0) {
+      var diff = sellPrice - breakeven;
+      var actualMargin = (sellPrice - totalCost) / sellPrice * 100;
+      if (sellPrice >= breakeven) {
+        level = actualMargin >= margin ? 'ok' : 'warn';
+      } else {
+        level = 'ng';
+      }
+      mainNote = '採算ライン: ' + fmt(breakeven) + '円　／　実粗利率: ' + actualMargin.toFixed(1) + '%';
+    } else {
+      level = 'ok';
+      mainNote = '採算ライン売価: ' + fmt(breakeven) + '円（目標粗利率' + margin + '%）';
+    }
+
+    // 結論カード表示
+    showResult(level, fmt(totalCost) + ' 円', mainNote);
+
+    // サマリー
+    showSummary('si-breakeven', 'sv-breakeven', fmt(breakeven), null);
+    if (!isNaN(sellPrice) && sellPrice > 0) {
+      var diff = sellPrice - breakeven;
+      var siMargin = document.getElementById('si-margin');
+      siMargin.style.display = '';
+      document.getElementById('sl-margin').textContent = diff >= 0 ? '売価の余裕' : '採算不足';
+      var svMargin = document.getElementById('sv-margin');
+      svMargin.textContent = (diff >= 0 ? '+' : '') + fmt(diff);
+      svMargin.style.color = diff >= 0 ? 'var(--ok)' : 'var(--ng)';
+    } else {
+      document.getElementById('si-margin').style.display = 'none';
+    }
+
+    // 内訳テーブル
+    var rows = [
+      ['材料費', fmt(material) + ' 円', false],
+      ['人件費（' + laborHours + 'h × ' + fmt(laborRate) + '円）', fmt(laborCost) + ' 円', false],
+    ];
+    if (machineCost > 0) {
+      rows.push(['設備電力費（' + power + 'kW × ' + machHours + 'h × ' + electricRate + '円）', fmt(machineCost) + ' 円', false]);
+    }
+    if (other > 0) {
+      rows.push(['その他費用按分', fmt(other) + ' 円', false]);
+    }
+    rows.push(['製造原価合計', fmt(totalCost) + ' 円', true]);
+    rows.push(['採算ライン売価（粗利' + margin + '%）', fmt(breakeven) + ' 円', false]);
+    if (!isNaN(sellPrice) && sellPrice > 0) {
+      rows.push(['現在の売価', fmt(sellPrice) + ' 円', false]);
+      var gp = sellPrice - totalCost;
+      var gpr = (gp / sellPrice * 100).toFixed(1);
+      rows.push(['粗利額 / 粗利率', fmt(gp) + ' 円　/ ' + gpr + '%', false]);
+    }
+
+    showDetail(rows);
+    document.getElementById('btn-reset').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showSummary(siId, svId, val, color) {
+    var si = document.getElementById(siId);
+    si.style.display = '';
+    var sv = document.getElementById(svId);
+    sv.textContent = val;
+    if (color) sv.style.color = color;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      var cls = r[2] ? ' class="hl"' : '';
+      return '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('si-breakeven').style.display = 'none';
+    document.getElementById('si-margin').style.display = 'none';
+  }
+
+  function resetForm() {
+    ['materialCost','laborRate','laborHours','power','machineHours','electricRate','otherCost','currentPrice'].forEach(function(id) {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('targetMargin').value = '30';
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('si-breakeven').style.display = 'none';
+    document.getElementById('si-margin').style.display = 'none';
+    document.getElementById('btn-reset').style.display = 'none';
+    localStorage.removeItem(LS_KEY);
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
