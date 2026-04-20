@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>輸出採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 入力行2カラム */
+    .row2 { display: flex; gap: 0.75rem; }
+    .row2 .field { flex: 1; margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin-bottom: 1rem;
+    }
+    @media(min-width:480px){ .summary-grid { grid-template-columns: repeat(4,1fr); } }
+    .sg-item { background: var(--bg); border-radius: 10px; padding: 0.75rem 0.6rem; text-align: center; }
+    .sg-label { font-size: 0.7rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .sg-val { font-size: 1.1rem; font-weight: 900; color: var(--text); }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ng-row td { color: var(--ng); }
+    .detail-table th { font-size: 0.75rem; color: var(--text-sub); font-weight: 700; padding: 0.4rem 0.3rem; border-bottom: 2px solid var(--border); }
+    .detail-table th:not(:first-child) { text-align: right; }
+
+    /* 損益分岐バッジ */
+    .breakeven-badge {
+      display: inline-block; padding: 0.2rem 0.75rem;
+      border-radius: 999px; font-size: 0.8rem; font-weight: 700;
+      background: var(--ng-bg); color: var(--ng); border: 1px solid var(--ng);
+      margin-top: 0.5rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>輸出採算チェッカー</h1>
+    <p class="subtitle">円安局面で輸出品の利益を為替レート込みで即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="cost">国内原価（円）</label>
+      <input type="number" id="cost" placeholder="例: 5000" min="0">
+      <p class="hint">製造原価・仕入れ原価など</p>
+    </div>
+    <div class="field">
+      <label for="otherCost">その他コスト（円）</label>
+      <input type="number" id="otherCost" placeholder="例: 500" min="0" value="0">
+      <p class="hint">送料・関税・梱包費など（任意）</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">現地販売価格と為替</p>
+    <div class="field">
+      <label for="localPrice">現地販売価格（外貨）</label>
+      <input type="number" id="localPrice" placeholder="例: 80" min="0">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="currency">通貨</label>
+        <select id="currency">
+          <option value="USD">USD（ドル）</option>
+          <option value="EUR">EUR（ユーロ）</option>
+          <option value="CNY">CNY（人民元）</option>
+          <option value="KRW">KRW（ウォン）</option>
+          <option value="GBP">GBP（ポンド）</option>
+          <option value="OTHER">その他</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="rate">為替レート（円/外貨）</label>
+        <input type="number" id="rate" placeholder="例: 155" min="0" step="0.01">
+      </div>
+    </div>
+    <p class="hint" style="margin-top:0.5rem">例：1ドル＝155円のとき「155」と入力</p>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">利益率</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリーグリッド -->
+  <div class="card" id="summaryCard" style="display:none">
+    <p class="card-title">サマリー</p>
+    <div class="summary-grid">
+      <div class="sg-item"><div class="sg-label">円換算売上</div><div class="sg-val" id="sgSales">—</div></div>
+      <div class="sg-item"><div class="sg-label">総コスト</div><div class="sg-val" id="sgCost">—</div></div>
+      <div class="sg-item"><div class="sg-label">利益（円）</div><div class="sg-val" id="sgProfit">—</div></div>
+      <div class="sg-item"><div class="sg-label">損益分岐レート</div><div class="sg-val" id="sgBreakeven">—</div></div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="detailBody"></tbody></table>
+    <div style="text-align:center;margin-top:0.75rem">
+      <span class="breakeven-badge" id="breakevenBadge"></span>
+    </div>
+  </div>
+
+  <!-- シナリオ比較カード -->
+  <div class="card" id="scenarioCard" style="display:none">
+    <p class="card-title">為替シナリオ比較</p>
+    <table class="detail-table" id="scenarioTable">
+      <thead>
+        <tr>
+          <th>レート</th>
+          <th>円換算売上</th>
+          <th>利益（円）</th>
+          <th>利益率</th>
+        </tr>
+      </thead>
+      <tbody id="scenarioBody"></tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'export_checker_v1';
+
+  // 入力値を localStorage に保存
+  var inputIds = ['cost', 'otherCost', 'localPrice', 'currency', 'rate'];
+  function saveInputs() {
+    var d = {};
+    inputIds.forEach(function(id) {
+      d[id] = document.getElementById(id).value;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+  }
+  function loadInputs() {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try {
+      var d = JSON.parse(raw);
+      inputIds.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (d[id] !== undefined) el.value = d[id];
+      });
+    } catch(e) {}
+  }
+  inputIds.forEach(function(id) {
+    document.getElementById(id).addEventListener('input', saveInputs);
+    document.getElementById(id).addEventListener('change', saveInputs);
+  });
+  loadInputs();
+
+  function calc() {
+    var cost       = parseFloat(document.getElementById('cost').value);
+    var otherCost  = parseFloat(document.getElementById('otherCost').value) || 0;
+    var localPrice = parseFloat(document.getElementById('localPrice').value);
+    var rate       = parseFloat(document.getElementById('rate').value);
+    var currency   = document.getElementById('currency').value;
+
+    if (isNaN(cost) || isNaN(localPrice) || isNaN(rate) || rate <= 0) {
+      showErr('国内原価・現地販売価格・為替レートを入力してください');
+      return;
+    }
+
+    var sales      = localPrice * rate;         // 円換算売上
+    var totalCost  = cost + otherCost;          // 総コスト（円）
+    var profit     = sales - totalCost;         // 利益（円）
+    var profitRate = sales > 0 ? profit / sales * 100 : 0; // 利益率%
+    var breakeven  = totalCost / localPrice;    // 損益分岐レート（円/外貨）
+
+    var level, msg;
+    if (profitRate >= 20) {
+      level = 'ok';
+      msg   = '利益率20%以上。採算は良好です。';
+    } else if (profitRate >= 10) {
+      level = 'warn';
+      msg   = '利益率10〜20%。円高が進むと採算が悪化します。';
+    } else {
+      level = 'ng';
+      msg   = profit < 0
+        ? '赤字です。価格または原価の見直しが必要です。'
+        : '利益率10%未満。円高リスクに注意が必要です。';
+    }
+
+    // 結論カード
+    showResult(level, profitRate.toFixed(1) + '%', msg);
+
+    // サマリーグリッド
+    document.getElementById('sgSales').textContent     = fmt(sales) + '円';
+    document.getElementById('sgCost').textContent      = fmt(totalCost) + '円';
+    document.getElementById('sgProfit').textContent    = fmt(profit) + '円';
+    document.getElementById('sgBreakeven').textContent = breakeven.toFixed(2) + '円';
+    document.getElementById('summaryCard').style.display = '';
+
+    // 内訳テーブル
+    var rows = [
+      ['現地販売価格', localPrice.toLocaleString('ja-JP') + ' ' + currency],
+      ['適用為替レート', rate.toFixed(2) + ' 円/' + currency],
+      ['円換算売上', fmt(sales) + ' 円'],
+      ['国内原価', fmt(cost) + ' 円'],
+      ['その他コスト', fmt(otherCost) + ' 円'],
+      ['総コスト', fmt(totalCost) + ' 円'],
+      ['利益', fmt(profit) + ' 円', true],
+      ['利益率', profitRate.toFixed(1) + ' %'],
+    ];
+    document.getElementById('detailBody').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('breakevenBadge').textContent =
+      '損益分岐レート：' + breakeven.toFixed(2) + '円/' + currency + ' 以上で黒字';
+    document.getElementById('detailCard').style.display = '';
+
+    // シナリオ比較（現在レートから−20〜+20を5円刻み）
+    var baseRate = rate;
+    var scenarios = [];
+    for (var delta = -20; delta <= 20; delta += 5) {
+      scenarios.push(baseRate + delta);
+    }
+    var scenarioRows = scenarios.map(function(r) {
+      var s = localPrice * r;
+      var p = s - totalCost;
+      var pr = s > 0 ? p / s * 100 : 0;
+      var isBreak = Math.abs(r - baseRate) < 0.01;
+      var cls = '';
+      if (p < 0) cls = ' class="ng-row"';
+      return '<tr' + cls + '>'
+        + '<td>' + (isBreak ? '<strong>' : '') + r.toFixed(0) + '円' + (isBreak ? ' ★' : '') + (isBreak ? '</strong>' : '') + '</td>'
+        + '<td style="text-align:right">' + fmt(s) + '円</td>'
+        + '<td style="text-align:right">' + fmt(p) + '円</td>'
+        + '<td style="text-align:right">' + pr.toFixed(1) + '%</td>'
+        + '</tr>';
+    }).join('');
+    document.getElementById('scenarioBody').innerHTML = scenarioRows;
+    document.getElementById('scenarioCard').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('summaryCard').style.display = 'none';
+    document.getElementById('detailCard').style.display = 'none';
+    document.getElementById('scenarioCard').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
