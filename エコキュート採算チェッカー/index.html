@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>エコキュート採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── セクション区切り ── */
+    .section-label {
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      margin: 1.2rem 0 0.8rem; padding: 0.4rem 0;
+      border-top: 1px dashed var(--border);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 複数結論カードを並べる ── */
+    .result-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; max-width: 600px; margin: 0 auto 1rem;
+    }
+    .result-grid .result-card { margin: 0; }
+    .result-grid .result-value { font-size: 1.5rem; }
+    @media (max-width: 420px) {
+      .result-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🌡️ エコキュート採算チェッカー</h1>
+    <p class="subtitle">給湯器をエコキュートに切り替えた場合の光熱費削減額と投資回収年数を即計算</p>
+  </header>
+
+  <!-- 現在の給湯コスト -->
+  <div class="card">
+    <p class="card-title">現在の給湯コスト</p>
+
+    <div class="field">
+      <label for="fuelType">現在の給湯方式</label>
+      <select id="fuelType" onchange="updateFuelHint()">
+        <option value="gas">都市ガス</option>
+        <option value="lpg">プロパンガス（LPG）</option>
+        <option value="kerosene">灯油</option>
+        <option value="electric">電気温水器</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="monthlyFuelCost">月間給湯費用（円）</label>
+      <input type="number" id="monthlyFuelCost" placeholder="例: 8000" min="0">
+      <p class="hint" id="fuelHint">現在の月間ガス代（給湯分）を入力してください</p>
+    </div>
+
+    <p class="section-label">エコキュート導入後の電気代</p>
+
+    <div class="field">
+      <label for="electricRate">電気料金単価（円/kWh）</label>
+      <input type="number" id="electricRate" placeholder="例: 28" step="0.1" min="0">
+      <p class="hint">夜間割引プランの場合は夜間単価を入力（例：深夜電力 14〜18円）</p>
+    </div>
+
+    <div class="field">
+      <label for="cop">エコキュートのCOP（成績係数）</label>
+      <input type="number" id="cop" value="3.5" step="0.1" min="1" max="7">
+      <p class="hint">一般的な家庭用エコキュート：3.0〜4.0。迷ったら3.5のままでOK</p>
+    </div>
+
+    <div class="field">
+      <label for="monthlyHotWater">月間お湯使用エネルギー（kWh換算）</label>
+      <input type="number" id="monthlyHotWater" placeholder="例: 150" min="0">
+      <p class="hint">4人家族の目安：120〜200kWh/月。わからない場合は空欄にすると費用から自動推計します</p>
+    </div>
+  </div>
+
+  <!-- 導入コスト -->
+  <div class="card">
+    <p class="card-title">エコキュート導入コスト</p>
+
+    <div class="field">
+      <label for="unitCost">本体価格（円）</label>
+      <input type="number" id="unitCost" placeholder="例: 350000" min="0">
+      <p class="hint">工事費込みの見積もりがある場合は工事費を0円にしてここに合計額を入力してもOK</p>
+    </div>
+
+    <div class="field">
+      <label for="installCost">工事費（円）</label>
+      <input type="number" id="installCost" placeholder="例: 150000" min="0">
+    </div>
+
+    <div class="field">
+      <label for="subsidyAmount">補助金・助成金（円）</label>
+      <input type="number" id="subsidyAmount" placeholder="例: 50000" min="0" value="0">
+      <p class="hint">国や自治体の補助金が使える場合は入力（例：こどもエコすまい支援事業など）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算を計算する</button>
+
+  <!-- 結論カード（回収年数） -->
+  <div class="result-card" id="resultPayback">
+    <p class="result-label">投資回収年数</p>
+    <p class="result-value" id="rvPayback">—</p>
+    <p class="result-note"  id="rnPayback"></p>
+  </div>
+
+  <!-- 結果グリッド（削減額・10年節約） -->
+  <div class="result-grid">
+    <div class="result-card" id="resultMonthly">
+      <p class="result-label">月間削減額</p>
+      <p class="result-value" id="rvMonthly">—</p>
+      <p class="result-note">円/月の節約</p>
+    </div>
+    <div class="result-card" id="resultTen">
+      <p class="result-label">10年間の累計節約</p>
+      <p class="result-value" id="rvTen">—</p>
+      <p class="result-note">円（維持費除く）</p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  const LS_KEY = 'ecocute_checker_v1';
+
+  const fuelHints = {
+    gas:      '現在の月間ガス代（給湯分）を入力してください',
+    lpg:      '現在の月間プロパンガス代（給湯分）を入力してください',
+    kerosene: '現在の月間灯油代（給湯分）を入力してください',
+    electric: '現在の月間電気代（電気温水器分）を入力してください',
+  };
+
+  function updateFuelHint() {
+    var type = document.getElementById('fuelType').value;
+    document.getElementById('fuelHint').textContent = fuelHints[type];
+  }
+
+  function calc() {
+    var fuelType        = document.getElementById('fuelType').value;
+    var monthlyFuelCost = parseFloat(document.getElementById('monthlyFuelCost').value);
+    var electricRate    = parseFloat(document.getElementById('electricRate').value);
+    var cop             = parseFloat(document.getElementById('cop').value) || 3.5;
+    var monthlyKwh      = parseFloat(document.getElementById('monthlyHotWater').value);
+    var unitCost        = parseFloat(document.getElementById('unitCost').value) || 0;
+    var installCost     = parseFloat(document.getElementById('installCost').value) || 0;
+    var subsidy         = parseFloat(document.getElementById('subsidyAmount').value) || 0;
+
+    if (isNaN(monthlyFuelCost) || isNaN(electricRate)) {
+      showErr('「月間給湯費用」と「電気料金単価」は必ず入力してください');
+      return;
+    }
+    if (cop <= 0 || electricRate <= 0) {
+      showErr('COP・電気料金単価は正の値を入力してください');
+      return;
+    }
+
+    // エコキュートの月間電気代を計算
+    var monthlyEcoKwh;
+    if (!isNaN(monthlyKwh) && monthlyKwh > 0) {
+      // kWh が入力されている場合：直接使う
+      monthlyEcoKwh = monthlyKwh / cop;
+    } else {
+      // kWh 未入力の場合：現在のコストから熱エネルギーを逆算
+      // 各燃料の熱量効率とエネルギー単価の目安で換算
+      var fuelEfficiency = { gas: 0.85, lpg: 0.85, kerosene: 0.90, electric: 0.93 };
+      var eff = fuelEfficiency[fuelType];
+      // 現在の費用でまかなっている熱量（正規化）をエコキュートで代替
+      // エコキュートの電気代 = 現在の費用 × (現在効率) / COP / (現在効率)
+      // 簡略化：エコキュートで同じ熱量を出す電気代 = 現在費用 × (1/COP) / eff
+      monthlyEcoKwh = (monthlyFuelCost / electricRate) * (eff / cop);
+    }
+
+    var monthlyEcoCost   = monthlyEcoKwh * electricRate;
+    var monthlySaving    = monthlyFuelCost - monthlyEcoCost;
+    var annualSaving     = monthlySaving * 12;
+    var totalInvestment  = unitCost + installCost - subsidy;
+    var paybackYears     = annualSaving > 0 ? totalInvestment / annualSaving : Infinity;
+    var tenYearSaving    = annualSaving * 10 - totalInvestment;
+
+    // 回収年数の判定
+    var level, note;
+    if (annualSaving <= 0) {
+      level = 'ng';
+      note = '入力値では節約にならない計算です。電気料金単価・COP・現在のコストを再確認してください。';
+    } else if (paybackYears <= 8) {
+      level = 'ok';
+      note = '回収期間が短く、導入メリットが大きいです。';
+    } else if (paybackYears <= 15) {
+      level = 'warn';
+      note = '平均的な回収期間です。補助金活用で短縮できます。';
+    } else {
+      level = 'ng';
+      note = '回収に時間がかかります。補助金・夜間割引プランの活用を検討してください。';
+    }
+
+    // 回収年数表示
+    var paybackStr = isFinite(paybackYears) ? paybackYears.toFixed(1) + ' 年' : '回収不能';
+    showResult('resultPayback', level, paybackStr, note);
+
+    // 月間削減額
+    var monthlyLevel = monthlySaving >= 3000 ? 'ok' : monthlySaving >= 500 ? 'warn' : 'ng';
+    showResult('resultMonthly', monthlyLevel, fmt(monthlySaving) + ' 円', '');
+
+    // 10年累計節約（投資回収後の純益）
+    var tenLevel = tenYearSaving > 0 ? 'ok' : 'warn';
+    showResult('resultTen', tenLevel, fmt(tenYearSaving) + ' 円', '');
+
+    // 内訳
+    showDetail([
+      ['現在の月間給湯コスト',             fmt(monthlyFuelCost)  + ' 円'],
+      ['エコキュートの月間電気代（推計）',   fmt(monthlyEcoCost)   + ' 円'],
+      ['月間節約額',                        fmt(monthlySaving)    + ' 円', true],
+      ['年間節約額',                        fmt(annualSaving)     + ' 円'],
+      ['初期投資（本体＋工事）',            fmt(unitCost + installCost) + ' 円'],
+      ['補助金・助成金',                   '▲ ' + fmt(subsidy)   + ' 円'],
+      ['実質投資額',                        fmt(totalInvestment)  + ' 円'],
+      ['投資回収年数',                      isFinite(paybackYears) ? paybackYears.toFixed(1) + ' 年' : '—', true],
+      ['10年間累計節約額（純益）',          fmt(tenYearSaving)    + ' 円'],
+    ]);
+
+    saveLS();
+  }
+
+  function showResult(id, level, val, note) {
+    var rc = document.getElementById(id);
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    rc.querySelector('.result-value').textContent = val;
+    var rn = rc.querySelector('.result-note');
+    if (rn) rn.textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('resultPayback');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    rc.querySelector('.result-value').textContent = '⚠️';
+    rc.querySelector('.result-note').textContent = msg;
+    document.getElementById('resultMonthly').style.display = 'none';
+    document.getElementById('resultTen').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage
+  var fields = ['fuelType','monthlyFuelCost','electricRate','cop','monthlyHotWater','unitCost','installCost','subsidyAmount'];
+
+  function saveLS() {
+    var data = {};
+    fields.forEach(function(id) { data[id] = document.getElementById(id).value; });
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadLS() {
+    try {
+      var saved = localStorage.getItem(LS_KEY);
+      if (!saved) return;
+      var data = JSON.parse(saved);
+      fields.forEach(function(id) {
+        if (data[id] !== undefined && data[id] !== '') {
+          document.getElementById(id).value = data[id];
+        }
+      });
+    } catch(e) {}
+  }
+
+  loadLS();
+  updateFuelHint();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
