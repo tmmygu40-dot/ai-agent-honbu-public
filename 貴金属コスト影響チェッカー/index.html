@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>貴金属コスト影響チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .price-ref {
+      background: var(--accent-light);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 0.7rem 0.9rem;
+      font-size: 0.78rem;
+      color: var(--text-sub);
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+    .price-ref strong { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💍 貴金属コスト影響チェッカー</h1>
+    <p class="subtitle">金・銀・プラチナの価格変動による材料コスト増加と必要売価を即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">材料情報</p>
+
+    <div class="field">
+      <label for="metalType">金属種別</label>
+      <select id="metalType">
+        <option value="gold">金（Gold）</option>
+        <option value="silver">銀（Silver）</option>
+        <option value="platinum">プラチナ（Platinum）</option>
+        <option value="other">その他</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="usage">使用量（g）</label>
+      <input type="number" id="usage" placeholder="例: 5" min="0" step="0.01">
+      <p class="hint">1製品あたりの使用グラム数</p>
+    </div>
+
+    <div class="field-row">
+      <div class="field" style="margin-bottom:0">
+        <label for="oldPrice">旧単価（円/g）</label>
+        <input type="number" id="oldPrice" placeholder="例: 12000" min="0">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="newPrice">新単価（円/g）</label>
+        <input type="number" id="newPrice" placeholder="例: 15000" min="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- 売価・粗利カード -->
+  <div class="card">
+    <p class="card-title">売価・粗利目標</p>
+
+    <div class="field">
+      <label for="sellPrice">現行売価（円）</label>
+      <input type="number" id="sellPrice" placeholder="例: 80000" min="0">
+      <p class="hint">現在の製品販売価格</p>
+    </div>
+
+    <div class="field">
+      <label for="marginTarget">目標粗利率（%）</label>
+      <input type="number" id="marginTarget" placeholder="例: 40" min="0" max="100" step="0.1">
+      <p class="hint">材料費以外のコスト・利益を含む目標粗利率</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">コスト影響を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">必要値上げ額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'kinzoku_checker_v1';
+
+  function save() {
+    var d = {
+      metalType: document.getElementById('metalType').value,
+      usage: document.getElementById('usage').value,
+      oldPrice: document.getElementById('oldPrice').value,
+      newPrice: document.getElementById('newPrice').value,
+      sellPrice: document.getElementById('sellPrice').value,
+      marginTarget: document.getElementById('marginTarget').value
+    };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch(e) {}
+  }
+
+  function load() {
+    try {
+      var s = localStorage.getItem(LS_KEY);
+      if (!s) return;
+      var d = JSON.parse(s);
+      document.getElementById('metalType').value = d.metalType || 'gold';
+      document.getElementById('usage').value = d.usage || '';
+      document.getElementById('oldPrice').value = d.oldPrice || '';
+      document.getElementById('newPrice').value = d.newPrice || '';
+      document.getElementById('sellPrice').value = d.sellPrice || '';
+      document.getElementById('marginTarget').value = d.marginTarget || '';
+    } catch(e) {}
+  }
+
+  ['metalType','usage','oldPrice','newPrice','sellPrice','marginTarget'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', save);
+    document.getElementById(id).addEventListener('change', save);
+  });
+
+  function calc() {
+    var usage = parseFloat(document.getElementById('usage').value);
+    var oldPrice = parseFloat(document.getElementById('oldPrice').value);
+    var newPrice = parseFloat(document.getElementById('newPrice').value);
+    var sellPrice = parseFloat(document.getElementById('sellPrice').value);
+    var marginTarget = parseFloat(document.getElementById('marginTarget').value);
+    var metalType = document.getElementById('metalType').value;
+
+    if (isNaN(usage) || isNaN(oldPrice) || isNaN(newPrice) || isNaN(sellPrice) || isNaN(marginTarget)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (usage <= 0 || oldPrice <= 0 || newPrice <= 0 || sellPrice <= 0) {
+      showErr('0より大きい値を入力してください');
+      return;
+    }
+    if (marginTarget < 0 || marginTarget >= 100) {
+      showErr('目標粗利率は0〜99%で入力してください');
+      return;
+    }
+
+    var metalNames = { gold: '金', silver: '銀', platinum: 'プラチナ', other: 'その他' };
+    var metalName = metalNames[metalType] || 'その他';
+
+    // コスト計算
+    var oldCost = oldPrice * usage;
+    var newCost = newPrice * usage;
+    var costIncrease = newCost - oldCost;
+    var costIncreaseRate = oldCost > 0 ? (costIncrease / oldCost * 100) : 0;
+
+    // 必要売価計算（目標粗利率を守るための最低売価）
+    // 必要売価 = 新材料コスト ÷ (1 - 目標粗利率/100)
+    var marginRate = marginTarget / 100;
+    var requiredSellPrice = newCost / (1 - marginRate);
+    var priceIncrease = requiredSellPrice - sellPrice;
+
+    // 現行売価での粗利率
+    var currentMargin = sellPrice > 0 ? ((sellPrice - newCost) / sellPrice * 100) : 0;
+    var oldMargin = sellPrice > 0 ? ((sellPrice - oldCost) / sellPrice * 100) : 0;
+
+    var level, label, note;
+    if (priceIncrease <= 0) {
+      level = 'ok';
+      label = '値上げ不要';
+      note = '現行売価でも目標粗利率を達成できます。値上げの必要はありません。';
+    } else if (priceIncrease / sellPrice < 0.1) {
+      level = 'warn';
+      label = '+ ' + fmt(priceIncrease) + ' 円の値上げが必要';
+      note = '現行売価では粗利率が ' + currentMargin.toFixed(1) + '% に低下します。目標粗利を守るには値上げが必要です。';
+    } else {
+      level = 'ng';
+      label = '+ ' + fmt(priceIncrease) + ' 円の値上げが必要';
+      note = '大幅な値上げが必要です。粗利率は ' + currentMargin.toFixed(1) + '% に低下しています。早急に対応が必要です。';
+    }
+
+    showResult(level, label, note);
+    showDetail([
+      [metalName + ' 旧単価', fmt(oldPrice) + ' 円/g'],
+      [metalName + ' 新単価', fmt(newPrice) + ' 円/g'],
+      ['単価上昇率', costIncreaseRate.toFixed(1) + ' %'],
+      ['使用量', usage + ' g'],
+      ['旧材料コスト（1個）', fmt(oldCost) + ' 円'],
+      ['新材料コスト（1個）', fmt(newCost) + ' 円'],
+      ['材料コスト増加額', fmt(costIncrease) + ' 円', true],
+      ['現行売価', fmt(sellPrice) + ' 円'],
+      ['旧粗利率（参考）', oldMargin.toFixed(1) + ' %'],
+      ['新コスト時の粗利率', currentMargin.toFixed(1) + ' %'],
+      ['目標粗利率', marginTarget.toFixed(1) + ' %'],
+      ['必要売価', fmt(requiredSellPrice) + ' 円', true],
+    ]);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️ 入力エラー', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
