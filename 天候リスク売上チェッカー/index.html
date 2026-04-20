@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>天候リスク売上チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin-bottom: 0;
+    }
+    .sg-item {
+      background: var(--accent-light);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.85rem 0.9rem; text-align: center;
+    }
+    .sg-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.25rem; }
+    .sg-val { font-size: 1.25rem; font-weight: 900; color: var(--accent); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── アドバイス ── */
+    .advice-box {
+      background: var(--accent-light);
+      border-left: 4px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 0.85rem 1rem;
+      font-size: 0.84rem;
+      line-height: 1.6;
+      color: var(--text);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>☔ 天候リスク売上チェッカー</h1>
+    <p class="subtitle">雨・悪天候による来客数減少と売上損失を確率から即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="visitors">1日あたり通常来客数（人）</label>
+      <input type="number" id="visitors" placeholder="例: 100" min="0">
+    </div>
+    <div class="field">
+      <label for="unit_price">客単価（円）</label>
+      <input type="number" id="unit_price" placeholder="例: 2000" min="0">
+    </div>
+    <div class="field">
+      <label for="business_days">月間営業日数（日）</label>
+      <input type="number" id="business_days" placeholder="例: 25" min="1" max="31">
+      <p class="hint">1ヶ月の営業日数を入力してください</p>
+    </div>
+  </div>
+
+  <!-- 天候リスク入力 -->
+  <div class="card">
+    <p class="card-title">天候リスク設定</p>
+    <div class="field">
+      <label for="rain_days">月間悪天候日数（日）</label>
+      <input type="number" id="rain_days" placeholder="例: 6" min="0" max="31">
+      <p class="hint">雨・台風・大雪など売上に影響する悪天候の日数</p>
+    </div>
+    <div class="field">
+      <label for="drop_rate">悪天候時の来客数減少率（%）</label>
+      <input type="number" id="drop_rate" placeholder="例: 30" min="0" max="100">
+      <p class="hint">通常来客数と比べて何%減るか（例：30%減なら「30」）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">売上損失を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月間売上損失額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリーグリッド -->
+  <div class="card" id="summary-card" style="display:none">
+    <p class="card-title">サマリー</p>
+    <div class="summary-grid">
+      <div class="sg-item"><p class="sg-label">月間売上損失</p><p class="sg-val" id="sg1">—</p></div>
+      <div class="sg-item"><p class="sg-label">年間売上損失（見込み）</p><p class="sg-val" id="sg2">—</p></div>
+      <div class="sg-item"><p class="sg-label">損失率（月間売上比）</p><p class="sg-val" id="sg3">—</p></div>
+      <div class="sg-item"><p class="sg-label">悪天候1日あたり損失</p><p class="sg-val" id="sg4">—</p></div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- アドバイスカード -->
+  <div class="card" id="advice-card" style="display:none">
+    <p class="card-title">対策アドバイス</p>
+    <div class="advice-box" id="advice-text"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'weather_risk_checker';
+
+  // 保存された値を復元
+  (function() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      ['visitors','unit_price','business_days','rain_days','drop_rate'].forEach(function(id) {
+        if (d[id] !== undefined) document.getElementById(id).value = d[id];
+      });
+    } catch(e) {}
+  })();
+
+  function calc() {
+    var visitors     = parseFloat(document.getElementById('visitors').value);
+    var unitPrice    = parseFloat(document.getElementById('unit_price').value);
+    var bizDays      = parseFloat(document.getElementById('business_days').value);
+    var rainDays     = parseFloat(document.getElementById('rain_days').value);
+    var dropRate     = parseFloat(document.getElementById('drop_rate').value);
+
+    if (isNaN(visitors) || isNaN(unitPrice) || isNaN(bizDays) || isNaN(rainDays) || isNaN(dropRate)) {
+      showResult('ng', '⚠️', 'すべての項目を入力してください');
+      document.getElementById('detail').style.display = 'none';
+      document.getElementById('summary-card').style.display = 'none';
+      document.getElementById('advice-card').style.display = 'none';
+      return;
+    }
+
+    // 保存
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      visitors: visitors, unit_price: unitPrice, business_days: bizDays,
+      rain_days: rainDays, drop_rate: dropRate
+    }));
+
+    // ── 計算ロジック ──
+    var dailySalesNormal  = visitors * unitPrice;                          // 通常1日売上
+    var visitorsRain      = visitors * (1 - dropRate / 100);              // 悪天候時来客数
+    var dailySalesRain    = visitorsRain * unitPrice;                      // 悪天候1日売上
+    var dailyLoss         = dailySalesNormal - dailySalesRain;            // 1日損失
+    var monthlyNormalSales = dailySalesNormal * bizDays;                  // 月間通常売上
+    var monthlyLoss       = dailyLoss * rainDays;                         // 月間損失
+    var annualLoss        = monthlyLoss * 12;                             // 年間損失（見込み）
+    var lossRate          = monthlyNormalSales > 0 ? (monthlyLoss / monthlyNormalSales * 100) : 0;
+
+    // 判定
+    var level, msg, advice;
+    if (lossRate < 5) {
+      level = 'ok';
+      msg = '天候リスクの影響は軽微です（損失率 ' + lossRate.toFixed(1) + '%）';
+      advice = '天候による売上影響は比較的小さいです。現状維持で問題ありません。念のため悪天候時のキャンペーンや来店促進策を検討しておくと安心です。';
+    } else if (lossRate < 15) {
+      level = 'warn';
+      msg = '天候リスクが売上に影響しています（損失率 ' + lossRate.toFixed(1) + '%）';
+      advice = '悪天候時の売上減少が無視できない水準です。【対策例】①雨の日クーポン・割引の導入 ②デリバリー・テイクアウト対応の強化 ③悪天候時のSNS告知による来店促進 ④月間損失分の予算計上を検討してください。';
+    } else {
+      level = 'ng';
+      msg = '天候リスクが深刻な売上損失を生んでいます（損失率 ' + lossRate.toFixed(1) + '%）';
+      advice = '悪天候による売上損失が深刻な水準です。早急な対策が必要です。【優先対策】①来店不要な売上手段（EC・デリバリー・定期便）の構築 ②雨の日限定サービスで来客動機を創出 ③固定費の見直しと悪天候時のコスト削減 ④年間損失を踏まえた価格・営業戦略の見直しを検討してください。';
+    }
+
+    // 表示
+    showResult(level, '月' + fmt(monthlyLoss) + '円', msg);
+
+    document.getElementById('sg1').textContent = fmt(monthlyLoss) + '円';
+    document.getElementById('sg2').textContent = fmt(annualLoss) + '円';
+    document.getElementById('sg3').textContent = lossRate.toFixed(1) + '%';
+    document.getElementById('sg4').textContent = fmt(dailyLoss) + '円';
+    document.getElementById('summary-card').style.display = '';
+
+    showDetail([
+      ['通常1日来客数',       fmt(visitors) + '人'],
+      ['客単価',              fmt(unitPrice) + '円'],
+      ['通常1日売上',         fmt(dailySalesNormal) + '円'],
+      ['悪天候時来客数',      fmt(Math.round(visitorsRain)) + '人（' + dropRate + '%減）'],
+      ['悪天候1日売上',       fmt(dailySalesRain) + '円'],
+      ['悪天候1日あたり損失', fmt(dailyLoss) + '円'],
+      ['月間悪天候日数',      rainDays + '日'],
+      ['月間通常売上',        fmt(monthlyNormalSales) + '円'],
+      ['月間売上損失',        fmt(monthlyLoss) + '円', true],
+      ['損失率（月間比）',    lossRate.toFixed(1) + '%'],
+      ['年間損失（見込み）',  fmt(annualLoss) + '円'],
+    ]);
+
+    document.getElementById('advice-text').textContent = advice;
+    document.getElementById('advice-card').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
