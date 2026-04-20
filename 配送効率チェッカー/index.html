@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>配送効率チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 採算ライン設定 ── */
+    .target-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      max-width: 600px; margin: 0 auto 1rem; padding: 0 0;
+      font-size: 0.82rem; color: var(--text-sub);
+    }
+    .target-row label { font-weight: 600; white-space: nowrap; }
+    .target-row input {
+      flex: 1; padding: 0.5rem 0.7rem; font-size: 0.9rem;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--card); color: var(--text); outline: none;
+    }
+    .target-row input:focus { border-color: var(--accent); }
+    .target-row span { white-space: nowrap; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 履歴テーブル ── */
+    .history-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .history-table {
+      width: 100%; border-collapse: collapse; font-size: 0.82rem;
+      min-width: 480px;
+    }
+    .history-table th {
+      background: var(--bg); padding: 0.5rem 0.4rem;
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      border-bottom: 2px solid var(--border); text-align: left;
+    }
+    .history-table td {
+      padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table .cost-ok  { color: var(--ok);   font-weight: 700; }
+    .history-table .cost-ng  { color: var(--ng);   font-weight: 700; }
+    .history-table .cost-warn{ color: var(--warn); font-weight: 700; }
+    .badge {
+      display: inline-block; font-size: 0.7rem; font-weight: 700;
+      padding: 0.1rem 0.45rem; border-radius: 99px; white-space: nowrap;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng);   }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); }
+
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1rem; padding: 0.2rem 0.4rem;
+      line-height: 1;
+    }
+    .btn-del:hover { color: var(--ng); }
+
+    .btn-reset {
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 8px; cursor: pointer; padding: 0.45rem 1rem;
+      font-size: 0.82rem; color: var(--text-sub); margin-top: 0.8rem;
+      display: block; margin-left: auto;
+    }
+    .btn-reset:hover { border-color: var(--ng); color: var(--ng); }
+
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1.5rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>配送効率チェッカー</h1>
+    <p class="subtitle">配達件数・距離・燃料費 → 1件あたりコストを即確認</p>
+  </header>
+
+  <!-- 採算ライン設定 -->
+  <div class="target-row">
+    <label for="target">採算ライン：</label>
+    <input type="number" id="target" value="500" min="1" step="1">
+    <span>円 / 件</span>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">ドライバー情報入力</p>
+    <div class="field">
+      <label for="driver">ドライバー名</label>
+      <input type="text" id="driver" placeholder="例: 田中">
+    </div>
+    <div class="field">
+      <label for="deliveries">配達件数（件）</label>
+      <input type="number" id="deliveries" placeholder="例: 50" min="1" step="1">
+    </div>
+    <div class="field">
+      <label for="distance">走行距離（km）</label>
+      <input type="number" id="distance" placeholder="例: 120" min="0" step="0.1">
+    </div>
+    <div class="field">
+      <label for="fuel">燃料費（円）</label>
+      <input type="number" id="fuel" placeholder="例: 3000" min="0" step="1">
+      <p class="hint">その日・その配送ルートの燃料代合計</p>
+    </div>
+    <div class="field">
+      <label for="other">その他コスト（円）</label>
+      <input type="number" id="other" placeholder="例: 0（任意）" min="0" step="1">
+      <p class="hint">高速代・駐車料金など（任意）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">コストを計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">1件あたり配送コスト</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard">
+    <p class="card-title">ドライバー別比較一覧</p>
+    <div id="historyBody">
+      <p class="empty-msg">まだデータがありません</p>
+    </div>
+    <button class="btn-reset" onclick="resetAll()">全データをリセット</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'delivery_efficiency_v1';
+
+  function loadData() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+
+  function saveData(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function calc() {
+    var driver    = document.getElementById('driver').value.trim();
+    var deliveries= parseFloat(document.getElementById('deliveries').value);
+    var distance  = parseFloat(document.getElementById('distance').value);
+    var fuel      = parseFloat(document.getElementById('fuel').value);
+    var other     = parseFloat(document.getElementById('other').value) || 0;
+    var target    = parseFloat(document.getElementById('target').value) || 500;
+
+    if (!driver) { showErr('ドライバー名を入力してください'); return; }
+    if (isNaN(deliveries) || deliveries <= 0) { showErr('配達件数を正しく入力してください'); return; }
+    if (isNaN(distance) || distance < 0) { showErr('走行距離を正しく入力してください'); return; }
+    if (isNaN(fuel) || fuel < 0) { showErr('燃料費を正しく入力してください'); return; }
+
+    var totalCost  = fuel + other;
+    var costPerDel = totalCost / deliveries;
+    var costRounded= Math.round(costPerDel);
+    var kmPerDel   = (deliveries > 0) ? (distance / deliveries) : 0;
+
+    var level, msg;
+    if (costPerDel <= target) {
+      level = 'ok';
+      msg   = '採算ライン（' + fmt(target) + '円/件）以内です';
+    } else if (costPerDel <= target * 1.3) {
+      level = 'warn';
+      msg   = '採算ラインを' + fmt(Math.round(costPerDel - target)) + '円超過しています';
+    } else {
+      level = 'ng';
+      msg   = '採算ラインを大きく超過（' + fmt(Math.round(costPerDel - target)) + '円超）しています';
+    }
+
+    showResult(level, fmt(costRounded) + ' 円/件', msg);
+    showDetail([
+      ['燃料費',             fmt(fuel) + ' 円'],
+      ['その他コスト',       fmt(other) + ' 円'],
+      ['総コスト',           fmt(totalCost) + ' 円'],
+      ['配達件数',           fmt(deliveries) + ' 件'],
+      ['走行距離',           distance.toFixed(1) + ' km'],
+      ['1件あたり距離',      kmPerDel.toFixed(1) + ' km/件'],
+      ['1件あたりコスト',    fmt(costRounded) + ' 円/件', true],
+      ['採算ライン',         fmt(target) + ' 円/件'],
+    ]);
+
+    // 履歴保存
+    var data = loadData();
+    var entry = {
+      id: Date.now(),
+      driver: driver,
+      deliveries: deliveries,
+      distance: distance,
+      fuel: fuel,
+      other: other,
+      totalCost: totalCost,
+      costPerDel: costRounded,
+      target: target,
+      level: level,
+      date: new Date().toLocaleDateString('ja-JP')
+    };
+    data.push(entry);
+    saveData(data);
+    renderHistory();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function delEntry(id) {
+    var data = loadData().filter(function(d){ return d.id !== id; });
+    saveData(data);
+    renderHistory();
+  }
+
+  function resetAll() {
+    if (!confirm('全データを削除しますか？')) return;
+    saveData([]);
+    renderHistory();
+  }
+
+  function renderHistory() {
+    var data = loadData();
+    var el = document.getElementById('historyBody');
+    if (!data.length) {
+      el.innerHTML = '<p class="empty-msg">まだデータがありません</p>';
+      return;
+    }
+    var rows = data.slice().reverse().map(function(d) {
+      var cls = d.level === 'ok' ? 'cost-ok' : d.level === 'warn' ? 'cost-warn' : 'cost-ng';
+      var badge = d.level === 'ok'
+        ? '<span class="badge badge-ok">採算内</span>'
+        : d.level === 'warn'
+        ? '<span class="badge badge-warn">やや超過</span>'
+        : '<span class="badge badge-ng">超過</span>';
+      return '<tr>'
+        + '<td>' + escHtml(d.driver) + '</td>'
+        + '<td style="text-align:right">' + fmt(d.deliveries) + '件</td>'
+        + '<td style="text-align:right">' + d.distance.toFixed(1) + 'km</td>'
+        + '<td style="text-align:right">' + fmt(d.totalCost) + '円</td>'
+        + '<td class="' + cls + '" style="text-align:right">' + fmt(d.costPerDel) + '円</td>'
+        + '<td>' + badge + '</td>'
+        + '<td style="color:var(--text-sub);font-size:0.75rem">' + d.date + '</td>'
+        + '<td><button class="btn-del" onclick="delEntry(' + d.id + ')" title="削除">×</button></td>'
+        + '</tr>';
+    }).join('');
+    el.innerHTML = '<div class="history-wrap"><table class="history-table">'
+      + '<thead><tr>'
+      + '<th>ドライバー</th><th>件数</th><th>距離</th><th>総コスト</th><th>1件コスト</th><th>判定</th><th>日付</th><th></th>'
+      + '</tr></thead>'
+      + '<tbody>' + rows + '</tbody>'
+      + '</table></div>';
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // 初期レンダリング
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
