@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在庫売り時判断チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 2カラム入力 */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 登録品目一覧 ── */
+    .item-list { list-style: none; }
+    .item-list li {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.9rem 1rem;
+      margin-bottom: 0.75rem; position: relative;
+    }
+    .item-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.4rem; }
+    .item-verdict {
+      display: inline-block; font-size: 0.78rem; font-weight: 800;
+      padding: 0.2rem 0.6rem; border-radius: 5px; margin-bottom: 0.4rem;
+    }
+    .item-verdict.ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .item-verdict.warn { background: var(--warn-bg);  color: var(--warn); }
+    .item-verdict.ng   { background: var(--ng-bg);   color: var(--ng);   }
+    .item-meta { font-size: 0.78rem; color: var(--text-sub); line-height: 1.7; }
+    .item-del {
+      position: absolute; top: 0.7rem; right: 0.8rem;
+      background: none; border: none; cursor: pointer;
+      font-size: 1.1rem; color: var(--text-sub);
+    }
+    .item-del:hover { color: var(--ng); }
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1.5rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>在庫売り時判断チェッカー</h1>
+    <p class="subtitle">保管コストと値上がり益を比較して「今売る」か「保有継続」かを即判断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を入力</p>
+    <div class="field">
+      <label for="itemName">品目名</label>
+      <input type="text" id="itemName" placeholder="例: 小麦粉50kg袋">
+    </div>
+    <div class="field-row">
+      <div class="field" style="margin:0">
+        <label for="qty">在庫量（個・袋・kgなど）</label>
+        <input type="number" id="qty" placeholder="100" min="0">
+      </div>
+      <div class="field" style="margin:0">
+        <label for="buyPrice">仕入れ単価（円）</label>
+        <input type="number" id="buyPrice" placeholder="1000" min="0">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field" style="margin:0">
+        <label for="sellPrice">現在の売価（円）</label>
+        <input type="number" id="sellPrice" placeholder="1500" min="0">
+      </div>
+      <div class="field" style="margin:0">
+        <label for="storageCost">保管コスト（円/月）</label>
+        <input type="number" id="storageCost" placeholder="5000" min="0">
+        <p class="hint">倉庫代・光熱費など在庫全体の月額</p>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field" style="margin:0">
+        <label for="priceRise">想定値上がり率（%/月）</label>
+        <input type="number" id="priceRise" placeholder="2.0" step="0.1" min="0">
+        <p class="hint">売価が毎月何%上がるか</p>
+      </div>
+      <div class="field" style="margin:0">
+        <label for="holdMonths">保有予定期間（ヶ月）</label>
+        <input type="number" id="holdMonths" placeholder="3" min="1" max="24">
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">判断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判断結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 登録ボタン -->
+  <button class="btn-add" id="addBtn" onclick="addItem()" style="display:none">この品目を一覧に登録する</button>
+
+  <!-- 登録品目一覧 -->
+  <div class="card" id="listCard" style="display:none">
+    <p class="card-title">登録品目一覧</p>
+    <ul class="item-list" id="itemList"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'zaiko_uridoki_items_v1';
+  var lastResult = null;
+
+  function calc() {
+    var name       = document.getElementById('itemName').value.trim() || '（品目名未入力）';
+    var qty        = parseFloat(document.getElementById('qty').value);
+    var buyPrice   = parseFloat(document.getElementById('buyPrice').value);
+    var sellPrice  = parseFloat(document.getElementById('sellPrice').value);
+    var storage    = parseFloat(document.getElementById('storageCost').value);
+    var riseRate   = parseFloat(document.getElementById('priceRise').value);
+    var months     = parseFloat(document.getElementById('holdMonths').value);
+
+    if (isNaN(qty) || isNaN(buyPrice) || isNaN(sellPrice) || isNaN(storage) || isNaN(riseRate) || isNaN(months)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (months < 1) { showErr('保有期間は1ヶ月以上で入力してください'); return; }
+
+    // 今売る場合の利益
+    var profitNow = qty * (sellPrice - buyPrice);
+
+    // 保有継続後の売価（複利）
+    var futureSellPrice = sellPrice * Math.pow(1 + riseRate / 100, months);
+
+    // 保有継続後の利益（値上がり益 − 保管コスト合計）
+    var totalStorage    = storage * months;
+    var profitHold      = qty * (futureSellPrice - buyPrice) - totalStorage;
+
+    // 差分（保有継続 − 今売る）
+    var diff = profitHold - profitNow;
+    // = qty * (futureSellPrice - sellPrice) - totalStorage
+
+    var level, verdict, note;
+    if (diff > 0) {
+      level   = 'ok';
+      verdict = '保有継続が有利';
+      note    = '保有継続すると今売るより ' + fmt(diff) + ' 円 多く稼げます（' + months + 'ヶ月後）';
+    } else if (diff < -500) {
+      level   = 'ng';
+      verdict = '今すぐ売るべき';
+      note    = '今売った方が ' + fmt(-diff) + ' 円 有利です。保管コストが値上がり益を上回っています';
+    } else {
+      level   = 'warn';
+      verdict = 'ほぼ同等';
+      note    = '差額は ' + fmt(Math.abs(diff)) + ' 円 とわずかです。資金繰りや在庫スペースで判断してください';
+    }
+
+    showResult(level, verdict, note);
+    showDetail([
+      ['在庫量',                         qty.toLocaleString('ja-JP') + ' 個'],
+      ['仕入れ単価',                      fmt(buyPrice) + ' 円'],
+      ['現在の売価',                      fmt(sellPrice) + ' 円'],
+      ['保有予定期間',                     months + ' ヶ月'],
+      ['保管コスト合計',                   fmt(totalStorage) + ' 円'],
+      ['', ''],
+      ['今すぐ売った場合の利益',             fmt(profitNow) + ' 円'],
+      [months + 'ヶ月後の予想売価（/個）', fmt(futureSellPrice) + ' 円'],
+      ['保有継続後の利益（保管費差引）',     fmt(profitHold) + ' 円'],
+      ['保有継続の追加利益（差分）',         fmt(diff) + ' 円', true],
+    ]);
+
+    document.getElementById('addBtn').style.display = '';
+    lastResult = { name: name, qty: qty, buyPrice: buyPrice, sellPrice: sellPrice,
+                   storage: storage, riseRate: riseRate, months: months,
+                   level: level, verdict: verdict, diff: diff, futureSellPrice: futureSellPrice };
+  }
+
+  function addItem() {
+    if (!lastResult) return;
+    var items = loadItems();
+    items.push(lastResult);
+    saveItems(items);
+    renderList();
+    document.getElementById('addBtn').style.display = 'none';
+  }
+
+  function deleteItem(idx) {
+    var items = loadItems();
+    items.splice(idx, 1);
+    saveItems(items);
+    renderList();
+  }
+
+  function renderList() {
+    var items = loadItems();
+    var listCard = document.getElementById('listCard');
+    var ul       = document.getElementById('itemList');
+    if (items.length === 0) {
+      listCard.style.display = 'none';
+      return;
+    }
+    listCard.style.display = '';
+    ul.innerHTML = items.map(function(it, i) {
+      return '<li>'
+        + '<button class="item-del" onclick="deleteItem(' + i + ')" title="削除">✕</button>'
+        + '<div class="item-name">' + esc(it.name) + '</div>'
+        + '<span class="item-verdict ' + it.level + '">' + it.verdict + '</span>'
+        + '<div class="item-meta">'
+        + '在庫: ' + it.qty + '個 ／ 仕入単価: ' + fmt(it.buyPrice) + '円 ／ 現売価: ' + fmt(it.sellPrice) + '円<br>'
+        + '保有期間: ' + it.months + 'ヶ月 ／ 値上がり: ' + it.riseRate + '%/月 ／ 保管費: ' + fmt(it.storage) + '円/月<br>'
+        + '追加利益差分: <strong>' + fmt(it.diff) + ' 円</strong>'
+        + '</div>'
+        + '</li>';
+    }).join('');
+  }
+
+  function loadItems() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function saveItems(items) {
+    localStorage.setItem(LS_KEY, JSON.stringify(items));
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      if (!r[0] && !r[1]) return '<tr><td colspan="2" style="padding:0.2rem 0"></td></tr>';
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '入力エラー', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('addBtn').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // 初期表示
+  renderList();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
