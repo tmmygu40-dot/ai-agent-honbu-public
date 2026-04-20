@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>保守契約採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.75rem;
+      font-size: 0.92rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:hover { background: var(--accent-light); }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 登録機器一覧 ── */
+    .machine-list { list-style: none; }
+    .machine-item {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.75rem;
+      background: var(--card);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .machine-info { flex: 1; }
+    .machine-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.3rem; }
+    .machine-detail { font-size: 0.78rem; color: var(--text-sub); line-height: 1.6; }
+    .machine-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.55rem;
+      border-radius: 99px; white-space: nowrap; flex-shrink: 0;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge-ng   { background: var(--ng-bg);    color: var(--ng);   }
+    .badge-warn { background: var(--warn-bg);  color: var(--warn); }
+    .machine-del {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1rem; padding: 0.2rem;
+      flex-shrink: 0; line-height: 1;
+    }
+    .machine-del:hover { color: var(--ng); }
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>保守契約採算チェッカー</h1>
+    <p class="subtitle">年間修繕コストと保守契約料を比較して、契約が得かどうかを即判断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">機器情報を入力</p>
+    <div class="field">
+      <label for="machineName">機器名</label>
+      <input type="text" id="machineName" placeholder="例：エアコン、コピー機、エレベーター">
+    </div>
+    <div class="field">
+      <label for="repairCost">年間修繕コスト（想定・実績）</label>
+      <input type="number" id="repairCost" placeholder="例：80000" min="0">
+      <p class="hint">修理費・部品代など年間でかかる金額（円）</p>
+    </div>
+    <div class="field">
+      <label for="contractCost">保守契約年間料金</label>
+      <input type="number" id="contractCost" placeholder="例：60000" min="0">
+      <p class="hint">保守・メンテナンス契約の年間費用（円）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">判定する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判定結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 登録ボタン -->
+  <button class="btn-add" id="btnAdd" style="display:none" onclick="addMachine()">この機器を一覧に登録する</button>
+
+  <!-- 登録機器一覧 -->
+  <div class="card" id="listCard">
+    <p class="card-title">登録済み機器一覧</p>
+    <ul class="machine-list" id="machineList">
+      <li class="empty-msg" id="emptyMsg">まだ登録された機器はありません</li>
+    </ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'hosu_contract_checker_v1';
+  var currentData = null;
+
+  function calc() {
+    var name = document.getElementById('machineName').value.trim();
+    var repair = parseFloat(document.getElementById('repairCost').value);
+    var contract = parseFloat(document.getElementById('contractCost').value);
+
+    if (!name) { showErr('機器名を入力してください'); return; }
+    if (isNaN(repair) || isNaN(contract)) { showErr('金額を入力してください'); return; }
+    if (repair < 0 || contract < 0) { showErr('金額は0以上で入力してください'); return; }
+
+    var diff = repair - contract;
+    var level, verdict, note;
+
+    if (diff > 0) {
+      level = 'ok';
+      verdict = '保守契約が得！';
+      note = '年間 ' + fmt(diff) + ' 円の節約。\n修繕コストが保守契約料を上回っているため、契約したほうが有利です。';
+    } else if (diff < 0) {
+      level = 'ng';
+      verdict = '自費修繕が得';
+      note = '保守契約料が修繕コストより年間 ' + fmt(Math.abs(diff)) + ' 円高い。\n現状では自費修繕のほうがコストを抑えられます。';
+    } else {
+      level = 'warn';
+      verdict = 'ほぼ同等';
+      note = '修繕コストと保守契約料がほぼ同額。\n緊急対応の速さや精神的な安心感で判断しましょう。';
+    }
+
+    currentData = { name: name, repair: repair, contract: contract, diff: diff, level: level, verdict: verdict };
+
+    showResult(level, verdict, note);
+    showDetail([
+      ['年間修繕コスト（想定）', fmt(repair) + ' 円'],
+      ['保守契約年間料金',       fmt(contract) + ' 円'],
+      ['差額（修繕 − 契約）',   (diff >= 0 ? '+' : '') + fmt(diff) + ' 円', true],
+    ]);
+
+    document.getElementById('btnAdd').style.display = '';
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function addMachine() {
+    if (!currentData) return;
+    var list = loadList();
+    list.unshift(currentData);
+    saveList(list);
+    renderList(list);
+    currentData = null;
+    document.getElementById('btnAdd').style.display = 'none';
+
+    // フォームリセット
+    document.getElementById('machineName').value = '';
+    document.getElementById('repairCost').value = '';
+    document.getElementById('contractCost').value = '';
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+
+    document.getElementById('listCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function deleteMachine(idx) {
+    var list = loadList();
+    list.splice(idx, 1);
+    saveList(list);
+    renderList(list);
+  }
+
+  function renderList(list) {
+    var ul = document.getElementById('machineList');
+    var empty = document.getElementById('emptyMsg');
+    if (list.length === 0) {
+      ul.innerHTML = '';
+      ul.appendChild(empty);
+      return;
+    }
+    ul.innerHTML = list.map(function(m, i) {
+      var badgeClass = m.level === 'ok' ? 'badge-ok' : m.level === 'ng' ? 'badge-ng' : 'badge-warn';
+      var diffSign = m.diff >= 0 ? '+' : '';
+      return '<li class="machine-item">'
+           + '<div class="machine-info">'
+           + '<div class="machine-name">' + esc(m.name) + '</div>'
+           + '<div class="machine-detail">'
+           + '修繕コスト: ' + fmt(m.repair) + ' 円 ／ 保守契約: ' + fmt(m.contract) + ' 円<br>'
+           + '差額: ' + diffSign + fmt(m.diff) + ' 円'
+           + '</div>'
+           + '</div>'
+           + '<span class="machine-badge ' + badgeClass + '">' + esc(m.verdict) + '</span>'
+           + '<button class="machine-del" onclick="deleteMachine(' + i + ')" title="削除">✕</button>'
+           + '</li>';
+    }).join('');
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('btnAdd').style.display = 'none';
+    currentData = null;
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function loadList() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; }
+  }
+  function saveList(list) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch(e) {}
+  }
+
+  // 初期表示
+  renderList(loadList());
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
