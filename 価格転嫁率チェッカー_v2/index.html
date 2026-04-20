@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>価格転嫁率チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── セクション区切り ── */
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 0.4rem 0; margin-bottom: 0.5rem;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.65rem;
+      font-size: 0.88rem; font-weight: 600;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.6rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.88rem; color: var(--text-sub); line-height: 1.5; }
+    .result-badge {
+      display: inline-block; padding: 0.2rem 0.75rem;
+      font-size: 0.8rem; font-weight: 700; border-radius: 99px;
+      margin-bottom: 0.6rem;
+    }
+    .ok   .result-badge { background: var(--ok);   color: #fff; }
+    .warn .result-badge { background: var(--warn);  color: #fff; }
+    .ng   .result-badge { background: var(--ng);    color: #fff; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-row td {
+      font-size: 0.72rem; font-weight: 700; color: var(--accent);
+      padding-top: 1rem; letter-spacing: 0.05em;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>価格転嫁率チェッカー</h1>
+    <p class="subtitle">コスト上昇分を販売価格にどの程度転嫁できているか即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">コスト情報</p>
+    <div class="field">
+      <label for="cost_before">仕入れ価格（コスト上昇前） 円</label>
+      <input type="number" id="cost_before" placeholder="例: 1000" min="0">
+    </div>
+    <div class="field">
+      <label for="cost_rate">コスト上昇率 %</label>
+      <input type="number" id="cost_rate" placeholder="例: 15" min="0">
+      <p class="hint">仕入れが15%上がった場合は「15」を入力</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">販売価格情報</p>
+    <div class="field">
+      <label for="price_before">販売価格（値上げ前） 円</label>
+      <input type="number" id="price_before" placeholder="例: 1500" min="0">
+    </div>
+    <div class="field">
+      <label for="price_after">現在の販売価格（値上げ後） 円</label>
+      <input type="number" id="price_after" placeholder="例: 1600" min="0">
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">価格転嫁率を計算する</button>
+  <button class="btn-reset" onclick="resetAll()">リセット</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">価格転嫁率</p>
+    <p class="result-badge" id="rb">—</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">詳細内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'kakaku_tenka_checker_v2';
+
+  function loadSaved() {
+    try {
+      var d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (!d) return;
+      if (d.cost_before) document.getElementById('cost_before').value = d.cost_before;
+      if (d.cost_rate)   document.getElementById('cost_rate').value   = d.cost_rate;
+      if (d.price_before) document.getElementById('price_before').value = d.price_before;
+      if (d.price_after)  document.getElementById('price_after').value  = d.price_after;
+    } catch(e) {}
+  }
+
+  function saveCurrent() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        cost_before:  document.getElementById('cost_before').value,
+        cost_rate:    document.getElementById('cost_rate').value,
+        price_before: document.getElementById('price_before').value,
+        price_after:  document.getElementById('price_after').value
+      }));
+    } catch(e) {}
+  }
+
+  function calc() {
+    var costBefore  = parseFloat(document.getElementById('cost_before').value);
+    var costRate    = parseFloat(document.getElementById('cost_rate').value);
+    var priceBefore = parseFloat(document.getElementById('price_before').value);
+    var priceAfter  = parseFloat(document.getElementById('price_after').value);
+
+    if (isNaN(costBefore) || isNaN(costRate) || isNaN(priceBefore) || isNaN(priceAfter)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (costBefore <= 0 || priceBefore <= 0) {
+      showErr('仕入れ価格・販売価格は0より大きい値を入力してください');
+      return;
+    }
+    if (costRate <= 0) {
+      showErr('コスト上昇率は0より大きい値を入力してください');
+      return;
+    }
+
+    saveCurrent();
+
+    // 計算
+    var costIncrease   = costBefore * costRate / 100;          // コスト増加額
+    var costAfter      = costBefore + costIncrease;            // コスト上昇後の仕入れ価格
+    var priceIncrease  = priceAfter - priceBefore;             // 実際の値上げ額
+    var tenkaRate      = (priceIncrease / costIncrease) * 100; // 価格転嫁率
+
+    // 利益
+    var profitBefore   = priceBefore - costBefore;
+    var profitAfter    = priceAfter - costAfter;
+    var profitMarginB  = (profitBefore / priceBefore * 100);
+    var profitMarginA  = (profitAfter  / priceAfter  * 100);
+
+    // 100%転嫁に必要な販売価格
+    var requiredPrice  = priceBefore + costIncrease;
+    var shortfall      = requiredPrice - priceAfter; // 不足転嫁額（マイナスなら超過）
+
+    // 判定
+    var level, badge, note;
+    if (tenkaRate >= 100) {
+      level = 'ok';
+      badge = '転嫁超過';
+      note  = 'コスト上昇分以上を価格に転嫁できています。利益マージンが改善しています。';
+    } else if (tenkaRate >= 90) {
+      level = 'warn';
+      badge = 'ほぼ転嫁';
+      note  = '転嫁率90%以上。ほぼコストを価格に転嫁できていますが、わずかに利益が圧迫されています。';
+    } else if (tenkaRate >= 50) {
+      level = 'warn';
+      badge = '転嫁不足';
+      note  = 'コスト上昇分の半分以上は転嫁できていますが、残りは利益の圧迫につながっています。';
+    } else {
+      level = 'ng';
+      badge = '大幅転嫁不足';
+      note  = 'コスト上昇分の半分以下しか転嫁できていません。利益への影響が深刻です。早急な価格見直しを検討してください。';
+    }
+
+    showResult(level, badge, fmtPct(tenkaRate), note);
+
+    showDetail([
+      ['section', 'コスト情報'],
+      ['仕入れ価格（上昇前）',  fmt(costBefore)  + ' 円'],
+      ['コスト上昇率',           fmtPct(costRate)],
+      ['コスト増加額',           fmt(costIncrease) + ' 円'],
+      ['仕入れ価格（上昇後）',  fmt(costAfter)   + ' 円'],
+      ['section', '価格情報'],
+      ['販売価格（値上げ前）',   fmt(priceBefore) + ' 円'],
+      ['現在の販売価格',         fmt(priceAfter)  + ' 円'],
+      ['実際の値上げ額',         fmt(priceIncrease) + ' 円'],
+      ['section', '転嫁分析'],
+      ['価格転嫁率',             fmtPct(tenkaRate),  true],
+      ['完全転嫁に必要な販売価格', fmt(requiredPrice) + ' 円'],
+      ['不足転嫁額',             (shortfall > 0 ? fmt(shortfall) + ' 円 不足' : fmt(-shortfall) + ' 円 超過')],
+      ['section', '利益への影響'],
+      ['値上げ前の利益',         fmt(profitBefore) + ' 円（' + fmtPct(profitMarginB) + '）'],
+      ['現在の利益',             fmt(profitAfter)  + ' 円（' + fmtPct(profitMarginA) + '）'],
+      ['利益の変化',             fmt(profitAfter - profitBefore) + ' 円', (profitAfter - profitBefore) >= 0],
+    ]);
+  }
+
+  function showResult(level, badge, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rb').textContent = badge;
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    var html = '';
+    rows.forEach(function(r) {
+      if (r[0] === 'section') {
+        html += '<tr class="section-row"><td colspan="2">' + r[1] + '</td></tr>';
+      } else {
+        html += '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+              + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+      }
+    });
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rb').textContent = 'エラー';
+    document.getElementById('rv').textContent = '⚠';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function resetAll() {
+    ['cost_before','cost_rate','price_before','price_after'].forEach(function(id) {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  }
+
+  function fmt(n) {
+    if (isNaN(n)) return '—';
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+
+  function fmtPct(n) {
+    if (isNaN(n)) return '—';
+    return n.toFixed(1) + ' %';
+  }
+
+  // 起動時に保存値を復元
+  loadSaved();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
