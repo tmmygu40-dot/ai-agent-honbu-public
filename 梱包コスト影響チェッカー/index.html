@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>梱包コスト影響チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-save {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.75rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: #fff; color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-save:active { background: var(--accent-light); }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 資材リスト ── */
+    .item-list { list-style: none; }
+    .item-list li {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.75rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+    .item-list li:last-child { border-bottom: none; }
+    .item-info { flex: 1; }
+    .item-name { font-weight: 700; color: var(--text); }
+    .item-detail { font-size: 0.76rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .item-cost { font-weight: 700; color: var(--ng); margin-right: 0.75rem; white-space: nowrap; }
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1.1rem; padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+    }
+    .btn-del:hover { background: var(--ng-bg); color: var(--ng); }
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.84rem; padding: 1rem 0; }
+
+    /* ── 合計バナー ── */
+    .total-banner {
+      background: var(--ng-bg); border: 2px solid var(--ng);
+      border-radius: var(--radius); padding: 1rem 1.2rem;
+      margin: 0 auto 1rem; max-width: 600px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .total-banner .label { font-size: 0.82rem; color: var(--text-sub); font-weight: 600; }
+    .total-banner .amount { font-size: 1.5rem; font-weight: 900; color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📦 梱包コスト影響チェッカー</h1>
+    <p class="subtitle">段ボール・緩衝材の値上がりが粗利に与える影響を即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">資材情報を入力</p>
+    <div class="field">
+      <label for="matName">資材名</label>
+      <input type="text" id="matName" placeholder="例: 段ボール（60サイズ）">
+    </div>
+    <div class="field">
+      <label for="priceOld">現行単価（円/枚・個）</label>
+      <input type="number" id="priceOld" placeholder="例: 80" min="0">
+    </div>
+    <div class="field">
+      <label for="priceNew">値上がり後単価（円/枚・個）</label>
+      <input type="number" id="priceNew" placeholder="例: 100" min="0">
+    </div>
+    <div class="field">
+      <label for="qty">月間使用量（枚・個）</label>
+      <input type="number" id="qty" placeholder="例: 500" min="0">
+    </div>
+    <div class="field">
+      <label for="sales">月間売上（円）</label>
+      <input type="number" id="sales" placeholder="例: 1000000" min="0">
+      <p class="hint">粗利への影響率を計算するために使用（任意）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">影響額を試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 保存ボタン -->
+  <button class="btn-save" id="btnSave" style="display:none" onclick="saveItem()">この資材をリストに保存</button>
+
+  <!-- 登録済み資材リスト -->
+  <div class="card">
+    <p class="card-title">登録済み資材リスト</p>
+    <ul class="item-list" id="itemList">
+      <li><p class="empty-msg">まだ登録された資材はありません</p></li>
+    </ul>
+  </div>
+
+  <!-- 月間合計コスト増 -->
+  <div class="total-banner" id="totalBanner" style="display:none">
+    <span class="label">月間コスト増加合計</span>
+    <span class="amount" id="totalAmount">—</span>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'konpo_cost_checker_v1';
+  var lastCalc = null;
+
+  function calc() {
+    var name    = document.getElementById('matName').value.trim() || '資材';
+    var pOld    = parseFloat(document.getElementById('priceOld').value);
+    var pNew    = parseFloat(document.getElementById('priceNew').value);
+    var qty     = parseFloat(document.getElementById('qty').value);
+    var sales   = parseFloat(document.getElementById('sales').value);
+
+    if (isNaN(pOld) || isNaN(pNew) || isNaN(qty)) {
+      showErr('現行単価・値上がり後単価・月間使用量は必須です');
+      lastCalc = null;
+      document.getElementById('btnSave').style.display = 'none';
+      return;
+    }
+
+    var costOld   = pOld * qty;
+    var costNew   = pNew * qty;
+    var increase  = costNew - costOld;
+    var riseRate  = pOld > 0 ? ((pNew - pOld) / pOld * 100) : 0;
+
+    var salesImpactPct = null;
+    if (!isNaN(sales) && sales > 0) {
+      salesImpactPct = (increase / sales * 100);
+    }
+
+    // 判定ロジック
+    var level, verdict, note;
+    if (increase <= 0) {
+      level   = 'ok';
+      verdict = '影響なし';
+      note    = '値上がり後も梱包コストは増加しません。';
+    } else if (salesImpactPct !== null) {
+      if (salesImpactPct < 0.5) {
+        level   = 'ok';
+        verdict = '許容範囲';
+        note    = '月間売上への影響は ' + salesImpactPct.toFixed(2) + '% と小さく、現状維持で問題ない水準です。';
+      } else if (salesImpactPct < 2.0) {
+        level   = 'warn';
+        verdict = '要注意';
+        note    = '月間売上への影響は ' + salesImpactPct.toFixed(2) + '% です。値上げや他コスト削減を検討してください。';
+      } else {
+        level   = 'ng';
+        verdict = '値上げ必要';
+        note    = '月間売上への影響は ' + salesImpactPct.toFixed(2) + '% と大きく、販売価格の見直しを強く推奨します。';
+      }
+    } else {
+      // 売上未入力時は増加率で判定
+      if (riseRate < 5) {
+        level = 'ok'; verdict = '許容範囲';
+        note  = '単価上昇率は ' + riseRate.toFixed(1) + '% と小幅です。';
+      } else if (riseRate < 15) {
+        level = 'warn'; verdict = '要注意';
+        note  = '単価が ' + riseRate.toFixed(1) + '% 上昇します。コスト見直しを検討してください。';
+      } else {
+        level = 'ng'; verdict = '値上げ必要';
+        note  = '単価が ' + riseRate.toFixed(1) + '% も上昇します。販売価格の見直しを強く推奨します。';
+      }
+    }
+
+    showResult(level, verdict, note);
+
+    var rows = [
+      ['資材名',         name],
+      ['現行単価',       fmt(pOld) + ' 円'],
+      ['値上がり後単価', fmt(pNew) + ' 円'],
+      ['単価上昇率',     riseRate.toFixed(1) + ' %'],
+      ['月間使用量',     fmt(qty) + ' 枚/個'],
+      ['現行月間コスト', fmt(costOld) + ' 円'],
+      ['値上がり後コスト', fmt(costNew) + ' 円'],
+    ];
+    if (!isNaN(sales) && sales > 0) {
+      rows.push(['月間売上', fmt(sales) + ' 円']);
+      rows.push(['売上への影響率', salesImpactPct.toFixed(2) + ' %']);
+    }
+    rows.push(['月間コスト増加額', fmt(increase) + ' 円', true]);
+    rows.push(['年間コスト増加額', fmt(increase * 12) + ' 円']);
+
+    showDetail(rows);
+
+    lastCalc = { name: name, pOld: pOld, pNew: pNew, qty: qty, increase: increase };
+    document.getElementById('btnSave').style.display = '';
+  }
+
+  function saveItem() {
+    if (!lastCalc) return;
+    var items = loadItems();
+    items.push(lastCalc);
+    localStorage.setItem(LS_KEY, JSON.stringify(items));
+    renderList();
+    document.getElementById('btnSave').style.display = 'none';
+    lastCalc = null;
+    // フォームをリセット
+    document.getElementById('matName').value = '';
+    document.getElementById('priceOld').value = '';
+    document.getElementById('priceNew').value = '';
+    document.getElementById('qty').value = '';
+    document.getElementById('sales').value = '';
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function deleteItem(idx) {
+    var items = loadItems();
+    items.splice(idx, 1);
+    localStorage.setItem(LS_KEY, JSON.stringify(items));
+    renderList();
+  }
+
+  function loadItems() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch(e) { return []; }
+  }
+
+  function renderList() {
+    var items = loadItems();
+    var ul = document.getElementById('itemList');
+    if (items.length === 0) {
+      ul.innerHTML = '<li><p class="empty-msg">まだ登録された資材はありません</p></li>';
+      document.getElementById('totalBanner').style.display = 'none';
+      return;
+    }
+    ul.innerHTML = items.map(function(it, i) {
+      var riseRate = it.pOld > 0 ? ((it.pNew - it.pOld) / it.pOld * 100).toFixed(1) : '—';
+      return '<li>'
+        + '<div class="item-info">'
+          + '<div class="item-name">' + esc(it.name) + '</div>'
+          + '<div class="item-detail">'
+            + fmt(it.pOld) + '円 → ' + fmt(it.pNew) + '円（+' + riseRate + '%）× ' + fmt(it.qty) + '個'
+          + '</div>'
+        + '</div>'
+        + '<span class="item-cost">+' + fmt(it.increase) + '円/月</span>'
+        + '<button class="btn-del" onclick="deleteItem(' + i + ')">×</button>'
+        + '</li>';
+    }).join('');
+    var total = items.reduce(function(s, it) { return s + it.increase; }, 0);
+    document.getElementById('totalAmount').textContent = '+' + fmt(total) + ' 円/月';
+    document.getElementById('totalBanner').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  renderList();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
