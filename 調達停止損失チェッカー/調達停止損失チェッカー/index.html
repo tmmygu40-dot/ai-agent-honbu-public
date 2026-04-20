@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>調達停止損失チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+    .detail-table .ok-row td:last-child { color: var(--ok); }
+
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 0.5rem 0.3rem 0.25rem; border-top: 1px solid var(--border);
+      margin-top: 0.4rem;
+    }
+    .section-label:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>調達停止損失チェッカー</h1>
+    <p class="subtitle">入荷停止日数と代替品コストから損失を即試算・対策を判断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="itemName">品目名（任意）</label>
+      <input type="text" id="itemName" placeholder="例: 原材料A">
+    </div>
+    <div class="field">
+      <label for="stopDays">入荷停止見込み日数（日）</label>
+      <input type="number" id="stopDays" placeholder="例: 14" min="1">
+    </div>
+    <div class="field">
+      <label for="dailyQty">1日消費量（個・kg・単位）</label>
+      <input type="number" id="dailyQty" placeholder="例: 100" min="0">
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">コスト情報</p>
+    <div class="field">
+      <label for="normalCost">通常仕入れ単価（円）</label>
+      <input type="number" id="normalCost" placeholder="例: 200" min="0">
+    </div>
+    <div class="field">
+      <label for="altCost">代替品単価（円）</label>
+      <input type="number" id="altCost" placeholder="例: 320">
+      <p class="hint">代替品がない場合は 0 を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="sellPrice">販売単価（円）</label>
+      <input type="number" id="sellPrice" placeholder="例: 500" min="0">
+      <p class="hint">機会損失の計算に使用します</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">損失を試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判断結論</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">損失内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  function calc() {
+    var stopDays  = parseFloat(document.getElementById('stopDays').value);
+    var dailyQty  = parseFloat(document.getElementById('dailyQty').value);
+    var normalCost= parseFloat(document.getElementById('normalCost').value);
+    var altCost   = parseFloat(document.getElementById('altCost').value);
+    var sellPrice = parseFloat(document.getElementById('sellPrice').value);
+
+    if (isNaN(stopDays) || isNaN(dailyQty) || isNaN(normalCost) || isNaN(altCost) || isNaN(sellPrice)) {
+      showErr('品目名以外の項目をすべて入力してください');
+      return;
+    }
+    if (stopDays <= 0 || dailyQty < 0) {
+      showErr('日数は1以上、消費量は0以上で入力してください');
+      return;
+    }
+
+    var totalQty     = stopDays * dailyQty;
+
+    // 代替調達した場合の追加コスト
+    var normalTotal  = normalCost * totalQty;
+    var altTotal     = altCost > 0 ? altCost * totalQty : 0;
+    var extraCost    = altCost > 0 ? altTotal - normalTotal : 0;
+
+    // 欠品した場合の機会損失（販売単価 - 通常仕入れ）× 消費量
+    var grossPerUnit = sellPrice - normalCost;
+    var oppLoss      = grossPerUnit > 0 ? grossPerUnit * totalQty : 0;
+
+    var hasAlt = altCost > 0;
+    var verdict, level, note;
+
+    if (!hasAlt) {
+      // 代替品なし → 欠品損失のみ
+      verdict = '欠品損失: ' + fmt(oppLoss) + ' 円';
+      level = oppLoss > 0 ? 'ng' : 'warn';
+      note = '代替品がないため欠品は避けられません。在庫確保または供給源開拓を検討してください。';
+    } else if (extraCost <= 0) {
+      // 代替品が通常以下コスト
+      verdict = '代替品を即調達すべき';
+      level = 'ok';
+      note = '代替品のコストが通常以下です。すぐに切り替えてください。';
+    } else if (extraCost < oppLoss) {
+      // 追加コスト < 機会損失 → 代替品のほうが得
+      verdict = '代替品調達を推奨';
+      level = 'warn';
+      note = '代替品追加コスト（' + fmt(extraCost) + '円）＜ 欠品機会損失（' + fmt(oppLoss) + '円）。代替調達のほうが損失は少なくなります。';
+    } else if (oppLoss === 0) {
+      // 機会損失ゼロ（利益ゼロ品目）
+      verdict = '欠品許容を検討';
+      level = 'warn';
+      note = '販売利益が出ない品目です。代替品追加コスト（' + fmt(extraCost) + '円）と影響を総合判断してください。';
+    } else {
+      // 追加コスト >= 機会損失 → 欠品許容のほうが損失小
+      verdict = '欠品許容も選択肢';
+      level = 'ng';
+      note = '代替品追加コスト（' + fmt(extraCost) + '円）＞ 欠品機会損失（' + fmt(oppLoss) + '円）。欠品を受け入れるほうが損失が少ない可能性があります。';
+    }
+
+    showResult(level, verdict, note);
+
+    var rows = [
+      ['section', '■ 基本計算'],
+      ['入荷停止日数', stopDays + ' 日'],
+      ['1日消費量', fmt(dailyQty) + ' 個'],
+      ['停止期間中 消費量', fmt(totalQty) + ' 個'],
+      ['section', '■ 代替調達シナリオ'],
+    ];
+
+    if (hasAlt) {
+      rows.push(['通常調達コスト（参考）', fmt(normalTotal) + ' 円']);
+      rows.push(['代替品調達コスト', fmt(altTotal) + ' 円']);
+      rows.push(['追加コスト（コスト増）', fmt(extraCost) + ' 円', extraCost > 0 ? 'ng' : 'ok']);
+    } else {
+      rows.push(['代替品', 'なし（欠品）']);
+    }
+
+    rows.push(['section', '■ 欠品シナリオ（機会損失）']);
+    rows.push(['粗利/単位', fmt(grossPerUnit) + ' 円']);
+    rows.push(['機会損失（欠品時）', fmt(oppLoss) + ' 円', oppLoss > 0 ? 'ng' : '']);
+
+    if (hasAlt && oppLoss > 0) {
+      var diff = oppLoss - extraCost;
+      rows.push(['section', '■ 比較']);
+      rows.push(['代替調達で節約できる損失', fmt(diff) + ' 円', diff > 0 ? 'ok' : 'ng']);
+    }
+
+    showDetail(rows);
+
+    // localStorage保存
+    try {
+      localStorage.setItem('chotatsu-teishi-last', JSON.stringify({
+        stopDays: stopDays, dailyQty: dailyQty,
+        normalCost: normalCost, altCost: altCost, sellPrice: sellPrice,
+        itemName: document.getElementById('itemName').value
+      }));
+    } catch(e) {}
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    var html = '';
+    rows.forEach(function(r) {
+      if (r[0] === 'section') {
+        html += '<tr><td colspan="2" class="section-label">' + r[1] + '</td></tr>';
+      } else {
+        var cls = r[2] === 'ok' ? ' class="ok-row"' : r[2] === 'ng' ? ' class="ng-row"' : '';
+        html += '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+      }
+    });
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '入力エラー', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // 前回入力を復元
+  (function() {
+    try {
+      var saved = localStorage.getItem('chotatsu-teishi-last');
+      if (!saved) return;
+      var d = JSON.parse(saved);
+      if (d.itemName)   document.getElementById('itemName').value   = d.itemName;
+      if (d.stopDays)   document.getElementById('stopDays').value   = d.stopDays;
+      if (d.dailyQty != null) document.getElementById('dailyQty').value  = d.dailyQty;
+      if (d.normalCost) document.getElementById('normalCost').value = d.normalCost;
+      if (d.altCost != null)  document.getElementById('altCost').value   = d.altCost;
+      if (d.sellPrice)  document.getElementById('sellPrice').value  = d.sellPrice;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
