@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ライフライン途絶チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── シナリオ選択 ── */
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+    }
+    .scenario-btn {
+      padding: 0.8rem 0.5rem;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .scenario-btn:hover { border-color: var(--accent); }
+    .scenario-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+    .scenario-btn .icon { font-size: 1.4rem; display: block; margin-bottom: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.6rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.84rem; color: var(--text-sub); line-height: 1.6; margin-top: 0.5rem; }
+    .result-badge {
+      display: inline-block; padding: 0.25rem 0.9rem;
+      border-radius: 999px; font-size: 0.78rem; font-weight: 700;
+      margin-bottom: 0.6rem;
+    }
+    .ok .result-badge   { background: var(--ok);   color: #fff; }
+    .warn .result-badge { background: var(--warn);  color: #fff; }
+    .ng .result-badge   { background: var(--ng);    color: #fff; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.6rem 0.4rem; color: var(--text-sub); vertical-align: middle; }
+    .detail-table td:last-child { text-align: right; font-weight: 700; min-width: 80px; }
+    .detail-table .days-ok   td:last-child { color: var(--ok); }
+    .detail-table .days-warn td:last-child { color: var(--warn); }
+    .detail-table .days-ng   td:last-child { color: var(--ng); }
+    .detail-table .bottleneck { background: #fef9f0; }
+    .detail-table .bottleneck td:first-child::before { content: "⚠ "; }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+
+    /* ── 危険度メーター ── */
+    .meter-bar {
+      height: 10px; border-radius: 999px;
+      background: var(--border); margin-top: 0.3rem; overflow: hidden;
+    }
+    .meter-fill { height: 100%; border-radius: 999px; transition: width 0.5s; }
+
+    /* ── 凡例 ── */
+    .legend {
+      display: flex; gap: 1rem; justify-content: center;
+      font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.8rem;
+    }
+    .legend span { display: flex; align-items: center; gap: 0.3rem; }
+    .legend .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 480px) {
+      .scenario-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🚨 ライフライン途絶チェッカー</h1>
+    <p class="subtitle">停電・断水時に備蓄品で何日乗り切れるか即確認</p>
+  </header>
+
+  <!-- シナリオ選択 -->
+  <div class="card">
+    <p class="card-title">停止するライフライン</p>
+    <div class="scenario-grid">
+      <button class="scenario-btn active" onclick="selectScenario('denki', this)">
+        <span class="icon">⚡</span>停電
+      </button>
+      <button class="scenario-btn" onclick="selectScenario('断水', this)">
+        <span class="icon">💧</span>断水
+      </button>
+      <button class="scenario-btn" onclick="selectScenario('gas', this)">
+        <span class="icon">🔥</span>ガス停止
+      </button>
+      <button class="scenario-btn" onclick="selectScenario('all', this)">
+        <span class="icon">🆘</span>全停止（大規模災害）
+      </button>
+    </div>
+  </div>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="family">家族人数</label>
+      <input type="number" id="family" min="1" max="20" value="2" placeholder="例: 3">
+      <p class="hint">同じ備蓄を共有する人数を入れてください</p>
+    </div>
+  </div>
+
+  <!-- 備蓄品入力 -->
+  <div class="card">
+    <p class="card-title">備蓄品の数量</p>
+    <div class="field" id="field-water">
+      <label for="water">飲料水・生活用水（L）</label>
+      <input type="number" id="water" min="0" value="" placeholder="例: 60">
+      <p class="hint">目安：1人1日3L（飲料+調理）</p>
+    </div>
+    <div class="field" id="field-food">
+      <label for="food">食料（食分）</label>
+      <input type="number" id="food" min="0" value="" placeholder="例: 30">
+      <p class="hint">目安：1人1日3食。缶詰・レトルト・乾麺などを合算</p>
+    </div>
+    <div class="field" id="field-gas">
+      <label for="gas">カセットコンロ用ガス（本）</label>
+      <input type="number" id="gas" min="0" value="" placeholder="例: 10">
+      <p class="hint">目安：1本で約60分使用可。1日30分調理で2日/本</p>
+    </div>
+    <div class="field" id="field-battery">
+      <label for="battery">乾電池（単3換算・本）</label>
+      <input type="number" id="battery" min="0" value="" placeholder="例: 20">
+      <p class="hint">懐中電灯・ラジオなどに使用。目安：1人1日1本</p>
+    </div>
+    <div class="field" id="field-toilet">
+      <label for="toilet">簡易トイレ（回分）</label>
+      <input type="number" id="toilet" min="0" value="" placeholder="例: 100">
+      <p class="hint">目安：1人1日5回</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">何日乗り切れるか確認する</button>
+
+  <!-- 凡例 -->
+  <div class="legend">
+    <span><span class="dot" style="background:var(--ng)"></span>3日未満：危険</span>
+    <span><span class="dot" style="background:var(--warn)"></span>3〜6日：注意</span>
+    <span><span class="dot" style="background:var(--ok)"></span>7日以上：安全</span>
+  </div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">乗り切れる日数（最短の備蓄品ベース）</p>
+    <span class="result-badge" id="rb">—</span>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">備蓄品ごとの日数内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- アドバイスカード -->
+  <div class="card" id="advice-card" style="display:none">
+    <p class="card-title">補充アドバイス</p>
+    <div id="advice-body" style="font-size:0.86rem;line-height:1.7;color:var(--text-sub);"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var currentScenario = 'denki';
+
+  // シナリオ定義：どの備蓄品を評価するか
+  var SCENARIOS = {
+    'denki': {
+      label: '停電',
+      items: ['water', 'food', 'gas', 'battery'],
+    },
+    '断水': {
+      label: '断水',
+      items: ['water', 'food', 'toilet'],
+    },
+    'gas': {
+      label: 'ガス停止',
+      items: ['food', 'gas'],
+    },
+    'all': {
+      label: '全停止（大規模災害）',
+      items: ['water', 'food', 'gas', 'battery', 'toilet'],
+    },
+  };
+
+  // 備蓄品の定義
+  var ITEM_DEFS = {
+    water:   { label: '飲料水・生活用水', unit: 'L',    perPersonDay: 3,   fmt: function(v){return v.toFixed(1);} },
+    food:    { label: '食料',             unit: '食分',  perPersonDay: 3,   fmt: function(v){return v.toFixed(1);} },
+    gas:     { label: 'カセットガス',     unit: '本',   perHouseDay: 0.5,  fmt: function(v){return v.toFixed(1);} },
+    battery: { label: '乾電池',           unit: '本',   perPersonDay: 1,   fmt: function(v){return v.toFixed(1);} },
+    toilet:  { label: '簡易トイレ',       unit: '回分', perPersonDay: 5,   fmt: function(v){return v.toFixed(1);} },
+  };
+
+  function selectScenario(id, btn) {
+    currentScenario = id;
+    document.querySelectorAll('.scenario-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    updateFieldVisibility();
+    // 結果を非表示
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('advice-card').style.display = 'none';
+  }
+
+  function updateFieldVisibility() {
+    var activeItems = SCENARIOS[currentScenario].items;
+    Object.keys(ITEM_DEFS).forEach(function(key) {
+      var el = document.getElementById('field-' + key);
+      if (el) el.style.display = activeItems.indexOf(key) >= 0 ? '' : 'none';
+    });
+  }
+
+  function calc() {
+    var family = parseInt(document.getElementById('family').value);
+    if (!family || family < 1) { showErr('家族人数を入力してください'); return; }
+
+    var scenario = SCENARIOS[currentScenario];
+    var results = [];
+    var allValid = true;
+
+    for (var i = 0; i < scenario.items.length; i++) {
+      var key = scenario.items[i];
+      var def = ITEM_DEFS[key];
+      var val = parseFloat(document.getElementById(key).value);
+
+      if (isNaN(val) || val < 0) {
+        showErr(def.label + 'の数量を入力してください');
+        allValid = false;
+        break;
+      }
+
+      var days;
+      if (def.perPersonDay) {
+        days = val / (family * def.perPersonDay);
+      } else if (def.perHouseDay) {
+        // ガスは世帯単位
+        days = val / def.perHouseDay;
+      }
+
+      results.push({
+        key: key,
+        label: def.label,
+        stock: val,
+        unit: def.unit,
+        days: days,
+      });
+    }
+
+    if (!allValid) return;
+
+    // 最小日数を見つける
+    var minDays = Infinity;
+    var bottleneckLabel = '';
+    results.forEach(function(r) {
+      if (r.days < minDays) {
+        minDays = r.days;
+        bottleneckLabel = r.label;
+      }
+    });
+
+    var level, badge, note;
+    if (minDays < 3) {
+      level = 'ng';
+      badge = '危険：要緊急補充';
+      note = bottleneckLabel + 'が足りません。すぐに備蓄を増やしてください。\n行政推奨は最低7日分、理想は2週間分です。';
+    } else if (minDays < 7) {
+      level = 'warn';
+      badge = '注意：補充を検討';
+      note = bottleneckLabel + 'が7日未満です。\n行政推奨の7日分を目標に補充しましょう。';
+    } else {
+      level = 'ok';
+      badge = '安全：7日以上確保';
+      note = '基準の7日分を確保できています。定期的な補充と消費期限の確認を続けてください。';
+    }
+
+    var daysText = minDays === Infinity ? '計算不能' : Math.floor(minDays) + '日';
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rb').textContent = badge;
+    document.getElementById('rv').textContent = daysText;
+    document.getElementById('rn').textContent = note;
+
+    // 内訳
+    var rows = results.map(function(r) {
+      var d = r.days;
+      var cls = d < 3 ? 'days-ng' : d < 7 ? 'days-warn' : 'days-ok';
+      var isBottom = r.label === bottleneckLabel;
+      var dText = Math.floor(d) + '日';
+      var stockText = r.stock.toLocaleString('ja-JP') + r.unit;
+      return '<tr class="' + cls + (isBottom ? ' bottleneck' : '') + '">'
+           + '<td>' + r.label + '</td>'
+           + '<td>' + stockText + '</td>'
+           + '<td>' + dText + '</td>'
+           + '</tr>';
+    });
+
+    document.getElementById('db').innerHTML =
+      '<tr><td style="font-weight:600;color:var(--text)">項目</td><td style="font-weight:600;color:var(--text)">備蓄量</td><td style="font-weight:600;color:var(--text);text-align:right">日数</td></tr>'
+      + rows.join('');
+    document.getElementById('detail').style.display = '';
+
+    // アドバイス
+    var adviceLines = [];
+    results.forEach(function(r) {
+      if (r.days < 7) {
+        var needed;
+        var def = ITEM_DEFS[r.key];
+        if (def.perPersonDay) {
+          needed = Math.ceil(family * def.perPersonDay * 7 - r.stock);
+        } else if (def.perHouseDay) {
+          needed = Math.ceil(def.perHouseDay * 7 - r.stock);
+        }
+        if (needed > 0) {
+          adviceLines.push('・<b>' + r.label + '</b>：あと <b>' + needed + r.unit + '</b> 追加で7日分確保できます');
+        }
+      }
+    });
+
+    if (adviceLines.length > 0) {
+      document.getElementById('advice-body').innerHTML = adviceLines.join('<br>');
+      document.getElementById('advice-card').style.display = '';
+    } else {
+      document.getElementById('advice-card').style.display = 'none';
+    }
+
+    // localStorage 保存
+    saveData();
+
+    // スクロール
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rb').textContent = '入力エラー';
+    document.getElementById('rv').textContent = '⚠';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('advice-card').style.display = 'none';
+  }
+
+  function saveData() {
+    var data = {
+      scenario: currentScenario,
+      family: document.getElementById('family').value,
+      water: document.getElementById('water').value,
+      food: document.getElementById('food').value,
+      gas: document.getElementById('gas').value,
+      battery: document.getElementById('battery').value,
+      toilet: document.getElementById('toilet').value,
+    };
+    try { localStorage.setItem('lifeline_checker', JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadData() {
+    try {
+      var s = localStorage.getItem('lifeline_checker');
+      if (!s) return;
+      var data = JSON.parse(s);
+      if (data.family)  document.getElementById('family').value  = data.family;
+      if (data.water)   document.getElementById('water').value   = data.water;
+      if (data.food)    document.getElementById('food').value    = data.food;
+      if (data.gas)     document.getElementById('gas').value     = data.gas;
+      if (data.battery) document.getElementById('battery').value = data.battery;
+      if (data.toilet)  document.getElementById('toilet').value  = data.toilet;
+      if (data.scenario) {
+        currentScenario = data.scenario;
+        document.querySelectorAll('.scenario-btn').forEach(function(b, i) {
+          var keys = ['denki', '断水', 'gas', 'all'];
+          b.classList.toggle('active', keys[i] === data.scenario);
+        });
+      }
+    } catch(e) {}
+    updateFieldVisibility();
+  }
+
+  // 初期化
+  updateFieldVisibility();
+  loadData();
+  </script>
+</body>
+</html>

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>エアコン節電チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 2カラム入力グリッド */
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .field-row .field { margin-bottom: 0; }
+
+    /* 温度調整ボタン */
+    .temp-toggle {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .temp-btn {
+      flex: 1; padding: 0.72rem 0.5rem;
+      font-size: 0.95rem; font-weight: 700;
+      border: 2px solid var(--border);
+      border-radius: 9px; background: var(--bg);
+      color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .temp-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    /* モード切替 */
+    .mode-toggle {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .mode-btn {
+      flex: 1; padding: 0.6rem 0.5rem;
+      font-size: 0.88rem; font-weight: 700;
+      border: 2px solid var(--border);
+      border-radius: 9px; background: var(--bg);
+      color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mode-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 補足情報カード ── */
+    .info-card {
+      background: var(--accent-light);
+      border: 1.5px solid #fcd59a;
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      margin: 0 auto 1rem;
+      max-width: 600px;
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      line-height: 1.6;
+    }
+    .info-card strong { color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⚡ エアコン節電チェッカー</h1>
+    <p class="subtitle">設定温度を1〜2度変えたときの節電効果と月額削減額を即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+
+    <!-- 冷暖房モード -->
+    <div class="field">
+      <label>モード</label>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="mode-cool" onclick="setMode('cool')">❄️ 冷房</button>
+        <button class="mode-btn" id="mode-heat" onclick="setMode('heat')">🔥 暖房</button>
+      </div>
+    </div>
+
+    <!-- 温度調整幅 -->
+    <div class="field">
+      <label>温度調整幅</label>
+      <div class="temp-toggle">
+        <button class="temp-btn active" id="temp-1" onclick="setTemp(1)">+1度</button>
+        <button class="temp-btn" id="temp-2" onclick="setTemp(2)">+2度</button>
+      </div>
+      <p class="hint" id="temp-hint">冷房：設定温度を1度上げると節電。暖房：設定温度を1度下げると節電。</p>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="power">消費電力（W）</label>
+        <input type="number" id="power" placeholder="例: 800" min="1" max="9999">
+        <p class="hint">エアコン本体の定格消費電力</p>
+      </div>
+      <div class="field">
+        <label for="hours">1日の使用時間（時間）</label>
+        <input type="number" id="hours" placeholder="例: 8" min="0.5" max="24" step="0.5">
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="days">月間使用日数（日）</label>
+        <input type="number" id="days" placeholder="例: 30" min="1" max="31">
+      </div>
+      <div class="field">
+        <label for="rate">電気料金単価（円/kWh）</label>
+        <input type="number" id="rate" placeholder="例: 31" min="1" max="99">
+        <p class="hint">不明なら31円目安</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">節電効果を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月額削減額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 補足情報 -->
+  <div class="info-card">
+    <strong>計算の根拠：</strong>エアコンは設定温度を1度変えると消費電力が約<strong>10%</strong>変化します（一般社団法人 日本冷凍空調工業会の目安）。冷房は温度を上げる、暖房は温度を下げることで節電になります。
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+    var currentMode = 'cool';
+    var currentTemp = 1;
+
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('mode-cool').classList.toggle('active', mode === 'cool');
+      document.getElementById('mode-heat').classList.toggle('active', mode === 'heat');
+      updateHint();
+      saveState();
+    }
+
+    function setTemp(deg) {
+      currentTemp = deg;
+      document.getElementById('temp-1').classList.toggle('active', deg === 1);
+      document.getElementById('temp-2').classList.toggle('active', deg === 2);
+      saveState();
+    }
+
+    function updateHint() {
+      var hint = document.getElementById('temp-hint');
+      if (currentMode === 'cool') {
+        hint.textContent = '冷房：設定温度を上げると節電。1度上げるごとに消費電力が約10%削減。';
+      } else {
+        hint.textContent = '暖房：設定温度を下げると節電。1度下げるごとに消費電力が約10%削減。';
+      }
+    }
+
+    function calc() {
+      var power = parseFloat(document.getElementById('power').value);
+      var hours = parseFloat(document.getElementById('hours').value);
+      var days  = parseFloat(document.getElementById('days').value);
+      var rate  = parseFloat(document.getElementById('rate').value);
+
+      if (isNaN(power) || isNaN(hours) || isNaN(days) || isNaN(rate)) {
+        showErr('すべての項目を入力してください');
+        return;
+      }
+      if (power <= 0 || hours <= 0 || days <= 0 || rate <= 0) {
+        showErr('0より大きい値を入力してください');
+        return;
+      }
+
+      // 節電効果の計算
+      // 温度1度変化で消費電力の10%が節電
+      var savePct = currentTemp * 0.10; // 節電率（0.10 or 0.20）
+      var savedW  = power * savePct;    // 削減消費電力（W）
+
+      // 月間節電量（kWh）= 削減W × 時間/日 × 日数 / 1000
+      var savedKwh = savedW * hours * days / 1000;
+
+      // 月額削減額（円）
+      var monthlySave = savedKwh * rate;
+
+      // 年間削減額（円）
+      var yearlySave = monthlySave * 12;
+
+      // 現在の月間電気代（参考）
+      var currentKwh = power * hours * days / 1000;
+      var currentCost = currentKwh * rate;
+
+      // 節電後の消費電力（参考）
+      var afterPower = power - savedW;
+
+      var level = monthlySave >= 1000 ? 'ok' : 'warn';
+      var tempLabel = currentMode === 'cool'
+        ? '冷房の設定温度を' + currentTemp + '度上げると'
+        : '暖房の設定温度を' + currentTemp + '度下げると';
+
+      showResult(level, '月 −' + fmt(monthlySave) + ' 円', tempLabel + '月' + fmt(monthlySave) + '円の節約になります');
+      showDetail([
+        ['消費電力（現在）', fmt(power) + ' W'],
+        ['消費電力（調整後）', fmt(afterPower) + ' W（節電率 ' + (savePct * 100).toFixed(0) + '%）'],
+        ['月間節電量', savedKwh.toFixed(2) + ' kWh'],
+        ['月額削減額', fmt(monthlySave) + ' 円', true],
+        ['年間削減額', fmt(yearlySave) + ' 円', true],
+        ['現在の月間電力量（参考）', currentKwh.toFixed(1) + ' kWh'],
+        ['現在の月間電気代（参考）', fmt(currentCost) + ' 円'],
+      ]);
+
+      saveState();
+    }
+
+    function showResult(level, val, note) {
+      var rc = document.getElementById('result');
+      rc.className = 'result-card ' + level;
+      rc.style.display = '';
+      document.getElementById('rv').textContent = val;
+      document.getElementById('rn').textContent = note;
+    }
+    function showDetail(rows) {
+      document.getElementById('db').innerHTML = rows.map(function(r) {
+        return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+             + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+      }).join('');
+      document.getElementById('detail').style.display = '';
+    }
+    function showErr(msg) {
+      var rc = document.getElementById('result');
+      rc.className = 'result-card ng';
+      rc.style.display = '';
+      document.getElementById('rv').textContent = '⚠️';
+      document.getElementById('rn').textContent = msg;
+      document.getElementById('detail').style.display = 'none';
+    }
+    function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+    // localStorage 保存・読み込み
+    function saveState() {
+      var state = {
+        mode: currentMode,
+        temp: currentTemp,
+        power: document.getElementById('power').value,
+        hours: document.getElementById('hours').value,
+        days:  document.getElementById('days').value,
+        rate:  document.getElementById('rate').value
+      };
+      try { localStorage.setItem('acSaver', JSON.stringify(state)); } catch(e) {}
+    }
+
+    function loadState() {
+      try {
+        var raw = localStorage.getItem('acSaver');
+        if (!raw) return;
+        var s = JSON.parse(raw);
+        if (s.mode) setMode(s.mode);
+        if (s.temp) setTemp(parseInt(s.temp));
+        if (s.power) document.getElementById('power').value = s.power;
+        if (s.hours) document.getElementById('hours').value = s.hours;
+        if (s.days)  document.getElementById('days').value  = s.days;
+        if (s.rate)  document.getElementById('rate').value  = s.rate;
+      } catch(e) {}
+    }
+
+    // 入力変更時に保存
+    ['power','hours','days','rate'].forEach(function(id) {
+      document.getElementById(id).addEventListener('input', saveState);
+    });
+
+    // 初期化
+    updateHint();
+    loadState();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

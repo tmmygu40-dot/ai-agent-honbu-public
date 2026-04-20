@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>事業所燃料備蓄チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 0.9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* サマリーカード */
+    .summary-card {
+      display: none;
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .summary-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .summary-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .summary-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .summary-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .summary-value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .summary-card.ok   .summary-value { color: var(--ok);   }
+    .summary-card.warn .summary-value { color: var(--warn); }
+    .summary-card.ng   .summary-value { color: var(--ng);   }
+    .summary-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* 燃料リスト */
+    .fuel-list { max-width: 600px; margin: 0 auto; }
+    .fuel-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 0.75rem;
+      position: relative;
+    }
+    .fuel-item.ok   { border-left: 4px solid var(--ok);   }
+    .fuel-item.warn { border-left: 4px solid var(--warn); }
+    .fuel-item.ng   { border-left: 4px solid var(--ng);   }
+
+    .fuel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.6rem;
+    }
+    .fuel-name { font-size: 1rem; font-weight: 700; }
+    .fuel-delete {
+      background: none; border: none; cursor: pointer;
+      font-size: 1rem; color: var(--text-sub); padding: 0 0.2rem;
+      line-height: 1;
+    }
+    .fuel-delete:hover { color: var(--ng); }
+
+    .fuel-days {
+      font-size: 1.5rem; font-weight: 900; margin-bottom: 0.25rem;
+    }
+    .fuel-item.ok   .fuel-days { color: var(--ok);   }
+    .fuel-item.warn .fuel-days { color: var(--warn); }
+    .fuel-item.ng   .fuel-days { color: var(--ng);   }
+
+    .fuel-badge {
+      display: inline-block;
+      font-size: 0.72rem; font-weight: 700;
+      padding: 0.2rem 0.55rem; border-radius: 20px;
+      margin-bottom: 0.5rem;
+    }
+    .fuel-item.ok   .fuel-badge { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok);   }
+    .fuel-item.warn .fuel-badge { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .fuel-item.ng   .fuel-badge { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng);   }
+
+    .fuel-detail { font-size: 0.8rem; color: var(--text-sub); line-height: 1.7; }
+
+    .empty-msg {
+      text-align: center; color: var(--text-sub);
+      font-size: 0.88rem; padding: 2rem 0;
+    }
+
+    .threshold-note {
+      font-size: 0.75rem; color: var(--text-sub);
+      text-align: center; margin: -0.25rem auto 1rem;
+      max-width: 600px; padding: 0 1rem;
+    }
+    .threshold-note span { margin: 0 0.4rem; }
+    .ok-txt  { color: var(--ok);   font-weight: 600; }
+    .warn-txt { color: var(--warn); font-weight: 600; }
+    .ng-txt  { color: var(--ng);   font-weight: 600; }
+
+    .err-msg {
+      display: none;
+      background: var(--ng-bg); border: 1px solid var(--ng);
+      border-radius: 9px; padding: 0.65rem 0.9rem;
+      font-size: 0.85rem; color: var(--ng);
+      margin: 0 auto 0.75rem; max-width: 600px;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>事業所燃料備蓄チェッカー</h1>
+    <p class="subtitle">石油・ガス供給停止リスクに備えて安全日数を即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">燃料を追加</p>
+    <div class="field">
+      <label for="fuelName">燃料種別</label>
+      <input type="text" id="fuelName" placeholder="例：軽油・灯油・LPG・都市ガス">
+    </div>
+    <div class="input-row">
+      <div class="field">
+        <label for="fuelStock">現在の備蓄量</label>
+        <input type="number" id="fuelStock" placeholder="例：500" min="0" step="any">
+      </div>
+      <div class="field">
+        <label for="fuelUnit">単位</label>
+        <input type="text" id="fuelUnit" placeholder="例：L・㎥・本">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fuelDaily">1日あたり消費量（同単位）</label>
+      <input type="number" id="fuelDaily" placeholder="例：20" min="0.01" step="any">
+    </div>
+  </div>
+
+  <div class="err-msg" id="errMsg"></div>
+
+  <button class="btn-add" onclick="addFuel()">追加して計算する</button>
+
+  <p class="threshold-note">
+    判定基準：
+    <span class="ok-txt">安全 30日以上</span>
+    <span class="warn-txt">注意 7〜29日</span>
+    <span class="ng-txt">危険 6日以下</span>
+  </p>
+
+  <!-- サマリーカード -->
+  <div class="summary-card" id="summaryCard">
+    <p class="summary-label">総合リスク判定</p>
+    <p class="summary-value" id="summaryValue">—</p>
+    <p class="summary-note" id="summaryNote"></p>
+  </div>
+
+  <!-- 燃料リスト -->
+  <div class="fuel-list" id="fuelList">
+    <div class="empty-msg" id="emptyMsg">燃料を追加すると一覧が表示されます</div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEY = 'fuelItems';
+  var items = [];
+
+  function load() {
+    try {
+      var s = localStorage.getItem(KEY);
+      if (s) items = JSON.parse(s);
+    } catch(e) { items = []; }
+    renderAll();
+  }
+
+  function save() {
+    localStorage.setItem(KEY, JSON.stringify(items));
+  }
+
+  function addFuel() {
+    var name  = document.getElementById('fuelName').value.trim();
+    var stock = parseFloat(document.getElementById('fuelStock').value);
+    var daily = parseFloat(document.getElementById('fuelDaily').value);
+    var unit  = document.getElementById('fuelUnit').value.trim() || '単位';
+
+    if (!name)          { showErr('燃料種別を入力してください'); return; }
+    if (isNaN(stock) || stock < 0) { showErr('備蓄量を正しく入力してください'); return; }
+    if (isNaN(daily) || daily <= 0) { showErr('1日消費量を正しく入力してください（0より大きい値）'); return; }
+
+    hideErr();
+
+    var days  = stock / daily;
+    var level = getLevel(days);
+
+    items.push({ id: Date.now(), name: name, stock: stock, daily: daily, unit: unit, days: days, level: level });
+    save();
+    renderAll();
+    clearInputs();
+  }
+
+  function getLevel(days) {
+    if (days >= 30) return 'ok';
+    if (days >= 7)  return 'warn';
+    return 'ng';
+  }
+
+  function getLabel(level) {
+    return level === 'ok' ? '安全' : level === 'warn' ? '注意' : '危険';
+  }
+
+  function deleteItem(id) {
+    items = items.filter(function(x){ return x.id !== id; });
+    save();
+    renderAll();
+  }
+
+  function renderAll() {
+    var list = document.getElementById('fuelList');
+    var empty = document.getElementById('emptyMsg');
+
+    if (items.length === 0) {
+      empty.style.display = '';
+      updateSummary(null);
+      return;
+    }
+    empty.style.display = 'none';
+
+    var html = items.map(function(item) {
+      var daysDisp = item.days === Infinity ? '∞' : item.days.toFixed(1);
+      return '<div class="fuel-item ' + item.level + '">'
+        + '<div class="fuel-header">'
+        + '<span class="fuel-name">' + esc(item.name) + '</span>'
+        + '<button class="fuel-delete" onclick="deleteItem(' + item.id + ')">✕</button>'
+        + '</div>'
+        + '<div class="fuel-days">' + daysDisp + ' 日</div>'
+        + '<span class="fuel-badge">' + getLabel(item.level) + '</span>'
+        + '<div class="fuel-detail">'
+        + '備蓄量: ' + fmt(item.stock) + ' ' + esc(item.unit)
+        + '　／　1日消費: ' + fmt(item.daily) + ' ' + esc(item.unit)
+        + '</div>'
+        + '</div>';
+    }).join('');
+
+    list.innerHTML = html;
+
+    // 最悪レベルを求めてサマリー更新
+    var worstLevel = 'ok';
+    var worstDays  = Infinity;
+    var worstName  = '';
+    items.forEach(function(item) {
+      if (item.level === 'ng') { worstLevel = 'ng'; }
+      else if (item.level === 'warn' && worstLevel !== 'ng') { worstLevel = 'warn'; }
+      if (item.days < worstDays) { worstDays = item.days; worstName = item.name; }
+    });
+    updateSummary({ level: worstLevel, days: worstDays, name: worstName });
+  }
+
+  function updateSummary(data) {
+    var sc = document.getElementById('summaryCard');
+    if (!data) { sc.style.display = 'none'; return; }
+
+    sc.style.display = '';
+    sc.className = 'summary-card ' + data.level;
+
+    var daysDisp = data.days === Infinity ? '∞' : data.days.toFixed(1);
+    document.getElementById('summaryValue').textContent = getLabel(data.level);
+
+    var noteMap = {
+      ok:   '最も余裕が少ない「' + data.name + '」で残り ' + daysDisp + ' 日。供給停止時も安定継続できます。',
+      warn: '「' + data.name + '」の残り ' + daysDisp + ' 日が最短です。早めの補充計画を検討してください。',
+      ng:   '「' + data.name + '」の残り ' + daysDisp + ' 日が危険水準です。至急補充または代替手段を確保してください。'
+    };
+    document.getElementById('summaryNote').textContent = noteMap[data.level];
+  }
+
+  function clearInputs() {
+    document.getElementById('fuelName').value  = '';
+    document.getElementById('fuelStock').value = '';
+    document.getElementById('fuelDaily').value = '';
+    document.getElementById('fuelUnit').value  = '';
+    document.getElementById('fuelName').focus();
+  }
+
+  function showErr(msg) {
+    var el = document.getElementById('errMsg');
+    el.textContent = msg;
+    el.style.display = '';
+  }
+  function hideErr() { document.getElementById('errMsg').style.display = 'none'; }
+
+  function fmt(n) { return n % 1 === 0 ? n.toLocaleString('ja-JP') : n.toLocaleString('ja-JP', {maximumFractionDigits:2}); }
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

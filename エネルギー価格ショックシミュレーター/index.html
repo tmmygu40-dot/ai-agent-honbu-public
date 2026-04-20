@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>エネルギー価格ショックシミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.15rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* 共通上昇率 */
+    .rate-row {
+      display: flex; gap: 0.75rem; align-items: flex-end; margin-bottom: 0.6rem;
+    }
+    .rate-row .field { flex: 1; margin-bottom: 0; }
+    .btn-apply {
+      padding: 0.72rem 1.1rem; background: var(--accent); color: #fff;
+      border: none; border-radius: 9px; font-size: 0.85rem; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+    }
+
+    /* 項目リスト */
+    .item-row {
+      display: grid;
+      grid-template-columns: 1fr 100px 80px 32px;
+      gap: 0.5rem; align-items: center; margin-bottom: 0.6rem;
+    }
+    .item-row input {
+      width: 100%; padding: 0.65rem 0.75rem;
+      font-size: 0.92rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none;
+    }
+    .item-row input:focus { border-color: var(--accent); background: #fff; }
+    .item-header {
+      display: grid;
+      grid-template-columns: 1fr 100px 80px 32px;
+      gap: 0.5rem; margin-bottom: 0.3rem;
+    }
+    .item-header span { font-size: 0.72rem; font-weight: 600; color: var(--text-sub); }
+    .btn-del {
+      width: 32px; height: 36px; border: none; border-radius: 8px;
+      background: #fee2e2; color: #b91c1c; font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .btn-add {
+      display: block; width: 100%; padding: 0.6rem;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px dashed var(--accent); border-radius: 9px;
+      font-size: 0.85rem; font-weight: 700; cursor: pointer; margin-top: 0.5rem;
+    }
+
+    /* 入力フィールド共通 */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table th {
+      padding: 0.45rem 0.3rem; font-size: 0.72rem; font-weight: 600;
+      color: var(--text-sub); text-align: right;
+    }
+    .detail-table th:first-child { text-align: left; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); text-align: right; }
+    .detail-table td:first-child { text-align: left; color: var(--text); font-weight: 600; }
+    .detail-table .hl td { font-weight: 700; color: var(--text); border-top: 2px solid var(--border); }
+    .detail-table .hl td:last-child { color: var(--ng); font-size: 1.05rem; }
+
+    /* シナリオ比較 */
+    .scenario-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .scenario-table th, .scenario-table td {
+      padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--border); text-align: right;
+    }
+    .scenario-table th { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; }
+    .scenario-table td:first-child, .scenario-table th:first-child { text-align: left; }
+    .scenario-table .current td { color: var(--text-sub); }
+    .scenario-table .s10 td:last-child { color: var(--warn); font-weight: 700; }
+    .scenario-table .s20 td:last-child { color: #c2410c; font-weight: 700; }
+    .scenario-table .s30 td:last-child { color: var(--ng); font-weight: 800; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 440px) {
+      .item-row { grid-template-columns: 1fr 88px 70px 28px; gap: 0.35rem; }
+      .item-header { grid-template-columns: 1fr 88px 70px 28px; gap: 0.35rem; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⚡ エネルギー価格ショックシミュレーター</h1>
+    <p class="subtitle">燃料費・電気代の上昇が月次コストにどう影響するか即試算</p>
+  </header>
+
+  <!-- 共通上昇率 -->
+  <div class="card">
+    <p class="card-title">共通上昇率（全項目に適用）</p>
+    <div class="rate-row">
+      <div class="field">
+        <label for="commonRate">上昇率 (%)</label>
+        <input type="number" id="commonRate" placeholder="例: 20" min="0" max="999" step="0.1">
+        <p class="hint">個別に上昇率を設定した場合はその値が優先されます</p>
+      </div>
+      <button class="btn-apply" onclick="applyCommonRate()">一括適用</button>
+    </div>
+  </div>
+
+  <!-- エネルギー項目入力 -->
+  <div class="card">
+    <p class="card-title">エネルギー費用の入力</p>
+    <div class="item-header">
+      <span>項目名</span>
+      <span style="text-align:right">現在の月額（円）</span>
+      <span style="text-align:right">上昇率（%）</span>
+      <span></span>
+    </div>
+    <div id="itemList"></div>
+    <button class="btn-add" onclick="addItem()">＋ 項目を追加</button>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">コスト増加を試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="resultCard">
+    <p class="result-label">月間コスト増加額（合計）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th>現在の月額</th>
+          <th>上昇後</th>
+          <th>増加額</th>
+        </tr>
+      </thead>
+      <tbody id="detailBody"></tbody>
+    </table>
+  </div>
+
+  <!-- シナリオ比較カード -->
+  <div class="card" id="scenarioCard" style="display:none">
+    <p class="card-title">シナリオ別比較（合計コスト）</p>
+    <table class="scenario-table">
+      <thead>
+        <tr>
+          <th>シナリオ</th>
+          <th>月額合計</th>
+          <th>増加額</th>
+          <th>年間増加額</th>
+        </tr>
+      </thead>
+      <tbody id="scenarioBody"></tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var items = [];
+
+  var DEFAULT_ITEMS = [
+    { name: '電気代',   cost: '', rate: '' },
+    { name: 'ガス代',   cost: '', rate: '' },
+    { name: 'ガソリン代', cost: '', rate: '' },
+    { name: '灯油代',   cost: '', rate: '' },
+  ];
+
+  function init() {
+    var saved = localStorage.getItem('energy_shock_items');
+    if (saved) {
+      try { items = JSON.parse(saved); } catch(e) { items = clone(DEFAULT_ITEMS); }
+    } else {
+      items = clone(DEFAULT_ITEMS);
+    }
+    var savedRate = localStorage.getItem('energy_shock_common_rate');
+    if (savedRate) document.getElementById('commonRate').value = savedRate;
+    render();
+  }
+
+  function clone(arr) {
+    return arr.map(function(a) { return { name: a.name, cost: a.cost, rate: a.rate }; });
+  }
+
+  function render() {
+    var list = document.getElementById('itemList');
+    list.innerHTML = '';
+    items.forEach(function(item, i) {
+      var row = document.createElement('div');
+      row.className = 'item-row';
+      row.innerHTML =
+        '<input type="text" placeholder="例: 電気代" value="' + esc(item.name) + '" oninput="items[' + i + '].name=this.value;save()">' +
+        '<input type="number" placeholder="例: 12000" value="' + esc(item.cost) + '" min="0" oninput="items[' + i + '].cost=this.value;save()">' +
+        '<input type="number" placeholder="共通値" value="' + esc(item.rate) + '" min="0" step="0.1" oninput="items[' + i + '].rate=this.value;save()">' +
+        '<button class="btn-del" onclick="delItem(' + i + ')" title="削除">×</button>';
+      list.appendChild(row);
+    });
+  }
+
+  function esc(v) {
+    return String(v || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function addItem() {
+    items.push({ name: '', cost: '', rate: '' });
+    render();
+    save();
+  }
+
+  function delItem(i) {
+    items.splice(i, 1);
+    render();
+    save();
+  }
+
+  function applyCommonRate() {
+    var r = document.getElementById('commonRate').value;
+    items.forEach(function(item) { item.rate = r; });
+    render();
+    save();
+  }
+
+  function save() {
+    localStorage.setItem('energy_shock_items', JSON.stringify(items));
+    localStorage.setItem('energy_shock_common_rate', document.getElementById('commonRate').value);
+  }
+
+  function calc() {
+    var commonRate = parseFloat(document.getElementById('commonRate').value);
+    var validItems = [];
+
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var cost = parseFloat(item.cost);
+      if (!item.name || isNaN(cost) || cost < 0) continue;
+      var rate = parseFloat(item.rate);
+      if (isNaN(rate)) rate = isNaN(commonRate) ? 0 : commonRate;
+      validItems.push({ name: item.name, cost: cost, rate: rate });
+    }
+
+    if (validItems.length === 0) {
+      showErr('項目名と現在の月額を入力してください');
+      return;
+    }
+
+    var totalCurrent = 0;
+    var totalNew = 0;
+    var rows = '';
+
+    validItems.forEach(function(v) {
+      var newCost = v.cost * (1 + v.rate / 100);
+      var increase = newCost - v.cost;
+      totalCurrent += v.cost;
+      totalNew += newCost;
+      rows += '<tr>'
+        + '<td>' + esc(v.name) + '</td>'
+        + '<td>' + fmt(v.cost) + ' 円</td>'
+        + '<td>' + fmt(newCost) + ' 円</td>'
+        + '<td>+' + fmt(increase) + ' 円</td>'
+        + '</tr>';
+    });
+
+    var totalIncrease = totalNew - totalCurrent;
+    rows += '<tr class="hl">'
+      + '<td>合計</td>'
+      + '<td>' + fmt(totalCurrent) + ' 円</td>'
+      + '<td>' + fmt(totalNew) + ' 円</td>'
+      + '<td>+' + fmt(totalIncrease) + ' 円</td>'
+      + '</tr>';
+
+    document.getElementById('detailBody').innerHTML = rows;
+    document.getElementById('detailCard').style.display = '';
+
+    var level = totalIncrease === 0 ? 'ok' : totalIncrease < totalCurrent * 0.1 ? 'warn' : 'ng';
+    var noteText = '現在の月額合計 ' + fmt(totalCurrent) + ' 円 → 上昇後 ' + fmt(totalNew) + ' 円（年間では +' + fmt(totalIncrease * 12) + ' 円の増加）';
+    showResult(level, '+' + fmt(totalIncrease) + ' 円', noteText);
+
+    showScenario(totalCurrent);
+    save();
+  }
+
+  function showScenario(base) {
+    var scenarios = [
+      { label: '現状維持（0%）', rate: 0, cls: 'current' },
+      { label: '+10% 上昇',      rate: 10, cls: 's10' },
+      { label: '+20% 上昇',      rate: 20, cls: 's20' },
+      { label: '+30% 上昇',      rate: 30, cls: 's30' },
+    ];
+    var html = '';
+    scenarios.forEach(function(s) {
+      var newTotal = base * (1 + s.rate / 100);
+      var inc = newTotal - base;
+      html += '<tr class="' + s.cls + '">'
+        + '<td>' + s.label + '</td>'
+        + '<td>' + fmt(newTotal) + ' 円</td>'
+        + '<td>' + (inc > 0 ? '+' : '') + fmt(inc) + ' 円</td>'
+        + '<td>' + (inc > 0 ? '+' : '') + fmt(inc * 12) + ' 円</td>'
+        + '</tr>';
+    });
+    document.getElementById('scenarioBody').innerHTML = html;
+    document.getElementById('scenarioCard').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detailCard').style.display = 'none';
+    document.getElementById('scenarioCard').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4月値上げ 家計コスト診断チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.15rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 660px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-note {
+      font-size: 0.75rem; color: var(--text-sub); margin-bottom: 1rem; line-height: 1.6;
+    }
+
+    /* ── カテゴリ行 ── */
+    .cat-row {
+      display: grid;
+      grid-template-columns: 1fr 72px 96px;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.65rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .cat-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .cat-label { font-size: 0.85rem; font-weight: 600; line-height: 1.3; }
+    .cat-sub { font-size: 0.7rem; color: var(--text-sub); margin-top: 0.1rem; }
+    .cat-row input {
+      width: 100%; padding: 0.5rem 0.5rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      text-align: right;
+    }
+    .cat-row input:focus { border-color: var(--accent); background: #fff; }
+    .col-head {
+      display: grid;
+      grid-template-columns: 1fr 72px 96px;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+    }
+    .col-head span { font-size: 0.68rem; font-weight: 700; color: var(--text-sub); text-align: right; letter-spacing: 0.04em; }
+    .col-head span:first-child { text-align: left; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 660px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 660px;
+      margin: 0 auto 1rem; padding: 0.55rem;
+      font-size: 0.82rem; font-weight: 600; color: var(--text-sub);
+      background: transparent; border: 1.5px solid var(--border);
+      border-radius: 10px; cursor: pointer;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 660px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); white-space: nowrap; }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .sub-row td { font-size: 0.78rem; color: var(--text-sub); padding-left: 0.8rem; }
+
+    /* ── 診断バッジ ── */
+    .badge {
+      display: inline-block; padding: 0.2rem 0.7rem;
+      border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+      margin-bottom: 0.6rem;
+    }
+    .badge.ok   { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok);   }
+    .badge.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .badge.ng   { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng);   }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .cat-row { grid-template-columns: 1fr 62px 82px; }
+      .col-head { grid-template-columns: 1fr 62px 82px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📦 4月値上げ 家計コスト診断チェッカー</h1>
+    <p class="subtitle">2026年4月 値上げ2798品目 ― あなたの家計への月額影響を即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">カテゴリ別 月間支出を入力</p>
+    <p class="card-note">各カテゴリに月いくら使っているか入力してください。値上げ率は2026年4月の主要品目実勢を反映しています（変更可）。</p>
+    <div class="col-head">
+      <span>カテゴリ</span>
+      <span>値上げ率(%)</span>
+      <span>月間支出(円)</span>
+    </div>
+    <div id="catList"></div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">家計コスト増を診断する</button>
+  <button class="btn-reset" onclick="resetAll()">入力をリセット</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label" id="rl">月間コスト増加額</p>
+    <div id="rbadge"></div>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳・診断詳細</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+
+  <script>
+  // ── カテゴリ定義（name, rate%, emoji） ──
+  var CATS = [
+    { id: 'pan',     name: 'パン・麺・米加工品',           rate: 10, emoji: '🍞' },
+    { id: 'chomi',   name: '調味料（醤油・みそ・ソース等）', rate: 12, emoji: '🫙' },
+    { id: 'frozen',  name: '冷凍食品',                      rate: 10, emoji: '🧊' },
+    { id: 'kashi',   name: '菓子・スナック・アイス',         rate: 10, emoji: '🍫' },
+    { id: 'drink',   name: '飲料（ジュース・お茶・コーヒー）',rate: 10, emoji: '🥤' },
+    { id: 'instant', name: 'インスタント・レトルト食品',      rate: 12, emoji: '🍜' },
+    { id: 'dairy',   name: '乳製品（チーズ・バター等）',      rate:  8, emoji: '🧀' },
+    { id: 'oil',     name: '食用油・マーガリン',              rate: 15, emoji: '🫒' },
+    { id: 'fish',    name: '水産加工品・缶詰・珍味',          rate: 10, emoji: '🐟' },
+    { id: 'daily',   name: '日用品（洗剤・シャンプー等）',    rate:  8, emoji: '🧴' },
+    { id: 'other',   name: 'その他食品・飲料',               rate: 10, emoji: '🛒' },
+  ];
+
+  // ── DOM生成 ──
+  function buildRows() {
+    var saved = loadData();
+    var html = '';
+    CATS.forEach(function(c) {
+      var sv = saved[c.id] || {};
+      var rate = (sv.rate !== undefined) ? sv.rate : c.rate;
+      var spend = sv.spend || '';
+      html += '<div class="cat-row">'
+        + '<div><div class="cat-label">' + c.emoji + ' ' + c.name + '</div></div>'
+        + '<input type="number" id="rate_' + c.id + '" min="0" max="100" step="0.1" value="' + rate + '" placeholder="%" aria-label="' + c.name + ' 値上げ率">'
+        + '<input type="number" id="spend_' + c.id + '" min="0" step="100" value="' + spend + '" placeholder="0" aria-label="' + c.name + ' 月間支出">'
+        + '</div>';
+    });
+    document.getElementById('catList').innerHTML = html;
+  }
+
+  // ── 計算 ──
+  function calc() {
+    var totalSpend = 0, totalIncrease = 0;
+    var rows = [];
+    var anyInput = false;
+
+    CATS.forEach(function(c) {
+      var rate  = parseFloat(document.getElementById('rate_'  + c.id).value) || 0;
+      var spend = parseFloat(document.getElementById('spend_' + c.id).value) || 0;
+      var inc   = Math.round(spend * rate / 100);
+      totalSpend    += spend;
+      totalIncrease += inc;
+      if (spend > 0) {
+        anyInput = true;
+        rows.push({ name: c.emoji + ' ' + c.name, spend: spend, rate: rate, inc: inc });
+      }
+    });
+
+    if (!anyInput) {
+      showResult('ng', '—', '少なくとも1カテゴリの支出を入力してください');
+      document.getElementById('detail').style.display = 'none';
+      return;
+    }
+
+    var yearInc = totalIncrease * 12;
+    var pct = totalSpend > 0 ? (totalIncrease / totalSpend * 100).toFixed(1) : 0;
+    var level = totalIncrease <= 1000 ? 'ok' : totalIncrease <= 3000 ? 'warn' : 'ng';
+    var msg = level === 'ok'
+      ? '月1,000円以内の増加。家計への影響は軽微です。'
+      : level === 'warn'
+      ? '月1,001〜3,000円の増加。家計を見直す良い機会です。'
+      : '月3,000円超の増加。生活防衛策の検討をおすすめします。';
+
+    var badge = { ok: '軽微', warn: '要注意', ng: '要対策' }[level];
+    showResult(level,
+      '月 +' + fmt(totalIncrease) + ' 円',
+      msg,
+      badge
+    );
+
+    // 内訳テーブル
+    var detailRows = [['カテゴリ', '支出', '値上率', '増加額']];
+    rows.sort(function(a,b){ return b.inc - a.inc; });
+    rows.forEach(function(r) {
+      detailRows.push([r.name, fmt(r.spend) + '円', r.rate + '%', '+' + fmt(r.inc) + '円', false]);
+    });
+
+    document.getElementById('db').innerHTML =
+      '<tr><td colspan="2" style="font-size:0.75rem;color:var(--text-sub);padding-bottom:0.3rem">▼ 影響大きい順</td></tr>'
+      + rows.map(function(r) {
+        return '<tr>'
+          + '<td>' + r.name + '</td>'
+          + '<td style="text-align:right;white-space:nowrap">'
+          +   '<span style="color:var(--text-sub);font-size:0.75rem">' + fmt(r.spend) + '円 × ' + r.rate + '%</span>'
+          + '</td>'
+          + '<td>' + '+' + fmt(r.inc) + ' 円</td>'
+          + '</tr>';
+      }).join('')
+      + '<tr class="hl"><td colspan="2">月額コスト増 合計</td><td>+' + fmt(totalIncrease) + ' 円</td></tr>'
+      + '<tr class="hl"><td colspan="2">年間コスト増 換算</td><td>+' + fmt(yearInc) + ' 円</td></tr>'
+      + '<tr><td colspan="2" style="font-size:0.75rem;color:var(--text-sub)">支出に対する増加率</td><td style="font-size:0.85rem">+' + pct + ' %</td></tr>';
+
+    document.getElementById('detail').style.display = '';
+
+    saveData();
+
+    // スクロール
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function showResult(level, val, note, badge) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+    document.getElementById('rbadge').innerHTML = badge
+      ? '<span class="badge ' + level + '">' + badge + '</span>'
+      : '';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── リセット ──
+  function resetAll() {
+    CATS.forEach(function(c) {
+      document.getElementById('rate_'  + c.id).value = c.rate;
+      document.getElementById('spend_' + c.id).value = '';
+    });
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    localStorage.removeItem('apr_price_check');
+  }
+
+  // ── localStorage ──
+  function saveData() {
+    var data = {};
+    CATS.forEach(function(c) {
+      data[c.id] = {
+        rate:  parseFloat(document.getElementById('rate_'  + c.id).value) || 0,
+        spend: parseFloat(document.getElementById('spend_' + c.id).value) || 0
+      };
+    });
+    try { localStorage.setItem('apr_price_check', JSON.stringify(data)); } catch(e) {}
+  }
+  function loadData() {
+    try { return JSON.parse(localStorage.getItem('apr_price_check')) || {}; } catch(e) { return {}; }
+  }
+
+  // ── 初期化 ──
+  buildRows();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>人時生産性チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 目標ライン設定 ── */
+    .target-row {
+      display: flex; align-items: center; gap: 0.75rem;
+      background: var(--accent-light); border-radius: 9px;
+      padding: 0.75rem 0.9rem; margin-bottom: 1rem;
+    }
+    .target-row label { font-size: 0.82rem; font-weight: 600; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
+    .target-row input {
+      flex: 1; padding: 0.5rem 0.75rem; font-size: 0.95rem;
+      border: 1.5px solid var(--border); border-radius: 7px;
+      background: #fff; color: var(--text); outline: none;
+      -webkit-appearance: none;
+    }
+    .target-row input:focus { border-color: var(--accent); }
+    .target-row span { font-size: 0.82rem; color: var(--text-sub); white-space: nowrap; }
+
+    /* ── 履歴 ── */
+    .history-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.75rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .history-header .card-title { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .btn-clear-all {
+      font-size: 0.75rem; color: var(--ng); background: none;
+      border: 1px solid var(--ng); border-radius: 6px; padding: 0.25rem 0.6rem;
+      cursor: pointer;
+    }
+    .hist-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .hist-item {
+      display: grid; grid-template-columns: 1fr auto auto;
+      align-items: center; gap: 0.5rem 1rem;
+      background: var(--bg); border-radius: 9px;
+      padding: 0.65rem 0.9rem; font-size: 0.85rem;
+    }
+    .hist-item .h-date { font-size: 0.75rem; color: var(--text-sub); }
+    .hist-item .h-val  { font-size: 1rem; font-weight: 800; }
+    .hist-item .h-val.ok   { color: var(--ok);   }
+    .hist-item .h-val.ng   { color: var(--ng);   }
+    .hist-item .h-sub  { font-size: 0.75rem; color: var(--text-sub); grid-column: 1; }
+    .hist-item .h-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.5rem;
+      border-radius: 5px; white-space: nowrap;
+    }
+    .h-badge.ok { background: var(--ok-bg); color: var(--ok); }
+    .h-badge.ng { background: var(--ng-bg); color: var(--ng); }
+    .btn-del {
+      background: none; border: none; color: var(--text-sub);
+      font-size: 1rem; cursor: pointer; padding: 0.2rem;
+    }
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>人時生産性チェッカー</h1>
+    <p class="subtitle">売上と総労働時間から人時売上を即計算・採算ライン判定</p>
+  </header>
+
+  <!-- 採算ライン設定 -->
+  <div class="card">
+    <p class="card-title">採算ライン（目標人時売上）</p>
+    <div class="target-row">
+      <label for="target">目標</label>
+      <input type="number" id="target" placeholder="例: 3000" min="0">
+      <span>円 / 時間</span>
+    </div>
+    <p class="field hint" style="margin-top:-0.5rem">一般的な飲食業の目安：2,000〜3,000円/時間</p>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="sales">売上</label>
+      <input type="number" id="sales" placeholder="例: 300000" min="0">
+      <p class="hint">円単位で入力（例：300,000）</p>
+    </div>
+    <div class="field">
+      <label for="hours">総労働時間</label>
+      <input type="number" id="hours" placeholder="例: 100" min="0.1" step="0.5">
+      <p class="hint">スタッフ全員の合計時間（例：10人×10時間＝100時間）</p>
+    </div>
+    <div class="field">
+      <label for="memo">メモ（任意）</label>
+      <input type="text" id="memo" placeholder="例: 先週、土日含む">
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">人時売上を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">人時売上</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="card" id="histCard">
+    <div class="history-header">
+      <p class="card-title">計算履歴</p>
+      <button class="btn-clear-all" onclick="clearAll()">全削除</button>
+    </div>
+    <div class="hist-list" id="histList">
+      <p class="empty-msg" id="emptyMsg">まだ記録がありません</p>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'jinjiseisan_history';
+
+  /* ── 計算 ── */
+  function calc() {
+    var sales  = parseFloat(document.getElementById('sales').value);
+    var hours  = parseFloat(document.getElementById('hours').value);
+    var target = parseFloat(document.getElementById('target').value);
+    var memo   = document.getElementById('memo').value.trim();
+
+    if (isNaN(sales) || isNaN(hours) || hours <= 0) {
+      showErr('売上と総労働時間を入力してください');
+      return;
+    }
+
+    var jinjiseisan = sales / hours;
+    var hasTarget = !isNaN(target) && target > 0;
+    var level, note;
+
+    if (hasTarget) {
+      var ratio = jinjiseisan / target;
+      if (ratio >= 1) {
+        level = 'ok';
+        note  = '目標達成！ 採算ラインをクリアしています（目標比 ' + (ratio * 100).toFixed(0) + '%）';
+      } else if (ratio >= 0.85) {
+        level = 'warn';
+        note  = '目標まで残り ' + fmt(target - jinjiseisan) + ' 円/時間。もう一息です（目標比 ' + (ratio * 100).toFixed(0) + '%）';
+      } else {
+        level = 'ng';
+        note  = '採算ライン未達。目標まで ' + fmt(target - jinjiseisan) + ' 円/時間 不足（目標比 ' + (ratio * 100).toFixed(0) + '%）';
+      }
+    } else {
+      level = jinjiseisan >= 2000 ? 'ok' : jinjiseisan >= 1500 ? 'warn' : 'ng';
+      note  = '目標人時売上を設定すると判定精度が上がります';
+    }
+
+    showResult(level, fmt(jinjiseisan) + ' 円/時間', note);
+
+    var rows = [
+      ['売上',       fmt(sales) + ' 円'],
+      ['総労働時間', fmt(hours) + ' 時間'],
+      ['人時売上',   fmt(jinjiseisan) + ' 円/時間', true],
+    ];
+    if (hasTarget) {
+      rows.push(['目標人時売上', fmt(target) + ' 円/時間']);
+      rows.push(['達成率', (jinjiseisan / target * 100).toFixed(1) + ' %']);
+    }
+    showDetail(rows);
+
+    /* 履歴保存 */
+    var rec = {
+      date: new Date().toLocaleString('ja-JP', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'}),
+      sales: sales,
+      hours: hours,
+      jinjiseisan: jinjiseisan,
+      target: hasTarget ? target : null,
+      level: level,
+      memo: memo,
+    };
+    var history = loadHistory();
+    history.unshift(rec);
+    if (history.length > 50) history = history.slice(0, 50);
+    saveHistory(history);
+    renderHistory();
+  }
+
+  /* ── 表示ヘルパー ── */
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  /* ── localStorage ── */
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function saveHistory(h) { localStorage.setItem(STORAGE_KEY, JSON.stringify(h)); }
+
+  /* ── 履歴描画 ── */
+  function renderHistory() {
+    var history = loadHistory();
+    var el = document.getElementById('histList');
+    var empty = document.getElementById('emptyMsg');
+    if (!history.length) {
+      el.innerHTML = '';
+      el.appendChild(empty);
+      empty.style.display = '';
+      return;
+    }
+    el.innerHTML = history.map(function(r, i) {
+      var targetTxt = r.target ? '目標:' + fmt(r.target) + '円' : '目標未設定';
+      var badge = r.level === 'ok' ? '<span class="h-badge ok">達成</span>' : r.level === 'warn' ? '<span class="h-badge ok" style="background:var(--warn-bg);color:var(--warn)">惜しい</span>' : '<span class="h-badge ng">未達</span>';
+      return '<div class="hist-item">'
+           + '<div>'
+           +   '<div class="h-date">' + r.date + (r.memo ? ' · ' + escHtml(r.memo) : '') + '</div>'
+           +   '<div class="h-sub">売上 ' + fmt(r.sales) + '円 / ' + r.hours + 'h　' + targetTxt + '</div>'
+           + '</div>'
+           + '<div class="h-val ' + (r.level === 'ok' ? 'ok' : 'ng') + '">' + fmt(r.jinjiseisan) + '<span style="font-size:0.65rem;font-weight:400">円/h</span></div>'
+           + badge
+           + '<button class="btn-del" onclick="delRecord(' + i + ')" title="削除">✕</button>'
+           + '</div>';
+    }).join('');
+  }
+
+  function delRecord(i) {
+    var h = loadHistory();
+    h.splice(i, 1);
+    saveHistory(h);
+    renderHistory();
+  }
+
+  function clearAll() {
+    if (!confirm('履歴をすべて削除しますか？')) return;
+    saveHistory([]);
+    renderHistory();
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  /* ── 初期化 ── */
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

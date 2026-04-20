@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>デリバリー出店採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 入力グループ2列 ── */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+    .field-row .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+    .detail-table .ok-row td:last-child { color: var(--ok); }
+
+    /* ── 損益分岐点カード ── */
+    .bep-card {
+      display: none; background: var(--accent-light);
+      border: 1.5px solid var(--accent); border-radius: var(--radius);
+      padding: 1.1rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .bep-title { font-size: 0.78rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; margin-bottom: 0.6rem; }
+    .bep-value { font-size: 1.5rem; font-weight: 900; color: var(--accent); }
+    .bep-sub { font-size: 0.82rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>デリバリー出店採算チェッカー</h1>
+    <p class="subtitle">配達手数料・原価率・注文数を入れて黒字かすぐ確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本条件</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="unitPrice">客単価（円）</label>
+        <input type="number" id="unitPrice" placeholder="例: 1200" min="0">
+        <p class="hint">1注文あたりの平均売上</p>
+      </div>
+      <div class="field">
+        <label for="orders">月間注文数（件）</label>
+        <input type="number" id="orders" placeholder="例: 200" min="0">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="costRate">原価率（%）</label>
+        <input type="number" id="costRate" placeholder="例: 30" min="0" max="100" value="30">
+        <p class="hint">食材・原材料費の割合</p>
+      </div>
+      <div class="field">
+        <label for="commRate">配達手数料率（%）</label>
+        <input type="number" id="commRate" placeholder="例: 35" min="0" max="100" value="35">
+        <p class="hint">UberEats等のプラットフォーム手数料</p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="fixedCost">月間固定費（円）</label>
+      <input type="number" id="fixedCost" placeholder="例: 50000" min="0">
+      <p class="hint">家賃・人件費・光熱費など（デリバリー専業の場合は実費、既存店は追加分のみ）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算チェック</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月間純利益</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 損益分岐点カード -->
+  <div class="bep-card" id="bepCard">
+    <p class="bep-title">損益分岐点</p>
+    <p class="bep-value" id="bepValue">—</p>
+    <p class="bep-sub" id="bepSub"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">月間収支内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 1注文あたりカード -->
+  <div class="card" id="perOrderCard" style="display:none">
+    <p class="card-title">1注文あたりの収支</p>
+    <table class="detail-table"><tbody id="perOrderDb"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var FIELDS = ['unitPrice','orders','costRate','commRate','fixedCost'];
+
+  // localStorage から読み込み
+  (function(){
+    var saved = localStorage.getItem('delivery_checker');
+    if (!saved) return;
+    try {
+      var data = JSON.parse(saved);
+      FIELDS.forEach(function(id){
+        if (data[id] !== undefined) {
+          document.getElementById(id).value = data[id];
+        }
+      });
+    } catch(e) {}
+  })();
+
+  // 入力変更時に保存
+  FIELDS.forEach(function(id){
+    document.getElementById(id).addEventListener('input', saveInputs);
+  });
+
+  function saveInputs() {
+    var data = {};
+    FIELDS.forEach(function(id){
+      data[id] = document.getElementById(id).value;
+    });
+    localStorage.setItem('delivery_checker', JSON.stringify(data));
+  }
+
+  function calc() {
+    var unitPrice  = parseFloat(document.getElementById('unitPrice').value);
+    var orders     = parseFloat(document.getElementById('orders').value);
+    var costRate   = parseFloat(document.getElementById('costRate').value);
+    var commRate   = parseFloat(document.getElementById('commRate').value);
+    var fixedCost  = parseFloat(document.getElementById('fixedCost').value);
+
+    if (isNaN(unitPrice) || isNaN(orders) || isNaN(costRate) || isNaN(commRate) || isNaN(fixedCost)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (unitPrice <= 0) { showErr('客単価は1円以上で入力してください'); return; }
+    if (costRate + commRate >= 100) { showErr('原価率＋手数料率が100%以上です。入力を確認してください'); return; }
+
+    // 月間計算
+    var revenue   = unitPrice * orders;              // 月間売上
+    var costAmt   = revenue * (costRate / 100);      // 月間原価
+    var commAmt   = revenue * (commRate / 100);      // 月間手数料
+    var varCost   = costAmt + commAmt;               // 月間変動費
+    var profit    = revenue - varCost - fixedCost;   // 月間純利益
+
+    // 1注文あたり
+    var revenuePerOrder = unitPrice;
+    var costPerOrder    = unitPrice * (costRate / 100);
+    var commPerOrder    = unitPrice * (commRate / 100);
+    var varPerOrder     = costPerOrder + commPerOrder;
+    var marginPerOrder  = unitPrice - varPerOrder;   // 1注文あたりの限界利益
+
+    // 損益分岐点
+    var bep = fixedCost > 0 && marginPerOrder > 0
+              ? Math.ceil(fixedCost / marginPerOrder)
+              : (fixedCost === 0 ? 0 : null);
+
+    // 判定
+    var level, msg;
+    if (profit > 0) {
+      level = profit / revenue >= 0.1 ? 'ok' : 'warn';
+      msg   = profit / revenue >= 0.1
+              ? '黒字です。利益率' + (profit / revenue * 100).toFixed(1) + '%で安定した採算です'
+              : '黒字ですが利益率が薄めです（' + (profit / revenue * 100).toFixed(1) + '%）。注文数増加がカギです';
+    } else if (profit === 0) {
+      level = 'warn'; msg = '収支トントン。利益ゼロの状態です';
+    } else {
+      level = 'ng';
+      msg = '赤字です。月' + fmt(Math.abs(profit)) + '円の損失が出ています';
+    }
+
+    // 結論カード
+    showResult(level, fmt(profit) + ' 円', msg);
+
+    // 損益分岐点表示
+    showBep(bep, orders, marginPerOrder, fixedCost);
+
+    // 月間内訳
+    var detailRows = [
+      ['月間売上', fmt(revenue) + ' 円'],
+      ['　原価（' + costRate + '%）', '－' + fmt(costAmt) + ' 円'],
+      ['　配達手数料（' + commRate + '%）', '－' + fmt(commAmt) + ' 円'],
+      ['　月間固定費', '－' + fmt(fixedCost) + ' 円'],
+      ['月間純利益', fmt(profit) + ' 円', true, profit >= 0 ? 'ok' : 'ng'],
+    ];
+    showDetail('db', 'detail', detailRows);
+
+    // 1注文あたり内訳
+    var perOrderRows = [
+      ['客単価（売上）', fmt(revenuePerOrder) + ' 円'],
+      ['　原価', '－' + fmt(costPerOrder) + ' 円'],
+      ['　配達手数料', '－' + fmt(commPerOrder) + ' 円'],
+      ['1注文あたりの限界利益', fmt(marginPerOrder) + ' 円', true, marginPerOrder >= 0 ? 'ok' : 'ng'],
+    ];
+    showDetail('perOrderDb', 'perOrderCard', perOrderRows);
+
+    saveInputs();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showBep(bep, currentOrders, marginPerOrder, fixedCost) {
+    var card = document.getElementById('bepCard');
+    var valEl = document.getElementById('bepValue');
+    var subEl = document.getElementById('bepSub');
+
+    if (marginPerOrder <= 0) {
+      valEl.textContent = '計算不能';
+      subEl.textContent = '1注文あたりの限界利益がマイナスのため損益分岐点が存在しません';
+    } else if (fixedCost === 0) {
+      valEl.textContent = '固定費なし';
+      subEl.textContent = '固定費がないため1注文目から黒字です';
+    } else if (bep !== null) {
+      var diff = currentOrders - bep;
+      valEl.textContent = fmt(bep) + ' 件 / 月';
+      if (diff >= 0) {
+        subEl.textContent = '現在の注文数（' + fmt(currentOrders) + '件）は分岐点を' + fmt(diff) + '件上回っています ✓';
+      } else {
+        subEl.textContent = '現在の注文数（' + fmt(currentOrders) + '件）はあと' + fmt(Math.abs(diff)) + '件不足しています';
+      }
+    }
+    card.style.display = '';
+  }
+
+  function showDetail(tbodyId, cardId, rows) {
+    document.getElementById(tbodyId).innerHTML = rows.map(function(r){
+      var cls = r[2] ? ' class="hl"' : (r[3] === 'ng' ? ' class="ng-row"' : (r[3] === 'ok' ? ' class="ok-row"' : ''));
+      return '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById(cardId).style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('bepCard').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('perOrderCard').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

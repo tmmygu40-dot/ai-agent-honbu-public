@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>資材高騰影響チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* 資材テーブル */
+    .mat-table { width: 100%; border-collapse: collapse; }
+    .mat-table th {
+      font-size: 0.72rem; font-weight: 700; color: var(--text-sub);
+      padding: 0.3rem 0.3rem 0.6rem; text-align: center;
+      border-bottom: 1.5px solid var(--border);
+    }
+    .mat-table th:first-child { text-align: left; }
+    .mat-table td { padding: 0.4rem 0.25rem; vertical-align: middle; }
+    .mat-table input {
+      width: 100%; padding: 0.55rem 0.5rem;
+      font-size: 0.92rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      text-align: right;
+    }
+    .mat-table input.name-input { text-align: left; }
+    .mat-table input:focus { border-color: var(--accent); background: #fff; }
+    .mat-table .inc-cell {
+      font-size: 0.85rem; font-weight: 700; color: var(--ng);
+      text-align: right; min-width: 70px; white-space: nowrap;
+    }
+    .mat-table .del-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1.1rem; padding: 0.2rem 0.4rem;
+      border-radius: 6px; transition: color 0.15s, background 0.15s;
+    }
+    .mat-table .del-btn:hover { color: var(--ng); background: var(--ng-bg); }
+
+    .add-row-btn {
+      display: flex; align-items: center; gap: 0.4rem;
+      background: none; border: 1.5px dashed var(--border);
+      border-radius: 9px; padding: 0.55rem 1rem; margin-top: 0.8rem;
+      font-size: 0.85rem; color: var(--text-sub); cursor: pointer;
+      width: 100%; transition: border-color 0.15s, color 0.15s;
+    }
+    .add-row-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .row-2col { display: flex; gap: 0.8rem; }
+    .row-2col .field { flex: 1; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 640px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+    .detail-table .ok-row td:last-child { color: var(--ok); }
+
+    .section-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border); margin-bottom: 0.8rem;
+    }
+
+    @media (max-width: 480px) {
+      .mat-table th:nth-child(5),
+      .mat-table td:nth-child(5) { display: none; }
+      .row-2col { flex-direction: column; gap: 0; }
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>資材高騰影響チェッカー</h1>
+    <p class="subtitle">鉄鋼・木材・セメントなど資材値上がりが見積り利益に与える影響を即計算</p>
+  </header>
+
+  <!-- 資材入力カード -->
+  <div class="card">
+    <p class="card-title">資材コスト入力</p>
+    <div style="overflow-x:auto">
+      <table class="mat-table" id="matTable">
+        <thead>
+          <tr>
+            <th style="min-width:90px;text-align:left">資材名</th>
+            <th style="min-width:80px">当初単価(円)</th>
+            <th style="min-width:80px">新単価(円)</th>
+            <th style="min-width:70px">数量</th>
+            <th style="min-width:80px">増加額(円)</th>
+            <th style="min-width:32px"></th>
+          </tr>
+        </thead>
+        <tbody id="matBody"></tbody>
+      </table>
+    </div>
+    <button class="add-row-btn" onclick="addRow()">＋ 資材を追加</button>
+  </div>
+
+  <!-- 見積り情報カード -->
+  <div class="card">
+    <p class="card-title">見積り情報</p>
+    <div class="row-2col">
+      <div class="field">
+        <label for="estimate">見積り売上（円）</label>
+        <input type="number" id="estimate" placeholder="例: 5000000" min="0">
+      </div>
+      <div class="field">
+        <label for="origCost">当初原価（円）</label>
+        <input type="number" id="origCost" placeholder="例: 3000000" min="0">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">影響を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">値上げ後の利益残高</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳・影響詳細</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var defaultMats = [
+    { name: '鉄鋼',     oldP: '', newP: '', qty: '' },
+    { name: '木材',     oldP: '', newP: '', qty: '' },
+    { name: 'セメント', oldP: '', newP: '', qty: '' },
+  ];
+
+  function addRow(name, oldP, newP, qty) {
+    var tb = document.getElementById('matBody');
+    var idx = tb.rows.length;
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td><input class="name-input" type="text" placeholder="資材名" value="' + esc(name||'') + '" oninput="saveLS()"></td>' +
+      '<td><input type="number" placeholder="0" value="' + esc(oldP||'') + '" min="0" oninput="updateRowInc(this);saveLS()"></td>' +
+      '<td><input type="number" placeholder="0" value="' + esc(newP||'') + '" min="0" oninput="updateRowInc(this);saveLS()"></td>' +
+      '<td><input type="number" placeholder="0" value="' + esc(qty||'') + '" min="0" oninput="updateRowInc(this);saveLS()"></td>' +
+      '<td class="inc-cell" id="inc' + idx + '">—</td>' +
+      '<td><button class="del-btn" onclick="delRow(this)" title="削除">✕</button></td>';
+    tb.appendChild(tr);
+    updateRowInc(tr.querySelectorAll('input')[1]);
+    return tr;
+  }
+
+  function esc(s) { return String(s).replace(/"/g,'&quot;'); }
+
+  function getRowValues(tr) {
+    var inputs = tr.querySelectorAll('input');
+    return {
+      name: inputs[0].value,
+      oldP: parseFloat(inputs[1].value) || 0,
+      newP: parseFloat(inputs[2].value) || 0,
+      qty:  parseFloat(inputs[3].value) || 0,
+    };
+  }
+
+  function updateRowInc(input) {
+    var tr = input.closest('tr');
+    var idx = Array.prototype.indexOf.call(document.getElementById('matBody').rows, tr);
+    var v = getRowValues(tr);
+    var inc = (v.newP - v.oldP) * v.qty;
+    var cell = document.getElementById('inc' + idx);
+    if (!cell) return;
+    if (v.qty === 0 || (v.oldP === 0 && v.newP === 0)) {
+      cell.textContent = '—';
+    } else {
+      cell.textContent = (inc >= 0 ? '+' : '') + fmt(inc);
+      cell.style.color = inc > 0 ? 'var(--ng)' : inc < 0 ? 'var(--ok)' : 'var(--text-sub)';
+    }
+  }
+
+  function delRow(btn) {
+    var tb = document.getElementById('matBody');
+    btn.closest('tr').remove();
+    // re-assign inc cell ids
+    var rows = tb.rows;
+    for (var i = 0; i < rows.length; i++) {
+      var old = rows[i].querySelector('[id^="inc"]');
+      if (old) old.id = 'inc' + i;
+    }
+    saveLS();
+  }
+
+  function calc() {
+    var estimate = parseFloat(document.getElementById('estimate').value);
+    var origCost = parseFloat(document.getElementById('origCost').value);
+    if (isNaN(estimate) || isNaN(origCost)) {
+      showResult('ng', '⚠️', '見積り売上と当初原価を入力してください');
+      document.getElementById('detail').style.display = 'none';
+      return;
+    }
+
+    var rows = document.getElementById('matBody').rows;
+    var totalInc = 0;
+    var matDetails = [];
+    for (var i = 0; i < rows.length; i++) {
+      var v = getRowValues(rows[i]);
+      if (v.oldP === 0 && v.newP === 0) continue;
+      var inc = (v.newP - v.oldP) * v.qty;
+      totalInc += inc;
+      if (v.name || inc !== 0) {
+        matDetails.push({ name: v.name || '資材' + (i+1), inc: inc });
+      }
+    }
+
+    var newCost   = origCost + totalInc;
+    var origProfit = estimate - origCost;
+    var newProfit  = estimate - newCost;
+    var origRate   = estimate > 0 ? origProfit / estimate * 100 : 0;
+    var newRate    = estimate > 0 ? newProfit  / estimate * 100 : 0;
+
+    // 黒字維持に必要な値上げ額（利益を元に保つ）
+    var needSell   = newCost + origProfit;
+    var needUp     = needSell - estimate;
+    var needUpPct  = estimate > 0 ? needUp / estimate * 100 : 0;
+
+    var level, msg;
+    if (newProfit < 0) {
+      level = 'ng'; msg = '赤字転落。値上げまたはコスト削減が必要です';
+    } else if (newRate < 20) {
+      level = 'warn'; msg = '利益率が低下。値上げ交渉を検討してください';
+    } else {
+      level = 'ok'; msg = '利益は確保できています';
+    }
+
+    showResult(level, fmt(newProfit) + ' 円', '利益率 ' + newRate.toFixed(1) + '%　' + msg);
+
+    var details = [];
+    details.push(['── 資材コスト増加内訳 ──', '']);
+    matDetails.forEach(function(m) {
+      details.push([m.name, (m.inc >= 0 ? '+' : '') + fmt(m.inc) + ' 円', false, m.inc > 0 ? 'ng-row' : m.inc < 0 ? 'ok-row' : '']);
+    });
+    details.push(['資材コスト増加 合計', (totalInc >= 0 ? '+' : '') + fmt(totalInc) + ' 円', true]);
+    details.push(['── 見積り採算 ──', '']);
+    details.push(['見積り売上', fmt(estimate) + ' 円']);
+    details.push(['当初原価', fmt(origCost) + ' 円']);
+    details.push(['当初利益', fmt(origProfit) + ' 円 (' + origRate.toFixed(1) + '%)']);
+    details.push(['資材高騰後の原価', fmt(newCost) + ' 円']);
+    details.push(['高騰後の利益', fmt(newProfit) + ' 円 (' + newRate.toFixed(1) + ')', true]);
+    details.push(['── 値上げ対策 ──', '']);
+    details.push(['利益確保に必要な売価', fmt(needSell) + ' 円']);
+    details.push(['必要値上げ額', (needUp > 0 ? '+' : '') + fmt(needUp) + ' 円 (' + needUpPct.toFixed(1) + '%)', needUp > 0]);
+
+    showDetail(details);
+    saveLS();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      if (r[1] === '') {
+        return '<tr><td colspan="2" style="font-size:0.75rem;color:var(--text-sub);padding-top:0.8rem">' + r[0] + '</td></tr>';
+      }
+      var cls = r[3] || '';
+      return '<tr' + (r[2] ? ' class="hl' + (cls ? ' '+cls : '') + '"' : (cls ? ' class="'+cls+'"' : '')) + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  /* localStorage */
+  function saveLS() {
+    var rows = document.getElementById('matBody').rows;
+    var mats = [];
+    for (var i = 0; i < rows.length; i++) {
+      var v = getRowValues(rows[i]);
+      mats.push(v);
+    }
+    var data = {
+      mats: mats,
+      estimate: document.getElementById('estimate').value,
+      origCost: document.getElementById('origCost').value,
+    };
+    try { localStorage.setItem('shizai_checker', JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadLS() {
+    try {
+      var raw = localStorage.getItem('shizai_checker');
+      if (!raw) return false;
+      var data = JSON.parse(raw);
+      if (data.mats && data.mats.length > 0) {
+        data.mats.forEach(function(m) { addRow(m.name, m.oldP||'', m.newP||'', m.qty||''); });
+      } else {
+        loadDefaults();
+      }
+      if (data.estimate) document.getElementById('estimate').value = data.estimate;
+      if (data.origCost) document.getElementById('origCost').value = data.origCost;
+      return true;
+    } catch(e) { return false; }
+  }
+
+  function loadDefaults() {
+    defaultMats.forEach(function(m) { addRow(m.name, m.oldP, m.newP, m.qty); });
+  }
+
+  window.addEventListener('DOMContentLoaded', function() {
+    if (!loadLS()) loadDefaults();
+    document.getElementById('estimate').addEventListener('input', saveLS);
+    document.getElementById('origCost').addEventListener('input', saveLS);
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
