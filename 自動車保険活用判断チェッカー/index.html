@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自動車保険活用判断チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .field-row { display: flex; gap: 0.8rem; }
+    .field-row .field { flex: 1; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.6; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.06em; margin: 1rem 0 0.4rem;
+      text-transform: uppercase;
+    }
+
+    .grade-flow {
+      display: flex; align-items: center; gap: 0.5rem;
+      flex-wrap: wrap; margin: 0.6rem 0;
+    }
+    .grade-box {
+      background: var(--accent-light); border: 1.5px solid var(--accent);
+      border-radius: 8px; padding: 0.3rem 0.7rem;
+      font-size: 0.85rem; font-weight: 700; color: var(--accent);
+    }
+    .grade-arrow { color: var(--text-sub); font-size: 1rem; }
+
+    .scenario-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;
+      margin-bottom: 1rem;
+    }
+    .scenario-box {
+      border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 0.8rem; text-align: center;
+    }
+    .scenario-box .s-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .scenario-box .s-value { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+    .scenario-box .s-sub { font-size: 0.7rem; color: var(--text-sub); margin-top: 0.2rem; }
+    .scenario-box.highlight { border-color: var(--accent); background: var(--accent-light); }
+    .scenario-box.highlight .s-value { color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>自動車保険活用判断チェッカー</h1>
+    <p class="subtitle">等級と修理費を入力 → 保険を使うか自腹かを即判断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">現在の保険情報</p>
+    <div class="field">
+      <label for="grade">現在の等級</label>
+      <select id="grade">
+        <option value="">選択してください</option>
+        <option value="1">1等級</option>
+        <option value="2">2等級</option>
+        <option value="3">3等級</option>
+        <option value="4">4等級</option>
+        <option value="5">5等級</option>
+        <option value="6">6等級</option>
+        <option value="7">7等級（新規契約の初年度）</option>
+        <option value="8">8等級</option>
+        <option value="9">9等級</option>
+        <option value="10">10等級</option>
+        <option value="11">11等級</option>
+        <option value="12">12等級</option>
+        <option value="13">13等級</option>
+        <option value="14">14等級</option>
+        <option value="15">15等級</option>
+        <option value="16">16等級</option>
+        <option value="17">17等級</option>
+        <option value="18">18等級</option>
+        <option value="19">19等級</option>
+        <option value="20">20等級（最高）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="premium">現在の年間保険料（円）</label>
+      <input type="number" id="premium" placeholder="例: 80000" min="0">
+      <p class="hint">証券に記載の年間保険料を入力</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">事故・修理の情報</p>
+    <div class="field">
+      <label for="repair">修理費用（円）</label>
+      <input type="number" id="repair" placeholder="例: 300000" min="0">
+      <p class="hint">自己負担となる修理費用の見積もり額</p>
+    </div>
+    <div class="field">
+      <label for="deductible">免責金額（円）</label>
+      <input type="number" id="deductible" placeholder="例: 50000（なければ 0）" min="0" value="0">
+      <p class="hint">保険証券に記載の免責金額（なければ0）</p>
+    </div>
+    <div class="field">
+      <label for="dropGrade">等級ダウン数</label>
+      <select id="dropGrade">
+        <option value="3">3等級ダウン（一般的な事故）</option>
+        <option value="1">1等級ダウン（物損のみ・軽微）</option>
+      </select>
+      <p class="hint">相手への賠償が伴う事故は通常3等級ダウン</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">判断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">推奨判断</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 等級推移カード -->
+  <div class="card" id="gradeCard" style="display:none">
+    <p class="card-title">等級の推移</p>
+    <div id="gradeFlow" class="grade-flow"></div>
+    <p style="font-size:0.75rem;color:var(--text-sub);margin-top:0.5rem">
+      ※事故あり係数は保険使用後<span id="accidentYears"></span>年間適用されます
+    </p>
+  </div>
+
+  <!-- シナリオ比較カード -->
+  <div class="card" id="scenarioCard" style="display:none">
+    <p class="card-title">コスト比較</p>
+    <div class="scenario-grid" id="scenarioGrid"></div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">年別プレミアム推移（保険使用した場合）</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+    <p style="font-size:0.72rem;color:var(--text-sub);margin-top:0.8rem">
+      ※係数は損害保険料率算出機構の参考純率ベースの目安値です
+    </p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // ── 等級係数テーブル（参考純率ベース目安） ──
+  // [無事故係数, 事故あり係数]（グレード1〜20）
+  var COEFF = [
+    [2.57, 2.57], // 1
+    [2.34, 2.34], // 2
+    [2.09, 2.09], // 3
+    [1.88, 1.88], // 4
+    [1.62, 1.62], // 5
+    [1.00, 1.00], // 6
+    [0.78, 0.96], // 7
+    [0.66, 0.85], // 8
+    [0.57, 0.75], // 9
+    [0.50, 0.66], // 10
+    [0.45, 0.61], // 11
+    [0.42, 0.57], // 12
+    [0.39, 0.53], // 13
+    [0.36, 0.50], // 14
+    [0.33, 0.47], // 15
+    [0.30, 0.44], // 16
+    [0.27, 0.41], // 17
+    [0.24, 0.39], // 18
+    [0.21, 0.39], // 19
+    [0.17, 0.17], // 20
+  ];
+
+  // 等級ダウン後の事故あり係数適用年数（ダウン数別）
+  var ACCIDENT_YEARS = { 3: 3, 1: 1 };
+
+  function getCoeff(grade, isAccident) {
+    var idx = Math.min(Math.max(grade, 1), 20) - 1;
+    return isAccident ? COEFF[idx][1] : COEFF[idx][0];
+  }
+
+  function calc() {
+    var grade      = parseInt(document.getElementById('grade').value);
+    var premium    = parseFloat(document.getElementById('premium').value);
+    var repair     = parseFloat(document.getElementById('repair').value);
+    var deductible = parseFloat(document.getElementById('deductible').value) || 0;
+    var drop       = parseInt(document.getElementById('dropGrade').value);
+
+    if (!grade || isNaN(premium) || isNaN(repair)) {
+      showErr('等級・現在保険料・修理費用をすべて入力してください');
+      return;
+    }
+    if (premium <= 0) { showErr('現在の年間保険料を正しく入力してください'); return; }
+    if (repair < 0)   { showErr('修理費用は0以上で入力してください'); return; }
+
+    saveInputs();
+
+    // 基準保険料（grade6係数=1.00 相当の基準）
+    var baseRate = premium / getCoeff(grade, false);
+
+    // 事故後の等級
+    var newGrade = Math.max(1, grade - drop);
+    var accidentYrs = ACCIDENT_YEARS[drop] || 3;
+
+    // 保険使用シナリオ：元の等級に戻るまでの年数と累計増加額を計算
+    var rows = [];
+    var cumIncrease = 0;
+    var curGrade = newGrade;
+    var maxYears = 20;
+
+    for (var y = 1; y <= maxYears; y++) {
+      var isAcc = (y <= accidentYrs);
+      var yearPremium = Math.round(baseRate * getCoeff(curGrade, isAcc));
+      var diff = yearPremium - premium;
+      cumIncrease += diff;
+      rows.push({ year: y, grade: curGrade, isAcc: isAcc, premium: yearPremium, diff: diff, cum: cumIncrease });
+
+      // 元の等級に戻ったら終了チェック
+      if (curGrade >= grade && !isAcc) break;
+      if (curGrade < 20) curGrade++;
+    }
+
+    // 保険使用の実質負担（免責金額 + 累計保険料増加）
+    var insuranceBurden = deductible + cumIncrease;
+    // 自腹修理の負担
+    var selfBurden = repair;
+
+    // 損益分岐：何年後に保険使用の累計コストが修理費を超えるか
+    var breakeven = null;
+    var cumSoFar = 0;
+    for (var i = 0; i < rows.length; i++) {
+      cumSoFar += rows[i].diff;
+      if (deductible + cumSoFar >= repair) {
+        breakeven = rows[i].year;
+        break;
+      }
+    }
+
+    // 判断
+    var verdict, level, note;
+    var diff = selfBurden - insuranceBurden;
+
+    if (repair <= deductible) {
+      // 修理費が免責以下 → 保険使いようがない
+      level = 'ng';
+      verdict = '保険使用不可';
+      note = '修理費（' + fmt(repair) + '円）が免責金額（' + fmt(deductible) + '円）以下のため\n保険を使っても保険金が支払われません。自腹修理してください。';
+    } else if (diff > 0) {
+      // 自腹の方が高い → 保険使う
+      level = 'ok';
+      verdict = '保険を使う方がお得';
+      note = '保険使用時の総追加負担（' + fmt(insuranceBurden) + '円）が\n修理費（' + fmt(repair) + '円）より ' + fmt(diff) + '円 少なくなります。';
+    } else if (diff < 0) {
+      // 保険使用の方が高い → 自腹
+      var absDiff = Math.abs(diff);
+      if (absDiff < 30000) {
+        level = 'warn';
+        verdict = 'どちらでも大差なし';
+        note = '差額は ' + fmt(absDiff) + '円。保険使用で等級が下がるリスクを考えると\n自腹修理も検討に値します。';
+      } else {
+        level = 'ng';
+        verdict = '自腹修理の方がお得';
+        note = '保険使用時は総追加負担（' + fmt(insuranceBurden) + '円）が\n修理費より ' + fmt(absDiff) + '円 多くなります。';
+      }
+    } else {
+      level = 'warn';
+      verdict = 'ほぼ同額';
+      note = '保険使用と自腹でコストはほぼ同じです。\n等級維持を優先するなら自腹、手元資金を守るなら保険を使う判断もあります。';
+    }
+
+    showResult(level, verdict, note);
+
+    // 等級推移
+    showGradeFlow(grade, newGrade, rows, accidentYrs);
+
+    // シナリオ比較
+    var recoverYears = rows.length;
+    document.getElementById('scenarioGrid').innerHTML =
+      scenarioBox('保険使用した場合', '免責 + 保険料増加の総額', fmt(insuranceBurden) + '円', '（' + recoverYears + '年後に元の等級へ）', insuranceBurden <= selfBurden) +
+      scenarioBox('自腹修理した場合', '修理費の全額', fmt(selfBurden) + '円', '（等級の変動なし）', selfBurden < insuranceBurden);
+    document.getElementById('scenarioCard').style.display = '';
+
+    // 年別テーブル
+    showDetail(rows, breakeven);
+    document.getElementById('accidentYears').textContent = accidentYrs;
+  }
+
+  function scenarioBox(title, sub, value, sub2, isHighlight) {
+    return '<div class="scenario-box' + (isHighlight ? ' highlight' : '') + '">' +
+      '<div class="s-label">' + title + '</div>' +
+      '<div class="s-sub">' + sub + '</div>' +
+      '<div class="s-value">' + value + '</div>' +
+      '<div class="s-sub">' + sub2 + '</div>' +
+      '</div>';
+  }
+
+  function showGradeFlow(origGrade, startGrade, rows, accidentYrs) {
+    var html = '';
+    html += '<div class="grade-box" style="border-color:var(--ng);background:var(--ng-bg);color:var(--ng)">現在 ' + origGrade + '等級</div>';
+    html += '<span class="grade-arrow">→</span>';
+    html += '<div class="grade-box" style="border-color:var(--ng);background:var(--ng-bg);color:var(--ng)">事故後 ' + startGrade + '等級<br><small>（' + accidentYrs + '年間 事故あり）</small></div>';
+    html += '<span class="grade-arrow">→</span>';
+
+    // 最終的に戻る等級
+    var lastRow = rows[rows.length - 1];
+    html += '<div class="grade-box">回復後 ' + lastRow.grade + '等級</div>';
+
+    document.getElementById('gradeFlow').innerHTML = html;
+    document.getElementById('gradeCard').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+    rc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function showDetail(rows, breakeven) {
+    var html = '';
+    rows.forEach(function(r) {
+      var isBreak = (breakeven !== null && r.year === breakeven);
+      var diffStr = (r.diff >= 0 ? '+' : '') + fmt(r.diff) + '円';
+      var cumStr  = (r.cum >= 0 ? '+' : '') + fmt(r.cum) + '円';
+      html += '<tr' + (isBreak ? ' class="hl"' : '') + '>';
+      html += '<td>' + r.year + '年後 / ' + r.grade + '等級' + (r.isAcc ? '<br><small style="color:var(--ng)">事故あり係数</small>' : '') + '</td>';
+      html += '<td>';
+      if (isBreak) html += '⚡ 損益分岐点<br>';
+      html += '年間 ' + fmt(r.premium) + '円<br>';
+      html += '<small>増減 ' + diffStr + ' / 累計 ' + cumStr + '</small>';
+      html += '</td>';
+      html += '</tr>';
+    });
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '入力エラー', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('gradeCard').style.display = 'none';
+    document.getElementById('scenarioCard').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage
+  function saveInputs() {
+    var data = {
+      grade: document.getElementById('grade').value,
+      premium: document.getElementById('premium').value,
+      repair: document.getElementById('repair').value,
+      deductible: document.getElementById('deductible').value,
+      dropGrade: document.getElementById('dropGrade').value
+    };
+    localStorage.setItem('jibaiseki_checker', JSON.stringify(data));
+  }
+
+  function loadInputs() {
+    try {
+      var raw = localStorage.getItem('jibaiseki_checker');
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.grade)      document.getElementById('grade').value      = data.grade;
+      if (data.premium)    document.getElementById('premium').value    = data.premium;
+      if (data.repair)     document.getElementById('repair').value     = data.repair;
+      if (data.deductible !== undefined) document.getElementById('deductible').value = data.deductible;
+      if (data.dropGrade)  document.getElementById('dropGrade').value  = data.dropGrade;
+    } catch(e) {}
+  }
+
+  loadInputs();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
