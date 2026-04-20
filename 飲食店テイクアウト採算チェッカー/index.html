@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>飲食店テイクアウト採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 720px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 2カラム入力 ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 520px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+    .col-card {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+    .col-card-title {
+      font-size: 0.88rem; font-weight: 800;
+      color: var(--text); margin-bottom: 0.8rem;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .badge-ei { background: #dbeafe; color: #1d4ed8; border-radius: 6px; padding: 0.1rem 0.5rem; font-size: 0.72rem; }
+    .badge-to { background: #dcfce7; color: #166534; border-radius: 6px; padding: 0.1rem 0.5rem; font-size: 0.72rem; }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 0.85rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.8rem;
+      font-size: 0.97rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--card); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 720px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 720px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+      margin-top: 0.5rem;
+    }
+    .summary-item {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.8rem 1rem;
+      text-align: center;
+    }
+    .summary-item.ok-border   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .summary-item.warn-border { border-color: var(--warn);  background: var(--warn-bg); }
+    .summary-item.ng-border   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .summary-item-label { font-size: 0.72rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .summary-item-value { font-size: 1.2rem; font-weight: 900; color: var(--text); }
+    .summary-item.ok-border   .summary-item-value { color: var(--ok);   }
+    .summary-item.warn-border .summary-item-value { color: var(--warn); }
+    .summary-item.ng-border   .summary-item-value { color: var(--ng);   }
+    .summary-item-sub { font-size: 0.7rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.5rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); white-space: nowrap; }
+    .detail-table td:nth-child(2) { text-align: right; white-space: nowrap; }
+    .detail-table td:nth-child(3) { text-align: right; white-space: nowrap; }
+    .detail-table .hl td { font-weight: 700; color: var(--text); background: var(--accent-light); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1rem; }
+    .detail-table thead td { font-weight: 700; color: var(--text); font-size: 0.78rem; background: var(--bg); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>飲食店テイクアウト採算チェッカー</h1>
+    <p class="subtitle">イートイン・テイクアウトの月次利益を即比較</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">条件入力</p>
+    <div class="two-col">
+      <!-- イートイン -->
+      <div class="col-card">
+        <p class="col-card-title"><span class="badge-ei">イートイン</span></p>
+        <div class="field">
+          <label for="ei_guests">月間来客数（人）</label>
+          <input type="number" id="ei_guests" placeholder="例: 500" min="0">
+        </div>
+        <div class="field">
+          <label for="ei_price">客単価（円）</label>
+          <input type="number" id="ei_price" placeholder="例: 1200" min="0">
+        </div>
+        <div class="field">
+          <label for="ei_food_rate">原価率（%）</label>
+          <input type="number" id="ei_food_rate" placeholder="例: 35" min="0" max="100">
+        </div>
+        <div class="field">
+          <label for="ei_labor_rate">人件費比率（%）</label>
+          <input type="number" id="ei_labor_rate" placeholder="例: 30" min="0" max="100">
+        </div>
+        <div class="field">
+          <label for="ei_other">その他経費（円/月）</label>
+          <input type="number" id="ei_other" placeholder="例: 50000" min="0" value="0">
+        </div>
+      </div>
+      <!-- テイクアウト -->
+      <div class="col-card">
+        <p class="col-card-title"><span class="badge-to">テイクアウト</span></p>
+        <div class="field">
+          <label for="to_guests">月間来客数（人）</label>
+          <input type="number" id="to_guests" placeholder="例: 300" min="0">
+        </div>
+        <div class="field">
+          <label for="to_price">客単価（円）</label>
+          <input type="number" id="to_price" placeholder="例: 900" min="0">
+        </div>
+        <div class="field">
+          <label for="to_food_rate">原価率（%）</label>
+          <input type="number" id="to_food_rate" placeholder="例: 40" min="0" max="100">
+        </div>
+        <div class="field">
+          <label for="to_labor_rate">人件費比率（%）</label>
+          <input type="number" id="to_labor_rate" placeholder="例: 15" min="0" max="100">
+        </div>
+        <div class="field">
+          <label for="to_other">その他経費（円/月）</label>
+          <input type="number" id="to_other" placeholder="例: 20000" min="0" value="0">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">採算を比較する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">採算比較 結論</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+    <div class="summary-grid" id="summary-grid" style="margin-top:1rem;"></div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳比較</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <td>項目</td>
+          <td style="text-align:right"><span class="badge-ei">イートイン</span></td>
+          <td style="text-align:right"><span class="badge-to">テイクアウト</span></td>
+        </tr>
+      </thead>
+      <tbody id="db"></tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'takeout-checker-v1';
+
+  // 入力フィールドID一覧
+  var FIELDS = ['ei_guests','ei_price','ei_food_rate','ei_labor_rate','ei_other',
+                'to_guests','to_price','to_food_rate','to_labor_rate','to_other'];
+
+  function saveInputs() {
+    var data = {};
+    FIELDS.forEach(function(id) {
+      data[id] = document.getElementById(id).value;
+    });
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadInputs() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      FIELDS.forEach(function(id) {
+        if (data[id] !== undefined) document.getElementById(id).value = data[id];
+      });
+    } catch(e) {}
+  }
+
+  function getNum(id, def) {
+    var v = parseFloat(document.getElementById(id).value);
+    return isNaN(v) ? (def !== undefined ? def : NaN) : v;
+  }
+
+  function calc() {
+    // イートイン
+    var ei_guests     = getNum('ei_guests');
+    var ei_price      = getNum('ei_price');
+    var ei_food_rate  = getNum('ei_food_rate');
+    var ei_labor_rate = getNum('ei_labor_rate');
+    var ei_other      = getNum('ei_other', 0);
+
+    // テイクアウト
+    var to_guests     = getNum('to_guests');
+    var to_price      = getNum('to_price');
+    var to_food_rate  = getNum('to_food_rate');
+    var to_labor_rate = getNum('to_labor_rate');
+    var to_other      = getNum('to_other', 0);
+
+    // 必須項目チェック
+    if ([ei_guests,ei_price,ei_food_rate,ei_labor_rate,
+         to_guests,to_price,to_food_rate,to_labor_rate].some(isNaN)) {
+      showErr('すべての必須項目を入力してください');
+      return;
+    }
+
+    saveInputs();
+
+    // ── イートイン計算 ──
+    var ei_sales  = ei_guests * ei_price;
+    var ei_food   = ei_sales * ei_food_rate / 100;
+    var ei_labor  = ei_sales * ei_labor_rate / 100;
+    var ei_profit = ei_sales - ei_food - ei_labor - ei_other;
+    var ei_pct    = ei_sales > 0 ? ei_profit / ei_sales * 100 : 0;
+
+    // ── テイクアウト計算 ──
+    var to_sales  = to_guests * to_price;
+    var to_food   = to_sales * to_food_rate / 100;
+    var to_labor  = to_sales * to_labor_rate / 100;
+    var to_profit = to_sales - to_food - to_labor - to_other;
+    var to_pct    = to_sales > 0 ? to_profit / to_sales * 100 : 0;
+
+    // ── 判定 ──
+    function judge(pct) {
+      return pct >= 15 ? 'ok' : pct >= 5 ? 'warn' : 'ng';
+    }
+    var ei_level = judge(ei_pct);
+    var to_level = judge(to_pct);
+
+    // ── 結論 ──
+    var winner, mainMsg, noteMsg;
+    if (ei_profit > to_profit) {
+      winner = 'イートイン';
+    } else if (to_profit > ei_profit) {
+      winner = 'テイクアウト';
+    } else {
+      winner = '同等';
+    }
+
+    var overallLevel;
+    if (ei_level === 'ok' || to_level === 'ok') overallLevel = 'ok';
+    else if (ei_level === 'warn' || to_level === 'warn') overallLevel = 'warn';
+    else overallLevel = 'ng';
+
+    if (winner === '同等') {
+      mainMsg = '利益は同等です';
+    } else {
+      mainMsg = winner + 'が有利';
+    }
+
+    var diff = Math.abs(ei_profit - to_profit);
+    noteMsg = '月間利益差：' + fmt(diff) + ' 円'
+            + '　|　イートイン利益率 ' + ei_pct.toFixed(1) + '%'
+            + ' / テイクアウト利益率 ' + to_pct.toFixed(1) + '%';
+
+    // 結論カード表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + overallLevel;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = mainMsg;
+    document.getElementById('rn').textContent = noteMsg;
+
+    // サマリーグリッド
+    document.getElementById('summary-grid').innerHTML =
+      summaryItem('イートイン 月間利益', fmt(ei_profit) + ' 円', ei_pct.toFixed(1) + '%　利益率', ei_level) +
+      summaryItem('テイクアウト 月間利益', fmt(to_profit) + ' 円', to_pct.toFixed(1) + '%　利益率', to_level) +
+      summaryItem('イートイン 月間売上', fmt(ei_sales) + ' 円', '来客 ' + fmt(ei_guests) + ' 人', '') +
+      summaryItem('テイクアウト 月間売上', fmt(to_sales) + ' 円', '来客 ' + fmt(to_guests) + ' 人', '');
+
+    // 内訳テーブル
+    var rows = [
+      ['月間来客数', fmt(ei_guests) + ' 人', fmt(to_guests) + ' 人', false],
+      ['客単価',     fmt(ei_price) + ' 円',  fmt(to_price) + ' 円',  false],
+      ['月間売上',   fmt(ei_sales) + ' 円',  fmt(to_sales) + ' 円',  false],
+      ['食材費（原価）', '−' + fmt(ei_food) + ' 円', '−' + fmt(to_food) + ' 円', false],
+      ['人件費',     '−' + fmt(ei_labor) + ' 円', '−' + fmt(to_labor) + ' 円', false],
+      ['その他経費', '−' + fmt(ei_other) + ' 円', '−' + fmt(to_other) + ' 円', false],
+      ['月間利益',   fmt(ei_profit) + ' 円', fmt(to_profit) + ' 円', true],
+      ['利益率',     ei_pct.toFixed(1) + ' %', to_pct.toFixed(1) + ' %', true],
+    ];
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[3] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td>'
+           + '<td>' + r[1] + '</td>'
+           + '<td>' + r[2] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function summaryItem(label, val, sub, level) {
+    var cls = 'summary-item';
+    if (level === 'ok') cls += ' ok-border';
+    else if (level === 'warn') cls += ' warn-border';
+    else if (level === 'ng') cls += ' ng-border';
+    return '<div class="' + cls + '">'
+         + '<div class="summary-item-label">' + label + '</div>'
+         + '<div class="summary-item-value">' + val + '</div>'
+         + '<div class="summary-item-sub">' + sub + '</div></div>';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️ 入力エラー';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('summary-grid').innerHTML = '';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // 入力変更時に保存
+  FIELDS.forEach(function(id) {
+    document.getElementById(id).addEventListener('input', saveInputs);
+  });
+
+  // ページ読み込み時に復元
+  loadInputs();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
