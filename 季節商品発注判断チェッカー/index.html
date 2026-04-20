@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>季節商品発注判断チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 発注量比較テーブル ── */
+    .order-table-wrap { overflow-x: auto; }
+    .order-table {
+      width: 100%; border-collapse: collapse; font-size: 0.85rem;
+      min-width: 340px;
+    }
+    .order-table thead th {
+      background: var(--accent-light);
+      color: var(--accent);
+      font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 0.5rem 0.4rem; text-align: right;
+      border-bottom: 2px solid var(--border);
+    }
+    .order-table thead th:first-child { text-align: left; }
+    .order-table tbody tr { border-bottom: 1px solid var(--border); }
+    .order-table tbody tr:last-child { border-bottom: none; }
+    .order-table tbody td { padding: 0.5rem 0.4rem; color: var(--text-sub); text-align: right; }
+    .order-table tbody td:first-child { text-align: left; font-weight: 600; color: var(--text); }
+    .order-table tbody tr.best-row { background: var(--ok-bg); }
+    .order-table tbody tr.best-row td { color: var(--ok); font-weight: 700; }
+    .order-table tbody tr.best-row td:first-child { color: var(--ok); }
+    .profit-pos { color: var(--ok); }
+    .profit-neg { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 説明テキスト ── */
+    .explain {
+      font-size: 0.78rem; color: var(--text-sub);
+      background: var(--accent-light);
+      border-radius: 8px; padding: 0.7rem 0.9rem;
+      margin-bottom: 1rem; line-height: 1.6;
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>季節商品発注判断チェッカー</h1>
+    <p class="subtitle">売れ残りリスクと欠品リスクを比較して最適発注量と期待利益を即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品情報を入力</p>
+    <div class="explain">
+      予測需要と標準偏差をもとに需要分布を試算。<br>
+      発注量ごとの期待利益を比較して最適発注量を判断します。
+    </div>
+    <div class="field">
+      <label for="cost">仕入れ単価（円）</label>
+      <input type="number" id="cost" placeholder="例: 800" min="0">
+    </div>
+    <div class="field">
+      <label for="price">売価（円）</label>
+      <input type="number" id="price" placeholder="例: 1500" min="0">
+    </div>
+    <div class="field">
+      <label for="disposal">売れ残り1個あたりの損失額（円）</label>
+      <input type="number" id="disposal" placeholder="例: 800">
+      <p class="hint">廃棄コストが別途かかる場合は仕入れ単価＋廃棄費用。通常は仕入れ単価と同額でOK</p>
+    </div>
+    <div class="field">
+      <label for="demand">予測需要（個）</label>
+      <input type="number" id="demand" placeholder="例: 100" min="1">
+      <p class="hint">過去実績などをもとに見込む販売数</p>
+    </div>
+    <div class="field">
+      <label for="sigma">需要のばらつき・標準偏差（個）</label>
+      <input type="number" id="sigma" placeholder="例: 20" min="1">
+      <p class="hint">不明な場合は予測需要の20〜30%程度が目安</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">最適発注量を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">最適発注量</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 発注量比較テーブル -->
+  <div class="card" id="order-card" style="display:none">
+    <p class="card-title">発注量別・期待利益シミュレーション</p>
+    <div class="order-table-wrap">
+      <table class="order-table">
+        <thead>
+          <tr>
+            <th>発注量（個）</th>
+            <th>期待利益（円）</th>
+            <th>売切確率</th>
+            <th>売残確率</th>
+          </tr>
+        </thead>
+        <tbody id="order-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 内訳カード（最適発注量の詳細） -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">最適発注量の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'seasonal-order-checker-v1';
+
+  // ── 正規分布の累積分布関数（近似）──
+  function normCDF(x) {
+    var t = 1 / (1 + 0.2316419 * Math.abs(x));
+    var poly = t * (0.319381530
+              + t * (-0.356563782
+              + t * (1.781477937
+              + t * (-1.821255978
+              + t * 1.330274429))));
+    var pdf = Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+    var cdf = 1 - pdf * poly;
+    return x >= 0 ? cdf : 1 - cdf;
+  }
+
+  // ── 正規分布のPDF ──
+  function normPDF(x) {
+    return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+  }
+
+  // ── 期待利益計算（解析解） ──
+  // E[profit(Q)] = (price - cost) * Q
+  //              - (price - cost) * E[max(Q - D, 0)] ... 欠品分は0（発注上限）
+  //              - disposal * E[max(Q - D, 0)]       ... 売れ残り損失
+  // = (price - cost) * Q - (price - cost + disposal) * E[max(Q - D, 0)]
+  // E[max(Q - D, 0)] = (Q - mean) * Phi(z) + sigma * phi(z)
+  //   where z = (Q - mean) / sigma, Phi = normCDF, phi = normPDF
+  function expectedProfit(Q, cost, price, disposal, mean, sigma) {
+    var margin = price - cost;
+    if (sigma <= 0) {
+      // 確定需要
+      var sold = Math.min(Q, mean);
+      var unsold = Math.max(Q - mean, 0);
+      return sold * margin - unsold * disposal;
+    }
+    var z = (Q - mean) / sigma;
+    var phi = normPDF(z);
+    var Phi = normCDF(z);
+    var expectedUnsold = (Q - mean) * Phi + sigma * phi;
+    return margin * Q - (margin + disposal) * expectedUnsold;
+  }
+
+  // 売切確率（需要 >= Q の確率）
+  function selloutProb(Q, mean, sigma) {
+    if (sigma <= 0) return mean >= Q ? 1 : 0;
+    return 1 - normCDF((Q - mean) / sigma);
+  }
+
+  // 売残確率（需要 < Q の確率）
+  function leftoverProb(Q, mean, sigma) {
+    return 1 - selloutProb(Q, mean, sigma);
+  }
+
+  function calc() {
+    var cost     = parseFloat(document.getElementById('cost').value);
+    var price    = parseFloat(document.getElementById('price').value);
+    var disposal = parseFloat(document.getElementById('disposal').value);
+    var demand   = parseFloat(document.getElementById('demand').value);
+    var sigma    = parseFloat(document.getElementById('sigma').value);
+
+    if ([cost, price, disposal, demand, sigma].some(isNaN)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (price <= cost) {
+      showErr('売価は仕入れ単価より高く設定してください');
+      return;
+    }
+    if (demand <= 0 || sigma <= 0) {
+      showErr('予測需要と標準偏差は1以上を入力してください');
+      return;
+    }
+
+    // localStorage保存
+    localStorage.setItem(LS_KEY, JSON.stringify({cost: cost, price: price, disposal: disposal, demand: demand, sigma: sigma}));
+
+    // 発注量の候補：0.5x〜1.5x を10ステップ（整数）
+    var minQ = Math.max(1, Math.round(demand * 0.5));
+    var maxQ = Math.round(demand * 1.5);
+    var step = Math.max(1, Math.round((maxQ - minQ) / 9));
+    var candidates = [];
+    for (var q = minQ; q <= maxQ; q += step) {
+      candidates.push(q);
+    }
+    // maxQが含まれない場合は追加
+    if (candidates[candidates.length - 1] < maxQ) {
+      candidates.push(maxQ);
+    }
+    // 予測需要の値が候補に含まれない場合は追加してソート
+    var demandInt = Math.round(demand);
+    if (candidates.indexOf(demandInt) === -1) {
+      candidates.push(demandInt);
+      candidates.sort(function(a, b) { return a - b; });
+    }
+
+    // 期待利益計算
+    var results = candidates.map(function(q) {
+      return {
+        q: q,
+        profit: expectedProfit(q, cost, price, disposal, demand, sigma),
+        sellout: selloutProb(q, demand, sigma),
+        leftover: leftoverProb(q, demand, sigma)
+      };
+    });
+
+    // 最適発注量（最大期待利益）
+    var best = results.reduce(function(a, b) { return a.profit >= b.profit ? a : b; });
+
+    // 結論カードの色判定
+    var level = best.profit > 0 ? (best.profit >= (price - cost) * demand * 0.7 ? 'ok' : 'warn') : 'ng';
+    showResult(level, fmt(best.q) + ' 個', '期待利益 ' + fmt(Math.round(best.profit)) + ' 円（最大）');
+
+    // 発注量テーブル
+    var tbody = document.getElementById('order-tbody');
+    tbody.innerHTML = results.map(function(r) {
+      var isBest = r.q === best.q;
+      var profitClass = r.profit >= 0 ? 'profit-pos' : 'profit-neg';
+      return '<tr' + (isBest ? ' class="best-row"' : '') + '>'
+        + '<td>' + fmt(r.q) + (isBest ? ' ★' : '') + '</td>'
+        + '<td class="' + profitClass + '">' + fmt(Math.round(r.profit)) + '</td>'
+        + '<td>' + (r.sellout * 100).toFixed(0) + '%</td>'
+        + '<td>' + (r.leftover * 100).toFixed(0) + '%</td>'
+        + '</tr>';
+    }).join('');
+    document.getElementById('order-card').style.display = '';
+
+    // 最適発注量の内訳
+    var margin = price - cost;
+    var bestUnsoldExpected = best.q - demand > 0
+      ? Math.max(0, (best.q - demand) * normCDF((best.q - demand) / sigma) + sigma * normPDF((best.q - demand) / sigma))
+      : sigma * normPDF(0);
+    if (sigma > 0) {
+      var z2 = (best.q - demand) / sigma;
+      bestUnsoldExpected = (best.q - demand) * normCDF(z2) + sigma * normPDF(z2);
+    }
+    var bestSoldExpected = best.q - Math.max(0, bestUnsoldExpected);
+    showDetail([
+      ['仕入れ数',         fmt(best.q) + ' 個'],
+      ['仕入れ原価合計',   fmt(Math.round(best.q * cost)) + ' 円'],
+      ['期待販売数',       fmt(Math.round(bestSoldExpected)) + ' 個'],
+      ['期待売上',         fmt(Math.round(bestSoldExpected * price)) + ' 円'],
+      ['期待売れ残り数',   fmt(Math.round(Math.max(0, bestUnsoldExpected))) + ' 個'],
+      ['期待廃棄損失',     fmt(Math.round(Math.max(0, bestUnsoldExpected) * disposal)) + ' 円'],
+      ['期待利益',         fmt(Math.round(best.profit)) + ' 円', true],
+      ['売切確率',         (best.sellout * 100).toFixed(0) + ' %'],
+      ['売残確率',         (best.leftover * 100).toFixed(0) + ' %'],
+    ]);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('order-card').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage 読み込み
+  (function() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!saved) return;
+      if (saved.cost)     document.getElementById('cost').value     = saved.cost;
+      if (saved.price)    document.getElementById('price').value    = saved.price;
+      if (saved.disposal) document.getElementById('disposal').value = saved.disposal;
+      if (saved.demand)   document.getElementById('demand').value   = saved.demand;
+      if (saved.sigma)    document.getElementById('sigma').value    = saved.sigma;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
