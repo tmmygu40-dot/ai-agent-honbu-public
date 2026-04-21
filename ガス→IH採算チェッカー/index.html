@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ガス→IH採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .section-label {
+      font-size: 0.75rem; font-weight: 800; color: var(--accent);
+      letter-spacing: 0.05em; margin-bottom: 0.75rem; margin-top: 0.25rem;
+    }
+    .divider { border: none; border-top: 1px dashed var(--border); margin: 1rem 0; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .summary-grid {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;
+      margin-bottom: 0;
+    }
+    .sg-item { background: var(--bg); border-radius: 10px; padding: 0.85rem 1rem; }
+    .sg-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .sg-val { font-size: 1.15rem; font-weight: 800; color: var(--text); }
+    .sg-val.accent { color: var(--accent); }
+    .sg-val.ok-color { color: var(--ok); }
+    .sg-val.ng-color { color: var(--ng); }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ok-row td:last-child { color: var(--ok); }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>ガス→IH採算チェッカー</h1>
+    <p class="subtitle">IH調理器への切り替えコストと光熱費削減の回収年数を即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">光熱費の入力</p>
+
+    <p class="section-label">▼ 現在のガス代</p>
+    <div class="field">
+      <label for="gasMonth">調理に使っているガス代（月額）</label>
+      <input type="number" id="gasMonth" placeholder="例: 3000" min="0" step="100">
+      <p class="hint">円 / 月。ガス代全体から給湯・暖房分を除いた調理分の目安</p>
+    </div>
+
+    <hr class="divider">
+    <p class="section-label">▼ IH切り替え後の電気代</p>
+    <div class="field">
+      <label for="elecIncrease">電気代の増加見込み（月額）</label>
+      <input type="number" id="elecIncrease" placeholder="例: 800" min="0" step="100">
+      <p class="hint">円 / 月。IH使用により増える電気代の目安（一般的に月500〜1500円程度）</p>
+    </div>
+  </div>
+
+  <!-- 初期費用カード -->
+  <div class="card">
+    <p class="card-title">初期費用の入力</p>
+
+    <div class="field">
+      <label for="ihCost">IH調理器の購入費用</label>
+      <input type="number" id="ihCost" placeholder="例: 80000" min="0" step="1000">
+      <p class="hint">円。一般的なIHクッキングヒーター（2〜3口）の相場は3〜15万円</p>
+    </div>
+    <div class="field">
+      <label for="workCost">設置・電気工事費用</label>
+      <input type="number" id="workCost" placeholder="例: 20000" min="0" step="1000">
+      <p class="hint">円。配線工事が必要な場合のみ（200V対応工事：1〜3万円程度）</p>
+    </div>
+    <div class="field">
+      <label for="subsidy">補助金・助成金（あれば）</label>
+      <input type="number" id="subsidy" placeholder="例: 0" min="0" step="1000">
+      <p class="hint">円。省エネ設備の補助金が自治体によって受けられる場合があります</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">採算を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">投資回収期間</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリーグリッド -->
+  <div class="card" id="summaryCard" style="display:none">
+    <p class="card-title">概要</p>
+    <div class="summary-grid" id="summaryGrid"></div>
+  </div>
+
+  <!-- 内訳テーブル -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">計算内訳</p>
+    <table class="detail-table"><tbody id="detailBody"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'gas_ih_checker_v1';
+
+  function calc() {
+    var gasMonth     = parseFloat(document.getElementById('gasMonth').value)     || 0;
+    var elecIncrease = parseFloat(document.getElementById('elecIncrease').value) || 0;
+    var ihCost       = parseFloat(document.getElementById('ihCost').value)       || 0;
+    var workCost     = parseFloat(document.getElementById('workCost').value)     || 0;
+    var subsidy      = parseFloat(document.getElementById('subsidy').value)      || 0;
+
+    if (ihCost <= 0) { alert('IH調理器の購入費用を入力してください'); return; }
+    if (gasMonth <= 0 && elecIncrease <= 0) { alert('ガス代か電気代の増加分を入力してください'); return; }
+
+    // 月間削減額
+    var monthlySaving = gasMonth - elecIncrease;
+    var yearlySaving  = monthlySaving * 12;
+
+    // 実質初期費用
+    var initialCost   = ihCost + workCost - subsidy;
+    if (initialCost < 0) initialCost = 0;
+
+    // 回収年数
+    var recoveryYears = (yearlySaving > 0) ? (initialCost / yearlySaving) : Infinity;
+
+    // 判定
+    var level, resultText, noteText;
+    if (monthlySaving <= 0) {
+      level = 'ng';
+      resultText = '削減なし（損失）';
+      noteText = '電気代の増加がガス代の削減を上回っています。IHの使い方や料金プランを見直してみましょう。';
+    } else if (recoveryYears <= 5) {
+      level = 'ok';
+      resultText = fmt1(recoveryYears) + ' 年で回収';
+      noteText = '5年以内に回収できる見込みです。導入を前向きに検討できます。';
+    } else if (recoveryYears <= 10) {
+      level = 'warn';
+      resultText = fmt1(recoveryYears) + ' 年で回収';
+      noteText = '5〜10年かかります。IHの安全性・お手入れの簡単さなど非経済的メリットも考慮しましょう。';
+    } else if (isFinite(recoveryYears)) {
+      level = 'ng';
+      resultText = fmt1(recoveryYears) + ' 年で回収';
+      noteText = '10年以上かかる見込みです。補助金の活用や低コストな機種の検討をおすすめします。';
+    } else {
+      level = 'ng';
+      resultText = '回収不可';
+      noteText = 'ガス代削減効果がないため、光熱費の観点では採算が合いません。';
+    }
+
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = resultText;
+    document.getElementById('rn').textContent = noteText;
+
+    // サマリーグリッド
+    var sgClass = level === 'ok' ? 'ok-color' : level === 'ng' ? 'ng-color' : 'accent';
+    document.getElementById('summaryGrid').innerHTML =
+      sg('月間削減額', fmt(monthlySaving) + ' 円', monthlySaving >= 0 ? 'ok-color' : 'ng-color') +
+      sg('年間削減額', fmt(yearlySaving) + ' 円', monthlySaving >= 0 ? 'ok-color' : 'ng-color') +
+      sg('実質初期費用', fmt(initialCost) + ' 円', 'accent') +
+      sg('回収期間', isFinite(recoveryYears) ? fmt1(recoveryYears) + ' 年' : '—', sgClass);
+    document.getElementById('summaryCard').style.display = '';
+
+    // 内訳テーブル
+    document.getElementById('detailBody').innerHTML = [
+      ['現在のガス代（調理分）',      fmt(gasMonth)     + ' 円/月', false, 'ok-row'],
+      ['IH電気代増加分',              fmt(elecIncrease) + ' 円/月', false, 'ng-row'],
+      ['月間削減額（差引）',          fmt(monthlySaving) + ' 円/月', false, monthlySaving >= 0 ? 'ok-row' : 'ng-row'],
+      ['年間削減額',                  fmt(yearlySaving) + ' 円/年', true, ''],
+      ['IH本体費用',                  fmt(ihCost)     + ' 円', false, ''],
+      ['設置・工事費用',              fmt(workCost)   + ' 円', false, ''],
+      ['補助金（控除）',              '▲' + fmt(subsidy) + ' 円', false, ''],
+      ['実質初期費用',                fmt(initialCost) + ' 円', true, ''],
+    ].map(function(r) {
+      var cls = r[2] ? 'hl' : (r[3] || '');
+      return '<tr class="' + cls + '"><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detailCard').style.display = '';
+
+    // 保存
+    save();
+  }
+
+  function sg(label, val, cls) {
+    return '<div class="sg-item"><div class="sg-label">' + label + '</div>'
+         + '<div class="sg-val ' + cls + '">' + val + '</div></div>';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmt1(n) { return Math.round(n * 10) / 10; }
+
+  function save() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        gasMonth:     document.getElementById('gasMonth').value,
+        elecIncrease: document.getElementById('elecIncrease').value,
+        ihCost:       document.getElementById('ihCost').value,
+        workCost:     document.getElementById('workCost').value,
+        subsidy:      document.getElementById('subsidy').value
+      }));
+    } catch(e) {}
+  }
+
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!d) return;
+      if (d.gasMonth     != null) document.getElementById('gasMonth').value     = d.gasMonth;
+      if (d.elecIncrease != null) document.getElementById('elecIncrease').value = d.elecIncrease;
+      if (d.ihCost       != null) document.getElementById('ihCost').value       = d.ihCost;
+      if (d.workCost     != null) document.getElementById('workCost').value     = d.workCost;
+      if (d.subsidy      != null) document.getElementById('subsidy').value      = d.subsidy;
+    } catch(e) {}
+  }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
