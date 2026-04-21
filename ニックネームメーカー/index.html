@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ニックネームメーカー｜猫型ポケット</title>
+<meta name="description" content="名前・趣味・好きなものを入れると、覚えてもらいやすいニックネーム候補が自動生成されます。">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Sans','Meiryo',sans-serif;background:#f0f7ff;color:#333;min-height:100vh;padding:1.5rem 1rem}
+.container{max-width:500px;margin:0 auto}
+h1{font-size:1.35rem;margin-bottom:.3rem;color:#1a5fa8;text-align:center}
+.sub{font-size:.85rem;color:#999;margin-bottom:1.8rem;text-align:center}
+.card{background:#fff;border-radius:12px;padding:1.3rem;box-shadow:0 2px 10px rgba(0,0,0,.08);margin-bottom:1rem}
+.card h2{font-size:.9rem;color:#666;margin-bottom:.9rem;padding-bottom:.5rem;border-bottom:1px solid #e8f0fc}
+.form-row{margin-bottom:1rem}
+label{display:block;font-size:.82rem;color:#555;margin-bottom:.35rem;font-weight:600}
+input,select{width:100%;padding:.55rem .8rem;border:2px solid #c8dff8;border-radius:8px;font-size:.92rem;background:#fff;color:#333;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:#1a5fa8}
+.hint{font-size:.75rem;color:#aaa;margin-top:.25rem}
+.gen-btn{width:100%;padding:.75rem;background:linear-gradient(135deg,#1a5fa8,#2980b9);color:#fff;border:none;border-radius:10px;font-size:1rem;cursor:pointer;margin-top:.5rem}
+.gen-btn:hover{opacity:.9}
+.results{display:none;margin-top:1rem;animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.nick-grid{display:flex;flex-direction:column;gap:.75rem}
+.nick-card{background:linear-gradient(135deg,#f0f7ff,#e8f4fc);border:1.5px solid #c8dff8;border-radius:10px;padding:1rem 1.1rem;cursor:pointer;transition:transform .15s,box-shadow .15s}
+.nick-card:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(26,95,168,.15)}
+.nick-card.selected{border-color:#1a5fa8;background:linear-gradient(135deg,#dceeff,#c8dff8)}
+.nick-name{font-size:1.5rem;font-weight:700;color:#1a5fa8;margin-bottom:.3rem}
+.nick-reason{font-size:.82rem;color:#667;line-height:1.5}
+.btn-row{display:flex;gap:.7rem;margin-top:1.2rem;flex-wrap:wrap}
+.btn-regen{flex:1;padding:.6rem;background:linear-gradient(135deg,#1a5fa8,#2980b9);color:#fff;border:none;border-radius:8px;font-size:.9rem;cursor:pointer;min-width:120px}
+.btn-copy{flex:1;padding:.6rem;background:#fff;color:#1a5fa8;border:2px solid #1a5fa8;border-radius:8px;font-size:.9rem;cursor:pointer;min-width:120px}
+.btn-regen:hover,.btn-copy:hover{opacity:.85}
+.copied{font-size:.8rem;color:#27ae60;min-height:1.2rem;margin-top:.4rem;text-align:center}
+.tip{font-size:.78rem;color:#aaa;text-align:center;margin-top:.6rem}
+</style>
+<script data-goatcounter="https://tmmygu40.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+<div class="container">
+<h1>😎 ニックネームメーカー</h1>
+<p class="sub">あなたにぴったりの呼ばれ方を見つけよう</p>
+
+<div class="card">
+  <h2>👤 あなたのことを教えてください</h2>
+  <div class="form-row">
+    <label>名前（ひらがな・カタカナ・漢字どれでも）</label>
+    <input type="text" id="inp-name" placeholder="例：たろう、サクラ、田中">
+    <div class="hint">※ 呼ばれたい名前・本名どちらでもOK</div>
+  </div>
+  <div class="form-row">
+    <label>趣味・特技</label>
+    <input type="text" id="inp-hobby" placeholder="例：料理、ギター、プログラミング、読書">
+  </div>
+  <div class="form-row">
+    <label>好きなもの・キャラクター</label>
+    <input type="text" id="inp-fav" placeholder="例：猫、コーヒー、サッカー、アニメ">
+  </div>
+  <div class="form-row">
+    <label>雰囲気</label>
+    <select id="sel-vibe">
+      <option value="cute">かわいい・やさしい系</option>
+      <option value="cool">クール・かっこいい系</option>
+      <option value="fun">おもしろ・ユニーク系</option>
+      <option value="pro">プロ・スキル系</option>
+    </select>
+  </div>
+  <button class="gen-btn" onclick="generate()">✨ ニックネームを生成する</button>
+</div>
+
+<div class="results" id="results">
+  <div class="card">
+    <h2>🎯 ニックネーム候補（タップして選択）</h2>
+    <div class="nick-grid" id="nick-grid"></div>
+    <div class="btn-row">
+      <button class="btn-regen" onclick="generate()">🔄 別の候補を出す</button>
+      <button class="btn-copy" onclick="copySelected()">📋 選択中をコピー</button>
+    </div>
+    <div class="copied" id="copied"></div>
+    <div class="tip">カードをタップして選択 → コピー</div>
+  </div>
+</div>
+</div>
+
+<script>
+var SUFFIXES={
+  cute:['ちゃん','っち','ぴ','ぽん','にゃん','たん','きゅん'],
+  cool:['さん','くん','氏','先生','プロ'],
+  fun: ['マン','マスター','部長','奉行','伝説','番長','王'],
+  pro: ['マスター','エキスパート','プロ','博士','師匠','先生']
+};
+var PATTERNS=[
+  function(name,hobby,fav,vibe){
+    var s=rnd(SUFFIXES[vibe]);
+    var n=name.length>3?name.slice(0,2):name;
+    return {nick:n+s,reason:'名前の最初の部分を使った親しみやすいニックネーム。'};
+  },
+  function(name,hobby,fav,vibe){
+    if(!hobby)return null;
+    var s=rnd(SUFFIXES[vibe]);
+    var h=hobby.split(/[、,，\s]/)[0];
+    return {nick:h+s,reason:hobby+'が得意なことが伝わる、覚えてもらいやすい名前。'};
+  },
+  function(name,hobby,fav,vibe){
+    if(!fav)return null;
+    var s=rnd(SUFFIXES[vibe]);
+    var f=fav.split(/[、,，\s]/)[0];
+    return {nick:f+s,reason:fav+'好きなことが一目でわかるニックネーム。'};
+  },
+  function(name,hobby,fav,vibe){
+    var combos=[
+      hobby&&fav ? hobby.split(/[、,，\s]/)[0]+'の'+fav.split(/[、,，\s]/)[0]+'好き' : null,
+      name&&hobby ? name.slice(0,1)+hobby.split(/[、,，\s]/)[0] : null,
+      fav ? fav.split(/[、,，\s]/)[0]+'スキー' : null,
+    ].filter(Boolean);
+    if(!combos.length)return null;
+    var c=rnd(combos);
+    return {nick:c,reason:'個性が伝わるユニークな組み合わせ。話のネタになります。'};
+  },
+  function(name,hobby,fav,vibe){
+    var templates=[
+      hobby?hobby.split(/[、,，\s]/)[0]+'職人':null,
+      hobby?hobby.split(/[、,，\s]/)[0]+'部長':null,
+      fav?fav.split(/[、,，\s]/)[0]+'大臣':null,
+      name?name.slice(0,2)+'隊長':null,
+    ].filter(Boolean);
+    if(!templates.length)return null;
+    return {nick:rnd(templates),reason:'肩書き風でユーモアたっぷり。一度聞いたら忘れられません。'};
+  }
+];
+function rnd(a){return a[Math.floor(Math.random()*a.length)];}
+var selected=null;
+function generate(){
+  var name=document.getElementById('inp-name').value.trim()||'なまえ';
+  var hobby=document.getElementById('inp-hobby').value.trim();
+  var fav=document.getElementById('inp-fav').value.trim();
+  var vibe=document.getElementById('sel-vibe').value;
+  var results=[];
+  var shuffled=PATTERNS.slice().sort(function(){return Math.random()-.5;});
+  for(var i=0;i<shuffled.length&&results.length<4;i++){
+    var r=shuffled[i](name,hobby,fav,vibe);
+    if(r&&r.nick)results.push(r);
+  }
+  if(!results.length)results=[{nick:name+'さん',reason:'シンプルで親しみやすい定番ニックネーム。'}];
+  var grid=document.getElementById('nick-grid');
+  grid.innerHTML='';
+  selected=null;
+  results.forEach(function(r,i){
+    var div=document.createElement('div');
+    div.className='nick-card';
+    div.innerHTML='<div class="nick-name">'+r.nick+'</div><div class="nick-reason">'+r.reason+'</div>';
+    div.onclick=function(){
+      document.querySelectorAll('.nick-card').forEach(function(c){c.classList.remove('selected');});
+      div.classList.add('selected');
+      selected=r.nick;
+    };
+    if(i===0){div.classList.add('selected');selected=r.nick;}
+    grid.appendChild(div);
+  });
+  document.getElementById('results').style.display='block';
+  document.getElementById('copied').textContent='';
+}
+function copySelected(){
+  if(!selected)return;
+  navigator.clipboard&&navigator.clipboard.writeText(selected).then(function(){
+    document.getElementById('copied').textContent='✅「'+selected+'」をコピーしました！';
+    setTimeout(function(){document.getElementById('copied').textContent='';},2000);
+  });
+}
+</script>
+<script src="../fav-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

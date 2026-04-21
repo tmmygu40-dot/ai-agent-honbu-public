@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>難読地名クイズ｜猫型ポケット</title>
+<meta name="description" content="読めそうで読めない難しい地名をクイズ形式で出題。全問正解できれば地名マスターの称号を獲得！">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Hiragino Sans','Meiryo',sans-serif;background:#1a1a2e;color:#eee;min-height:100vh;padding:1.5rem 1rem}
+.container{max-width:480px;margin:0 auto}
+h1{font-size:1.35rem;margin-bottom:.3rem;color:#f0c040;text-align:center}
+.sub{font-size:.85rem;color:#aaa;margin-bottom:1.8rem;text-align:center}
+.score-bar{display:flex;justify-content:space-between;align-items:center;background:#16213e;border-radius:10px;padding:.7rem 1rem;margin-bottom:1.2rem;font-size:.88rem}
+.score-val{color:#f0c040;font-weight:700;font-size:1.1rem}
+.progress{height:6px;background:#333;border-radius:3px;margin-bottom:1rem;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#f0c040,#e67e22);border-radius:3px;transition:width .4s ease}
+.q-card{background:#16213e;border-radius:14px;padding:1.5rem;box-shadow:0 4px 20px rgba(0,0,0,.4);margin-bottom:1rem;animation:fadeIn .4s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.q-num{font-size:.78rem;color:#888;margin-bottom:.6rem}
+.q-place{font-size:2.8rem;font-weight:700;text-align:center;letter-spacing:.1em;color:#f0c040;margin:1rem 0}
+.q-pref{font-size:.82rem;color:#aaa;text-align:center;margin-bottom:1.5rem}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:.7rem}
+.choice-btn{padding:.85rem .5rem;background:#0f3460;color:#eee;border:2px solid #1a4a80;border-radius:10px;font-size:1rem;cursor:pointer;transition:all .15s;text-align:center}
+.choice-btn:hover:not(:disabled){background:#1a4a80;border-color:#f0c040}
+.choice-btn.correct{background:#1e7a3a;border-color:#27ae60;color:#fff}
+.choice-btn.wrong{background:#7a1e1e;border-color:#e74c3c;color:#fff}
+.choice-btn:disabled{cursor:default}
+.feedback{text-align:center;margin-top:1.1rem;min-height:2rem;font-size:1rem;font-weight:700}
+.feedback.ok{color:#27ae60}
+.feedback.ng{color:#e74c3c}
+.next-btn{width:100%;padding:.7rem;background:#f0c040;color:#1a1a2e;border:none;border-radius:10px;font-size:1rem;cursor:pointer;margin-top:.9rem;font-weight:700;display:none}
+.next-btn:hover{opacity:.88}
+.result-card{background:#16213e;border-radius:14px;padding:2rem;text-align:center;display:none;animation:fadeIn .5s ease}
+.result-emoji{font-size:3.5rem;margin-bottom:.8rem}
+.result-title{font-size:1.5rem;font-weight:700;color:#f0c040;margin-bottom:.5rem}
+.result-score{font-size:1.1rem;color:#ddd;margin-bottom:1rem}
+.result-comment{font-size:.9rem;color:#aaa;line-height:1.7;margin-bottom:1.5rem}
+.restart-btn{padding:.7rem 2rem;background:#f0c040;color:#1a1a2e;border:none;border-radius:24px;font-size:1rem;cursor:pointer;font-weight:700}
+.restart-btn:hover{opacity:.88}
+</style>
+<script data-goatcounter="https://tmmygu40.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+<div class="container">
+<h1>🗾 難読地名クイズ</h1>
+<p class="sub">読めそうで読めない…日本の地名に挑戦！</p>
+
+<div class="score-bar">
+  <span>スコア：<span class="score-val" id="score">0</span></span>
+  <span id="q-counter">1 / 10問</span>
+</div>
+<div class="progress"><div class="progress-fill" id="progress" style="width:10%"></div></div>
+
+<div id="quiz-area">
+  <div class="q-card" id="q-card">
+    <div class="q-num" id="q-num"></div>
+    <div class="q-place" id="q-place"></div>
+    <div class="q-pref" id="q-pref"></div>
+    <div class="choices" id="choices"></div>
+    <div class="feedback" id="feedback"></div>
+    <button class="next-btn" id="next-btn" onclick="nextQ()">次の問題 →</button>
+  </div>
+</div>
+<div class="result-card" id="result-card">
+  <div class="result-emoji" id="res-emoji"></div>
+  <div class="result-title" id="res-title"></div>
+  <div class="result-score" id="res-score"></div>
+  <div class="result-comment" id="res-comment"></div>
+  <button class="restart-btn" onclick="startQuiz()">🔄 もう一度挑戦</button>
+</div>
+</div>
+
+<script>
+var ALL=[
+  {p:'十津川村', r:'とつかわむら', pref:'奈良県', w:['じゅうつがわむら','とおつかわむら','じゅっつかわむら']},
+  {p:'稚内市',   r:'わっかないし', pref:'北海道', w:['わかないし','ちないし','じゃくないし']},
+  {p:'留萌市',   r:'るもいし',    pref:'北海道', w:['とめもいし','りゅうもうし','りゅうまいし']},
+  {p:'厚岸郡',   r:'あっけしぐん', pref:'北海道', w:['こうがんぐん','あつきぐん','こうがいぐん']},
+  {p:'糸魚川市', r:'いといがわし', pref:'新潟県', w:['しいとうかわし','いとうさかなし','いとすかわし']},
+  {p:'鯖江市',   r:'さばえし',    pref:'福井県', w:['さかなえし','さめえし','さばじし']},
+  {p:'四條畷市', r:'しじょうなわてし', pref:'大阪府', w:['よじょうなわてし','しじょうはたし','しじょうなわてちょう']},
+  {p:'宍道湖',   r:'しんじこ',    pref:'島根県', w:['しじどうこ','しくどうこ','にくみちこ']},
+  {p:'和束町',   r:'わづかちょう', pref:'京都府', w:['わそくちょう','かたばちょう','わたばちょう']},
+  {p:'気仙沼市', r:'けせんぬまし', pref:'宮城県', w:['きぜんまし','きせんぬまし','けいせんま']},
+  {p:'一関市',   r:'いちのせきし', pref:'岩手県', w:['いっかんし','ひとつせきし','いちかんし']},
+  {p:'黒部市',   r:'くろべし',    pref:'富山県', w:['こくぶし','くろぶし','こくべし']},
+  {p:'甲賀市',   r:'こうかし',    pref:'滋賀県', w:['こうがし','かぶとがし','かっかし']},
+  {p:'指宿市',   r:'いぶすきし',  pref:'鹿児島県', w:['さしぼくし','ゆびぼくし','しゆびすきし']},
+  {p:'読谷村',   r:'よみたんそん', pref:'沖縄県', w:['どくこくむら','よこたにむら','よみこくむら']},
+  {p:'羽咋市',   r:'はくいし',    pref:'石川県', w:['はくちし','うこうし','はけいし']},
+  {p:'豊後水道', r:'ぶんごすいどう', pref:'大分県側', w:['ほうごすいどう','ほくごすいどう','ぼうごすいどう']},
+  {p:'臼杵市',   r:'うすきし',    pref:'大分県', w:['きゅうきし','うすいし','うまきし']},
+  {p:'延岡市',   r:'のべおかし',  pref:'宮崎県', w:['えんこうし','えんがんし','のびおかし']},
+  {p:'中城村',   r:'なかぐすくそん', pref:'沖縄県', w:['なかじょうむら','ちゅうじょうむら','なかしろむら']}
+];
+var questions=[];
+var current=0;
+var score=0;
+var answered=false;
+
+function shuffle(a){return a.slice().sort(function(){return Math.random()-.5;});}
+
+function startQuiz(){
+  questions=shuffle(ALL).slice(0,10);
+  current=0;score=0;
+  document.getElementById('result-card').style.display='none';
+  document.getElementById('quiz-area').style.display='block';
+  document.getElementById('score').textContent='0';
+  showQ();
+}
+
+function showQ(){
+  var q=questions[current];
+  answered=false;
+  document.getElementById('q-num').textContent='第'+(current+1)+'問';
+  document.getElementById('q-place').textContent=q.p;
+  document.getElementById('q-pref').textContent='📍 '+q.pref;
+  document.getElementById('q-counter').textContent=(current+1)+' / 10問';
+  document.getElementById('progress').style.width=((current+1)/10*100)+'%';
+  document.getElementById('feedback').textContent='';
+  document.getElementById('feedback').className='feedback';
+  document.getElementById('next-btn').style.display='none';
+  var opts=shuffle([q.r].concat(q.w));
+  var div=document.getElementById('choices');
+  div.innerHTML='';
+  opts.forEach(function(o){
+    var btn=document.createElement('button');
+    btn.className='choice-btn';
+    btn.textContent=o;
+    btn.onclick=function(){answer(o,q.r,div);};
+    div.appendChild(btn);
+  });
+}
+
+function answer(chosen,correct,div){
+  if(answered)return;
+  answered=true;
+  Array.from(div.querySelectorAll('.choice-btn')).forEach(function(b){
+    b.disabled=true;
+    if(b.textContent===correct)b.classList.add('correct');
+    else if(b.textContent===chosen&&chosen!==correct)b.classList.add('wrong');
+  });
+  if(chosen===correct){
+    score++;
+    document.getElementById('score').textContent=score;
+    document.getElementById('feedback').textContent='⭕ 正解！';
+    document.getElementById('feedback').className='feedback ok';
+  } else {
+    document.getElementById('feedback').textContent='❌ 正解は「'+correct+'」でした';
+    document.getElementById('feedback').className='feedback ng';
+  }
+  document.getElementById('next-btn').style.display='block';
+  document.getElementById('next-btn').textContent=current<9?'次の問題 →':'結果を見る 🏆';
+}
+
+function nextQ(){
+  current++;
+  if(current>=10){showResult();}
+  else{showQ();}
+}
+
+function showResult(){
+  document.getElementById('quiz-area').style.display='none';
+  var r=document.getElementById('result-card');
+  r.style.display='block';
+  var pct=score/10;
+  var emoji,title,comment;
+  if(pct>=1){emoji='🏆';title='地名マスター！';comment='全問正解！日本全国の難読地名を完全制覇。あなたの地名知識は本物です。ぜひ友達に自慢してみて！';}
+  else if(pct>=.8){emoji='🥈';title='地名博士！';comment=score+'問正解。かなりの知識力！あと少しで地名マスター。もう一度挑戦してみよう。';}
+  else if(pct>=.6){emoji='🥉';title='地名上級者！';comment=score+'問正解。なかなかの実力です！難しい問題も多かったですよね。';}
+  else if(pct>=.4){emoji='📖';title='もう少し！';comment=score+'問正解。日本には読みにくい地名がたくさん。繰り返し挑戦して覚えよう！';}
+  else{emoji='🗾';title='地名見習い中…';comment=score+'問正解。難しいですよね！何度でも挑戦してみてください。きっと覚えられます。';}
+  document.getElementById('res-emoji').textContent=emoji;
+  document.getElementById('res-title').textContent=title;
+  document.getElementById('res-score').textContent='スコア：'+score+' / 10問';
+  document.getElementById('res-comment').textContent=comment;
+}
+
+startQuiz();
+</script>
+<script src="../fav-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
