@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>先買い採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2カラムレイアウト ── */
+    .fields-row { display: flex; gap: 0.75rem; }
+    .fields-row .field { flex: 1; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .sum-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 0.9rem 0.75rem;
+      text-align: center; box-shadow: var(--shadow);
+    }
+    .sum-label { font-size: 0.68rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .sum-value { font-size: 1.1rem; font-weight: 900; color: var(--text); }
+    .sum-value.accent { color: var(--accent); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+      .fields-row { flex-direction: column; gap: 0; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>先買い採算チェッカー</h1>
+    <p class="subtitle">値上がり前の先買いが得か損か、在庫コストと値差から即判断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="item">品目名（任意）</label>
+      <input type="text" id="item" placeholder="例: 小麦粉">
+    </div>
+    <div class="fields-row">
+      <div class="field">
+        <label for="price_now">現在の仕入れ単価（円）</label>
+        <input type="number" id="price_now" placeholder="例: 1000" min="0" step="any">
+      </div>
+      <div class="field">
+        <label for="price_after">値上げ後の単価（円）</label>
+        <input type="number" id="price_after" placeholder="例: 1200" min="0" step="any">
+      </div>
+    </div>
+    <div class="field">
+      <label for="qty">先買い数量（個・kg・箱など）</label>
+      <input type="number" id="qty" placeholder="例: 100" min="0" step="any">
+    </div>
+    <div class="fields-row">
+      <div class="field">
+        <label for="storage_rate">保管コスト率（%/月）</label>
+        <input type="number" id="storage_rate" placeholder="例: 2" min="0" step="any" value="2">
+        <p class="hint">保管費・資金拘束コストの目安。一般的に月2〜3%</p>
+      </div>
+      <div class="field">
+        <label for="months">先買い在庫の保管期間（ヶ月）</label>
+        <input type="number" id="months" placeholder="例: 3" min="0" step="any" value="3">
+        <p class="hint">値上げ後に使い切るまでの期間</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算をチェックする</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">先買い判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリーグリッド -->
+  <div class="summary-grid" id="summary" style="display:none">
+    <div class="sum-card">
+      <div class="sum-label">実質節約額（合計）</div>
+      <div class="sum-value accent" id="s_saving">—</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">保管コスト（合計）</div>
+      <div class="sum-value" id="s_storage">—</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">純利益（節約額−保管）</div>
+      <div class="sum-value" id="s_net">—</div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 損益分岐カード -->
+  <div class="card" id="breakeven-card" style="display:none">
+    <p class="card-title">損益分岐ライン</p>
+    <table class="detail-table"><tbody id="bb"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEYS = ['item','price_now','price_after','qty','storage_rate','months'];
+
+  function save() {
+    var data = {};
+    KEYS.forEach(function(k) { data[k] = document.getElementById(k).value; });
+    localStorage.setItem('sakigai_checker', JSON.stringify(data));
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem('sakigai_checker');
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      KEYS.forEach(function(k) {
+        if (data[k] !== undefined && data[k] !== '') {
+          document.getElementById(k).value = data[k];
+        }
+      });
+    } catch(e) {}
+  }
+
+  KEYS.forEach(function(k) {
+    document.getElementById(k).addEventListener('input', save);
+  });
+
+  function calc() {
+    var pNow   = parseFloat(document.getElementById('price_now').value);
+    var pAfter = parseFloat(document.getElementById('price_after').value);
+    var qty    = parseFloat(document.getElementById('qty').value);
+    var rate   = parseFloat(document.getElementById('storage_rate').value);
+    var months = parseFloat(document.getElementById('months').value);
+    var item   = document.getElementById('item').value || '品目';
+
+    if (isNaN(pNow) || isNaN(pAfter) || isNaN(qty) || isNaN(rate) || isNaN(months)) {
+      showErr('すべての数値を入力してください');
+      return;
+    }
+    if (pNow <= 0 || qty <= 0 || months <= 0) {
+      showErr('単価・数量・期間は0より大きい値を入力してください');
+      return;
+    }
+
+    // 単価差（1単位あたりの節約額）
+    var unitSaving = pAfter - pNow;
+    // 合計節約額（先買い数量×単価差）
+    var totalSaving = unitSaving * qty;
+
+    // 保管コスト = 仕入れ総額 × 月次コスト率 × 保管月数
+    // （仕入れ総額を先買いから均等に消費すると仮定して平均残高×2、安全側として満額で計算）
+    var totalPurchase = pNow * qty;
+    var storageCost = totalPurchase * (rate / 100) * months;
+
+    // 純利益
+    var netProfit = totalSaving - storageCost;
+
+    // 判定
+    var level, verdict, note;
+    if (unitSaving <= 0) {
+      level = 'ng';
+      verdict = '先買い損';
+      note = item + 'の値上げがないため先買いのメリットがありません。在庫コストの方が高くなります。';
+    } else if (netProfit >= totalSaving * 0.5) {
+      level = 'ok';
+      verdict = '先買い得！';
+      note = '節約額が保管コストを大きく上回ります。先買いが有利です。';
+    } else if (netProfit > 0) {
+      level = 'warn';
+      verdict = '少し得';
+      note = '節約額から保管コストを引くと純利益は小さめです。規模を絞った先買いを検討してください。';
+    } else {
+      level = 'ng';
+      verdict = '先買い損';
+      note = '保管コストが節約額を上回ります。先買いはやめた方が無難です。';
+    }
+
+    showResult(level, verdict, note);
+
+    // サマリー
+    document.getElementById('s_saving').textContent = fmt(totalSaving) + ' 円';
+    document.getElementById('s_storage').textContent = fmt(storageCost) + ' 円';
+    var netEl = document.getElementById('s_net');
+    netEl.textContent = (netProfit >= 0 ? '+' : '') + fmt(netProfit) + ' 円';
+    netEl.style.color = netProfit >= 0 ? 'var(--ok)' : 'var(--ng)';
+    document.getElementById('summary').style.display = '';
+
+    // 内訳
+    var rows = [
+      ['現在の仕入れ単価', fmt(pNow) + ' 円'],
+      ['値上げ後の単価', fmt(pAfter) + ' 円'],
+      ['単価差（1単位あたり節約）', fmt(unitSaving) + ' 円'],
+      ['先買い数量', qty.toLocaleString('ja-JP') + ' 個'],
+      ['仕入れ総額（現在単価）', fmt(totalPurchase) + ' 円'],
+      ['保管期間', months + ' ヶ月'],
+      ['保管コスト率', rate + ' %/月'],
+      ['保管コスト合計', fmt(storageCost) + ' 円'],
+      ['節約額合計', fmt(totalSaving) + ' 円'],
+      ['純利益（節約額−保管コスト）', fmt(netProfit) + ' 円', true],
+    ];
+    showDetail(rows);
+
+    // 損益分岐：何ヶ月以内に使い切れば採算が合うか
+    // 損益分岐月数 = totalSaving / (totalPurchase * rate/100)
+    var breakEvenMonths = (rate > 0) ? (totalSaving / (totalPurchase * rate / 100)) : Infinity;
+    // 損益分岐数量（この月数で同じ保管コスト率なら何個まで先買いできるか）
+    // netProfit=0: qty_be × unitSaving = pNow × qty_be × rate/100 × months
+    // => unitSaving = pNow × rate/100 × months (定数) なので、数量関係なくなる → 月数でのみ示す
+    var bRows = [];
+    if (isFinite(breakEvenMonths) && breakEvenMonths > 0) {
+      bRows.push(['損益分岐保管期間', breakEvenMonths.toFixed(1) + ' ヶ月以内に使い切ればOK', true]);
+    }
+    bRows.push(['1単位あたり必要な値上げ幅', fmt(pNow * (rate/100) * months) + ' 円以上（現在: ' + fmt(unitSaving) + ' 円）']);
+    document.getElementById('bb').innerHTML = bRows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('breakeven-card').style.display = '';
+
+    save();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', 'エラー', msg);
+    document.getElementById('summary').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('breakeven-card').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
