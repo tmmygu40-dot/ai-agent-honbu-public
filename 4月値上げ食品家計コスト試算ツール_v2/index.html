@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>4月値上げ食品家計コスト試算ツール</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 0.9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.7rem;
+      margin-bottom: 0.9rem;
+    }
+    .input-row .field { margin-bottom: 0; }
+
+    .preset-bar {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    .preset-btn {
+      font-size: 0.75rem; padding: 0.3rem 0.7rem;
+      border: 1.5px solid var(--border); border-radius: 20px;
+      background: var(--bg); color: var(--text-sub); cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .preset-btn:hover { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 合計カード */
+    .summary-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+      text-align: center;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+    .summary-item { text-align: center; }
+    .summary-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.25rem; }
+    .summary-value { font-size: 1.4rem; font-weight: 900; color: var(--accent); }
+    .summary-value.large { font-size: 2rem; }
+
+    /* 品目リスト */
+    .item-list-card { display: none; }
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table thead tr { border-bottom: 2px solid var(--border); }
+    .detail-table thead th {
+      padding: 0.45rem 0.3rem;
+      text-align: left; font-size: 0.75rem;
+      color: var(--text-sub); font-weight: 700;
+    }
+    .detail-table thead th:last-child { text-align: right; width: 48px; }
+    .detail-table tbody tr { border-bottom: 1px solid var(--border); }
+    .detail-table tbody tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); vertical-align: middle; }
+    .detail-table td.name-col { font-weight: 700; color: var(--text); }
+    .detail-table td.diff-col { text-align: right; font-weight: 700; color: var(--ng); }
+    .detail-table td.del-col { text-align: right; }
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1rem; padding: 0.2rem 0.4rem;
+      border-radius: 6px; transition: background 0.15s;
+    }
+    .btn-del:hover { background: var(--ng-bg); color: var(--ng); }
+
+    .empty-msg {
+      text-align: center; color: var(--text-sub);
+      font-size: 0.85rem; padding: 1.5rem 0;
+    }
+
+    .btn-clear-all {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 0.5rem; padding: 0.6rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: none; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+    .btn-clear-all:hover { color: var(--ng); border-color: var(--ng); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 420px) {
+      .input-row { grid-template-columns: 1fr 1fr; }
+      .input-row .field:first-child { grid-column: 1 / -1; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>4月値上げ 食品家計コスト試算ツール</h1>
+    <p class="subtitle">品目ごとの値上げ前後の価格を入力して月間コスト増を即試算</p>
+  </header>
+
+  <!-- プリセット -->
+  <div class="card">
+    <p class="card-title">よく値上がりしている食品（タップで入力）</p>
+    <div class="preset-bar" id="presetBar"></div>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="field">
+      <label for="fName">品目名</label>
+      <input type="text" id="fName" placeholder="例：食パン">
+    </div>
+    <div class="input-row">
+      <div class="field">
+        <label for="fBefore">値上げ前の価格（円）</label>
+        <input type="number" id="fBefore" placeholder="例：200" min="0">
+      </div>
+      <div class="field">
+        <label for="fAfter">値上げ後の価格（円）</label>
+        <input type="number" id="fAfter" placeholder="例：230" min="0">
+      </div>
+      <div class="field">
+        <label for="fCount">月間購入回数（回）</label>
+        <input type="number" id="fCount" placeholder="例：4" min="1">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addItem()">＋ 品目を追加</button>
+
+  <!-- 合計カード -->
+  <div class="summary-card" id="summaryCard">
+    <p class="card-title" style="text-align:left">コスト増の合計</p>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <p class="summary-label">月間コスト増</p>
+        <p class="summary-value large" id="totalMonth">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="summary-label">年間コスト増（×12）</p>
+        <p class="summary-value large" id="totalYear">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="summary-label">登録品目数</p>
+        <p class="summary-value" id="totalItems">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="summary-label">平均値上げ率</p>
+        <p class="summary-value" id="avgRate">—</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 品目一覧 -->
+  <div class="card item-list-card" id="listCard">
+    <p class="card-title">品目一覧</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>品目</th>
+          <th style="text-align:right">前</th>
+          <th style="text-align:right">後</th>
+          <th style="text-align:right">回/月</th>
+          <th style="text-align:right">増/月</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="itemTableBody"></tbody>
+    </table>
+  </div>
+
+  <button class="btn-clear-all" onclick="clearAll()">全品目をリセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'neage-v2-items';
+
+  var PRESETS = [
+    { name: '食パン',     before: 180, after: 220, count: 4 },
+    { name: '牛乳',       before: 200, after: 240, count: 8 },
+    { name: 'バター',     before: 400, after: 480, count: 2 },
+    { name: 'マヨネーズ', before: 250, after: 298, count: 2 },
+    { name: '小麦粉',     before: 180, after: 220, count: 1 },
+    { name: 'サラダ油',   before: 380, after: 460, count: 1 },
+    { name: '砂糖',       before: 200, after: 240, count: 1 },
+    { name: 'ハム',       before: 280, after: 330, count: 4 },
+    { name: 'チーズ',     before: 320, after: 380, count: 2 },
+    { name: '卵（10個）', before: 220, after: 280, count: 4 },
+    { name: 'コーヒー',   before: 350, after: 420, count: 2 },
+    { name: 'みそ',       before: 280, after: 330, count: 1 },
+    { name: '豆腐',       before: 98,  after: 118, count: 8 },
+    { name: '納豆',       before: 88,  after: 108, count: 8 },
+  ];
+
+  var items = [];
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) items = JSON.parse(raw);
+    } catch(e) { items = []; }
+  }
+
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch(e) {}
+  }
+
+  function buildPresets() {
+    var bar = document.getElementById('presetBar');
+    bar.innerHTML = PRESETS.map(function(p, i) {
+      return '<button class="preset-btn" onclick="applyPreset(' + i + ')">' + p.name + '</button>';
+    }).join('');
+  }
+
+  function applyPreset(i) {
+    var p = PRESETS[i];
+    document.getElementById('fName').value   = p.name;
+    document.getElementById('fBefore').value = p.before;
+    document.getElementById('fAfter').value  = p.after;
+    document.getElementById('fCount').value  = p.count;
+    document.getElementById('fName').focus();
+  }
+
+  function addItem() {
+    var name   = document.getElementById('fName').value.trim();
+    var before = parseFloat(document.getElementById('fBefore').value);
+    var after  = parseFloat(document.getElementById('fAfter').value);
+    var count  = parseFloat(document.getElementById('fCount').value);
+
+    if (!name) { alert('品目名を入力してください'); return; }
+    if (isNaN(before) || before < 0) { alert('値上げ前の価格を入力してください'); return; }
+    if (isNaN(after)  || after  < 0) { alert('値上げ後の価格を入力してください'); return; }
+    if (isNaN(count)  || count  < 1) { alert('月間購入回数を入力してください（1以上）'); return; }
+
+    items.push({ name: name, before: before, after: after, count: count });
+    save();
+    clearInputs();
+    render();
+  }
+
+  function clearInputs() {
+    document.getElementById('fName').value   = '';
+    document.getElementById('fBefore').value = '';
+    document.getElementById('fAfter').value  = '';
+    document.getElementById('fCount').value  = '';
+    document.getElementById('fName').focus();
+  }
+
+  function deleteItem(i) {
+    items.splice(i, 1);
+    save();
+    render();
+  }
+
+  function clearAll() {
+    if (!confirm('全品目をリセットしますか？')) return;
+    items = [];
+    save();
+    render();
+  }
+
+  function render() {
+    var tbody = document.getElementById('itemTableBody');
+    var summaryCard = document.getElementById('summaryCard');
+    var listCard = document.getElementById('listCard');
+
+    if (items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">まだ品目がありません</td></tr>';
+      summaryCard.style.display = 'none';
+      listCard.style.display = 'block';
+      return;
+    }
+
+    var totalDiff = 0;
+    var totalBefore = 0;
+    var rows = items.map(function(item, i) {
+      var diff = (item.after - item.before) * item.count;
+      totalDiff   += diff;
+      totalBefore += item.before * item.count;
+      var diffStr = (diff >= 0 ? '+' : '') + fmt(diff) + '円';
+      var rateStr = item.before > 0 ? '+' + ((item.after - item.before) / item.before * 100).toFixed(1) + '%' : '—';
+      return '<tr>'
+        + '<td class="name-col">' + esc(item.name) + '<br><span style="font-size:0.72rem;font-weight:400;color:var(--text-sub)">' + rateStr + '</span></td>'
+        + '<td style="text-align:right">' + fmt(item.before) + '円</td>'
+        + '<td style="text-align:right">' + fmt(item.after) + '円</td>'
+        + '<td style="text-align:right">' + item.count + '回</td>'
+        + '<td class="diff-col">' + diffStr + '</td>'
+        + '<td class="del-col"><button class="btn-del" onclick="deleteItem(' + i + ')">✕</button></td>'
+        + '</tr>';
+    });
+    tbody.innerHTML = rows.join('');
+
+    var avgRate = totalBefore > 0
+      ? '+' + (totalDiff / totalBefore * 100).toFixed(1) + '%'
+      : '—';
+
+    document.getElementById('totalMonth').textContent = '+' + fmt(totalDiff) + '円';
+    document.getElementById('totalYear').textContent  = '+' + fmt(totalDiff * 12) + '円';
+    document.getElementById('totalItems').textContent = items.length + '品目';
+    document.getElementById('avgRate').textContent    = avgRate;
+
+    summaryCard.style.display = 'block';
+    listCard.style.display = 'block';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && (e.target.id === 'fBefore' || e.target.id === 'fAfter' || e.target.id === 'fCount')) {
+      addItem();
+    }
+  });
+
+  load();
+  buildPresets();
+  render();
+  </script>
+
+</body>
+</html>
