@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>経費漏れチェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 税率入力カード ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 経費項目リスト ── */
+    .category-label {
+      font-size: 0.72rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin: 1rem 0 0.4rem; padding: 0.2rem 0.5rem;
+      background: var(--bg); border-radius: 4px;
+      display: inline-block;
+    }
+    .expense-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+    }
+    .expense-row:last-child { border-bottom: none; }
+    .expense-check {
+      width: 1.1rem; height: 1.1rem; flex-shrink: 0;
+      accent-color: var(--accent); cursor: pointer;
+    }
+    .expense-name {
+      flex: 1; font-size: 0.9rem; cursor: pointer;
+      user-select: none;
+    }
+    .expense-name.checked { font-weight: 700; color: var(--text); }
+    .expense-name:not(.checked) { color: var(--text-sub); }
+    .expense-input-wrap {
+      display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0;
+    }
+    .expense-input {
+      width: 5.5rem; padding: 0.35rem 0.5rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 7px; background: var(--bg); color: var(--text);
+      outline: none; text-align: right;
+      transition: border-color 0.15s;
+    }
+    .expense-input:focus { border-color: var(--accent); background: #fff; }
+    .expense-input:disabled { opacity: 0.35; cursor: not-allowed; }
+    .expense-unit { font-size: 0.78rem; color: var(--text-sub); white-space: nowrap; }
+
+    /* ── 計算ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .sub td { font-size: 0.78rem; }
+
+    /* ── リセット ── */
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.6rem;
+      font-size: 0.85rem; font-weight: 600; color: var(--text-sub);
+      background: transparent; border: 1.5px solid var(--border);
+      border-radius: var(--radius); cursor: pointer;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── カテゴリ集計バッジ ── */
+    .cat-total {
+      font-size: 0.72rem; color: var(--accent); font-weight: 700;
+      margin-left: 0.5rem;
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>経費漏れチェッカー</h1>
+    <p class="subtitle">フリーランス・副業の経費計上漏れを確認して節税額を即算出</p>
+  </header>
+
+  <!-- 税率カード -->
+  <div class="card">
+    <p class="card-title">所得税率・住民税率</p>
+    <div class="field">
+      <label for="incomeTax">所得税率（%）</label>
+      <input type="number" id="incomeTax" placeholder="例：20" min="0" max="100" step="1">
+      <p class="hint">課税所得に対応する税率を入力（5/10/20/23/33/40/45%）</p>
+    </div>
+    <div class="field">
+      <label for="localTax">住民税率（%）</label>
+      <input type="number" id="localTax" placeholder="10" min="0" max="100" step="1" value="10">
+      <p class="hint">原則10%（道府県民税4%＋市町村民税6%）</p>
+    </div>
+  </div>
+
+  <!-- 経費項目カード -->
+  <div class="card" id="expenseCard">
+    <p class="card-title">経費項目チェックリスト <span style="font-weight:400;font-size:0.7rem;color:var(--text-sub)">✔️をつけた項目の月額を入力</span></p>
+
+    <p class="category-label">通信・IT</p>
+    <div id="expenseList"></div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">節税額を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">年間節税額（所得税＋住民税）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <button class="btn-reset" onclick="resetAll()">入力をリセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'keihiMoreCkr_v1';
+
+  var EXPENSES = [
+    // カテゴリ, id, 名前, ヒント
+    {cat:'通信・IT',    id:'tel',       name:'携帯電話料金',      hint:'業務按分分（例：業務利用割合60%なら月額×0.6）'},
+    {cat:'通信・IT',    id:'net',       name:'インターネット回線', hint:'自宅利用の場合は按分'},
+    {cat:'通信・IT',    id:'sw',        name:'ソフトウェア・SaaS', hint:'Adobe、Notion、Zoom等のサブスク'},
+    {cat:'通信・IT',    id:'cloud',     name:'クラウドストレージ', hint:'Google One、Dropbox等'},
+    {cat:'通信・IT',    id:'domain',    name:'ドメイン・サーバー', hint:'Webサイト・ポートフォリオ運用費'},
+    {cat:'交通・移動',  id:'train',     name:'電車・バス交通費',   hint:'打ち合わせ・取材等の移動'},
+    {cat:'交通・移動',  id:'taxi',      name:'タクシー代',         hint:'業務目的のもの'},
+    {cat:'交通・移動',  id:'parking',   name:'駐車場代',           hint:'業務利用分'},
+    {cat:'交通・移動',  id:'gas',       name:'ガソリン代',         hint:'業務按分分'},
+    {cat:'書籍・学習',  id:'book',      name:'書籍・電子書籍',     hint:'業務関連の本・雑誌'},
+    {cat:'書籍・学習',  id:'seminar',   name:'セミナー・研修費',   hint:'オンライン講座・勉強会等'},
+    {cat:'書籍・学習',  id:'member',    name:'会費・年会費',       hint:'業界団体・コミュニティ費用（月換算）'},
+    {cat:'消耗品・備品', id:'supply',   name:'消耗品費',           hint:'文房具・用紙・インク等'},
+    {cat:'消耗品・備品', id:'device',   name:'PC・周辺機器（減価償却月額）', hint:'按分後の1ヶ月分'},
+    {cat:'消耗品・備品', id:'desk',     name:'デスク・椅子（減価償却月額）', hint:'按分後の1ヶ月分'},
+    {cat:'家事按分',    id:'rent',      name:'家賃（按分分）',     hint:'仕事スペース割合×月額家賃'},
+    {cat:'家事按分',    id:'elec',      name:'電気・光熱費（按分分）', hint:'業務利用割合分'},
+    {cat:'外注・報酬',  id:'outsource', name:'外注費',             hint:'ライター・デザイナー等への支払い'},
+    {cat:'広告・営業',  id:'ad',        name:'広告・宣伝費',       hint:'SNS広告・名刺・チラシ等'},
+    {cat:'広告・営業',  id:'biz',       name:'接待・交際費',       hint:'取引先との飲食等（5000円/人超は一部不可）'},
+    {cat:'専門家・手数料', id:'tax',    name:'税理士・社労士報酬（月換算）', hint:'顧問料等'},
+    {cat:'専門家・手数料', id:'bank',   name:'振込手数料',         hint:'外注先への支払手数料等'},
+    {cat:'その他',      id:'insurance', name:'損害保険料（月換算）',hint:'業務用機器・賠償責任保険等'},
+    {cat:'その他',      id:'misc',      name:'雑費',               hint:'上記に当てはまらない業務費用'},
+  ];
+
+  // ── 初期化 ──
+  function init() {
+    var saved = loadData();
+    var container = document.getElementById('expenseList');
+    container.innerHTML = '';
+    var currentCat = '通信・IT';
+
+    EXPENSES.forEach(function(exp) {
+      if (exp.cat !== currentCat) {
+        currentCat = exp.cat;
+        var catDiv = document.createElement('p');
+        catDiv.className = 'category-label';
+        catDiv.textContent = exp.cat;
+        container.appendChild(catDiv);
+      }
+
+      var checked = saved[exp.id] ? saved[exp.id].checked : false;
+      var amount  = saved[exp.id] ? saved[exp.id].amount : '';
+
+      var row = document.createElement('div');
+      row.className = 'expense-row';
+      row.innerHTML =
+        '<input type="checkbox" class="expense-check" id="chk_' + exp.id + '"' + (checked ? ' checked' : '') + '>' +
+        '<label class="expense-name' + (checked ? ' checked' : '') + '" for="chk_' + exp.id + '">' + exp.name + '</label>' +
+        '<div class="expense-input-wrap">' +
+          '<input type="number" class="expense-input" id="amt_' + exp.id + '"' +
+            ' placeholder="0" min="0" step="100"' +
+            ' value="' + amount + '"' +
+            (checked ? '' : ' disabled') + '>' +
+          '<span class="expense-unit">円/月</span>' +
+        '</div>';
+      container.appendChild(row);
+
+      // ヒント
+      if (exp.hint) {
+        var hint = document.createElement('p');
+        hint.style.cssText = 'font-size:0.7rem;color:var(--text-sub);padding:0 0 0.4rem 1.7rem;line-height:1.4;';
+        hint.textContent = exp.hint;
+        container.appendChild(hint);
+      }
+
+      // チェックボックスの変化
+      var chk = document.getElementById('chk_' + exp.id);
+      var amt = document.getElementById('amt_' + exp.id);
+      var lbl = row.querySelector('.expense-name');
+      chk.addEventListener('change', function() {
+        amt.disabled = !chk.checked;
+        if (chk.checked) { lbl.classList.add('checked'); amt.focus(); }
+        else { lbl.classList.remove('checked'); amt.value = ''; }
+        saveData();
+      });
+      amt.addEventListener('input', saveData);
+    });
+
+    // 税率
+    if (saved._tax) { document.getElementById('incomeTax').value = saved._tax; }
+    if (saved._local) { document.getElementById('localTax').value = saved._local; }
+  }
+
+  // ── 計算 ──
+  function calc() {
+    var incomeTaxRate = parseFloat(document.getElementById('incomeTax').value) || 0;
+    var localTaxRate  = parseFloat(document.getElementById('localTax').value) || 0;
+
+    var totalMonthly = 0;
+    var checkedItems = [];
+
+    EXPENSES.forEach(function(exp) {
+      var chk = document.getElementById('chk_' + exp.id);
+      var amt = document.getElementById('amt_' + exp.id);
+      if (chk && chk.checked) {
+        var v = parseFloat(amt.value) || 0;
+        if (v > 0) {
+          totalMonthly += v;
+          checkedItems.push({name: exp.name, monthly: v, annual: v * 12});
+        }
+      }
+    });
+
+    if (checkedItems.length === 0) {
+      var rc = document.getElementById('result');
+      rc.className = 'result-card warn'; rc.style.display = '';
+      document.getElementById('rv').textContent = '—';
+      document.getElementById('rn').textContent = '経費項目をチェックして金額を入力してください';
+      document.getElementById('detail').style.display = 'none';
+      return;
+    }
+
+    var totalAnnual    = totalMonthly * 12;
+    var incomeTaxSave  = totalAnnual * (incomeTaxRate / 100);
+    var localTaxSave   = totalAnnual * (localTaxRate / 100);
+    var totalSave      = incomeTaxSave + localTaxSave;
+    var totalRate      = incomeTaxRate + localTaxRate;
+
+    var level = totalSave >= 100000 ? 'ok' : 'warn';
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = fmt(totalSave) + ' 円';
+    document.getElementById('rn').textContent =
+      '年間経費合計 ' + fmt(totalAnnual) + ' 円 × 実効税率 ' + totalRate + '% で節税';
+
+    // 内訳
+    var rows = [];
+    checkedItems.forEach(function(item) {
+      rows.push([item.name, '月 ' + fmt(item.monthly) + ' 円 → 年 ' + fmt(item.annual) + ' 円', false, true]);
+    });
+    rows.push(['年間計上可能経費合計', fmt(totalAnnual) + ' 円', true]);
+    rows.push(['所得税節税額（' + incomeTaxRate + '%）', fmt(incomeTaxSave) + ' 円', false]);
+    rows.push(['住民税節税額（' + localTaxRate + '%）', fmt(localTaxSave) + ' 円', false]);
+    rows.push(['節税額合計', fmt(totalSave) + ' 円', true]);
+
+    var tbody = document.getElementById('db');
+    tbody.innerHTML = rows.map(function(r) {
+      var cls = r[2] ? ' class="hl"' : (r[3] ? ' class="sub"' : '');
+      return '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+
+    saveData();
+  }
+
+  // ── localStorage ──
+  function saveData() {
+    var data = {};
+    EXPENSES.forEach(function(exp) {
+      var chk = document.getElementById('chk_' + exp.id);
+      var amt = document.getElementById('amt_' + exp.id);
+      if (chk) data[exp.id] = { checked: chk.checked, amount: amt ? amt.value : '' };
+    });
+    data._tax   = document.getElementById('incomeTax').value;
+    data._local = document.getElementById('localTax').value;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadData() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e) { return {}; }
+  }
+
+  function resetAll() {
+    if (!confirm('入力内容をすべてリセットしますか？')) return;
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+    document.getElementById('incomeTax').value = '';
+    document.getElementById('localTax').value = '10';
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    init();
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  init();
+  </script>
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
