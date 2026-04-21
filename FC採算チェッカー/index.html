@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FC採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* セクション区切り */
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin: 1.2rem 0 0.8rem;
+      padding: 0.3rem 0.5rem;
+      background: var(--accent-light);
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード（2列） ── */
+    .result-row {
+      display: flex; gap: 0.75rem; max-width: 600px; margin: 0 auto 1rem;
+    }
+    .result-card {
+      display: none; flex: 1;
+      background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.1rem 1rem; box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .result-value { font-size: 1.55rem; font-weight: 900; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 0.3rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.75rem; color: var(--text-sub); line-height: 1.4; }
+
+    /* ── 判定バナー ── */
+    .verdict-banner {
+      display: none; max-width: 600px; margin: 0 auto 1rem;
+      border-radius: var(--radius); padding: 0.9rem 1.2rem;
+      font-size: 1rem; font-weight: 800; text-align: center;
+    }
+    .verdict-banner.ok   { background: var(--ok-bg);   color: var(--ok);   border: 2px solid var(--ok);   }
+    .verdict-banner.warn { background: var(--warn-bg); color: var(--warn); border: 2px solid var(--warn); }
+    .verdict-banner.ng   { background: var(--ng-bg);   color: var(--ng);   border: 2px solid var(--ng);   }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .minus td:last-child { color: var(--ng); }
+    .detail-table .plus  td:last-child { color: var(--ok); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 420px) {
+      .result-row { flex-direction: column; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>FC採算チェッカー</h1>
+    <p class="subtitle">ロイヤリティ・広告分担金を差し引いた実質利益と損益分岐点を即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+
+    <span class="section-label">売上</span>
+    <div class="field">
+      <label for="sales">月間売上（万円）</label>
+      <input type="number" id="sales" placeholder="例: 300" min="0" inputmode="decimal">
+    </div>
+
+    <span class="section-label">FC本部への支払い</span>
+    <div class="field">
+      <label for="royalty">ロイヤリティ率（%）</label>
+      <input type="number" id="royalty" placeholder="例: 5" min="0" max="100" inputmode="decimal">
+      <p class="hint">売上に対するロイヤリティの割合</p>
+    </div>
+    <div class="field">
+      <label for="adFee">広告分担金率（%）</label>
+      <input type="number" id="adFee" placeholder="例: 3" min="0" max="100" inputmode="decimal">
+      <p class="hint">売上に対する広告・販促費の割合</p>
+    </div>
+
+    <span class="section-label">店舗コスト</span>
+    <div class="field">
+      <label for="varCost">変動費率（%）</label>
+      <input type="number" id="varCost" placeholder="例: 30" min="0" max="100" inputmode="decimal">
+      <p class="hint">食材費・消耗品など売上に連動するコストの割合</p>
+    </div>
+    <div class="field">
+      <label for="fixedCost">月間固定費（万円）</label>
+      <input type="number" id="fixedCost" placeholder="例: 80" min="0" inputmode="decimal">
+      <p class="hint">家賃・人件費・リース料など固定で発生するコスト</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算をチェックする</button>
+
+  <!-- 判定バナー -->
+  <div class="verdict-banner" id="verdict"></div>
+
+  <!-- 結論カード（2列） -->
+  <div class="result-row">
+    <div class="result-card" id="rc-profit">
+      <p class="result-label">実質利益</p>
+      <p class="result-value" id="rv-profit">—</p>
+      <p class="result-note" id="rn-profit"></p>
+    </div>
+    <div class="result-card" id="rc-bep">
+      <p class="result-label">損益分岐点売上</p>
+      <p class="result-value" id="rv-bep">—</p>
+      <p class="result-note" id="rn-bep"></p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'fc-sansan-checker-v1';
+
+  function $(id) { return document.getElementById(id); }
+
+  function loadSaved() {
+    try {
+      var d = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+      if (!d) return;
+      if (d.sales    !== undefined) $('sales').value    = d.sales;
+      if (d.royalty  !== undefined) $('royalty').value  = d.royalty;
+      if (d.adFee    !== undefined) $('adFee').value    = d.adFee;
+      if (d.varCost  !== undefined) $('varCost').value  = d.varCost;
+      if (d.fixedCost!== undefined) $('fixedCost').value= d.fixedCost;
+    } catch(e) {}
+  }
+
+  function saveInputs(sales, royalty, adFee, varCost, fixedCost) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        sales: sales, royalty: royalty, adFee: adFee,
+        varCost: varCost, fixedCost: fixedCost
+      }));
+    } catch(e) {}
+  }
+
+  function calc() {
+    var sales     = parseFloat($('sales').value);
+    var royalty   = parseFloat($('royalty').value);
+    var adFee     = parseFloat($('adFee').value);
+    var varCost   = parseFloat($('varCost').value);
+    var fixedCost = parseFloat($('fixedCost').value);
+
+    if ([sales, royalty, adFee, varCost, fixedCost].some(isNaN)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (royalty + adFee + varCost >= 100) {
+      showErr('ロイヤリティ率＋広告分担金率＋変動費率の合計が100%以上です');
+      return;
+    }
+
+    saveInputs(sales, royalty, adFee, varCost, fixedCost);
+
+    // 金額計算（万円単位）
+    var royaltyAmt = sales * royalty / 100;
+    var adFeeAmt   = sales * adFee   / 100;
+    var varCostAmt = sales * varCost  / 100;
+    var totalDeduct= royaltyAmt + adFeeAmt + varCostAmt + fixedCost;
+    var profit     = sales - totalDeduct;
+    var profitPct  = sales > 0 ? (profit / sales * 100) : 0;
+
+    // 損益分岐点 = 固定費 ÷ 限界利益率
+    var marginRate = 1 - (royalty + adFee + varCost) / 100;
+    var bep        = marginRate > 0 ? fixedCost / marginRate : Infinity;
+    var bepGap     = sales - bep; // 売上がBEPより上ならプラス
+
+    // 判定
+    var level;
+    if (profit < 0) {
+      level = 'ng';
+    } else if (profitPct < 10) {
+      level = 'warn';
+    } else {
+      level = 'ok';
+    }
+
+    // 判定バナー
+    var verdictText = {
+      ok:   '✅ 黒字・採算OK（利益率 ' + profitPct.toFixed(1) + '%）',
+      warn: '⚠️ 黒字だが薄利注意（利益率 ' + profitPct.toFixed(1) + '%）',
+      ng:   '❌ 赤字・採算NG（利益率 ' + profitPct.toFixed(1) + '%）'
+    }[level];
+    var vb = $('verdict');
+    vb.className = 'verdict-banner ' + level;
+    vb.textContent = verdictText;
+    vb.style.display = '';
+
+    // 実質利益カード
+    var rc1 = $('rc-profit');
+    rc1.className = 'result-card ' + level;
+    rc1.style.display = '';
+    $('rv-profit').textContent = fmt(profit) + ' 万円';
+    $('rn-profit').textContent = '利益率 ' + profitPct.toFixed(1) + '%';
+
+    // 損益分岐点カード
+    var rc2 = $('rc-bep');
+    var bepLevel = isFinite(bep) ? (bepGap >= 0 ? 'ok' : 'ng') : 'ng';
+    rc2.className = 'result-card ' + bepLevel;
+    rc2.style.display = '';
+    $('rv-bep').textContent = isFinite(bep) ? fmt(bep) + ' 万円' : '計算不可';
+    $('rn-bep').textContent = isFinite(bep)
+      ? (bepGap >= 0
+          ? '売上が分岐点を ' + fmt(bepGap) + ' 万円上回っています'
+          : '売上が分岐点を ' + fmt(-bepGap) + ' 万円下回っています')
+      : '変動費率＋ロイヤリティ＋広告費が100%に達しています';
+
+    // 内訳テーブル
+    var rows = [
+      { label: '月間売上',          value: fmt(sales)     + ' 万円', cls: '' },
+      { label: 'ロイヤリティ（' + royalty + '%）', value: '▲' + fmt(royaltyAmt) + ' 万円', cls: 'minus' },
+      { label: '広告分担金（' + adFee + '%）',   value: '▲' + fmt(adFeeAmt)   + ' 万円', cls: 'minus' },
+      { label: '変動費（' + varCost + '%）',     value: '▲' + fmt(varCostAmt) + ' 万円', cls: 'minus' },
+      { label: '固定費',            value: '▲' + fmt(fixedCost) + ' 万円', cls: 'minus' },
+      { label: '実質利益',          value: (profit >= 0 ? '' : '▲') + fmt(Math.abs(profit)) + ' 万円', cls: 'hl' + (profit >= 0 ? '' : ' minus') },
+      { label: '損益分岐点売上高',  value: isFinite(bep) ? fmt(bep) + ' 万円' : '—', cls: '' },
+    ];
+    $('db').innerHTML = rows.map(function(r) {
+      return '<tr class="' + r.cls + '"><td>' + r.label + '</td><td>' + r.value + '</td></tr>';
+    }).join('');
+    $('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var vb = $('verdict');
+    vb.className = 'verdict-banner ng';
+    vb.textContent = '⚠️ ' + msg;
+    vb.style.display = '';
+    $('rc-profit').style.display = 'none';
+    $('rc-bep').style.display = 'none';
+    $('detail').style.display = 'none';
+  }
+
+  function fmt(n) {
+    if (!isFinite(n)) return '—';
+    return Math.round(n * 10) / 10 + '';
+  }
+
+  loadSaved();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
