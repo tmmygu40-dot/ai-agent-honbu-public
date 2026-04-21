@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>売掛金回収リスクチェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 0.9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* サマリーグリッド */
+    .summary-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem; max-width: 600px; margin: 0 auto 1rem;
+    }
+    .summary-cell {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 0.75rem;
+      text-align: center; box-shadow: var(--shadow);
+    }
+    .summary-cell .s-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .summary-cell .s-value { font-size: 1.4rem; font-weight: 900; color: var(--text); line-height: 1.1; }
+    .summary-cell .s-value.ng { color: var(--ng); }
+    .summary-cell .s-unit { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.1rem; }
+
+    /* リスト */
+    .list-card {
+      max-width: 600px; margin: 0 auto 1rem;
+    }
+    .list-empty {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 2rem 1.2rem;
+      text-align: center; color: var(--text-sub); font-size: 0.9rem;
+      box-shadow: var(--shadow);
+    }
+    .entry-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.1rem;
+      box-shadow: var(--shadow); margin-bottom: 0.6rem;
+      display: flex; align-items: flex-start; gap: 0.75rem;
+    }
+    .entry-card.ok   { border-left: 4px solid var(--ok); }
+    .entry-card.warn { border-left: 4px solid var(--warn); }
+    .entry-card.ng   { border-left: 4px solid var(--ng); border-color: var(--ng); background: var(--ng-bg); }
+    .badge {
+      display: inline-block; padding: 0.25rem 0.5rem;
+      font-size: 0.68rem; font-weight: 700; border-radius: 6px;
+      flex-shrink: 0; margin-top: 0.15rem;
+    }
+    .badge.ok   { background: var(--ok-bg);   color: var(--ok); }
+    .badge.warn { background: var(--warn-bg); color: var(--warn); }
+    .badge.ng   { background: #fee2e2;         color: var(--ng); }
+    .entry-body { flex: 1; min-width: 0; }
+    .entry-name { font-size: 1rem; font-weight: 700; margin-bottom: 0.2rem; }
+    .entry-meta { font-size: 0.8rem; color: var(--text-sub); }
+    .entry-meta .amount { font-weight: 600; color: var(--text); }
+    .entry-meta .days { margin-left: 0.5rem; }
+    .days.ok   { color: var(--ok); font-weight: 700; }
+    .days.warn { color: var(--warn); font-weight: 700; }
+    .days.ng   { color: var(--ng); font-weight: 700; }
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: #ccc; font-size: 1.1rem; padding: 0.2rem;
+      flex-shrink: 0; transition: color 0.15s;
+    }
+    .btn-del:hover { color: var(--ng); }
+
+    .sort-row {
+      max-width: 600px; margin: 0 auto 0.75rem;
+      display: flex; justify-content: flex-end; gap: 0.5rem;
+    }
+    .sort-btn {
+      font-size: 0.75rem; padding: 0.35rem 0.75rem;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--card); color: var(--text-sub); cursor: pointer;
+    }
+    .sort-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    .error-msg { color: var(--ng); font-size: 0.82rem; margin-top: 0.4rem; display: none; }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>売掛金回収リスクチェッカー</h1>
+    <p class="subtitle">取引先ごとの売掛残高と回収期限を登録して滞留リスクを即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">取引先を登録</p>
+    <div class="field">
+      <label for="fName">取引先名</label>
+      <input type="text" id="fName" placeholder="例: 株式会社△△商事">
+    </div>
+    <div class="field">
+      <label for="fAmount">売掛残高（円）</label>
+      <input type="number" id="fAmount" placeholder="例: 500000" min="0">
+    </div>
+    <div class="field">
+      <label for="fDue">回収期限</label>
+      <input type="date" id="fDue">
+    </div>
+    <p class="error-msg" id="errMsg">すべての項目を入力してください</p>
+  </div>
+
+  <button class="btn-add" onclick="addEntry()">追加する</button>
+
+  <!-- サマリーグリッド -->
+  <div class="summary-grid" id="summaryGrid" style="display:none">
+    <div class="summary-cell">
+      <p class="s-label">登録件数</p>
+      <p class="s-value" id="sTotalCount">0</p>
+      <p class="s-unit">件</p>
+    </div>
+    <div class="summary-cell">
+      <p class="s-label">残高合計</p>
+      <p class="s-value" id="sTotalAmount">0</p>
+      <p class="s-unit">万円</p>
+    </div>
+    <div class="summary-cell">
+      <p class="s-label">要対応</p>
+      <p class="s-value ng" id="sRiskCount">0</p>
+      <p class="s-unit">件（NG＋WARN）</p>
+    </div>
+  </div>
+
+  <!-- ソートボタン -->
+  <div class="sort-row" id="sortRow" style="display:none">
+    <button class="sort-btn active" onclick="setSort('risk')" id="sortRisk">リスク順</button>
+    <button class="sort-btn" onclick="setSort('due')" id="sortDue">期限順</button>
+    <button class="sort-btn" onclick="setSort('amount')" id="sortAmount">金額順</button>
+  </div>
+
+  <!-- リスト -->
+  <div class="list-card" id="listWrap">
+    <div class="list-empty" id="listEmpty">取引先を登録すると一覧が表示されます</div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'urikake-risk-checker-v1';
+  var entries = [];
+  var sortMode = 'risk';
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) entries = JSON.parse(raw);
+    } catch(e) { entries = []; }
+    render();
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  }
+
+  function addEntry() {
+    var name   = document.getElementById('fName').value.trim();
+    var amount = parseFloat(document.getElementById('fAmount').value);
+    var due    = document.getElementById('fDue').value;
+    var err    = document.getElementById('errMsg');
+
+    if (!name || isNaN(amount) || amount < 0 || !due) {
+      err.style.display = 'block';
+      return;
+    }
+    err.style.display = 'none';
+
+    entries.push({ id: Date.now(), name: name, amount: amount, due: due });
+    save();
+    document.getElementById('fName').value = '';
+    document.getElementById('fAmount').value = '';
+    document.getElementById('fDue').value = '';
+    render();
+  }
+
+  function deleteEntry(id) {
+    entries = entries.filter(function(e){ return e.id !== id; });
+    save();
+    render();
+  }
+
+  function getRisk(due) {
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var dueDate = new Date(due);
+    dueDate.setHours(0,0,0,0);
+    var diff = Math.round((dueDate - today) / 86400000);
+    if (diff < 0)  return { level: 'ng',   days: diff, label: '期限超過' };
+    if (diff <= 7) return { level: 'warn', days: diff, label: '期限間近' };
+    return { level: 'ok', days: diff, label: '期限内' };
+  }
+
+  function setSort(mode) {
+    sortMode = mode;
+    document.getElementById('sortRisk').classList.toggle('active', mode === 'risk');
+    document.getElementById('sortDue').classList.toggle('active', mode === 'due');
+    document.getElementById('sortAmount').classList.toggle('active', mode === 'amount');
+    render();
+  }
+
+  function getSorted() {
+    var list = entries.slice();
+    if (sortMode === 'risk') {
+      var order = { ng: 0, warn: 1, ok: 2 };
+      list.sort(function(a, b){
+        var ra = getRisk(a.due), rb = getRisk(b.due);
+        if (order[ra.level] !== order[rb.level]) return order[ra.level] - order[rb.level];
+        return ra.days - rb.days;
+      });
+    } else if (sortMode === 'due') {
+      list.sort(function(a, b){ return a.due.localeCompare(b.due); });
+    } else {
+      list.sort(function(a, b){ return b.amount - a.amount; });
+    }
+    return list;
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmtMan(n) { return (n / 10000).toFixed(1); }
+
+  function render() {
+    var wrap  = document.getElementById('listWrap');
+    var empty = document.getElementById('listEmpty');
+
+    if (entries.length === 0) {
+      empty.style.display = '';
+      document.getElementById('summaryGrid').style.display = 'none';
+      document.getElementById('sortRow').style.display = 'none';
+      wrap.innerHTML = '';
+      wrap.appendChild(empty);
+      return;
+    }
+
+    document.getElementById('summaryGrid').style.display = '';
+    document.getElementById('sortRow').style.display = '';
+
+    // サマリー
+    var total = entries.reduce(function(s, e){ return s + e.amount; }, 0);
+    var risk  = entries.filter(function(e){
+      var r = getRisk(e.due);
+      return r.level === 'ng' || r.level === 'warn';
+    }).length;
+    document.getElementById('sTotalCount').textContent  = entries.length;
+    document.getElementById('sTotalAmount').textContent = fmtMan(total);
+    document.getElementById('sRiskCount').textContent   = risk;
+
+    // リスト
+    var html = '';
+    getSorted().forEach(function(e){
+      var r = getRisk(e.due);
+      var daysText = r.days < 0
+        ? r.days + '日超過'
+        : r.days === 0 ? '本日期限'
+        : '残り' + r.days + '日';
+      var dueDisp = e.due.replace(/-/g, '/');
+      html += '<div class="entry-card ' + r.level + '">'
+            + '<span class="badge ' + r.level + '">' + r.label + '</span>'
+            + '<div class="entry-body">'
+            + '<div class="entry-name">' + esc(e.name) + '</div>'
+            + '<div class="entry-meta">'
+            + '<span class="amount">¥' + fmt(e.amount) + '</span>'
+            + ' <span class="days ' + r.level + '">｜' + daysText + '</span>'
+            + ' <span style="margin-left:0.5rem;color:#aaa;">' + dueDisp + '</span>'
+            + '</div>'
+            + '</div>'
+            + '<button class="btn-del" onclick="deleteEntry(' + e.id + ')">✕</button>'
+            + '</div>';
+    });
+    wrap.innerHTML = html;
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Enterキーで追加
+  document.addEventListener('keydown', function(ev){
+    if (ev.key === 'Enter' && document.activeElement.tagName === 'INPUT') {
+      addEntry();
+    }
+  });
+
+  load();
+  </script>
+</body>
+</html>
