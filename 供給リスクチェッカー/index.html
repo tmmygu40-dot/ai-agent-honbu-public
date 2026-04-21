@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>供給リスクチェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+
+    /* ── ボタン ── */
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── サマリーカード ── */
+    .summary-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .summary-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+      margin-top: 0.75rem;
+    }
+    .sg-item { text-align: center; }
+    .sg-label { font-size: 0.7rem; color: var(--text-sub); margin-bottom: 0.2rem; }
+    .sg-val { font-size: 1.3rem; font-weight: 900; }
+    .sg-val.ok   { color: var(--ok); }
+    .sg-val.warn { color: var(--warn); }
+    .sg-val.ng   { color: var(--ng); }
+
+    /* ── 品目リスト ── */
+    .items-list { max-width: 600px; margin: 0 auto 1rem; }
+    .item-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.1rem;
+      box-shadow: var(--shadow); margin-bottom: 0.75rem;
+    }
+    .item-card.ok   { border-left: 5px solid var(--ok);   }
+    .item-card.warn { border-left: 5px solid var(--warn); }
+    .item-card.ng   { border-left: 5px solid var(--ng);   }
+
+    .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.6rem; }
+    .item-name { font-size: 1rem; font-weight: 700; }
+    .item-badge {
+      font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem;
+      border-radius: 20px; letter-spacing: 0.05em;
+    }
+    .item-badge.ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .item-badge.warn { background: var(--warn-bg); color: var(--warn); }
+    .item-badge.ng   { background: var(--ng-bg);   color: var(--ng);   }
+
+    .item-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 1rem; margin-bottom: 0.6rem; }
+    .metric { font-size: 0.82rem; color: var(--text-sub); }
+    .metric span { font-weight: 700; color: var(--text); }
+
+    .item-footer { display: flex; justify-content: space-between; align-items: center; }
+    .cost-increase { font-size: 0.85rem; color: var(--ng); font-weight: 700; }
+    .cost-ok { font-size: 0.85rem; color: var(--ok); font-weight: 700; }
+    .btn-delete {
+      background: none; border: 1px solid var(--border);
+      color: var(--text-sub); font-size: 0.75rem;
+      padding: 0.25rem 0.7rem; border-radius: 6px; cursor: pointer;
+    }
+    .btn-delete:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 空状態 ── */
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 2rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 420px) {
+      .field-row { grid-template-columns: 1fr; }
+      .summary-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>供給リスクチェッカー</h1>
+    <p class="subtitle">在庫数と消費量から輸入停止時の枯渇日数・代替調達コストを即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="field">
+      <label for="itemName">品目名</label>
+      <input type="text" id="itemName" placeholder="例：小麦粉">
+    </div>
+    <div class="field-row">
+      <div class="field" style="margin-bottom:0">
+        <label for="stock">現在の在庫数</label>
+        <input type="number" id="stock" placeholder="例：500" min="0">
+        <p class="hint">個・kg・Lなど任意の単位</p>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="dailyUse">1日の消費量</label>
+        <input type="number" id="dailyUse" placeholder="例：10" min="0.01" step="0.01">
+        <p class="hint">同じ単位で入力</p>
+      </div>
+    </div>
+    <div class="field-row" style="margin-top:0.75rem">
+      <div class="field" style="margin-bottom:0">
+        <label for="normalPrice">通常仕入れ単価（円）</label>
+        <input type="number" id="normalPrice" placeholder="例：200" min="0">
+        <p class="hint">1単位あたりの仕入れ値</p>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label for="altPrice">代替調達単価（円）</label>
+        <input type="number" id="altPrice" placeholder="例：350" min="0">
+        <p class="hint">緊急時の代替品・代替先の単価</p>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addItem()">＋ 品目を追加して計算</button>
+
+  <!-- サマリーカード -->
+  <div class="summary-card" id="summaryCard">
+    <p class="card-title" style="margin-bottom:0.5rem">全品目サマリー</p>
+    <div class="summary-grid">
+      <div class="sg-item">
+        <p class="sg-label">最短枯渇日数</p>
+        <p class="sg-val" id="sumMinDays">—</p>
+      </div>
+      <div class="sg-item">
+        <p class="sg-label">NG品目数</p>
+        <p class="sg-val" id="sumNgCount">—</p>
+      </div>
+      <div class="sg-item">
+        <p class="sg-label">月間コスト増合計</p>
+        <p class="sg-val" id="sumCostIncrease" style="font-size:1rem">—</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 品目リスト -->
+  <div class="items-list" id="itemsList">
+    <p class="empty-msg" id="emptyMsg">品目を追加してください</p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var items = [];
+  var LS_KEY = 'supply-risk-checker-items';
+
+  function load() {
+    try {
+      var saved = localStorage.getItem(LS_KEY);
+      if (saved) items = JSON.parse(saved);
+    } catch(e) { items = []; }
+    render();
+  }
+
+  function save() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(items)); } catch(e) {}
+  }
+
+  function addItem() {
+    var name        = document.getElementById('itemName').value.trim();
+    var stock       = parseFloat(document.getElementById('stock').value);
+    var dailyUse    = parseFloat(document.getElementById('dailyUse').value);
+    var normalPrice = parseFloat(document.getElementById('normalPrice').value);
+    var altPrice    = parseFloat(document.getElementById('altPrice').value);
+
+    if (!name)                           { alert('品目名を入力してください'); return; }
+    if (isNaN(stock) || stock < 0)       { alert('在庫数を入力してください'); return; }
+    if (isNaN(dailyUse) || dailyUse <= 0){ alert('1日の消費量を正の数で入力してください'); return; }
+    if (isNaN(normalPrice) || normalPrice < 0) { alert('通常仕入れ単価を入力してください'); return; }
+    if (isNaN(altPrice) || altPrice < 0) { alert('代替調達単価を入力してください'); return; }
+
+    var extinctDays = stock / dailyUse;
+    var monthlyUse  = dailyUse * 30;
+    var costIncrease = (altPrice - normalPrice) * monthlyUse;
+    var level = extinctDays >= 30 ? 'ok' : extinctDays >= 14 ? 'warn' : 'ng';
+
+    items.push({
+      id: Date.now(),
+      name: name,
+      stock: stock,
+      dailyUse: dailyUse,
+      normalPrice: normalPrice,
+      altPrice: altPrice,
+      extinctDays: extinctDays,
+      monthlyUse: monthlyUse,
+      costIncrease: costIncrease,
+      level: level
+    });
+
+    save();
+    render();
+
+    // フォームリセット
+    document.getElementById('itemName').value = '';
+    document.getElementById('stock').value = '';
+    document.getElementById('dailyUse').value = '';
+    document.getElementById('normalPrice').value = '';
+    document.getElementById('altPrice').value = '';
+    document.getElementById('itemName').focus();
+  }
+
+  function deleteItem(id) {
+    items = items.filter(function(it){ return it.id !== id; });
+    save();
+    render();
+  }
+
+  function render() {
+    var list = document.getElementById('itemsList');
+    var emptyMsg = document.getElementById('emptyMsg');
+
+    if (items.length === 0) {
+      list.innerHTML = '<p class="empty-msg">品目を追加してください</p>';
+      document.getElementById('summaryCard').style.display = 'none';
+      return;
+    }
+
+    // サマリー計算
+    var minDays = Infinity;
+    var ngCount = 0;
+    var totalCostIncrease = 0;
+    items.forEach(function(it) {
+      if (it.extinctDays < minDays) minDays = it.extinctDays;
+      if (it.level === 'ng') ngCount++;
+      if (it.costIncrease > 0) totalCostIncrease += it.costIncrease;
+    });
+
+    var sumMinDaysEl = document.getElementById('sumMinDays');
+    sumMinDaysEl.textContent = minDays === Infinity ? '—' : Math.floor(minDays) + '日';
+    var minLevel = minDays >= 30 ? 'ok' : minDays >= 14 ? 'warn' : 'ng';
+    sumMinDaysEl.className = 'sg-val ' + minLevel;
+
+    var sumNgEl = document.getElementById('sumNgCount');
+    sumNgEl.textContent = ngCount + '品目';
+    sumNgEl.className = 'sg-val ' + (ngCount === 0 ? 'ok' : 'ng');
+
+    document.getElementById('sumCostIncrease').textContent = '+' + fmt(totalCostIncrease) + '円/月';
+
+    document.getElementById('summaryCard').style.display = '';
+
+    // 品目カード描画（枯渇日数の短い順）
+    var sorted = items.slice().sort(function(a,b){ return a.extinctDays - b.extinctDays; });
+    list.innerHTML = sorted.map(function(it) {
+      var badge = it.level === 'ok' ? '安全' : it.level === 'warn' ? '要注意' : '危険';
+      var costHtml = it.costIncrease > 0
+        ? '<span class="cost-increase">代替コスト増 +' + fmt(it.costIncrease) + '円/月</span>'
+        : it.costIncrease < 0
+        ? '<span class="cost-ok">代替コストは安い（' + fmt(it.costIncrease) + '円/月）</span>'
+        : '<span style="color:var(--text-sub);font-size:0.82rem">代替コスト変化なし</span>';
+      return '<div class="item-card ' + it.level + '">'
+        + '<div class="item-header">'
+        + '<span class="item-name">' + esc(it.name) + '</span>'
+        + '<span class="item-badge ' + it.level + '">' + badge + '</span>'
+        + '</div>'
+        + '<div class="item-metrics">'
+        + '<div class="metric">枯渇まで <span>' + fmt1(it.extinctDays) + '日</span></div>'
+        + '<div class="metric">在庫 <span>' + fmt1(it.stock) + '</span> / 日消費 <span>' + fmt1(it.dailyUse) + '</span></div>'
+        + '<div class="metric">通常単価 <span>' + fmt(it.normalPrice) + '円</span></div>'
+        + '<div class="metric">代替単価 <span>' + fmt(it.altPrice) + '円</span></div>'
+        + '</div>'
+        + '<div class="item-footer">'
+        + costHtml
+        + '<button class="btn-delete" onclick="deleteItem(' + it.id + ')">削除</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmt1(n) { return (Math.round(n * 10) / 10).toLocaleString('ja-JP'); }
+
+  // エンターキーで追加
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName === 'INPUT') addItem();
+  });
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
