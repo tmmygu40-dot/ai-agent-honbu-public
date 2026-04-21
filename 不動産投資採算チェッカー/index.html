@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>不動産投資採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 入力グリッド（2列） ── */
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+    @media (max-width: 420px) { .field-grid { grid-template-columns: 1fr; } }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.6rem;
+      font-size: 0.85rem; font-weight: 600;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-head td { font-size: 0.72rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; padding-top: 0.9rem; }
+
+    /* ── コピーボタン ── */
+    .copy-btn {
+      display: block; margin: 0.9rem auto 0; padding: 0.5rem 1.4rem;
+      font-size: 0.82rem; font-weight: 600; background: var(--card);
+      border: 1.5px solid var(--border); border-radius: 9px; cursor: pointer; color: var(--text-sub);
+    }
+    .copy-btn:active { background: var(--bg); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>不動産投資採算チェッカー</h1>
+    <p class="subtitle">物件情報を入れるだけで利回り・CF・回収年数を即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">物件情報</p>
+    <div class="field-grid">
+      <div class="field">
+        <label for="price">物件価格（万円）</label>
+        <input type="number" id="price" placeholder="例: 3000" min="0" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label for="equity">自己資金（万円）</label>
+        <input type="number" id="equity" placeholder="例: 600" min="0" inputmode="decimal">
+        <p class="hint">未入力→物件価格の20%で自動計算</p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="rent">月額家賃収入（円）</label>
+      <input type="number" id="rent" placeholder="例: 80000" min="0" inputmode="decimal">
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">月額コスト</p>
+    <div class="field-grid">
+      <div class="field">
+        <label for="mgmt">管理費（円／月）</label>
+        <input type="number" id="mgmt" placeholder="例: 5000" min="0" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label for="repair">修繕積立（円／月）</label>
+        <input type="number" id="repair" placeholder="例: 3000" min="0" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label for="loan">ローン返済（円／月）</label>
+        <input type="number" id="loan" placeholder="例: 50000" min="0" inputmode="decimal">
+        <p class="hint">ローンなしの場合は0または空欄</p>
+      </div>
+      <div class="field">
+        <label for="other">その他経費（円／月）</label>
+        <input type="number" id="other" placeholder="例: 2000" min="0" inputmode="decimal">
+        <p class="hint">固定資産税など年額÷12でも可</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算を計算する</button>
+  <button class="btn-reset" onclick="resetAll()">入力をリセット</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">採算内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+    <button class="copy-btn" onclick="copyResult()">結果をコピー</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'fudosan_saisan_v1';
+
+  var IDS = ['price','equity','rent','mgmt','repair','loan','other'];
+
+  window.addEventListener('DOMContentLoaded', function() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e) {}
+    if (saved) {
+      IDS.forEach(function(id) {
+        if (saved[id] !== undefined && saved[id] !== '') {
+          document.getElementById(id).value = saved[id];
+        }
+      });
+    }
+  });
+
+  function save() {
+    var data = {};
+    IDS.forEach(function(id) { data[id] = document.getElementById(id).value; });
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function calc() {
+    var price  = parseFloat(document.getElementById('price').value);
+    var rent   = parseFloat(document.getElementById('rent').value) || 0;
+    var mgmt   = parseFloat(document.getElementById('mgmt').value) || 0;
+    var repair = parseFloat(document.getElementById('repair').value) || 0;
+    var loan   = parseFloat(document.getElementById('loan').value) || 0;
+    var other  = parseFloat(document.getElementById('other').value) || 0;
+
+    if (isNaN(price) || price <= 0) { showErr('物件価格を入力してください'); return; }
+    if (rent <= 0) { showErr('月額家賃収入を入力してください'); return; }
+
+    var equityRaw = document.getElementById('equity').value;
+    var equity = equityRaw !== '' ? parseFloat(equityRaw) : price * 0.2;
+    if (isNaN(equity) || equity < 0) equity = price * 0.2;
+
+    // 万円→円換算
+    var priceYen  = price  * 10000;
+    var equityYen = equity * 10000;
+
+    var annualRent = rent * 12;
+    var annualCost = (mgmt + repair + loan + other) * 12;
+    var annualCF   = annualRent - annualCost;
+    var monthlyCF  = rent - mgmt - repair - loan - other;
+
+    var surfaceYield = (annualRent / priceYen) * 100;
+    var netCostYear  = (mgmt + repair + other) * 12; // ローン除いた運営コスト
+    var realYield    = ((annualRent - netCostYear) / priceYen) * 100;
+
+    var paybackYears = annualCF > 0 ? (equityYen / annualCF) : Infinity;
+
+    // 判定
+    var level, label, note;
+    if (realYield >= 5 && monthlyCF >= 0) {
+      level = 'ok'; label = '買い';
+      note = '実質利回り' + realYield.toFixed(2) + '%・月次CFがプラスで採算OK。';
+    } else if (realYield >= 3) {
+      level = 'warn'; label = '要検討';
+      note = '実質利回り' + realYield.toFixed(2) + '%。CFや返済計画を慎重に確認してください。';
+    } else {
+      level = 'ng'; label = '見送り';
+      note = '実質利回り' + realYield.toFixed(2) + '%と低水準。採算改善が必要です。';
+    }
+    if (monthlyCF < 0) {
+      note += '月次CF' + fmt(monthlyCF) + '円で持ち出しあり。';
+    }
+
+    showResult(level, label, note);
+
+    var pyStr = isFinite(paybackYears) ? paybackYears.toFixed(1) + '年' : '—（CF赤字）';
+    showDetail([
+      {label:'物件価格',    val: fmt(priceYen) + '円', head: '基本情報'},
+      {label:'自己資金',    val: fmt(equityYen) + '円'},
+      {label:'表面利回り',  val: surfaceYield.toFixed(2) + '%', head: '利回り'},
+      {label:'実質利回り',  val: realYield.toFixed(2) + '%', hl: true},
+      {label:'月額収入',    val: fmt(rent) + '円', head: 'キャッシュフロー'},
+      {label:'月額コスト合計', val: fmt(mgmt + repair + loan + other) + '円'},
+      {label:'月次CF',      val: fmt(monthlyCF) + '円', hl: true},
+      {label:'年次CF',      val: fmt(annualCF) + '円', hl: true},
+      {label:'投資回収年数', val: pyStr, head: '回収', hl: true},
+    ]);
+
+    save();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    var html = '';
+    rows.forEach(function(r) {
+      if (r.head) {
+        html += '<tr class="section-head"><td>' + r.head + '</td><td></td></tr>';
+      }
+      html += '<tr' + (r.hl ? ' class="hl"' : '') + '>'
+            + '<td>' + r.label + '</td><td>' + r.val + '</td></tr>';
+    });
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function resetAll() {
+    IDS.forEach(function(id) { document.getElementById(id).value = ''; });
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  }
+
+  function copyResult() {
+    var rows = document.querySelectorAll('#db tr');
+    var lines = ['【不動産投資採算チェッカー】'];
+    var price = document.getElementById('price').value;
+    if (price) lines.push('物件価格: ' + price + '万円');
+    rows.forEach(function(r) {
+      var cells = r.querySelectorAll('td');
+      if (cells.length === 2 && cells[1].textContent.trim()) {
+        lines.push(cells[0].textContent + ': ' + cells[1].textContent);
+      }
+    });
+    var rv = document.getElementById('rv').textContent;
+    var rn = document.getElementById('rn').textContent;
+    lines.push('判定: ' + rv);
+    lines.push(rn);
+    var text = lines.join('\n');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() { alert('コピーしました'); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); alert('コピーしました');
+    }
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
