@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>廃棄ロス削減チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+
+    .field { margin-bottom: 0.9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-row { display: flex; gap: 0.75rem; max-width: 600px; margin: 0 auto 1.2rem; }
+    .btn-calc {
+      flex: 2; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+    .btn-add {
+      flex: 1; padding: 1rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active { background: var(--accent-light); }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-badge {
+      display: inline-block; padding: 0.3rem 0.9rem; border-radius: 99px;
+      font-size: 0.8rem; font-weight: 800; letter-spacing: 0.05em; margin-bottom: 0.6rem;
+    }
+    .ok .result-badge   { background: var(--ok);   color: #fff; }
+    .warn .result-badge { background: var(--warn);  color: #fff; }
+    .ng .result-badge   { background: var(--ng);    color: #fff; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ng-row td { color: var(--ng); font-weight: 700; }
+
+    /* 商品一覧テーブル */
+    .product-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .product-table th {
+      background: var(--accent-light); color: var(--accent);
+      font-size: 0.72rem; font-weight: 700; padding: 0.5rem 0.4rem;
+      text-align: left; border-bottom: 2px solid var(--border);
+    }
+    .product-table td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .product-table tr:last-child td { border-bottom: none; }
+    .product-table .loss-cell { color: var(--ng); font-weight: 700; }
+    .product-table .del-btn {
+      background: none; border: none; color: var(--text-sub);
+      cursor: pointer; font-size: 1rem; padding: 0.2rem 0.5rem;
+    }
+    .product-table .del-btn:hover { color: var(--ng); }
+    .product-table .total-row td { font-weight: 800; color: var(--text); background: #f9f5f0; }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok);   }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng);   }
+
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1.5rem 0; }
+
+    .btn-clear {
+      display: block; margin: 0.5rem auto 0; padding: 0.5rem 1.2rem;
+      font-size: 0.82rem; color: var(--text-sub); background: none;
+      border: 1px solid var(--border); border-radius: 99px; cursor: pointer;
+    }
+    .btn-clear:hover { border-color: var(--ng); color: var(--ng); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .row2, .row3 { grid-template-columns: 1fr 1fr; }
+      .btn-row { flex-direction: column; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>廃棄ロス削減チェッカー</h1>
+    <p class="subtitle">廃棄・値引きロスを可視化して発注適正化の目安を即算出</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品情報を入力</p>
+    <div class="field">
+      <label for="name">商品名</label>
+      <input type="text" id="name" placeholder="例：生鮮野菜A">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="cost">仕入れ単価（円）</label>
+        <input type="number" id="cost" placeholder="例：200" min="0">
+      </div>
+      <div class="field">
+        <label for="sellPrice">通常売価（円）</label>
+        <input type="number" id="sellPrice" placeholder="例：350" min="0">
+      </div>
+    </div>
+    <div class="row3">
+      <div class="field">
+        <label for="sold">販売数（個）</label>
+        <input type="number" id="sold" placeholder="例：80" min="0">
+      </div>
+      <div class="field">
+        <label for="waste">廃棄数（個）</label>
+        <input type="number" id="waste" placeholder="例：10" min="0">
+      </div>
+      <div class="field">
+        <label for="discount">値引き数（個）</label>
+        <input type="number" id="discount" placeholder="例：5" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="discountPrice">値引き売価（円）<span style="font-weight:400;font-size:0.75rem;">値引きなしは0または通常売価と同じ</span></label>
+      <input type="number" id="discountPrice" placeholder="例：150" min="0">
+    </div>
+  </div>
+
+  <!-- ボタン -->
+  <div class="btn-row">
+    <button class="btn-calc" onclick="calc()">ロスを計算する</button>
+    <button class="btn-add" onclick="addProduct()">リストに追加</button>
+  </div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月間ロス率（この商品）</p>
+    <div class="result-badge" id="rb"></div>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 商品一覧カード -->
+  <div class="card" id="listCard" style="display:none">
+    <p class="card-title">商品一覧 / 合計ロス</p>
+    <div style="overflow-x:auto;">
+      <table class="product-table">
+        <thead>
+          <tr>
+            <th>商品名</th>
+            <th>ロス率</th>
+            <th>ロス金額</th>
+            <th>適正発注数</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="productList"></tbody>
+        <tfoot id="productTotal"></tfoot>
+      </table>
+    </div>
+    <button class="btn-clear" onclick="clearAll()">リストをクリア</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a>
+  </p>
+
+  <script>
+  var products = JSON.parse(localStorage.getItem('haikiLoss_products') || '[]');
+
+  function getInputs() {
+    return {
+      name:          document.getElementById('name').value.trim() || '商品',
+      cost:          parseFloat(document.getElementById('cost').value) || 0,
+      sellPrice:     parseFloat(document.getElementById('sellPrice').value) || 0,
+      sold:          parseFloat(document.getElementById('sold').value) || 0,
+      waste:         parseFloat(document.getElementById('waste').value) || 0,
+      discount:      parseFloat(document.getElementById('discount').value) || 0,
+      discountPrice: parseFloat(document.getElementById('discountPrice').value) || 0,
+    };
+  }
+
+  function calcProduct(p) {
+    var total = p.sold + p.waste + p.discount;
+    var wasteAmt   = p.waste * p.cost;
+    var discountLoss = p.discount * Math.max(0, p.sellPrice - p.discountPrice);
+    var totalLoss  = wasteAmt + discountLoss;
+    var lossRate   = total > 0 ? ((p.waste + p.discount) / total * 100) : 0;
+    // 適正発注数: 廃棄半減・値引き半減の場合
+    var optOrder   = Math.round(p.sold + p.waste * 0.5 + p.discount * 0.5);
+    var level = lossRate < 5 ? 'ok' : lossRate < 10 ? 'warn' : 'ng';
+    return { wasteAmt: wasteAmt, discountLoss: discountLoss, totalLoss: totalLoss,
+             lossRate: lossRate, optOrder: optOrder, level: level, total: total };
+  }
+
+  function calc() {
+    var p = getInputs();
+    if (p.cost <= 0 || p.sold + p.waste + p.discount <= 0) {
+      showErr('仕入れ単価と販売数・廃棄数・値引き数を入力してください');
+      return;
+    }
+    var r = calcProduct(p);
+    var labels = { ok: '良好', warn: '要注意', ng: '改善必要' };
+    var msgs = {
+      ok:   '廃棄・値引きロス率は良好です。現状の発注量を維持しましょう。',
+      warn: 'ロス率がやや高めです。発注量を少し絞ると改善できます。',
+      ng:   'ロス率が高く利益を圧迫しています。発注量の見直しが急務です。'
+    };
+    document.getElementById('rb').textContent = labels[r.level];
+    showResult(r.level, r.lossRate.toFixed(1) + '%', msgs[r.level]);
+    showDetail([
+      ['仕入れ総数',       fmt(r.total) + ' 個'],
+      ['うち廃棄',         fmt(p.waste) + ' 個'],
+      ['うち値引き販売',   fmt(p.discount) + ' 個'],
+      ['廃棄ロス金額',     '▲ ' + fmt(r.wasteAmt) + ' 円'],
+      ['値引きロス金額',   '▲ ' + fmt(r.discountLoss) + ' 円'],
+      ['合計ロス金額',     '▲ ' + fmt(r.totalLoss) + ' 円', true],
+      ['月間ロス率',       r.lossRate.toFixed(1) + ' %'],
+      ['適正発注数（目安）', fmt(r.optOrder) + ' 個', false, true],
+    ]);
+  }
+
+  function addProduct() {
+    var p = getInputs();
+    if (p.cost <= 0 || p.sold + p.waste + p.discount <= 0) {
+      alert('仕入れ単価と販売数・廃棄数・値引き数を入力してからリストに追加してください。');
+      return;
+    }
+    var r = calcProduct(p);
+    products.push({ p: p, r: r });
+    saveProducts();
+    renderList();
+    // 入力リセット
+    ['name','cost','sellPrice','sold','waste','discount','discountPrice'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function saveProducts() {
+    localStorage.setItem('haikiLoss_products', JSON.stringify(products));
+  }
+
+  function renderList() {
+    var tbody = document.getElementById('productList');
+    var tfoot = document.getElementById('productTotal');
+    var card  = document.getElementById('listCard');
+    if (products.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = '';
+    var totalLoss = 0;
+    tbody.innerHTML = products.map(function(item, i) {
+      totalLoss += item.r.totalLoss;
+      var bdg = '<span class="badge badge-' + item.r.level + '">' +
+                { ok:'良好', warn:'要注意', ng:'改善必要' }[item.r.level] + '</span>';
+      return '<tr>'
+        + '<td>' + esc(item.p.name) + '</td>'
+        + '<td>' + item.r.lossRate.toFixed(1) + '% ' + bdg + '</td>'
+        + '<td class="loss-cell">▲' + fmt(item.r.totalLoss) + '円</td>'
+        + '<td>' + fmt(item.r.optOrder) + '個</td>'
+        + '<td><button class="del-btn" onclick="delProduct(' + i + ')">✕</button></td>'
+        + '</tr>';
+    }).join('');
+    tfoot.innerHTML = '<tr class="total-row">'
+      + '<td colspan="2">合計ロス金額</td>'
+      + '<td class="loss-cell">▲' + fmt(totalLoss) + '円</td>'
+      + '<td colspan="2"></td>'
+      + '</tr>';
+  }
+
+  function delProduct(i) {
+    products.splice(i, 1);
+    saveProducts();
+    renderList();
+  }
+
+  function clearAll() {
+    if (!confirm('リストをすべてクリアしますか？')) return;
+    products = [];
+    saveProducts();
+    renderList();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      var cls = r[2] ? ' class="hl"' : (r[3] ? ' class="ng-row"' : '');
+      return '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rb').textContent = 'エラー';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // 初期表示
+  renderList();
+  </script>
+
+</body>
+</html>
