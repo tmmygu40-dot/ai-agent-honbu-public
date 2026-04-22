@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>クレーム対応メールジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    /* クレーム種別 ボタングループ */
+    .type-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 0;
+    }
+    .type-btn {
+      padding: 0.6rem 0.5rem;
+      font-size: 0.82rem; font-weight: 600;
+      border: 2px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text-sub);
+      cursor: pointer; text-align: center;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .type-btn.active {
+      border-color: var(--accent); background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 生成文面カード ── */
+    .output-card {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .output-card textarea {
+      width: 100%;
+      min-height: 320px;
+      padding: 0.9rem;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+    }
+    .btn-copy {
+      display: block; width: 100%;
+      margin-top: 0.75rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      transition: opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:active { opacity: 0.8; }
+    .copy-msg {
+      text-align: center; font-size: 0.82rem;
+      color: var(--ok); margin-top: 0.5rem;
+      min-height: 1.2em;
+    }
+
+    /* ── エラー ── */
+    .err-msg {
+      display: none;
+      background: var(--ng-bg); border: 1.5px solid var(--ng);
+      border-radius: 9px; padding: 0.7rem 1rem;
+      font-size: 0.85rem; color: var(--ng);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>クレーム対応メールジェネレーター</h1>
+    <p class="subtitle">種別を選んで入力するだけでお詫びメール文面を即生成</p>
+  </header>
+
+  <!-- クレーム種別 -->
+  <div class="card">
+    <p class="card-title">クレーム種別</p>
+    <div class="type-grid" id="typeGrid">
+      <button class="type-btn" data-type="quality" onclick="selectType(this)">品質不良</button>
+      <button class="type-btn" data-type="delivery" onclick="selectType(this)">納期遅延</button>
+      <button class="type-btn" data-type="response" onclick="selectType(this)">対応不満</button>
+      <button class="type-btn" data-type="billing" onclick="selectType(this)">誤請求</button>
+      <button class="type-btn" data-type="other" onclick="selectType(this)">その他</button>
+    </div>
+  </div>
+
+  <!-- 相手情報 -->
+  <div class="card">
+    <p class="card-title">相手先情報</p>
+    <div class="field">
+      <label for="toCompany">相手先会社名</label>
+      <input type="text" id="toCompany" placeholder="例：株式会社〇〇">
+    </div>
+    <div class="field">
+      <label for="toName">担当者名（任意）</label>
+      <input type="text" id="toName" placeholder="例：山田 太郎">
+      <p class="hint">空欄の場合は「ご担当者様」と表示されます</p>
+    </div>
+  </div>
+
+  <!-- 自社情報 -->
+  <div class="card">
+    <p class="card-title">自社情報（保存されます）</p>
+    <div class="field">
+      <label for="myCompany">自社名</label>
+      <input type="text" id="myCompany" placeholder="例：株式会社△△">
+    </div>
+    <div class="field">
+      <label for="myName">自分の氏名</label>
+      <input type="text" id="myName" placeholder="例：佐藤 花子">
+    </div>
+  </div>
+
+  <!-- 詳細メモ -->
+  <div class="card">
+    <p class="card-title">詳細・補足（任意）</p>
+    <div class="field">
+      <textarea id="detail" placeholder="例：○月○日に納品した商品に欠陥がありました。再発防止策を説明したい場合など、追記したい内容をご記入ください。"></textarea>
+    </div>
+  </div>
+
+  <div class="err-msg" id="errMsg"></div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">お詫びメール文面を生成</button>
+
+  <!-- 出力カード -->
+  <div class="output-card" id="outputCard">
+    <p class="card-title">生成された文面</p>
+    <textarea id="outputText" readonly></textarea>
+    <button class="btn-copy" onclick="copyText()">コピーする</button>
+    <p class="copy-msg" id="copyMsg"></p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var selectedType = '';
+
+  var templates = {
+    quality: {
+      label: '品質不良',
+      body: function(d) {
+        return [
+          '件名：【お詫び】品質不良に関するご連絡',
+          '',
+          d.toLine + ' 様',
+          '',
+          'いつも大変お世話になっております。',
+          d.myCompany + ' ' + d.myName + ' でございます。',
+          '',
+          'このたびは弊社製品・サービスの品質不良によりご迷惑をおかけし、',
+          '誠に申し訳ございませんでした。',
+          '',
+          d.detail ? '【状況】\n' + d.detail + '\n' : '',
+          '本件につきまして、原因究明および再発防止に全力で取り組んでまいります。',
+          '改めて対応方針をご連絡させていただきますので、',
+          '何卒ご容赦くださいますようお願い申し上げます。',
+          '',
+          'ご不便・ご迷惑をおかけしたことを、重ねてお詫び申し上げます。',
+          '',
+          '何かご不明な点がございましたら、いつでもご連絡ください。',
+          '',
+          '──────────────────',
+          d.myCompany,
+          d.myName,
+        ].filter(function(l){ return l !== ''; }).join('\n');
+      }
+    },
+    delivery: {
+      label: '納期遅延',
+      body: function(d) {
+        return [
+          '件名：【お詫び】納期遅延に関するご連絡',
+          '',
+          d.toLine + ' 様',
+          '',
+          'いつも大変お世話になっております。',
+          d.myCompany + ' ' + d.myName + ' でございます。',
+          '',
+          'このたびは納期に遅延が生じてしまい、ご迷惑をおかけしておりますこと、',
+          '深くお詫び申し上げます。',
+          '',
+          d.detail ? '【状況】\n' + d.detail + '\n' : '',
+          '現在、できる限り早期のお届けに向けて対応を急いでおります。',
+          '改めて新しい納期のご案内をさせていただきますので、',
+          '何卒ご容赦いただきますようお願い申し上げます。',
+          '',
+          'ご迷惑をおかけしたことを、重ねてお詫び申し上げます。',
+          '',
+          'ご不明な点がございましたら、お気軽にお申しつけください。',
+          '',
+          '──────────────────',
+          d.myCompany,
+          d.myName,
+        ].filter(function(l){ return l !== ''; }).join('\n');
+      }
+    },
+    response: {
+      label: '対応不満',
+      body: function(d) {
+        return [
+          '件名：【お詫び】弊社対応に関するご連絡',
+          '',
+          d.toLine + ' 様',
+          '',
+          'いつも大変お世話になっております。',
+          d.myCompany + ' ' + d.myName + ' でございます。',
+          '',
+          'このたびは弊社の対応に関しまして、不快な思いおよびご迷惑をおかけし、',
+          '誠に申し訳ございませんでした。',
+          '',
+          d.detail ? '【状況】\n' + d.detail + '\n' : '',
+          '今後はより丁寧な対応ができるよう、社内で徹底してまいります。',
+          'ご指摘いただいたことを真摯に受け止め、改善に努めてまいります。',
+          '',
+          'ご不便をおかけしたことを、重ねてお詫び申し上げます。',
+          '',
+          '何かご不明な点がございましたら、いつでもご連絡ください。',
+          '',
+          '──────────────────',
+          d.myCompany,
+          d.myName,
+        ].filter(function(l){ return l !== ''; }).join('\n');
+      }
+    },
+    billing: {
+      label: '誤請求',
+      body: function(d) {
+        return [
+          '件名：【お詫び・訂正】請求内容の誤りに関するご連絡',
+          '',
+          d.toLine + ' 様',
+          '',
+          'いつも大変お世話になっております。',
+          d.myCompany + ' ' + d.myName + ' でございます。',
+          '',
+          'このたびは請求書の内容に誤りがございまして、大変ご迷惑をおかけしました。',
+          '誠に申し訳ございません。',
+          '',
+          d.detail ? '【状況・訂正内容】\n' + d.detail + '\n' : '',
+          '正しい内容に訂正した請求書を改めてお送りいたします。',
+          'ご確認のほど、どうぞよろしくお願い申し上げます。',
+          '',
+          'ご不便をおかけしたことを、重ねてお詫び申し上げます。',
+          '',
+          'ご不明な点がございましたら、お気軽にお申しつけください。',
+          '',
+          '──────────────────',
+          d.myCompany,
+          d.myName,
+        ].filter(function(l){ return l !== ''; }).join('\n');
+      }
+    },
+    other: {
+      label: 'その他',
+      body: function(d) {
+        return [
+          '件名：【お詫び】ご迷惑をおかけしたことについて',
+          '',
+          d.toLine + ' 様',
+          '',
+          'いつも大変お世話になっております。',
+          d.myCompany + ' ' + d.myName + ' でございます。',
+          '',
+          'このたびはご迷惑をおかけしてしまい、誠に申し訳ございませんでした。',
+          '',
+          d.detail ? '【状況】\n' + d.detail + '\n' : '',
+          '今後はこのようなことが起きないよう、再発防止に努めてまいります。',
+          'ご理解いただけますよう、何卒よろしくお願い申し上げます。',
+          '',
+          'ご迷惑をおかけしたことを、重ねてお詫び申し上げます。',
+          '',
+          '何かご不明な点がございましたら、いつでもご連絡ください。',
+          '',
+          '──────────────────',
+          d.myCompany,
+          d.myName,
+        ].filter(function(l){ return l !== ''; }).join('\n');
+      }
+    }
+  };
+
+  function selectType(btn) {
+    var btns = document.querySelectorAll('.type-btn');
+    btns.forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    selectedType = btn.getAttribute('data-type');
+  }
+
+  function generate() {
+    hideErr();
+    if (!selectedType) { showErr('クレーム種別を選択してください'); return; }
+
+    var toCompany = document.getElementById('toCompany').value.trim();
+    var toName    = document.getElementById('toName').value.trim();
+    var myCompany = document.getElementById('myCompany').value.trim();
+    var myName    = document.getElementById('myName').value.trim();
+    var detail    = document.getElementById('detail').value.trim();
+
+    if (!toCompany) { showErr('相手先会社名を入力してください'); return; }
+    if (!myCompany) { showErr('自社名を入力してください'); return; }
+    if (!myName)    { showErr('自分の氏名を入力してください'); return; }
+
+    // 自社情報を保存
+    localStorage.setItem('claimMail_myCompany', myCompany);
+    localStorage.setItem('claimMail_myName', myName);
+
+    var toLine = toCompany + (toName ? ' ' + toName : ' ご担当者');
+    var tmpl = templates[selectedType];
+    var text = tmpl.body({
+      toLine: toLine,
+      myCompany: myCompany,
+      myName: myName,
+      detail: detail
+    });
+
+    document.getElementById('outputText').value = text;
+    document.getElementById('outputCard').style.display = '';
+    document.getElementById('copyMsg').textContent = '';
+    document.getElementById('outputCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copyText() {
+    var ta = document.getElementById('outputText');
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    try {
+      document.execCommand('copy');
+      document.getElementById('copyMsg').textContent = 'コピーしました！';
+    } catch(e) {
+      navigator.clipboard.writeText(ta.value).then(function(){
+        document.getElementById('copyMsg').textContent = 'コピーしました！';
+      });
+    }
+    setTimeout(function(){ document.getElementById('copyMsg').textContent = ''; }, 2000);
+  }
+
+  function showErr(msg) {
+    var el = document.getElementById('errMsg');
+    el.textContent = msg;
+    el.style.display = '';
+  }
+  function hideErr() {
+    document.getElementById('errMsg').style.display = 'none';
+  }
+
+  // 自社情報を復元
+  window.addEventListener('DOMContentLoaded', function() {
+    var mc = localStorage.getItem('claimMail_myCompany');
+    var mn = localStorage.getItem('claimMail_myName');
+    if (mc) document.getElementById('myCompany').value = mc;
+    if (mn) document.getElementById('myName').value = mn;
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
