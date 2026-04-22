@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>キャッチコピージェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 結果エリア */
+    #result-area { display: none; max-width: 600px; margin: 0 auto; }
+
+    .copy-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: flex-start;
+      gap: 0.8rem;
+    }
+    .copy-item:hover { border-color: var(--accent); }
+    .copy-meta {
+      flex: 0 0 auto;
+    }
+    .copy-tag {
+      display: inline-block;
+      font-size: 0.68rem; font-weight: 700;
+      color: var(--accent);
+      background: var(--accent-light);
+      border: 1px solid #fcd9a0;
+      border-radius: 4px;
+      padding: 0.15rem 0.45rem;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .copy-text {
+      flex: 1;
+      font-size: 0.98rem; font-weight: 700;
+      line-height: 1.5;
+      color: var(--text);
+      word-break: break-all;
+    }
+    .btn-copy {
+      flex: 0 0 auto;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.78rem; font-weight: 700;
+      background: var(--bg);
+      color: var(--text-sub);
+      border: 1.5px solid var(--border);
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    .btn-copy:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+    .btn-copy.copied { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+
+    .result-header {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .err-msg {
+      display: none;
+      background: var(--ng-bg);
+      border: 1.5px solid var(--ng);
+      border-radius: var(--radius);
+      padding: 0.9rem 1.1rem;
+      font-size: 0.9rem;
+      color: var(--ng);
+      font-weight: 700;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+      text-align: center;
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📣 キャッチコピージェネレーター</h1>
+    <p class="subtitle">商品名と特徴を入れるだけでPOP・チラシ用コピーを即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="productName">商品名 <span style="color:var(--ng)">*</span></label>
+      <input type="text" id="productName" placeholder="例：あんバタートースト、高保湿クリーム">
+    </div>
+    <div class="field">
+      <label for="features">商品の特徴・強み <span style="color:var(--ng)">*</span></label>
+      <textarea id="features" placeholder="例：手作り・無添加・もちもち食感・毎朝焼きたて&#10;複数あれば改行または読点で区切ってください"></textarea>
+      <p class="hint">アピールしたいポイントを書いてください</p>
+    </div>
+    <div class="field">
+      <label for="target">ターゲット（任意）</label>
+      <input type="text" id="target" placeholder="例：30代主婦、体づくり中の男性、お土産を探している観光客">
+      <p class="hint">空欄でも生成できます</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">✨ キャッチコピーを生成する</button>
+
+  <!-- エラー -->
+  <div class="err-msg" id="errMsg">商品名と特徴を入力してください</div>
+
+  <!-- 結果エリア -->
+  <div id="result-area">
+    <div style="max-width:600px;margin:0 auto 0.75rem;display:flex;align-items:center;justify-content:space-between;">
+      <p class="result-header" style="margin:0;padding:0;border:none;">生成されたキャッチコピー</p>
+      <button onclick="generate()" style="font-size:0.78rem;font-weight:700;background:var(--bg);color:var(--text-sub);border:1.5px solid var(--border);border-radius:7px;padding:0.35rem 0.8rem;cursor:pointer;">再生成</button>
+    </div>
+    <div id="copies-list"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script src="../fav-widget.js"></script>
+
+  <script>
+  // ── localStorage ──
+  var LS_KEY = 'catchcopy_gen_v1';
+
+  function saveInput() {
+    var d = {
+      productName: document.getElementById('productName').value,
+      features:    document.getElementById('features').value,
+      target:      document.getElementById('target').value
+    };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch(e) {}
+  }
+
+  function loadInput() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      if (d.productName) document.getElementById('productName').value = d.productName;
+      if (d.features)    document.getElementById('features').value    = d.features;
+      if (d.target)      document.getElementById('target').value      = d.target;
+    } catch(e) {}
+  }
+
+  document.getElementById('productName').addEventListener('input', saveInput);
+  document.getElementById('features').addEventListener('input', saveInput);
+  document.getElementById('target').addEventListener('input', saveInput);
+
+  // ── 生成ロジック ──
+  function generate() {
+    var name    = document.getElementById('productName').value.trim();
+    var feat    = document.getElementById('features').value.trim();
+    var target  = document.getElementById('target').value.trim();
+
+    document.getElementById('errMsg').style.display = 'none';
+    if (!name || !feat) {
+      document.getElementById('errMsg').style.display = '';
+      document.getElementById('result-area').style.display = 'none';
+      return;
+    }
+
+    saveInput();
+
+    // 特徴リストを分割（読点・改行・句点で区切る）
+    var featList = feat.split(/[、。,，\n]/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length > 0; });
+    var f1 = featList[0] || feat;
+    var f2 = featList[1] || f1;
+    var f3 = featList[2] || f2;
+
+    var tStr = target ? ('〜' + target + 'の方へ〜 ') : '';
+    var tStr2 = target ? (target + 'に') : 'あなたに';
+    var tStr3 = target ? ('「' + target + 'の定番」') : '「新定番」';
+
+    // コピーパターン定義
+    var patterns = [
+      // 訴求型
+      { tag: '訴求型', text: f1 + 'だから選ばれる、' + name + '。' },
+      { tag: '訴求型', text: name + 'には、' + f1 + 'がある。' },
+      // 問いかけ型
+      { tag: '問いかけ型', text: tStr2 + '、' + f1 + 'を体験してみませんか？' },
+      { tag: '問いかけ型', text: '本当に' + f1 + 'な' + name + '、知ってますか？' },
+      // 感情型
+      { tag: '感情型', text: tStr + '出会えてよかった、' + name + '。' },
+      { tag: '感情型', text: '一度使ったら、もう手放せない。' + name },
+      // シンプル型
+      { tag: 'シンプル型', text: name + '。それだけで、十分。' },
+      { tag: 'シンプル型', text: 'これが、' + name + 'のちから。' },
+      // 強調型
+      { tag: '強調型', text: 'ぜんぶ本物。' + name + 'の' + f1 + '。' },
+      { tag: '強調型', text: name + '——' + f1 + 'に、妥協しない。' },
+      // before/after型
+      { tag: 'ビフォーアフター型', text: '悩んでいたのに、' + name + 'に変えたら全然違う。' },
+      { tag: 'ビフォーアフター型', text: 'もっと早く知りたかった。' + name + 'の' + f1 + '。' },
+    ];
+
+    // 特徴2つ目・3つ目を活かしたパターンを追加
+    if (featList.length >= 2) {
+      patterns.push({ tag: '列挙型', text: f1 + 'で、' + f2 + '。それが' + name + 'です。' });
+    }
+    if (featList.length >= 3) {
+      patterns.push({ tag: '列挙型', text: f1 + '×' + f2 + '×' + f3 + '。' + name + 'だけの組み合わせ。' });
+    }
+
+    // ターゲットがある場合の追加パターン
+    if (target) {
+      patterns.push({ tag: 'ターゲット型', text: target + 'のための、' + name + '。' });
+      patterns.push({ tag: 'ターゲット型', text: tStr3 + '、それが' + name + '。' });
+    }
+
+    // シャッフル（毎回違う並び）
+    shuffle(patterns);
+
+    // 最大12件表示
+    var show = patterns.slice(0, 12);
+
+    // 描画
+    var html = '';
+    show.forEach(function(p, i) {
+      html += '<div class="copy-item">'
+            + '<div class="copy-meta"><span class="copy-tag">' + esc(p.tag) + '</span></div>'
+            + '<div class="copy-text" id="ct' + i + '">' + esc(p.text) + '</div>'
+            + '<button class="btn-copy" onclick="copyText(' + i + ', this)">'
+            + 'コピー</button>'
+            + '</div>';
+    });
+
+    document.getElementById('copies-list').innerHTML = html;
+    document.getElementById('result-area').style.display = '';
+    document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function copyText(idx, btn) {
+    var el = document.getElementById('ct' + idx);
+    if (!el) return;
+    var txt = el.textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(function() { flashCopied(btn); }).catch(function() { fallbackCopy(txt, btn); });
+    } else {
+      fallbackCopy(txt, btn);
+    }
+  }
+
+  function fallbackCopy(txt, btn) {
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed'; ta.style.top = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); flashCopied(btn); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+
+  function flashCopied(btn) {
+    btn.textContent = '✓ コピー済み';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'コピー';
+      btn.classList.remove('copied');
+    }, 1800);
+  }
+
+  function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── 初期化 ──
+  loadInput();
+  </script>
+
+</body>
+</html>
