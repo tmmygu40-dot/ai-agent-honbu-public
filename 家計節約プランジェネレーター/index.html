@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家計節約プランジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力グリッド ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    @media (max-width: 400px) {
+      .input-grid { grid-template-columns: 1fr; }
+    }
+    .field { margin-bottom: 0; }
+    .field label {
+      display: block; font-size: 0.82rem; font-weight: 600;
+      color: var(--text-sub); margin-bottom: 0.3rem;
+    }
+    .field .cat-emoji { font-size: 1rem; margin-right: 0.3em; }
+    .input-wrap { position: relative; }
+    .input-wrap input {
+      width: 100%; padding: 0.65rem 2.5rem 0.65rem 0.8rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      text-align: right;
+    }
+    .input-wrap input:focus { border-color: var(--accent); background: #fff; }
+    .input-wrap .unit {
+      position: absolute; right: 0.7rem; top: 50%; transform: translateY(-50%);
+      font-size: 0.8rem; color: var(--text-sub); pointer-events: none;
+    }
+    .inflation-note {
+      margin-top: 0.75rem;
+      font-size: 0.78rem; color: var(--text-sub);
+      background: var(--accent-light);
+      border-radius: 8px; padding: 0.5rem 0.8rem;
+      border-left: 3px solid var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.warn { border-color: var(--warn); background: var(--warn-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; color: var(--ok); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 節約プランカード ── */
+    .plan-card {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .plan-category {
+      margin-bottom: 1.1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .plan-category:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .plan-cat-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .plan-cat-name {
+      font-size: 0.9rem; font-weight: 700; color: var(--text);
+    }
+    .plan-cat-badge {
+      font-size: 0.72rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1px solid var(--accent); border-radius: 20px;
+      padding: 0.15rem 0.6rem;
+    }
+    .plan-actions { list-style: none; }
+    .plan-actions li {
+      font-size: 0.83rem; color: var(--text-sub);
+      padding: 0.28rem 0 0.28rem 1.3em;
+      position: relative; line-height: 1.5;
+    }
+    .plan-actions li::before {
+      content: "→";
+      position: absolute; left: 0;
+      color: var(--accent); font-weight: 700;
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:hover { background: var(--accent-light); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── トースト ── */
+    #toast {
+      position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+      background: #333; color: #fff; border-radius: 8px;
+      padding: 0.6rem 1.4rem; font-size: 0.88rem;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+      white-space: nowrap; z-index: 999;
+    }
+    #toast.show { opacity: 1; }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 家計節約プランジェネレーター</h1>
+    <p class="subtitle">支出を入力するだけで物価上昇を上回る節約プランを自動生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">月間支出を入力（円）</p>
+    <div class="input-grid" id="inputGrid"></div>
+    <div class="inflation-note">
+      📈 物価上昇率 <strong>5%</strong> 基準で節約余地を算出します（2024〜2025年の実勢を踏まえた目安）
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">節約プランを生成する</button>
+
+  <!-- サマリーカード -->
+  <div class="result-card warn" id="summaryCard">
+    <p class="result-label">月間節約可能額（推計）</p>
+    <p class="result-value" id="totalSaving">—</p>
+    <p class="result-note" id="summaryNote"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="breakdownCard" style="display:none">
+    <p class="card-title">カテゴリ別内訳</p>
+    <table class="detail-table"><tbody id="breakdownBody"></tbody></table>
+  </div>
+
+  <!-- 節約プランカード -->
+  <div class="plan-card" id="planCard">
+    <p class="card-title">カテゴリ別 節約アクションプラン</p>
+    <div id="planBody"></div>
+  </div>
+
+  <!-- コピーボタン -->
+  <button class="btn-copy" id="copyBtn" style="display:none" onclick="copyPlan()">📋 節約プランをコピー</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+  <div id="toast">コピーしました！</div>
+
+  <script>
+  // ── カテゴリ定義 ──
+  var CATEGORIES = [
+    {
+      id: 'electricity', label: '💡 光熱費', target: 0.15,
+      actions: [
+        'エアコンの設定温度を夏28℃・冬20℃に統一する',
+        '使っていない部屋の照明・コンセントをこまめに切る',
+        '電気料金プランを比較して最安プランに切り替える',
+        '洗濯は夜間や休日にまとめて回す（まとめ洗い）',
+        '冷蔵庫の設定を「中」にし、扉の開閉を最小限にする',
+        '待機電力カット（電源タップのスイッチで一括OFF）',
+      ]
+    },
+    {
+      id: 'food', label: '🛒 食費', target: 0.15,
+      actions: [
+        '1週間分の献立を先に決めてまとめ買いする',
+        '特売日・タイムセールを活用し特売品で献立を組む',
+        '外食・テイクアウトを週1回減らして自炊に切り替える',
+        '業務用スーパー・ふるさと納税食材を活用する',
+        '食品ロスゼロ作戦（使い切れる量だけ買う）',
+        'コンビニ購入をスーパー・ドラッグストアに替える',
+      ]
+    },
+    {
+      id: 'telecom', label: '📱 通信費', target: 0.3,
+      actions: [
+        '格安SIM（MVNO）または大手サブブランドに乗り換える',
+        '不要なオプションサービスを解約・ダウングレードする',
+        '自宅のネット回線とスマホをセット割で契約する',
+        'Wi-Fi環境でのデータ通信に切り替えて低容量プランに変更',
+        '家族全員の回線をまとめて家族割を最大活用する',
+        '固定電話を解約しスマホ1本に集約する',
+      ]
+    },
+    {
+      id: 'insurance', label: '🛡 保険', target: 0.2,
+      actions: [
+        '保障内容を見直し、重複している保険を解約する',
+        '掛け捨て型に切り替えて保険料を削減する',
+        '公的保険（社会保険）でカバーできる範囲を確認する',
+        '医療保険の入院給付日額を適切な水準に見直す',
+        '生命保険は必要最低限の死亡保障に絞って見直す',
+        '火災保険・自動車保険を一括見積もりで比較する',
+      ]
+    },
+    {
+      id: 'transport', label: '🚗 交通費', target: 0.1,
+      actions: [
+        '通勤・買い物ルートを見直して定期券区間を最適化する',
+        '自転車・徒歩で代替できる近距離移動はカーレスに',
+        '車を使う場合はエコドライブで燃費を10%改善する',
+        'カーシェア・ライドシェアを活用して車の維持費を削減する',
+        '高速道路のETCマイレージ・深夜割引を積極活用する',
+        'ガソリン単価の安いスタンドをガソリン価格サイトで確認',
+      ]
+    },
+    {
+      id: 'daily', label: '🧴 日用品', target: 0.2,
+      actions: [
+        'ドラッグストアのポイント5倍デーにまとめて購入する',
+        'シャンプー・洗剤類は詰め替え用・大容量品に切り替える',
+        'ネット通販の定期便・まとめ買い割引を活用する',
+        'ティッシュ・トイレットペーパーは最安値ストアでまとめ買い',
+        '100円ショップで代替できるものを積極的に探す',
+        '掃除道具の使い捨てをやめて繰り返し使えるものに変える',
+      ]
+    },
+    {
+      id: 'entertainment', label: '🎮 娯楽費', target: 0.25,
+      actions: [
+        '動画・音楽サブスクを必要なものだけに絞り込む',
+        '図書館・公共施設の無料サービスを積極活用する',
+        '飲み会・外食の頻度を月1〜2回に決めて予算を決める',
+        '趣味費は月次予算を設定してその範囲内で楽しむ',
+        'フリマアプリで不用品を売却して娯楽費の補填にする',
+        'ポイントカード・クーポンを徹底活用してお得に楽しむ',
+      ]
+    },
+    {
+      id: 'other', label: '📦 その他', target: 0.1,
+      actions: [
+        'クレジットカードの年会費を見直し不要なものを解約する',
+        '習い事・会費は継続するか費用対効果を改めて評価する',
+        '衣服費はシーズンセール・アウトレットに絞って購入する',
+        'ふるさと納税で日用品・食品をお得に調達する',
+        '医療費は医療費控除・健康保険の付加給付を漏れなく申請する',
+        'まとめ払い・年払いで割引を受けられる費目を把握する',
+      ]
+    },
+  ];
+
+  var STORAGE_KEY = 'kakei-savings-plan-v1';
+
+  // ── 入力欄を生成 ──
+  function buildInputs() {
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) {}
+    var grid = document.getElementById('inputGrid');
+    grid.innerHTML = CATEGORIES.map(function(cat) {
+      var val = saved[cat.id] || '';
+      return '<div class="field">'
+        + '<label>' + cat.label + '</label>'
+        + '<div class="input-wrap">'
+        + '<input type="number" id="cat_' + cat.id + '" placeholder="0" min="0" value="' + val + '" inputmode="numeric">'
+        + '<span class="unit">円</span>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  // ── プラン生成 ──
+  function generate() {
+    var inputs = {};
+    var total = 0;
+    var valid = false;
+    CATEGORIES.forEach(function(cat) {
+      var v = parseFloat(document.getElementById('cat_' + cat.id).value) || 0;
+      inputs[cat.id] = v;
+      total += v;
+      if (v > 0) valid = true;
+    });
+
+    if (!valid) {
+      alert('少なくとも1つのカテゴリに支出額を入力してください。');
+      return;
+    }
+
+    // localStorage に保存
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(inputs)); } catch(e) {}
+
+    var inflationRate = 0.05;
+    var inflationCost = Math.round(total * inflationRate);
+    var totalSaving = 0;
+    var breakdown = [];
+    var planCategories = [];
+
+    CATEGORIES.forEach(function(cat) {
+      var spend = inputs[cat.id];
+      if (spend <= 0) return;
+      var saving = Math.round(spend * cat.target);
+      totalSaving += saving;
+      breakdown.push({ label: cat.label, spend: spend, saving: saving, rate: Math.round(cat.target * 100) });
+      planCategories.push({ cat: cat, spend: spend, saving: saving });
+    });
+
+    // サマリー
+    var sc = document.getElementById('summaryCard');
+    sc.style.display = '';
+    document.getElementById('totalSaving').textContent = '+' + fmt(totalSaving) + ' 円/月';
+    document.getElementById('summaryNote').textContent =
+      '現在の月間支出合計：' + fmt(total) + ' 円 ／ '
+      + '物価5%上昇コスト：+' + fmt(inflationCost) + ' 円/月\n'
+      + '節約プランを実行すれば物価上昇分（' + fmt(inflationCost) + ' 円）を上回る'
+      + fmt(totalSaving) + ' 円の節約が見込めます。年間換算：' + fmt(totalSaving * 12) + ' 円の節約効果。';
+
+    // 内訳テーブル
+    var rows = breakdown.map(function(b) {
+      return '<tr><td>' + b.label + '（' + fmt(b.spend) + '円）</td>'
+           + '<td>▲' + fmt(b.saving) + '円（' + b.rate + '%減）</td></tr>';
+    });
+    rows.push('<tr class="hl"><td>合計節約見込み</td><td>▲' + fmt(totalSaving) + '円/月</td></tr>');
+    document.getElementById('breakdownBody').innerHTML = rows.join('');
+    document.getElementById('breakdownCard').style.display = '';
+
+    // 節約プラン
+    var planHtml = planCategories.map(function(p) {
+      return '<div class="plan-category">'
+        + '<div class="plan-cat-header">'
+        + '<span class="plan-cat-name">' + p.cat.label + '</span>'
+        + '<span class="plan-cat-badge">目標 ▲' + fmt(p.saving) + '円/月</span>'
+        + '</div>'
+        + '<ul class="plan-actions">'
+        + p.cat.actions.map(function(a) { return '<li>' + a + '</li>'; }).join('')
+        + '</ul>'
+        + '</div>';
+    }).join('');
+    document.getElementById('planBody').innerHTML = planHtml;
+    document.getElementById('planCard').style.display = '';
+    document.getElementById('copyBtn').style.display = '';
+
+    // スクロール
+    document.getElementById('summaryCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── コピー ──
+  function copyPlan() {
+    var lines = ['【家計節約プラン】'];
+    var totalSavingNum = 0;
+    CATEGORIES.forEach(function(cat) {
+      var v = parseFloat(document.getElementById('cat_' + cat.id).value) || 0;
+      if (v <= 0) return;
+      var saving = Math.round(v * cat.target);
+      totalSavingNum += saving;
+      lines.push('');
+      lines.push('■ ' + cat.label + '（目標 ▲' + fmt(saving) + '円/月）');
+      cat.actions.forEach(function(a) { lines.push('  → ' + a); });
+    });
+    lines.push('');
+    lines.push('月間節約見込み合計：▲' + fmt(totalSavingNum) + '円（年間 ▲' + fmt(totalSavingNum * 12) + '円）');
+
+    var text = lines.join('\n');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(showToast).catch(function() { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); showToast(); } catch(e) { alert('コピーに失敗しました。'); }
+    document.body.removeChild(ta);
+  }
+
+  function showToast() {
+    var t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 2000);
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── 初期化 ──
+  buildInputs();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor"
+       target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a>
+  </p>
+</body>
+</html>
