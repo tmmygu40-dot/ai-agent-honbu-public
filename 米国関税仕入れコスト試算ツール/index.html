@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>米国関税 仕入れコスト試算ツール</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力グリッド ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .input-grid .span2 { grid-column: 1 / -1; }
+    .field { }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.8rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.7rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* ── ボタン ── */
+    .btn-add {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 0.9rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 合計カード ── */
+    .summary-card {
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .summary-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+      margin-bottom: 0.75rem;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .summary-item {
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 0.75rem 0.9rem;
+      text-align: center;
+    }
+    .summary-item .s-label { font-size: 0.7rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .summary-item .s-val { font-size: 1.15rem; font-weight: 900; color: var(--text); }
+    .summary-item.accent .s-val { color: var(--ng); }
+    .summary-item.span2 { grid-column: 1 / -1; }
+
+    /* ── 品目リスト ── */
+    .item-list { max-width: 640px; margin: 0 auto 1rem; }
+    .item-row {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.6rem;
+      box-shadow: var(--shadow);
+    }
+    .item-row-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+    .item-name { font-size: 0.95rem; font-weight: 800; }
+    .item-rate { font-size: 0.78rem; background: var(--warn-bg); color: var(--warn); border-radius: 999px; padding: 0.2rem 0.6rem; font-weight: 700; }
+    .item-delete { background: none; border: none; cursor: pointer; color: var(--text-sub); font-size: 1.1rem; padding: 0.1rem 0.3rem; border-radius: 5px; }
+    .item-delete:hover { color: var(--ng); background: var(--ng-bg); }
+    .item-nums {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      font-size: 0.78rem;
+    }
+    .item-num { text-align: center; }
+    .item-num .n-label { color: var(--text-sub); font-weight: 600; margin-bottom: 0.15rem; }
+    .item-num .n-val { font-weight: 700; color: var(--text); }
+    .item-num.increase .n-val { color: var(--ng); font-size: 0.88rem; }
+
+    /* ── 空メッセージ ── */
+    .empty-msg {
+      text-align: center; color: var(--text-sub); font-size: 0.85rem;
+      padding: 2rem 0; display: none;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    .btn-clear {
+      display: block; width: 100%; max-width: 640px; margin: 0 auto 0.5rem;
+      padding: 0.6rem; font-size: 0.85rem; font-weight: 700;
+      background: none; color: var(--text-sub); border: 1.5px solid var(--border);
+      border-radius: 10px; cursor: pointer;
+    }
+    .btn-clear:hover { border-color: var(--ng); color: var(--ng); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>米国関税 仕入れコスト試算ツール</h1>
+    <p class="subtitle">品目別に関税コスト増加額を即試算・合計確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="input-grid">
+      <div class="field span2">
+        <label for="itemName">品目名</label>
+        <input type="text" id="itemName" placeholder="例: アルミ板 A3サイズ">
+      </div>
+      <div class="field">
+        <label for="unitPrice">仕入れ単価（円）</label>
+        <input type="number" id="unitPrice" placeholder="例: 1200" min="0">
+        <p class="hint">関税前の1個あたり単価</p>
+      </div>
+      <div class="field">
+        <label for="quantity">数量</label>
+        <input type="number" id="quantity" placeholder="例: 100" min="0">
+        <p class="hint">仕入れ個数</p>
+      </div>
+      <div class="field span2">
+        <label for="tariffRate">関税率（%）</label>
+        <input type="number" id="tariffRate" placeholder="例: 25" min="0" max="1000" step="0.1">
+        <p class="hint">米国の輸入関税率（25% なら 25 と入力）</p>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addItem()">＋ 品目を追加して計算</button>
+
+  <!-- 合計カード -->
+  <div class="summary-card" id="summaryCard" style="display:none">
+    <p class="summary-title">合計試算</p>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <p class="s-label">関税前 合計コスト</p>
+        <p class="s-val" id="totalBefore">—</p>
+      </div>
+      <div class="summary-item accent">
+        <p class="s-label">関税コスト増加合計</p>
+        <p class="s-val" id="totalIncrease">—</p>
+      </div>
+      <div class="summary-item span2" style="background:var(--warn-bg); border:1.5px solid var(--warn);">
+        <p class="s-label" style="color:var(--warn)">関税後 合計コスト（増加後）</p>
+        <p class="s-val" style="color:var(--warn); font-size:1.35rem;" id="totalAfter">—</p>
+      </div>
+      <div class="summary-item span2">
+        <p class="s-label">コスト増加率</p>
+        <p class="s-val" style="color:var(--ng);" id="increaseRate">—</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 品目リスト -->
+  <div class="item-list" id="itemList"></div>
+  <p class="empty-msg" id="emptyMsg">まだ品目が追加されていません</p>
+
+  <button class="btn-clear" onclick="clearAll()">すべてクリア</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'tariff_items_v1';
+  var items = [];
+
+  function load() {
+    try {
+      var d = localStorage.getItem(STORAGE_KEY);
+      if (d) items = JSON.parse(d);
+    } catch(e) { items = []; }
+    render();
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+
+  function addItem() {
+    var name = document.getElementById('itemName').value.trim();
+    var price = parseFloat(document.getElementById('unitPrice').value);
+    var qty   = parseFloat(document.getElementById('quantity').value);
+    var rate  = parseFloat(document.getElementById('tariffRate').value);
+
+    if (!name) { alert('品目名を入力してください'); return; }
+    if (isNaN(price) || price < 0) { alert('仕入れ単価を正しく入力してください'); return; }
+    if (isNaN(qty) || qty < 0) { alert('数量を正しく入力してください'); return; }
+    if (isNaN(rate) || rate < 0) { alert('関税率を正しく入力してください'); return; }
+
+    items.push({ id: Date.now(), name: name, price: price, qty: qty, rate: rate });
+    save();
+    render();
+
+    // フォームリセット
+    document.getElementById('itemName').value = '';
+    document.getElementById('unitPrice').value = '';
+    document.getElementById('quantity').value = '';
+    document.getElementById('tariffRate').value = '';
+    document.getElementById('itemName').focus();
+  }
+
+  function deleteItem(id) {
+    items = items.filter(function(it){ return it.id !== id; });
+    save();
+    render();
+  }
+
+  function clearAll() {
+    if (items.length === 0) return;
+    if (!confirm('すべての品目を削除しますか？')) return;
+    items = [];
+    save();
+    render();
+  }
+
+  function render() {
+    var listEl = document.getElementById('itemList');
+    var summaryEl = document.getElementById('summaryCard');
+    var emptyEl = document.getElementById('emptyMsg');
+
+    if (items.length === 0) {
+      listEl.innerHTML = '';
+      summaryEl.style.display = 'none';
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+    summaryEl.style.display = '';
+
+    var totalBefore = 0, totalIncrease = 0;
+    var html = '';
+
+    items.forEach(function(it) {
+      var before   = it.price * it.qty;
+      var increase = before * it.rate / 100;
+      var after    = before + increase;
+      totalBefore  += before;
+      totalIncrease += increase;
+
+      html += '<div class="item-row">'
+            + '<div class="item-row-top">'
+            + '<span class="item-name">' + esc(it.name) + '</span>'
+            + '<span class="item-rate">関税 ' + it.rate + '%</span>'
+            + '<button class="item-delete" onclick="deleteItem(' + it.id + ')" title="削除">✕</button>'
+            + '</div>'
+            + '<div class="item-nums">'
+            + '<div class="item-num"><p class="n-label">関税前コスト</p><p class="n-val">' + fmt(before) + '円</p></div>'
+            + '<div class="item-num increase"><p class="n-label">関税コスト増加</p><p class="n-val">+' + fmt(increase) + '円</p></div>'
+            + '<div class="item-num"><p class="n-label">関税後コスト</p><p class="n-val">' + fmt(after) + '円</p></div>'
+            + '</div>'
+            + '<div style="margin-top:0.5rem;font-size:0.72rem;color:var(--text-sub)">単価 ' + fmt(it.price) + '円 × 数量 ' + fmt(it.qty) + '個</div>'
+            + '</div>';
+    });
+
+    listEl.innerHTML = html;
+
+    var totalAfter = totalBefore + totalIncrease;
+    var rateStr = totalBefore > 0 ? (totalIncrease / totalBefore * 100).toFixed(1) + '%' : '—';
+
+    document.getElementById('totalBefore').textContent   = fmt(totalBefore) + '円';
+    document.getElementById('totalIncrease').textContent = '+' + fmt(totalIncrease) + '円';
+    document.getElementById('totalAfter').textContent    = fmt(totalAfter) + '円';
+    document.getElementById('increaseRate').textContent  = '+' + rateStr;
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
