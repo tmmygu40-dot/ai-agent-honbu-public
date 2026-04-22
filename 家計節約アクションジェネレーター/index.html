@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家計節約アクションジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.2rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.7rem; max-width: 600px; margin: 0 auto 1rem; padding: 0 1rem;
+    }
+    .summary-item {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.8rem 0.9rem;
+      box-shadow: var(--shadow);
+    }
+    .summary-item .s-label { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .summary-item .s-value { font-size: 1.35rem; font-weight: 900; color: var(--accent); }
+    .summary-item .s-value.green { color: var(--ok); }
+
+    /* ── カテゴリタブ ── */
+    .tab-wrap {
+      max-width: 600px; margin: 0 auto 1rem; padding: 0 1rem;
+      overflow-x: auto; white-space: nowrap;
+      scrollbar-width: thin;
+    }
+    .tab-inner {
+      display: inline-flex; gap: 0.4rem; padding-bottom: 0.2rem;
+    }
+    .tab-btn {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.52rem 0.85rem; border-radius: 999px;
+      font-size: 0.85rem; font-weight: 700; cursor: pointer;
+      border: 2px solid var(--border); background: var(--card);
+      color: var(--text-sub); white-space: nowrap;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn.active {
+      background: var(--accent); border-color: var(--accent);
+      color: #fff; box-shadow: 0 2px 8px rgba(224,123,0,0.3);
+    }
+    .tab-btn .badge {
+      font-size: 0.68rem; background: rgba(0,0,0,0.12); border-radius: 999px;
+      padding: 0.05rem 0.4rem; font-weight: 600;
+    }
+    .tab-btn.active .badge { background: rgba(255,255,255,0.3); }
+
+    /* ── アクションリスト ── */
+    .actions-wrap {
+      max-width: 600px; margin: 0 auto; padding: 0 1rem;
+    }
+    .cat-section { margin-bottom: 1.4rem; }
+    .cat-title {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.82rem; font-weight: 800; color: var(--accent);
+      letter-spacing: 0.05em; margin-bottom: 0.6rem;
+      padding-bottom: 0.45rem; border-bottom: 1.5px solid var(--border);
+    }
+    .cat-title .icon { font-size: 1rem; }
+
+    .action-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.8rem 1rem;
+      margin-bottom: 0.5rem; box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+      display: flex; align-items: flex-start; gap: 0.8rem;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .action-card:hover { border-color: var(--accent); }
+    .action-card.done {
+      background: var(--ok-bg); border-color: var(--ok);
+    }
+    .action-card.todo {
+      background: var(--warn-bg); border-color: var(--warn);
+    }
+
+    .check-area {
+      flex-shrink: 0; display: flex; flex-direction: column;
+      align-items: center; gap: 0.3rem; padding-top: 0.1rem;
+    }
+    .check-circle {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 2.5px solid var(--border); background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; transition: all 0.15s;
+    }
+    .action-card.done .check-circle {
+      background: var(--ok); border-color: var(--ok); color: #fff;
+    }
+    .action-card.todo .check-circle {
+      background: var(--warn); border-color: var(--warn); color: #fff;
+    }
+    .check-label {
+      font-size: 0.6rem; font-weight: 700; color: var(--text-sub);
+    }
+    .action-card.done .check-label { color: var(--ok); }
+    .action-card.todo .check-label { color: var(--warn); }
+
+    .action-body { flex: 1; min-width: 0; }
+    .action-name { font-size: 0.92rem; font-weight: 700; margin-bottom: 0.25rem; }
+    .action-card.done .action-name { color: var(--ok); text-decoration: line-through; opacity: 0.75; }
+    .action-card.todo .action-name { color: var(--warn); }
+    .action-desc { font-size: 0.78rem; color: var(--text-sub); line-height: 1.45; }
+    .action-saving {
+      font-size: 0.75rem; font-weight: 700; color: var(--accent);
+      margin-top: 0.3rem;
+    }
+    .action-card.done .action-saving { color: var(--ok); }
+
+    /* 状態ラベル */
+    .status-chip {
+      display: inline-block; font-size: 0.65rem; font-weight: 800;
+      padding: 0.15rem 0.55rem; border-radius: 999px; margin-top: 0.3rem;
+    }
+    .chip-none { background: var(--bg); color: var(--text-sub); border: 1px solid var(--border); }
+    .chip-todo { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .chip-done { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+
+    /* ── リセットボタン ── */
+    .reset-wrap {
+      max-width: 600px; margin: 1.5rem auto 0; padding: 0 1rem;
+      text-align: center;
+    }
+    .btn-reset {
+      padding: 0.6rem 1.6rem; font-size: 0.82rem; font-weight: 700;
+      border: 2px solid var(--border); border-radius: 999px;
+      background: var(--card); color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-reset:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 家計節約アクションジェネレーター</h1>
+    <p class="subtitle">物価高騰対応｜カテゴリ別 節約アクションを即チェック</p>
+  </header>
+
+  <!-- サマリーグリッド -->
+  <div class="summary-grid" id="summaryGrid">
+    <div class="summary-item">
+      <div class="s-label">月間節約目安（やった）</div>
+      <div class="s-value green" id="sumDone">¥0</div>
+    </div>
+    <div class="summary-item">
+      <div class="s-label">月間節約目安（やる予定）</div>
+      <div class="s-value" id="sumTodo">¥0</div>
+    </div>
+    <div class="summary-item">
+      <div class="s-label">実践済みアクション</div>
+      <div class="s-value green" id="sumDoneCount">0件</div>
+    </div>
+    <div class="summary-item">
+      <div class="s-label">やるアクション</div>
+      <div class="s-value" id="sumTodoCount">0件</div>
+    </div>
+  </div>
+
+  <!-- カテゴリタブ -->
+  <div class="tab-wrap">
+    <div class="tab-inner" id="tabInner"></div>
+  </div>
+
+  <!-- アクションリスト -->
+  <div class="actions-wrap" id="actionsWrap"></div>
+
+  <!-- リセット -->
+  <div class="reset-wrap">
+    <button class="btn-reset" onclick="resetAll()">チェックをリセット</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script src="../fav-widget.js"></script>
+
+  <script>
+  // ────────── データ ──────────
+  var CATEGORIES = [
+    {
+      id: 'all',
+      name: '全カテゴリ',
+      icon: '📋'
+    },
+    {
+      id: 'food',
+      name: '食費',
+      icon: '🛒',
+      actions: [
+        { id: 'f1', name: 'スーパーのタイムセール・見切り品を活用する', desc: '閉店前の割引タイミングを狙う。週2回活用で食費を削減できる。', saving: 3000 },
+        { id: 'f2', name: '食材をまとめ買いして小分け冷凍する', desc: '肉・野菜を特売日にまとめ買い→冷凍で単価を下げる。', saving: 2500 },
+        { id: 'f3', name: '外食を月2回減らして自炊にする', desc: '外食1回=約2,000円。月2回減らすだけで4,000円節約。', saving: 4000 },
+        { id: 'f4', name: '自炊弁当を週3日以上持参する', desc: '外食ランチ800円→弁当200円で1回600円削減。週3日×4週＝約7,000円節約。', saving: 7000 },
+        { id: 'f5', name: '格安スーパー・業務スーパーを活用する', desc: '同じ食材でも店舗差は20〜30%。まとめ買いとの組み合わせが効果大。', saving: 3000 },
+        { id: 'f6', name: '冷蔵庫の食材を使い切ってから買い物する', desc: 'フードロスをなくすだけで月1,000〜2,000円相当の節約に。', saving: 1500 },
+        { id: 'f7', name: 'ふるさと納税で米・肉・野菜を入手する', desc: '返礼品で食費を実質削減。寄附控除と組み合わせて得に。', saving: 5000 },
+        { id: 'f8', name: 'プライベートブランド(PB)食品に切り替える', desc: 'ナショナルブランドより2〜4割安い。品質も遜色なし。', saving: 2000 },
+      ]
+    },
+    {
+      id: 'energy',
+      name: '光熱費',
+      icon: '💡',
+      actions: [
+        { id: 'e1', name: '電力会社・料金プランを見直す', desc: '新電力やプラン変更で月1,000〜3,000円下がるケースあり。', saving: 2000 },
+        { id: 'e2', name: 'エアコンの設定温度を冷房28℃・暖房20℃にする', desc: '1℃調整で電気代が約10%変わる。ドライ運転より冷房が経済的なことも。', saving: 1500 },
+        { id: 'e3', name: '使っていない電気をこまめに消す', desc: '照明・換気扇・家電の待機電力カット。全体で月500〜1,000円削減可能。', saving: 800 },
+        { id: 'e4', name: 'LED電球に交換する', desc: '白熱球→LEDで消費電力は約1/8。電球寿命も40倍で交換コストも減る。', saving: 700 },
+        { id: 'e5', name: '節水シャワーヘッドに交換する', desc: '水道代＋給湯ガス代を同時削減。月1,500〜3,000円節約効果あり。', saving: 2000 },
+        { id: 'e6', name: 'ガスの調理を電子レンジ・IH調理で代替する', desc: '電子レンジはガスより効率的。煮物・湯沸かしの置き換えでガス代削減。', saving: 800 },
+        { id: 'e7', name: '洗濯は夜間オフピーク時間帯にまとめる', desc: '時間帯別料金プランなら夜間は割安。乾燥機より自然乾燥が経済的。', saving: 600 },
+        { id: 'e8', name: '冷蔵庫の設定温度を「弱」にして庫内を整理する', desc: '詰め込みすぎると冷却効率が下がる。適切な充填率でコスト削減。', saving: 500 },
+      ]
+    },
+    {
+      id: 'telecom',
+      name: '通信費',
+      icon: '📱',
+      actions: [
+        { id: 't1', name: '格安SIM（MVNO）に乗り換える', desc: '大手キャリアから格安SIMへ変更で月3,000〜7,000円削減可能。', saving: 5000 },
+        { id: 't2', name: 'スマホの通信量プランを実績に合わせて下げる', desc: '毎月の使用量を確認して最安プランに変更。1〜2段階下げられるケースが多い。', saving: 1500 },
+        { id: 't3', name: '固定電話を解約・IP電話に切り替える', desc: '固定電話の基本料+通話料は月2,000〜3,000円。不要なら解約が最速の節約。', saving: 2500 },
+        { id: 't4', name: '光回線プランを一括見積りで乗り換える', desc: 'キャリア変更キャンペーンで工事費無料＋月500〜1,500円安くなることも。', saving: 1000 },
+        { id: 't5', name: '不要なオプション・アプリサービスを解約する', desc: '気づかず課金継続しているサービスをリストアップして精査。月500〜2,000円浮く。', saving: 1500 },
+        { id: 't6', name: '家族でプラン・端末代金をまとめて割引活用する', desc: '家族割・セット割を最大活用。端末補助や違約金なしの乗り換えを検討。', saving: 2000 },
+      ]
+    },
+    {
+      id: 'insurance',
+      name: '保険',
+      icon: '🛡️',
+      actions: [
+        { id: 'i1', name: '生命保険の保障内容・金額を見直す', desc: '子どもの独立後・ローン完済後は必要保障額が大幅に下がる。見直しで月数千円節約も。', saving: 3000 },
+        { id: 'i2', name: '医療保険の必要性を再検討する', desc: '健康保険の高額療養費制度があれば医療保険が過剰なケースも。掛け捨て・共済へ変更検討。', saving: 2000 },
+        { id: 'i3', name: '自動車保険を一括見積りサイトで比較する', desc: '同じ条件で保険会社ごとに年間1〜5万円差がある。等級引き継ぎで乗り換えが得。', saving: 3000 },
+        { id: 'i4', name: '火災保険の補償範囲と重複契約を確認する', desc: 'クレジットカード付帯の旅行保険や火災保険との重複は解約で削減可能。', saving: 1000 },
+        { id: 'i5', name: '保険の特約・不要オプションを削除する', desc: '特約は毎月積み上がる。使う予定のない特約は外すだけで月数百〜千円削減。', saving: 800 },
+        { id: 'i6', name: '掛け捨て型・共済に切り替えを検討する', desc: '貯蓄性保険より掛け捨て＋資産運用の方が有利なケースが多い。', saving: 4000 },
+      ]
+    },
+    {
+      id: 'transport',
+      name: '交通費',
+      icon: '🚗',
+      actions: [
+        { id: 'tr1', name: '通勤ルートを複数比較して最安を選ぶ', desc: '定期券の経路変更で月数百〜千円変わることも。年間では万単位の差に。', saving: 1000 },
+        { id: 'tr2', name: '自転車通勤・徒歩通勤に切り替える', desc: '近距離なら交通費ゼロ＋健康維持にも。電動自転車も半年で元が取れることも。', saving: 5000 },
+        { id: 'tr3', name: 'ガソリンカード・給油アプリで最安スタンドを使う', desc: '近隣スタンドを価格比較して毎回最安で給油。月1,000〜2,000円削減可能。', saving: 1500 },
+        { id: 'tr4', name: 'カーシェア・レンタカーを活用して車を手放す', desc: '車の維持費は年間50〜100万円。利用頻度が低ければカーシェアが圧倒的に安い。', saving: 15000 },
+        { id: 'tr5', name: '高速より一般道・下道を活用する', desc: '近距離移動は一般道で高速代を節約。ETC割引時間帯の活用も効果的。', saving: 2000 },
+        { id: 'tr6', name: 'エコドライブを実践して燃費を改善する', desc: '急加速・急ブレーキを控え、適切な空気圧を維持。燃費が5〜15%改善。', saving: 1000 },
+      ]
+    },
+    {
+      id: 'leisure',
+      name: '娯楽費',
+      icon: '🎬',
+      actions: [
+        { id: 'l1', name: '動画・音楽サービスの重複を解約する', desc: 'Netflix・Prime・U-NEXTなど複数契約は要見直し。1本に絞れば月2,000〜3,000円節約。', saving: 2000 },
+        { id: 'l2', name: 'ゲーム・本は中古・セール・サブスクで入手する', desc: '定価購入をやめるだけで半額以下に。サブスク1本でまかなえるなら最安。', saving: 2000 },
+        { id: 'l3', name: '外出前に優待・クーポン・割引デーを必ず確認する', desc: '映画・外食・レジャー施設は割引デーや株主優待で3〜5割安くなることも。', saving: 1500 },
+        { id: 'l4', name: '無料・低コストのレジャーを積極活用する', desc: '図書館・公園・無料イベント・無料博物館デーなど。休日の出費を大幅削減。', saving: 3000 },
+        { id: 'l5', name: '習い事・サブスクの費用対効果を見直す', desc: '継続しているが活用できていないものは解約。年間で数万円の節約になることも。', saving: 5000 },
+        { id: 'l6', name: 'ポイント・マイルを積極的に消費する', desc: '失効間近のポイントを買い物・旅行に活用。現金換算で年間1〜5万円相当も。', saving: 3000 },
+      ]
+    },
+    {
+      id: 'daily',
+      name: '日用品',
+      icon: '🧴',
+      actions: [
+        { id: 'd1', name: 'ドラッグストアのポイント5倍デーを活用する', desc: '日用品はポイントデーにまとめ買い。実質10〜20%引きの効果。', saving: 1500 },
+        { id: 'd2', name: 'プライベートブランド（PB）日用品に切り替える', desc: 'シャンプー・洗剤・ティッシュなどはPBで品質は同等・価格は2〜4割安い。', saving: 2000 },
+        { id: 'd3', name: '詰め替え用・大容量パックに切り替える', desc: '詰め替えは1回分あたり20〜30%安い。まとめ買いと組み合わせるとさらにお得。', saving: 1000 },
+        { id: 'd4', name: 'Amazon・ネット通販の最安値と比較して購入する', desc: 'Keepa・価格.comで定価確認。実店舗より2〜3割安いことも。定期購入割引も活用。', saving: 2000 },
+        { id: 'd5', name: '掃除用品はセスキ・重曹などナチュラル洗剤にする', desc: '市販の洗剤の代わりに安価なナチュラル洗剤で代替。月500〜1,000円削減可能。', saving: 800 },
+        { id: 'd6', name: 'ジェネリック・後発品・ノーブランドに切り替える', desc: '医薬品・化粧品・消耗品は後発品で品質維持しながら大幅節約。', saving: 1500 },
+      ]
+    },
+  ];
+
+  // ────────── 状態管理 ──────────
+  var LS_KEY = 'savings-actions-checks';
+  var checks = {}; // {actionId: 'none'|'todo'|'done'}
+  var currentCat = 'all';
+
+  function loadChecks() {
+    try {
+      var saved = localStorage.getItem(LS_KEY);
+      if (saved) checks = JSON.parse(saved);
+    } catch(e) { checks = {}; }
+  }
+
+  function saveChecks() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(checks)); } catch(e) {}
+  }
+
+  function getCheck(id) {
+    return checks[id] || 'none';
+  }
+
+  function cycleCheck(id) {
+    var cur = getCheck(id);
+    var next = cur === 'none' ? 'todo' : cur === 'todo' ? 'done' : 'none';
+    checks[id] = next;
+    saveChecks();
+    renderAll();
+  }
+
+  function resetAll() {
+    if (!confirm('すべてのチェックをリセットしますか？')) return;
+    checks = {};
+    saveChecks();
+    renderAll();
+  }
+
+  // ────────── 集計 ──────────
+  function calcSummary() {
+    var doneSaving = 0, todoSaving = 0, doneCount = 0, todoCount = 0;
+    CATEGORIES.forEach(function(cat) {
+      if (!cat.actions) return;
+      cat.actions.forEach(function(action) {
+        var st = getCheck(action.id);
+        if (st === 'done') { doneSaving += action.saving; doneCount++; }
+        else if (st === 'todo') { todoSaving += action.saving; todoCount++; }
+      });
+    });
+    return { doneSaving: doneSaving, todoSaving: todoSaving, doneCount: doneCount, todoCount: todoCount };
+  }
+
+  // ────────── レンダリング ──────────
+  function fmt(n) { return '¥' + n.toLocaleString('ja-JP'); }
+
+  function renderTabs() {
+    var tabInner = document.getElementById('tabInner');
+    var html = '';
+    CATEGORIES.forEach(function(cat) {
+      var count = 0;
+      if (cat.id === 'all') {
+        CATEGORIES.forEach(function(c) { if (c.actions) count += c.actions.length; });
+      } else if (cat.actions) {
+        count = cat.actions.length;
+      }
+      var active = currentCat === cat.id ? ' active' : '';
+      html += '<button class="tab-btn' + active + '" onclick="selectCat(\'' + cat.id + '\')">'
+            + cat.icon + ' ' + cat.name
+            + ' <span class="badge">' + count + '</span>'
+            + '</button>';
+    });
+    tabInner.innerHTML = html;
+  }
+
+  function renderActions() {
+    var wrap = document.getElementById('actionsWrap');
+    var html = '';
+
+    var catsToShow = currentCat === 'all'
+      ? CATEGORIES.filter(function(c) { return c.actions; })
+      : CATEGORIES.filter(function(c) { return c.id === currentCat && c.actions; });
+
+    catsToShow.forEach(function(cat) {
+      html += '<div class="cat-section">';
+      html += '<div class="cat-title"><span class="icon">' + cat.icon + '</span>' + cat.name + '</div>';
+      cat.actions.forEach(function(action) {
+        var st = getCheck(action.id);
+        var cardClass = st === 'done' ? ' done' : st === 'todo' ? ' todo' : '';
+        var circleContent = st === 'done' ? '✓' : st === 'todo' ? '▶' : '';
+        var checkLabelText = st === 'done' ? 'やった' : st === 'todo' ? 'やる' : 'タップ';
+        var chipClass = st === 'done' ? 'chip-done' : st === 'todo' ? 'chip-todo' : 'chip-none';
+        var chipText = st === 'done' ? '✓ 実践済み' : st === 'todo' ? '▶ やる予定' : '未設定';
+
+        html += '<div class="action-card' + cardClass + '" onclick="cycleCheck(\'' + action.id + '\')">';
+        html += '<div class="check-area">';
+        html += '<div class="check-circle">' + circleContent + '</div>';
+        html += '<span class="check-label">' + checkLabelText + '</span>';
+        html += '</div>';
+        html += '<div class="action-body">';
+        html += '<div class="action-name">' + action.name + '</div>';
+        html += '<div class="action-desc">' + action.desc + '</div>';
+        html += '<div class="action-saving">💰 月間節約目安 ' + fmt(action.saving) + '〜</div>';
+        html += '<span class="status-chip ' + chipClass + '">' + chipText + '</span>';
+        html += '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    });
+
+    wrap.innerHTML = html;
+  }
+
+  function renderSummary() {
+    var s = calcSummary();
+    document.getElementById('sumDone').textContent = fmt(s.doneSaving);
+    document.getElementById('sumTodo').textContent = fmt(s.todoSaving);
+    document.getElementById('sumDoneCount').textContent = s.doneCount + '件';
+    document.getElementById('sumTodoCount').textContent = s.todoCount + '件';
+  }
+
+  function renderAll() {
+    renderTabs();
+    renderActions();
+    renderSummary();
+  }
+
+  function selectCat(id) {
+    currentCat = id;
+    renderAll();
+    // タブをスクロール
+    var tabInner = document.getElementById('tabInner');
+    var activeBtn = tabInner.querySelector('.tab-btn.active');
+    if (activeBtn) activeBtn.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }
+
+  // ────────── 初期化 ──────────
+  loadChecks();
+  renderAll();
+  </script>
+</body>
+</html>
