@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>値上げ告知文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* テンプレート選択タブ */
+    .tab-row {
+      display: flex; gap: 0.5rem; margin: 0 auto 1rem; max-width: 600px;
+    }
+    .tab-btn {
+      flex: 1; padding: 0.6rem; font-size: 0.85rem; font-weight: 700;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--card); color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tab-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 生成結果カード ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .result-card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+      margin-bottom: 0.75rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .result-text {
+      font-size: 0.95rem; line-height: 1.8;
+      white-space: pre-wrap; word-break: break-word;
+      color: var(--text);
+    }
+
+    /* コピーボタン */
+    .btn-copy {
+      padding: 0.35rem 0.9rem; font-size: 0.82rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 6px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-copy:active { background: var(--accent); color: #fff; }
+    .copied-msg { font-size: 0.78rem; color: var(--ok); font-weight: 700; display: none; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>値上げ告知文ジェネレーター</h1>
+    <p class="subtitle">商品・サービスの値上げをお客様に伝える文面を即生成</p>
+  </header>
+
+  <!-- テンプレート選択 -->
+  <div class="tab-row">
+    <button class="tab-btn active" id="tab0" onclick="selectTab(0)">丁寧</button>
+    <button class="tab-btn" id="tab1" onclick="selectTab(1)">普通</button>
+    <button class="tab-btn" id="tab2" onclick="selectTab(2)">簡潔</button>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="company">会社名・店舗名（任意）</label>
+      <input type="text" id="company" placeholder="例: 〇〇食堂">
+    </div>
+    <div class="field">
+      <label for="product">対象の商品・サービス名</label>
+      <input type="text" id="product" placeholder="例: ランチセット、月額プラン">
+    </div>
+    <div class="field">
+      <label for="old_price">現在の価格</label>
+      <input type="text" id="old_price" placeholder="例: 980円、月額1,000円">
+    </div>
+    <div class="field">
+      <label for="new_price">値上げ後の価格</label>
+      <input type="text" id="new_price" placeholder="例: 1,200円、月額1,300円">
+    </div>
+    <div class="field">
+      <label for="date">実施日</label>
+      <input type="text" id="date" placeholder="例: 2026年5月1日（金）">
+    </div>
+    <div class="field">
+      <label for="reason">値上げの主な理由</label>
+      <textarea id="reason" placeholder="例: 原材料・食材費の高騰、光熱費の上昇"></textarea>
+      <p class="hint">箇条書きでも一文でもOK</p>
+    </div>
+    <div class="field">
+      <label for="message">お客様へのひとことメッセージ（任意）</label>
+      <textarea id="message" placeholder="例: 引き続き品質向上に努めてまいります"></textarea>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">告知文を生成する</button>
+
+  <!-- 生成結果 -->
+  <div class="result-card" id="resultCard">
+    <div class="result-card-title">
+      <span>生成された告知文</span>
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <span class="copied-msg" id="copiedMsg">コピーしました！</span>
+        <button class="btn-copy" onclick="copyText()">コピー</button>
+      </div>
+    </div>
+    <div class="result-text" id="resultText"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var currentTab = 0;
+
+  function selectTab(idx) {
+    currentTab = idx;
+    for (var i = 0; i < 3; i++) {
+      document.getElementById('tab' + i).classList.toggle('active', i === idx);
+    }
+    saveLS();
+  }
+
+  function generate() {
+    var company  = document.getElementById('company').value.trim();
+    var product  = document.getElementById('product').value.trim();
+    var oldPrice = document.getElementById('old_price').value.trim();
+    var newPrice = document.getElementById('new_price').value.trim();
+    var date     = document.getElementById('date').value.trim();
+    var reason   = document.getElementById('reason').value.trim();
+    var message  = document.getElementById('message').value.trim();
+
+    if (!product || !oldPrice || !newPrice || !date) {
+      alert('商品名・現在の価格・値上げ後の価格・実施日を入力してください。');
+      return;
+    }
+
+    var from = company ? company + ' ' : '';
+    var text = '';
+
+    if (currentTab === 0) {
+      // 丁寧
+      text = '拝啓　時下ますますご清祥のこととお慶び申し上げます。\n';
+      text += '平素より格別のご愛顧を賜り、誠にありがとうございます。\n\n';
+      text += 'さて、このたびは誠に不本意ではございますが、' + (product ? '「' + product + '」' : '弊社商品・サービス') + 'の価格改定をご案内申し上げます。\n\n';
+      if (reason) {
+        text += '【価格改定の理由】\n' + reason + '\n\n';
+        text += '昨今の' + reason.replace(/\n/g, '・') + 'により、品質・サービスの維持が困難な状況となりました。\n';
+        text += '誠に恐れ入りますが、何卒ご理解賜りますようお願い申し上げます。\n\n';
+      }
+      text += '【改定内容】\n';
+      text += '対象　　：' + product + '\n';
+      text += '現在の価格：' + oldPrice + '\n';
+      text += '改定後の価格：' + newPrice + '\n';
+      text += '実施日　：' + date + '\n\n';
+      if (message) {
+        text += message + '\n\n';
+      }
+      text += '引き続き皆様にご満足いただけるよう、品質・サービスの向上に努めてまいります。\n';
+      text += 'ご不便をおかけいたしますことを、深くお詫び申し上げます。\n\n';
+      text += '今後ともどうぞよろしくお願い申し上げます。\n';
+      if (from) text += '\n' + from;
+      text += '\n敬具';
+
+    } else if (currentTab === 1) {
+      // 普通
+      text = '【価格改定のお知らせ】\n\n';
+      text += 'いつも' + (product ? '「' + product + '」' : '当店・弊社') + 'をご利用いただき、誠にありがとうございます。\n\n';
+      text += '誠に恐れ入りますが、下記のとおり価格を改定させていただきます。\n\n';
+      text += '■ 対象商品・サービス：' + product + '\n';
+      text += '■ 現在の価格：' + oldPrice + '\n';
+      text += '■ 改定後の価格：' + newPrice + '\n';
+      text += '■ 実施日：' + date + '\n';
+      if (reason) {
+        text += '\n■ 改定の理由\n' + reason + '\n';
+      }
+      text += '\n引き続き品質・サービスの向上に取り組んでまいります。\n';
+      if (message) {
+        text += message + '\n';
+      }
+      text += '\nご理解のほど、何卒よろしくお願いいたします。\n';
+      if (from) text += '\n' + from;
+
+    } else {
+      // 簡潔
+      text = '【価格改定のご案内】\n\n';
+      text += '対象：' + product + '\n';
+      text += '変更前：' + oldPrice + '　→　変更後：' + newPrice + '\n';
+      text += '実施日：' + date + '\n';
+      if (reason) {
+        text += '理由：' + reason.replace(/\n/g, ' / ') + '\n';
+      }
+      if (message) {
+        text += '\n' + message + '\n';
+      }
+      text += '\nご理解よろしくお願いいたします。\n';
+      if (from) text += from;
+    }
+
+    document.getElementById('resultText').textContent = text;
+    var card = document.getElementById('resultCard');
+    card.style.display = '';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    saveLS();
+  }
+
+  function copyText() {
+    var text = document.getElementById('resultText').textContent;
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(function() {
+      var msg = document.getElementById('copiedMsg');
+      msg.style.display = 'inline';
+      setTimeout(function() { msg.style.display = 'none'; }, 2000);
+    }).catch(function() {
+      // fallback
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      var msg = document.getElementById('copiedMsg');
+      msg.style.display = 'inline';
+      setTimeout(function() { msg.style.display = 'none'; }, 2000);
+    });
+  }
+
+  function saveLS() {
+    var data = {
+      company:  document.getElementById('company').value,
+      product:  document.getElementById('product').value,
+      old_price: document.getElementById('old_price').value,
+      new_price: document.getElementById('new_price').value,
+      date:     document.getElementById('date').value,
+      reason:   document.getElementById('reason').value,
+      message:  document.getElementById('message').value,
+      tab:      currentTab
+    };
+    localStorage.setItem('neage_kokuchi', JSON.stringify(data));
+  }
+
+  function loadLS() {
+    try {
+      var raw = localStorage.getItem('neage_kokuchi');
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (d.company  !== undefined) document.getElementById('company').value   = d.company;
+      if (d.product  !== undefined) document.getElementById('product').value   = d.product;
+      if (d.old_price !== undefined) document.getElementById('old_price').value = d.old_price;
+      if (d.new_price !== undefined) document.getElementById('new_price').value = d.new_price;
+      if (d.date     !== undefined) document.getElementById('date').value      = d.date;
+      if (d.reason   !== undefined) document.getElementById('reason').value    = d.reason;
+      if (d.message  !== undefined) document.getElementById('message').value   = d.message;
+      if (d.tab      !== undefined) selectTab(d.tab);
+    } catch(e) {}
+  }
+
+  // 入力変更時に自動保存
+  ['company','product','old_price','new_price','date','reason','message'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', saveLS);
+  });
+
+  loadLS();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
