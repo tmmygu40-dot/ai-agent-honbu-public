@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>評価コメントジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select, .field input[type="text"] {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus, .field input[type="text"]:focus { border-color: var(--accent); background: #fff; }
+
+    /* 評価段階ボタン */
+    .grade-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .grade-btn {
+      flex: 1; min-width: 52px; padding: 0.7rem 0.4rem;
+      font-size: 1rem; font-weight: 800;
+      border: 2px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text-sub);
+      cursor: pointer; transition: all 0.15s; text-align: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .grade-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .grade-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .grade-btn.s { --g: #7c3aed; }
+    .grade-btn.s.active { background: #7c3aed; border-color: #7c3aed; }
+    .grade-btn.a { --g: var(--ok); }
+    .grade-btn.a.active { background: var(--ok); border-color: var(--ok); }
+    .grade-btn.b { --g: var(--accent); }
+    .grade-btn.b.active { background: var(--accent); border-color: var(--accent); }
+    .grade-btn.c { --g: var(--warn); }
+    .grade-btn.c.active { background: var(--warn); border-color: var(--warn); }
+    .grade-btn.d { --g: var(--ng); }
+    .grade-btn.d.active { background: var(--ng); border-color: var(--ng); }
+
+    .grade-desc { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.5rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-calc:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* 結果エリア */
+    .result-area { display: none; max-width: 600px; margin: 0 auto; }
+
+    .comment-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 0.8rem;
+    }
+    .comment-card .comment-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.8rem;
+    }
+    .comment-badge {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+      padding: 0.25rem 0.6rem; border-radius: 20px; background: var(--accent-light);
+      color: var(--accent);
+    }
+    .comment-badge.s { background: #f5f3ff; color: #7c3aed; }
+    .comment-badge.a { background: var(--ok-bg); color: var(--ok); }
+    .comment-badge.b { background: var(--accent-light); color: var(--accent); }
+    .comment-badge.c { background: var(--warn-bg); color: var(--warn); }
+    .comment-badge.d { background: var(--ng-bg); color: var(--ng); }
+
+    .comment-text {
+      font-size: 0.95rem; line-height: 1.7; color: var(--text);
+      white-space: pre-wrap; word-break: break-all;
+    }
+
+    .comment-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+
+    .comment-item {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      font-size: 0.93rem; line-height: 1.65;
+    }
+    .comment-item:hover { border-color: var(--accent); background: var(--accent-light); }
+    .comment-item.selected { border-color: var(--accent); background: var(--accent-light); }
+    .comment-item-num { font-size: 0.7rem; color: var(--accent); font-weight: 700; margin-bottom: 0.25rem; }
+
+    .btn-copy {
+      display: block; width: 100%;
+      padding: 0.85rem; font-size: 1rem; font-weight: 700;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:hover { opacity: 0.88; }
+    .btn-copy.copied { background: var(--ok); }
+
+    .copy-notice {
+      text-align: center; font-size: 0.82rem; color: var(--ok);
+      margin-top: 0.5rem; min-height: 1.2em;
+    }
+
+    /* 氏名入力 */
+    .name-row { display: flex; gap: 0.6rem; align-items: center; }
+    .name-row input { flex: 1; }
+    .name-row .hint-sm { font-size: 0.72rem; color: var(--text-sub); white-space: nowrap; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>評価コメントジェネレーター</h1>
+    <p class="subtitle">項目と評価段階を選ぶだけでコメントを即生成</p>
+  </header>
+
+  <!-- 設定カード -->
+  <div class="card">
+    <p class="card-title">評価設定</p>
+
+    <div class="field">
+      <label for="evalName">評価対象者名（任意）</label>
+      <input type="text" id="evalName" placeholder="例: 山田 太郎">
+    </div>
+
+    <div class="field">
+      <label for="category">評価カテゴリ</label>
+      <select id="category">
+        <option value="">── カテゴリを選択 ──</option>
+        <option value="業績">業績・目標達成</option>
+        <option value="行動">行動特性・仕事の進め方</option>
+        <option value="コミュニケーション">コミュニケーション・協調性</option>
+        <option value="主体性">主体性・積極性</option>
+        <option value="成長">成長性・スキルアップ</option>
+        <option value="リーダーシップ">リーダーシップ・マネジメント</option>
+        <option value="顧客対応">顧客対応・サービス品質</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>評価段階</label>
+      <div class="grade-group">
+        <button class="grade-btn s" data-grade="S" onclick="selectGrade(this)">S</button>
+        <button class="grade-btn a" data-grade="A" onclick="selectGrade(this)">A</button>
+        <button class="grade-btn b" data-grade="B" onclick="selectGrade(this)">B</button>
+        <button class="grade-btn c" data-grade="C" onclick="selectGrade(this)">C</button>
+        <button class="grade-btn d" data-grade="D" onclick="selectGrade(this)">D</button>
+      </div>
+      <p class="grade-desc" id="gradeDesc">S: 非常に優秀　A: 優秀　B: 標準（期待通り）　C: やや不足　D: 不足</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" id="genBtn" onclick="generate()">コメントを生成する</button>
+
+  <!-- 結果エリア -->
+  <div class="result-area" id="resultArea">
+    <div class="card">
+      <p class="card-title">生成コメント（クリックして選択）</p>
+      <div class="comment-list" id="commentList"></div>
+      <button class="btn-copy" id="copyBtn" onclick="copySelected()">選択したコメントをコピー</button>
+      <p class="copy-notice" id="copyNotice"></p>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var selectedGrade = '';
+  var selectedComment = '';
+
+  var GRADES = {
+    S: { label: 'S（非常に優秀）', cls: 's' },
+    A: { label: 'A（優秀）',       cls: 'a' },
+    B: { label: 'B（標準）',       cls: 'b' },
+    C: { label: 'C（やや不足）',   cls: 'c' },
+    D: { label: 'D（不足）',       cls: 'd' },
+  };
+
+  var COMMENTS = {
+    '業績': {
+      S: [
+        '目標を大幅に上回る成果を達成し、チーム全体の実績向上に大きく貢献しました。高い目標意識と粘り強い取り組みが結果に直結しており、模範となる活躍でした。',
+        '期待値をはるかに超える成果を継続的に上げており、その結果はチームの中でも特に際立っています。来期もさらなる高みを目指して活躍が期待されます。',
+        '設定した目標を優に超える実績を残し、組織全体の目標達成に対して顕著な貢献を果たしました。業績面での貢献度は非常に高く評価できます。',
+      ],
+      A: [
+        '設定した目標をしっかりと達成し、安定した成果を出し続けました。業務への取り組みが実績に表れており、高い評価に値します。',
+        '目標を達成し、期待に応える結果を残しました。計画的な業務遂行と着実な成果積み上げが評価されます。',
+        '定められた目標を達成し、チームの業績向上に貢献しました。今後はさらなる高みへの挑戦が期待されます。',
+      ],
+      B: [
+        '目標に対してほぼ達成に近い水準で取り組みました。安定した業務遂行力があり、今後は更なる成果向上に期待します。',
+        '設定した目標に対して概ね達成できました。引き続き安定したパフォーマンスを維持しつつ、さらなる成果を目指してほしいと思います。',
+        '業績については概ね期待通りの水準でした。今後はより高い目標に挑戦する姿勢が求められます。',
+      ],
+      C: [
+        '目標の達成に向けた取り組みは見られましたが、結果として目標値には届きませんでした。課題の原因分析と改善策の実行が求められます。',
+        '業績面で目標未達となりました。状況を振り返り、具体的な改善行動を計画・実行することが次期に向けての課題です。',
+        '期待する成果には届かない部分があります。業務プロセスの見直しや目標達成に向けた積極的な行動改善が期待されます。',
+      ],
+      D: [
+        '業績が目標を大きく下回りました。原因を丁寧に分析し、具体的な改善計画を立てて実行することが早急に求められます。上司・チームとのコミュニケーションを密にしながら立て直してください。',
+        '業績面において大幅な目標未達が続いています。業務の進め方を根本から見直し、具体的な行動変容が必要です。サポートを受けながら着実な改善を期待します。',
+        '目標に対して著しく未達となっています。業務上の課題を明確にし、改善に向けた計画的な取り組みを強化してください。',
+      ],
+    },
+    '行動': {
+      S: [
+        '業務への取り組み姿勢が非常に優れており、高い品質意識を持って仕事に当たっています。自ら率先して問題を解決し、周囲のメンバーへの好影響も大きいです。',
+        '常に高い意識を持ち、丁寧かつ正確な仕事ぶりを発揮しています。困難な場面でも粘り強く対処し、組織全体のレベル向上に貢献しています。',
+        '業務遂行において卓越した姿勢を示しており、細部まで丁寧に対応する習慣が成果に直結しています。チームの手本となる存在です。',
+      ],
+      A: [
+        '責任感を持って業務に取り組み、高い品質の成果物を提供しています。自律的に行動しながら的確に業務を遂行する姿勢は評価に値します。',
+        '業務の取り組み姿勢が良好で、計画的かつ着実に仕事を進めています。誠実な業務遂行が周囲からの信頼につながっています。',
+        '仕事への姿勢が積極的で、品質を意識した取り組みが見られます。指示を超えた自主的な行動も増えており、成長が感じられます。',
+      ],
+      B: [
+        '業務への取り組みは安定しており、基本的な業務遂行能力を十分に発揮しています。さらなる自発性や改善意識を高めることで、より高い評価につながるでしょう。',
+        '基本的な行動特性は満たされています。今後はより主体的に課題に取り組む姿勢を強化することが期待されます。',
+        '概ね安定した行動ができており、業務を確実にこなす力があります。より積極的な行動変容でさらなる成長が見込まれます。',
+      ],
+      C: [
+        '業務遂行においてムラが見られ、安定した取り組みに向けた改善が求められます。計画性や優先順位の付け方を意識することで改善が期待できます。',
+        '仕事の進め方に改善余地があります。業務の質・スピードともにさらなる向上が必要です。意識的な行動改善に取り組んでください。',
+        '行動特性面でいくつかの課題が見受けられます。自己の課題を認識し、具体的な改善行動を継続して実践することが求められます。',
+      ],
+      D: [
+        '業務への取り組みに大きな課題があります。責任感と品質意識を持った行動への根本的な改善が必要です。上司・周囲のサポートを積極的に活用しながら立て直してください。',
+        '仕事の進め方を全般的に見直す必要があります。基本的な業務姿勢から改善し、一つひとつの行動の質を上げる取り組みが求められます。',
+        '行動面で著しく期待を下回っています。業務の基本を徹底し、取り組む姿勢を根本から見直すことが早急に求められます。',
+      ],
+    },
+    'コミュニケーション': {
+      S: [
+        'チーム内外の関係構築が非常に巧みで、信頼関係を築く能力に優れています。周囲を巻き込みながら協力体制を生み出し、チーム全体の成果向上に大きく貢献しています。',
+        '高いコミュニケーション能力を発揮し、チームメンバーや関係部署との連携を円滑に進めています。その働きかけがチーム全体のパフォーマンスを底上げしています。',
+        '関係者との関係づくりが非常に上手く、場の雰囲気をよくする存在です。意見の調整や情報共有においても抜群の力を発揮しています。',
+      ],
+      A: [
+        'チームメンバーとの連携を大切にし、積極的に情報共有や意思疎通を図っています。協調的な姿勢がチームの一体感を高めています。',
+        '適切なコミュニケーションを通じてチームとの協調関係を良好に保っています。他者の意見を尊重しながら建設的に議論できる姿勢が評価されます。',
+        '良好なコミュニケーション力があり、チームワークを高める行動が多く見られます。今後はより幅広い関係構築への展開が期待されます。',
+      ],
+      B: [
+        'チーム内のコミュニケーションは概ね良好です。情報共有や相談のタイミングについて、より積極的な行動が求められます。',
+        '基本的な協調性は発揮されています。今後はより主体的に情報発信や関係構築に取り組むことで、さらなる評価向上が期待できます。',
+        'チームとの協調は概ね問題ありませんが、コミュニケーションの質・頻度の向上が今後の課題です。',
+      ],
+      C: [
+        'チームとの連携において改善が必要な場面が見られます。報連相の徹底と積極的なコミュニケーションへの意識改革が求められます。',
+        'チームメンバーとの意思疎通に課題があります。自分から積極的に声をかけ、情報共有の習慣を意識して身につけてください。',
+        '協調性の面でいくつかの課題があります。他者の立場を理解する意識を持ち、コミュニケーションの改善に取り組んでください。',
+      ],
+      D: [
+        'チームとの協調関係に大きな課題が見受けられます。コミュニケーション不足が業務に影響していることを認識し、根本的な改善が必要です。',
+        '組織内のコミュニケーションが著しく不足しており、チームへの影響が大きくなっています。積極的な関係改善と情報共有の徹底が早急に求められます。',
+        '協調性・コミュニケーションの面で期待を大きく下回っています。チームメンバーや上司との関係を見直し、改善に向けた実践的な取り組みが必要です。',
+      ],
+    },
+    '主体性': {
+      S: [
+        '自ら課題を発見し、積極的に解決策を提案・実行する姿勢が際立っています。指示を待たず行動できる能動性がチームの推進力となっています。',
+        '高い自律性を持ち、常に先を見越した行動ができています。自発的な改善提案や新しい取り組みへの挑戦が、組織に良い変化をもたらしています。',
+        '自ら考え、率先して行動する力が卓越しています。困難な状況でも諦めずに取り組む姿勢は周囲の大きな刺激となっています。',
+      ],
+      A: [
+        '自発的に業務課題に取り組む姿勢が評価されます。指示がなくとも自ら動き、業務の質向上に貢献しています。',
+        '業務に対して積極的な姿勢が見られ、自ら考えて行動することができています。主体性がチームの推進力になっています。',
+        '課題に対して能動的に取り組む姿勢があり、業務上の改善提案なども積極的に行っています。今後もその姿勢を継続してください。',
+      ],
+      B: [
+        '業務に対する主体性は概ね見られますが、より積極的に課題を見つけ行動する姿勢が期待されます。',
+        '指示された業務はしっかりこなせています。今後は自ら課題を発見し提案する主体性を高めることが成長のカギです。',
+        '概ね自主的に動けていますが、より高い主体性を発揮することで業務効率や成果がさらに向上するでしょう。',
+      ],
+      C: [
+        '主体的な行動が不足している場面が見られます。指示待ちにならず、自ら考えて行動する習慣を意識して身につけることが求められます。',
+        '業務への積極性が十分とは言えません。自ら問題を見つけ、解決に向けて行動できるよう意識改革が必要です。',
+        '主体性の面で改善が必要です。まず小さなことから自分で考えて行動する経験を積み重ねていきましょう。',
+      ],
+      D: [
+        '主体的な行動がほとんど見られず、業務推進に支障が生じています。受け身の姿勢を改め、自ら考えて動く意識を持つことが強く求められます。',
+        '業務への取り組みが受動的すぎる状況です。自律的に行動することの重要性を認識し、根本的な意識改革と具体的な行動変容が必要です。',
+        '主体性が著しく欠けており、チームへの影響が出ています。指示を待つのではなく、自ら動く姿勢を今すぐ実践してください。',
+      ],
+    },
+    '成長': {
+      S: [
+        '業務を通じた学習意欲が非常に高く、スキルの習得・向上が目に見えて確認できます。自己研鑽への投資と成長への積極的な姿勢がチームに好影響を与えています。',
+        '急速な成長を遂げており、その姿勢と実力の伸びは組織にとって大きな財産です。新しい知識やスキルを積極的に習得し、業務に活かす力が際立っています。',
+        '成長意欲が非常に高く、業務外での自己啓発も怠りません。習得したスキルを即実践に活かす姿勢が、着実な結果につながっています。',
+      ],
+      A: [
+        '業務を通じて着実なスキルアップが見られます。成長意欲を持続させながら、引き続き自己研鑽に励んでください。',
+        '新しいスキルの習得に積極的で、業務への応用も的確です。継続的な成長が今後の活躍につながっています。',
+        '学習意欲が高く、業務において着実な成長が確認できます。今後も向上心を持って取り組んでください。',
+      ],
+      B: [
+        '業務上のスキルは概ね安定していますが、さらなる自己成長への意識を高めることが期待されます。',
+        '現状維持ではなく、より積極的なスキルアップへの取り組みが今後の課題です。成長意欲を持って自己研鑽を続けてください。',
+        '成長面では概ね期待通りですが、より高みを目指した取り組みをすることでさらなる飛躍が期待できます。',
+      ],
+      C: [
+        '成長のスピードが期待値を下回っています。業務上の課題と必要なスキルを整理し、計画的な自己研鑽を実践することが求められます。',
+        'スキルアップへの取り組みが不十分です。日常業務から学ぶ姿勢を持ち、意識的に成長機会を捉えることが必要です。',
+        '成長性の面で改善が必要です。自分の課題を認識し、スキル向上に向けた具体的な行動計画を立てて実行してください。',
+      ],
+      D: [
+        '成長への取り組みが著しく不足しています。現状に満足せず、業務上必要なスキルを積極的に習得する姿勢に転換することが早急に求められます。',
+        'スキルの習得・成長が見られない状況です。業務に必要な知識・技術を身につけるため、具体的な行動計画を策定し実行することが必要です。',
+        '成長意欲が感じられず、現状維持にとどまっています。自己の成長が組織への貢献につながることを意識し、早急な改善を求めます。',
+      ],
+    },
+    'リーダーシップ': {
+      S: [
+        'チームを力強く牽引し、メンバーの能力を最大限に引き出すリーダーシップを発揮しています。高い目標に向けてチームを一つにまとめる統率力は卓越しています。',
+        '優れたリーダーシップでチームを導き、困難な状況でも冷静に対応できる判断力を持っています。メンバーからの信頼が厚く、チームのまとめ役として機能しています。',
+        '模範的なリーダーシップを発揮し、チームメンバーの主体性を引き出しながら成果を最大化しています。人材育成面でも高い貢献が見られます。',
+      ],
+      A: [
+        'チームをよくまとめ、目標達成に向けてリーダーとして適切な役割を果たしています。メンバーへの適切なサポートと指導が評価されます。',
+        'リーダーとしての役割をしっかり担い、チームの成果向上に貢献しています。メンバーへの働きかけも良好です。',
+        'チームをまとめる力があり、メンバーの成長支援にも積極的に取り組んでいます。今後はさらに大きなスコープでのリーダーシップ発揮が期待されます。',
+      ],
+      B: [
+        'リーダーとしての基本的な役割は果たしています。チームメンバーへのより積極的な関わりと育成意識を高めることが今後の課題です。',
+        'リーダーシップの基礎は身についています。より明確なビジョンの提示とチームへの動機づけ強化が期待されます。',
+        'チームのまとめ役として概ね機能しています。さらなるリーダーシップ開発への意欲的な取り組みが期待されます。',
+      ],
+      C: [
+        'リーダーとしての役割発揮が不十分な場面が見られます。チームを引っ張る意識と行動力を強化することが求められます。',
+        'リーダーシップの面で改善が必要です。チームに方向性を示し、メンバーを動機づける行動を意識的に実践してください。',
+        'リーダーとしての影響力が弱く、チームへの求心力の向上が課題です。自身のリーダーシップスタイルを見直し改善してください。',
+      ],
+      D: [
+        'リーダーシップが発揮できておらず、チーム運営に支障が生じています。根本的なマネジメントスタイルの見直しと改善が早急に求められます。',
+        'チームを牽引するリーダーシップが著しく不足しています。チームマネジメントの基本を再学習し、具体的な改善行動を実践してください。',
+        'リーダーとしての役割が十分に果たせていません。メンバーへの関わり方・意思決定・目標設定の全面的な見直しが必要です。',
+      ],
+    },
+    '顧客対応': {
+      S: [
+        '顧客への対応が非常に丁寧かつ的確で、高い顧客満足度の獲得に貢献しています。顧客ニーズを先取りした提案力と対応の速さが際立っています。',
+        '卓越した顧客対応力を持ち、顧客からの信頼を高める行動が一貫しています。サービス品質の向上に対する貢献度は非常に高いです。',
+        '顧客対応において卓越した姿勢を示しており、クレーム対応も含めてどんな状況でも安定した質の高いサービスを提供しています。',
+      ],
+      A: [
+        '顧客への対応が丁寧で、質の高いサービスを安定的に提供しています。顧客満足度向上への貢献が評価されます。',
+        '顧客ニーズをしっかりと把握し、適切な対応ができています。今後はさらに先回りした提案力の向上が期待されます。',
+        '良好な顧客対応力があり、信頼関係の構築が上手くできています。継続した丁寧な対応で顧客満足度のさらなる向上が期待できます。',
+      ],
+      B: [
+        '基本的な顧客対応はできており、サービス品質は概ね安定しています。より踏み込んだ顧客ニーズの把握と対応力の強化が期待されます。',
+        '顧客対応は概ね問題ありませんが、プラスαの提案やフォローアップを意識することで顧客満足度のさらなる向上が図れます。',
+        '標準的な顧客対応ができています。今後は個々の顧客ニーズにより細やかに応える対応力を身につけることが課題です。',
+      ],
+      C: [
+        '顧客対応において改善が必要な場面が見られます。顧客視点を意識した丁寧な対応を徹底することが求められます。',
+        '顧客対応の品質にムラがあります。基本的な応対マナーと顧客ニーズへの対応を改善してください。',
+        '顧客対応面で課題があります。顧客満足を高める意識を持ち、対応の質を安定させる取り組みが必要です。',
+      ],
+      D: [
+        '顧客対応に大きな問題が見受けられ、サービス品質の向上が緊急の課題です。基本的な接客・応対スキルから見直し、根本的な改善が必要です。',
+        '顧客対応において著しい問題があります。顧客満足への意識を根本から改め、対応の改善に早急に取り組んでください。',
+        '顧客対応の質が著しく低く、組織への影響が懸念されます。顧客対応の基本を徹底し、改善に向けた実践的な行動が今すぐ求められます。',
+      ],
+    },
+  };
+
+  function selectGrade(btn) {
+    document.querySelectorAll('.grade-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    selectedGrade = btn.dataset.grade;
+    var descs = {
+      S: 'S：目標を大幅超過・非常に優秀',
+      A: 'A：目標達成・優秀',
+      B: 'B：概ね達成・標準（期待通り）',
+      C: 'C：一部未達・やや不足',
+      D: 'D：大幅未達・不足',
+    };
+    document.getElementById('gradeDesc').textContent = descs[selectedGrade] || '';
+    save();
+  }
+
+  function generate() {
+    var cat = document.getElementById('category').value;
+    if (!cat) { alert('評価カテゴリを選んでください'); return; }
+    if (!selectedGrade) { alert('評価段階を選んでください'); return; }
+
+    var name = document.getElementById('evalName').value.trim();
+    var comments = COMMENTS[cat] && COMMENTS[cat][selectedGrade];
+    if (!comments) { alert('コメントデータが見つかりません'); return; }
+
+    var list = document.getElementById('commentList');
+    list.innerHTML = '';
+    selectedComment = '';
+
+    comments.forEach(function(txt, i) {
+      var full = name ? name + 'さんについて。' + txt : txt;
+      var item = document.createElement('div');
+      item.className = 'comment-item';
+      var num = document.createElement('div');
+      num.className = 'comment-item-num';
+      num.textContent = 'パターン ' + (i + 1);
+      var body = document.createElement('div');
+      body.textContent = full;
+      item.appendChild(num);
+      item.appendChild(body);
+      item.addEventListener('click', function() {
+        document.querySelectorAll('.comment-item').forEach(function(el){ el.classList.remove('selected'); });
+        item.classList.add('selected');
+        selectedComment = full;
+      });
+      list.appendChild(item);
+    });
+
+    // 1番目を自動選択
+    var first = list.querySelector('.comment-item');
+    if (first) {
+      first.classList.add('selected');
+      selectedComment = name
+        ? name + 'さんについて。' + comments[0]
+        : comments[0];
+    }
+
+    document.getElementById('resultArea').style.display = '';
+    document.getElementById('copyNotice').textContent = '';
+    document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    save();
+  }
+
+  function copySelected() {
+    if (!selectedComment) { alert('コメントを選択してください'); return; }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(selectedComment).then(function() {
+        showCopied();
+      }).catch(function() { fallbackCopy(selectedComment); });
+    } else {
+      fallbackCopy(selectedComment);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showCopied();
+  }
+
+  function showCopied() {
+    var n = document.getElementById('copyNotice');
+    n.textContent = 'コピーしました！';
+    setTimeout(function() { n.textContent = ''; }, 2500);
+  }
+
+  function save() {
+    try {
+      localStorage.setItem('evalCommentGen_category', document.getElementById('category').value);
+      localStorage.setItem('evalCommentGen_grade', selectedGrade);
+      localStorage.setItem('evalCommentGen_name', document.getElementById('evalName').value);
+    } catch(e) {}
+  }
+
+  function load() {
+    try {
+      var cat = localStorage.getItem('evalCommentGen_category');
+      var grade = localStorage.getItem('evalCommentGen_grade');
+      var name = localStorage.getItem('evalCommentGen_name');
+      if (cat) document.getElementById('category').value = cat;
+      if (name) document.getElementById('evalName').value = name;
+      if (grade) {
+        var btn = document.querySelector('.grade-btn[data-grade="' + grade + '"]');
+        if (btn) selectGrade(btn);
+      }
+    } catch(e) {}
+  }
+
+  load();
+  </script>
+</body>
+</html>
