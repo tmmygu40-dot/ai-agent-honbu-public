@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>売上改善逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* 症状チップ */
+    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.45rem 0.85rem;
+      border: 1.5px solid var(--border);
+      border-radius: 99px;
+      font-size: 0.84rem; font-weight: 600;
+      cursor: pointer;
+      background: var(--bg); color: var(--text);
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .chip input { display: none; }
+    .chip.selected {
+      background: var(--accent); color: #fff;
+      border-color: var(--accent);
+    }
+    .chip:hover { border-color: var(--accent); }
+
+    .select-note { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.75rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.7rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--bg); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      cursor: pointer;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* 結果エリア */
+    .result-section { display: none; }
+
+    .symptom-tag {
+      display: inline-block;
+      background: var(--accent-light);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 99px;
+      font-size: 0.78rem; font-weight: 700;
+      padding: 0.2rem 0.7rem;
+      margin: 0.15rem;
+    }
+
+    .cause-block {
+      background: var(--warn-bg);
+      border: 1.5px solid var(--warn);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .cause-block h3 {
+      font-size: 0.82rem; font-weight: 700;
+      color: var(--warn); letter-spacing: 0.06em;
+      margin-bottom: 0.75rem;
+    }
+    .cause-block ul { list-style: none; padding: 0; }
+    .cause-block li {
+      font-size: 0.92rem; padding: 0.35rem 0;
+      border-bottom: 1px solid #fde68a;
+      color: var(--text);
+    }
+    .cause-block li:last-child { border-bottom: none; }
+    .cause-block li::before { content: "⚠ "; color: var(--warn); font-size: 0.85rem; }
+
+    .action-block {
+      background: var(--ok-bg);
+      border: 1.5px solid var(--ok);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .action-block h3 {
+      font-size: 0.82rem; font-weight: 700;
+      color: var(--ok); letter-spacing: 0.06em;
+      margin-bottom: 0.75rem;
+    }
+    .action-block ul { list-style: none; padding: 0; }
+    .action-block li {
+      font-size: 0.92rem; padding: 0.35rem 0;
+      border-bottom: 1px solid #bbf7d0;
+      color: var(--text);
+    }
+    .action-block li:last-child { border-bottom: none; }
+    .action-block li::before { content: "✓ "; color: var(--ok); font-size: 0.85rem; }
+
+    .selected-symptoms-wrap {
+      max-width: 600px; margin: 0 auto 1rem;
+      font-size: 0.82rem; color: var(--text-sub);
+    }
+    .selected-symptoms-wrap span { font-weight: 700; color: var(--text); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>売上改善逆引きアプリ</h1>
+    <p class="subtitle">売上不振の症状を選ぶだけで原因と改善アクションを即表示</p>
+  </header>
+
+  <!-- 症状選択 -->
+  <div class="card">
+    <p class="card-title">症状を選ぶ（複数選択可）</p>
+    <div class="chips" id="chips"></div>
+    <p class="select-note">当てはまる症状にすべてチェックしてください</p>
+  </div>
+
+  <button class="btn-calc" onclick="showResult()">原因と改善アクションを見る</button>
+  <button class="btn-reset" onclick="reset()">選択をリセット</button>
+
+  <!-- 結果 -->
+  <div class="result-section" id="resultSection">
+    <div class="selected-symptoms-wrap" id="selectedLabel"></div>
+
+    <div class="cause-block">
+      <h3>考えられる原因</h3>
+      <ul id="causeList"></ul>
+    </div>
+
+    <div class="action-block">
+      <h3>改善アクション</h3>
+      <ul id="actionList"></ul>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var SYMPTOMS = [
+    {
+      id: 's01', name: '来客数が減っている',
+      causes: ['認知度・集客力の低下', '競合他店への客流出', '立地条件の変化（周辺環境の変化）', 'プロモーション不足'],
+      actions: ['SNS・チラシで新規集客を強化する', '店頭POPや外観を見直して視認性を上げる', 'Googleビジネスプロフィールを更新する', '近隣への折り込みチラシ・ポスティングを実施する']
+    },
+    {
+      id: 's02', name: '客単価が下がっている',
+      causes: ['高単価商品の売れ行き不振', 'アップセル・クロスセルができていない', '値引き・割引の多用', '客層の変化'],
+      actions: ['セット販売・抱き合わせメニューを設計する', 'スタッフにおすすめトークを練習させる', '値引きに頼らない価値訴求に切り替える', '高単価商品の陳列・説明を強化する']
+    },
+    {
+      id: 's03', name: 'リピート客が減っている',
+      causes: ['顧客満足度の低下', 'アフターフォローの不足', '競合への乗り換え', '来店動機・特典の不足'],
+      actions: ['顧客台帳を整備してフォローアップ連絡を実施する', 'ポイントカード・会員特典を見直す', '定期来店のきっかけ（クーポン・DM）を用意する', '接客品質を改善してファンを作る']
+    },
+    {
+      id: 's04', name: '新規客が少ない',
+      causes: ['知名度・認知の不足', 'ターゲット層へのリーチ不足', '紹介・口コミの少なさ', 'デジタル集客の弱さ'],
+      actions: ['Google・SNS広告でターゲット層にアプローチする', '紹介キャンペーンを設計する', 'Googleマップの口コミ獲得施策を行う', '地域メディアや情報サイトへの掲載を検討する']
+    },
+    {
+      id: 's05', name: '競合が増えた',
+      causes: ['同業他社の出店による市場シェア分散', '価格競争の激化', '差別化不足'],
+      actions: ['自店の強み・独自性を明確に打ち出す', '競合にない専門性やサービスを強化する', '固定客との関係をより深める', '価格以外の価値（接客・品質・利便性）を訴求する']
+    },
+    {
+      id: 's06', name: '特定の時間帯だけ暇',
+      causes: ['時間帯別の需要の偏り', '時間帯ターゲットの不一致', '閑散時間のプロモーション不足'],
+      actions: ['閑散時間帯限定のタイムセール・割引を設定する', '暇な時間帯に来やすい客層（シニア・学生など）向け施策を打つ', '時間帯ごとのスタッフ配置と業務を見直す']
+    },
+    {
+      id: 's07', name: '曜日によって売上がバラつく',
+      causes: ['曜日別の集客施策の差', '特定曜日にニーズが集中している', 'スタッフ・商品の準備が不十分な曜日がある'],
+      actions: ['売上の低い曜日に限定イベント・特典を設ける', '曜日別の売上データを分析して人員・在庫を適正化する', '弱い曜日のSNS投稿・告知を強化する']
+    },
+    {
+      id: 's08', name: '特定の商品が売れない',
+      causes: ['認知されていない（知られていない）', '陳列・説明が不十分', '価格が相場と合っていない', '需要のない商品を置いている'],
+      actions: ['売れない商品の陳列場所・POPを見直す', '試食・試用・デモで体験機会を作る', '在庫を絞り、売れ筋に集中する', '価格を競合・相場に合わせて見直す']
+    },
+    {
+      id: 's09', name: '口コミ・レビューが少ない',
+      causes: ['満足度は高いが行動喚起が弱い', 'Google・SNSでの露出不足', '口コミを依頼するタイミングを逃している'],
+      actions: ['会計時・退店時に口コミ・レビューをお願いする習慣をつける', 'Googleビジネスプロフィールにレビューリンクを掲示する', '良い口コミにはお礼の返信をして見本を示す']
+    },
+    {
+      id: 's10', name: 'スタッフの接客にクレームが多い',
+      causes: ['接客スキル・知識の不足', 'マニュアル・教育体制の不備', 'スタッフのモチベーション低下'],
+      actions: ['接客ロールプレイ研修を定期実施する', 'クレーム内容を分類して再発防止策を共有する', 'スタッフの評価・フィードバック制度を整える', 'マニュアルを更新して具体的な対応例を増やす']
+    },
+    {
+      id: 's11', name: '価格を下げても売れない',
+      causes: ['価格以外の要因（品質・信頼・利便性）が問題', '価格訴求より価値訴求が必要な業態', 'ターゲットが価格重視ではない層'],
+      actions: ['価格より「なぜ選ぶか」の理由を磨く', '品質・専門性・アフターサービスで差別化する', '価格訴求を止め、体験・ストーリーで売る', '顧客インタビューで本当の不満を確認する']
+    },
+    {
+      id: 's12', name: '広告を出しても効果が出ない',
+      causes: ['ターゲット設定のズレ', 'クリエイティブ（文言・画像）が刺さっていない', '広告後のLP・店舗対応が弱い', '予算・期間が不十分'],
+      actions: ['広告のターゲット設定を見直す', '訴求メッセージ・ビジュアルをA/Bテストする', '広告着地後の誘導（クーポン・特典）を用意する', '効果測定の指標（CPA・CTR）を確認して改善する']
+    },
+    {
+      id: 's13', name: '季節的な落ち込みがある',
+      causes: ['業種・商品の需要が季節に連動している', '季節外れ商品の提案不足', 'オフシーズン用の集客施策がない'],
+      actions: ['閑散期向けの商品・サービスを企画する', '閑散期に向けて前倒しのキャンペーンを打つ', 'オフシーズン限定特典で固定客の来店を促す', '閑散期は仕込み・改善に集中してオンシーズンに備える']
+    },
+    {
+      id: 's14', name: '常連客の来店頻度が落ちた',
+      causes: ['顧客との関係維持施策の不足', 'ライフスタイルの変化に対応できていない', '飽き・マンネリ感', '競合への乗り換え'],
+      actions: ['常連客向けの限定イベント・特典を設ける', '個別のお礼・近況連絡を送る', '定期的に新商品・新サービスを投入する', 'LINE・メルマガで情報発信を継続する']
+    },
+    {
+      id: 's15', name: 'SNSのフォロワーが増えない',
+      causes: ['投稿頻度・内容の魅力不足', 'ターゲットに刺さるコンテンツが不足', 'ハッシュタグ・アルゴリズム活用不足', '投稿後のエンゲージメント対応の不足'],
+      actions: ['投稿頻度を週3回以上に増やす', '写真・動画のクオリティを上げる', 'フォロワーが反応しやすい質問・投票コンテンツを増やす', '同業・地域アカウントとの相互フォロー・コメントを行う']
+    },
+    {
+      id: 's16', name: '客層が変わってきた',
+      causes: ['周辺環境・人口構成の変化', 'プロモーションの方向性のズレ', '既存ターゲット層の需要変化'],
+      actions: ['新しい客層のニーズを把握してメニュー・サービスを調整する', 'ターゲットを明確に再設定して訴求を変える', '旧ターゲット向けの施策も維持して離れを防ぐ']
+    },
+    {
+      id: 's17', name: '商品の品切れが続く',
+      causes: ['需要予測の精度不足', '発注・在庫管理の仕組みの不備', '仕入れリードタイムの長さ'],
+      actions: ['売れ筋商品の発注点・安全在庫を設定する', '週次で在庫と販売実績を照合する習慣をつける', '仕入れ先との連絡頻度を上げて欠品を防ぐ', '類似代替品を手配できる体制を作る']
+    }
+  ];
+
+  // チップを生成
+  (function buildChips() {
+    var wrap = document.getElementById('chips');
+    SYMPTOMS.forEach(function(s) {
+      var label = document.createElement('label');
+      label.className = 'chip';
+      label.innerHTML = '<input type="checkbox" value="' + s.id + '">' + s.name;
+      label.querySelector('input').addEventListener('change', function() {
+        label.classList.toggle('selected', this.checked);
+      });
+      wrap.appendChild(label);
+    });
+  })();
+
+  function getSelected() {
+    return Array.from(document.querySelectorAll('.chip input:checked')).map(function(el) { return el.value; });
+  }
+
+  function showResult() {
+    var selected = getSelected();
+    if (selected.length === 0) {
+      alert('症状を1つ以上選んでください');
+      return;
+    }
+    var causesSet = [];
+    var actionsSet = [];
+
+    selected.forEach(function(id) {
+      var s = SYMPTOMS.find(function(x) { return x.id === id; });
+      if (!s) return;
+      s.causes.forEach(function(c) { if (causesSet.indexOf(c) === -1) causesSet.push(c); });
+      s.actions.forEach(function(a) { if (actionsSet.indexOf(a) === -1) actionsSet.push(a); });
+    });
+
+    // 選択症状ラベル
+    var names = selected.map(function(id) {
+      return SYMPTOMS.find(function(x) { return x.id === id; }).name;
+    });
+    document.getElementById('selectedLabel').innerHTML =
+      '<span>選択した症状：</span>' + names.map(function(n) {
+        return '<span class="symptom-tag">' + n + '</span>';
+      }).join('');
+
+    // 原因
+    var cl = document.getElementById('causeList');
+    cl.innerHTML = causesSet.map(function(c) { return '<li>' + c + '</li>'; }).join('');
+
+    // 改善アクション
+    var al = document.getElementById('actionList');
+    al.innerHTML = actionsSet.map(function(a) { return '<li>' + a + '</li>'; }).join('');
+
+    // 表示
+    var sec = document.getElementById('resultSection');
+    sec.style.display = '';
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // localStorage保存
+    try {
+      localStorage.setItem('uriage_kaizen_last', JSON.stringify(selected));
+    } catch(e) {}
+  }
+
+  function reset() {
+    document.querySelectorAll('.chip input').forEach(function(el) {
+      el.checked = false;
+      el.closest('.chip').classList.remove('selected');
+    });
+    document.getElementById('resultSection').style.display = 'none';
+  }
+
+  // 前回の選択を復元
+  try {
+    var last = JSON.parse(localStorage.getItem('uriage_kaizen_last') || 'null');
+    if (Array.isArray(last)) {
+      last.forEach(function(id) {
+        var input = document.querySelector('.chip input[value="' + id + '"]');
+        if (input) {
+          input.checked = true;
+          input.closest('.chip').classList.add('selected');
+        }
+      });
+    }
+  } catch(e) {}
+  </script>
+
+</body>
+</html>
