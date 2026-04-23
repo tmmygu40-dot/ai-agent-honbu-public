@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ライフライン停止対応ガイド</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 状況タブ ── */
+    .situation-tabs {
+      display: flex;
+      gap: 0.5rem;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+      padding: 0 1rem;
+    }
+    .sit-btn {
+      flex: 1;
+      padding: 0.8rem 0.5rem;
+      font-size: 0.88rem;
+      font-weight: 700;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--card);
+      color: var(--text-sub);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      line-height: 1.3;
+    }
+    .sit-btn .sit-icon { font-size: 1.4rem; display: block; margin-bottom: 0.2rem; }
+    .sit-btn.active {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    .sit-btn:not(.active):hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── カテゴリフィルター ── */
+    .filter-wrap {
+      max-width: 600px;
+      margin: 0 auto 1rem;
+      padding: 0 1rem;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .filter-row {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: 0.35rem 0.8rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      background: var(--card);
+      color: var(--text-sub);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.12s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .filter-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    /* ── アイテムカード ── */
+    .item-list {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+    .item-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow);
+      transition: border-color 0.15s;
+    }
+    .item-card:last-child { margin-bottom: 0; }
+    .item-card.urgent { border-left: 4px solid var(--ng); }
+    .item-card.important { border-left: 4px solid var(--warn); }
+    .item-card.optional { border-left: 4px solid var(--ok); }
+
+    .item-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.4rem;
+    }
+    .item-name {
+      font-size: 0.98rem;
+      font-weight: 700;
+      line-height: 1.4;
+      flex: 1;
+    }
+    .item-badges { display: flex; gap: 0.3rem; flex-shrink: 0; }
+    .badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 20px;
+      letter-spacing: 0.04em;
+    }
+    .badge-cat {
+      background: #f0ebe3;
+      color: var(--text-sub);
+    }
+    .badge-urgent { background: var(--ng-bg); color: var(--ng); }
+    .badge-important { background: var(--warn-bg); color: var(--warn); }
+    .badge-optional { background: var(--ok-bg); color: var(--ok); }
+
+    .item-desc {
+      font-size: 0.84rem;
+      color: var(--text-sub);
+      line-height: 1.6;
+    }
+    .item-note {
+      font-size: 0.78rem;
+      color: var(--text-sub);
+      margin-top: 0.4rem;
+      padding-top: 0.4rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* チェック済み */
+    .item-card.checked {
+      opacity: 0.55;
+      background: #faf9f7;
+    }
+    .check-btn {
+      width: 28px; height: 28px;
+      flex-shrink: 0;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.85rem;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.12s;
+    }
+    .check-btn.done {
+      background: var(--ok);
+      border-color: var(--ok);
+      color: #fff;
+    }
+
+    .empty-msg {
+      text-align: center;
+      color: var(--text-sub);
+      font-size: 0.9rem;
+      padding: 2rem 0;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⚡ ライフライン停止対応ガイド</h1>
+    <p class="subtitle">停電・断水・ガス停止時の代替手段を状況別に確認</p>
+  </header>
+
+  <!-- 状況タブ -->
+  <div class="situation-tabs">
+    <button class="sit-btn active" data-sit="power" onclick="setSituation('power')">
+      <span class="sit-icon">💡</span>停電
+    </button>
+    <button class="sit-btn" data-sit="water" onclick="setSituation('water')">
+      <span class="sit-icon">🚰</span>断水
+    </button>
+    <button class="sit-btn" data-sit="gas" onclick="setSituation('gas')">
+      <span class="sit-icon">🔥</span>ガス停止
+    </button>
+  </div>
+
+  <!-- カテゴリフィルター -->
+  <div class="filter-wrap">
+    <div class="filter-row" id="filterRow"></div>
+  </div>
+
+  <!-- アイテムリスト -->
+  <div class="item-list" id="itemList"></div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // ── データ定義 ──
+  var DATA = {
+    power: [
+      // 食事
+      { id:'p1', cat:'食事', level:'urgent', name:'カセットコンロ・ガスで調理', desc:'カセットボンベ式コンロを使えば電気なしで調理できます。予備ボンベを5〜10本常備しておくと安心。', note:'ガスが止まっている場合はカセットコンロが主役になります' },
+      { id:'p2', cat:'食事', level:'urgent', name:'レトルト食品・缶詰を活用', desc:'加熱不要のレトルト食品や缶詰を備蓄しておくと停電時もすぐ食べられます。', note:'賞味期限を定期確認しローリングストックで管理' },
+      { id:'p3', cat:'食事', level:'important', name:'冷蔵庫は4〜6時間が限界', desc:'冷蔵庫は扉を開けなければ約4〜6時間は保冷されます。冷凍庫は24〜48時間。早めに食べ切る順番を決めましょう。', note:'生もの・乳製品を優先的に消費' },
+      // 照明
+      { id:'p4', cat:'照明', level:'urgent', name:'懐中電灯・LEDランタン', desc:'電池式またはUSB充電式の懐中電灯やランタンを準備。部屋ごとに1つ置いておくと安心。', note:'電池は定期的に交換。充電式は満充電で保管' },
+      { id:'p5', cat:'照明', level:'important', name:'スマホのライト機能', desc:'スマホのフラッシュライトは緊急時の照明として使えます。ただしバッテリー消耗が早いため長時間使用は避ける。', note:'モバイルバッテリーをセットで準備' },
+      { id:'p6', cat:'照明', level:'optional', name:'ロウソク（慎重に使用）', desc:'非常時の照明になりますが、火災・一酸化炭素中毒リスクがあります。換気と周囲への注意を徹底してください。', note:'就寝時・就寝前の使用は避ける' },
+      // 通信
+      { id:'p7', cat:'通信', level:'urgent', name:'モバイルバッテリーで充電', desc:'スマホは緊急情報の入手・連絡手段として最重要。容量20,000mAh以上のモバイルバッテリーを常備。', note:'モバイルバッテリー自体も満充電で保管' },
+      { id:'p8', cat:'通信', level:'urgent', name:'手回し・乾電池ラジオ', desc:'停電時はスマホより電波の安定したラジオが情報収集に有効。NHKラジオは災害時に詳細情報を継続放送します。', note:'AMラジオのほうがFMより広範囲で受信しやすい' },
+      { id:'p9', cat:'通信', level:'important', name:'スマホの省電力モードを使う', desc:'画面輝度を下げ、Wi-Fi・Bluetoothをオフにして省電力モードに切り替えバッテリーを節約。', note:'不要なアプリの通知・バックグラウンド更新もオフに' },
+      // 暖冷房
+      { id:'p10', cat:'暖冷房', level:'urgent', name:'厚着・毛布・カイロで保温', desc:'電気が使えない冬場は着込むのが基本。毛布や寝袋、使い捨てカイロを活用して体温を保ちましょう。', note:'体の中心部（胴体）を温めることが最優先' },
+      { id:'p11', cat:'暖冷房', level:'important', name:'公共施設・避難所へ移動', desc:'長時間の停電では、市区町村の指定避難所や公共施設（図書館・役所等）に移動するのも選択肢。', note:'自治体のホームページや防災アプリで場所を確認' },
+      { id:'p12', cat:'暖冷房', level:'optional', name:'保冷剤・冷タオルで冷却', desc:'夏場の停電では保冷剤や冷たい濡れタオルで首・わきを冷やして体温を調整します。', note:'熱中症に注意。高齢者・小さな子どもは特に早めに移動を' },
+      // 医療・生活
+      { id:'p13', cat:'医療', level:'urgent', name:'在宅医療機器は事前確認', desc:'人工呼吸器・透析機器など電力が必要な医療機器を使用している場合は、医療機関や電力会社に事前に登録・確認を。', note:'非常用電源（UPS）や発電機の確保を検討' },
+      { id:'p14', cat:'その他', level:'important', name:'非常用電源・ポータブル電源', desc:'大容量ポータブル電源があればスマホ・照明・小型家電を数時間〜数日使用できます。', note:'容量300Wh以上が目安。太陽光パネルとセットで活用' },
+    ],
+    water: [
+      // 飲料水
+      { id:'w1', cat:'飲料水', level:'urgent', name:'備蓄ペットボトルを活用', desc:'1人1日3L（飲料+調理）を目安に最低3日分を備蓄。500mLより2Lペットボトルのほうが効率的。', note:'賞味期限を確認しローリングストックで管理' },
+      { id:'w2', cat:'飲料水', level:'urgent', name:'給水所・給水車を使う', desc:'市区町村が給水所または給水車を手配します。自治体のホームページ・防災無線・ラジオで場所を確認してください。', note:'給水用の容器（折りたたみ式タンク等）を用意しておく' },
+      { id:'w3', cat:'飲料水', level:'important', name:'浄水フィルターで水を確保', desc:'川・池の水も携帯浄水フィルターやポータブル浄水器で飲料水にできます（緊急時）。', note:'煮沸も有効。沸騰後1分以上加熱' },
+      // 衛生
+      { id:'w4', cat:'衛生', level:'urgent', name:'ウェットティッシュで清拭', desc:'手洗いができない場合はアルコール入りウェットティッシュで拭き取り衛生を保ちます。', note:'アルコール濃度60%以上のものが効果的' },
+      { id:'w5', cat:'衛生', level:'urgent', name:'アルコール消毒液を使う', desc:'手洗いの代替としてアルコール消毒液（60〜80%）を常備。トイレ後・食事前に必ず使用。', note:'目や傷口への接触を避ける' },
+      { id:'w6', cat:'衛生', level:'important', name:'ドライシャンプーで頭髪ケア', desc:'水なしで使えるドライシャンプーで頭皮の汚れや臭いを抑えられます。', note:'コンビニ・薬局で購入可能' },
+      // トイレ
+      { id:'w7', cat:'トイレ', level:'urgent', name:'携帯トイレ・簡易トイレ', desc:'断水時は水洗トイレが使えません（使うと詰まることも）。携帯トイレや簡易トイレを事前に備蓄しておきましょう。', note:'1人1日5〜7回分×最低3日分を目安に備蓄' },
+      { id:'w8', cat:'トイレ', level:'important', name:'浴槽に水を溜めてトイレに使う', desc:'断水警告が出たらすぐに浴槽に水を溜めておき、バケツでトイレタンクに水を入れて流す方式にします。', note:'洗濯機や鍋なども水を溜める容器として活用' },
+      // 調理
+      { id:'w9', cat:'調理', level:'urgent', name:'紙皿・使い捨て容器を使う', desc:'皿洗いに水が使えないため、使い捨ての紙皿・紙コップ・割り箸を活用します。', note:'あらかじめ備蓄しておくと安心' },
+      { id:'w10', cat:'調理', level:'important', name:'水不要の食品を選ぶ', desc:'お湯や水を必要としない食品（缶詰・そのまま食べられるレトルト）を優先的に選びます。', note:'アルファ米は少量の水で調理可能' },
+      // 洗濯
+      { id:'w11', cat:'洗濯', level:'optional', name:'コインランドリーを利用', desc:'断水エリア外のコインランドリーで洗濯を行います。距離と給水状況をあらかじめ確認。', note:'断水エリアが広い場合は営業停止の場合も' },
+      { id:'w12', cat:'洗濯', level:'optional', name:'使い捨て下着・重ね着で対応', desc:'洗濯ができない期間は使い捨て紙パンツや同じ服を長く着ることで対応します。', note:'ドラッグストアや通販で購入可能' },
+    ],
+    gas: [
+      // 調理
+      { id:'g1', cat:'調理', level:'urgent', name:'カセットコンロで調理', desc:'ガスが止まったときの調理の主役はカセットコンロ。ボンベを10本以上備蓄しておきましょう。', note:'室内使用は換気を徹底。一酸化炭素中毒に注意' },
+      { id:'g2', cat:'調理', level:'urgent', name:'電子レンジ・電気ケトルを使う', desc:'停電していなければ電子レンジや電気ケトルで調理・湯沸かしができます。', note:'IHクッキングヒーターがある家庭はそちらも活用' },
+      { id:'g3', cat:'調理', level:'important', name:'加熱不要の食品を選ぶ', desc:'レトルト食品・缶詰・パン・チーズなど加熱不要の食品を活用します。', note:'アレルギーのある食品に注意' },
+      // 暖房
+      { id:'g4', cat:'暖房', level:'urgent', name:'電気ストーブ・ヒーターを使う', desc:'停電していなければ電気ストーブやエアコンの暖房機能が使えます。', note:'使用前にフィルター清掃を確認' },
+      { id:'g5', cat:'暖房', level:'urgent', name:'厚着・毛布・湯たんぽで保温', desc:'電気もガスも使えない場合は着込む・毛布をかける・湯たんぽで暖を取ります。', note:'湯たんぽは電気ケトルのお湯で対応可' },
+      { id:'g6', cat:'暖房', level:'important', name:'カイロ・使い捨て発熱パッド', desc:'使い捨てカイロは携帯できて手軽に暖がとれます。複数枚を部位ごとに貼ります。', note:'就寝時は低温やけどに注意。カバーを使う' },
+      // 給湯・入浴
+      { id:'g7', cat:'給湯', level:'urgent', name:'電気ポットでお湯を確保', desc:'飲料・料理・体拭き用のお湯を電気ポットや電気ケトルで沸かします。', note:'大容量（1.5L以上）のものがあると便利' },
+      { id:'g8', cat:'給湯', level:'important', name:'銭湯・スポーツジムで入浴', desc:'ガス停止中は銭湯・スーパー銭湯・スポーツジムを利用してシャワー・入浴ができます。', note:'ガス停止状況で各施設の営業状況を事前確認' },
+      { id:'g9', cat:'給湯', level:'important', name:'体拭きで代用', desc:'お湯を含ませたタオルや蒸しタオルで全身を拭いて体を清潔に保ちます。', note:'ウェットティッシュでも代用可能' },
+      { id:'g10', cat:'給湯', level:'optional', name:'太陽熱・ペットボトル温水', desc:'晴天時はペットボトルに水を入れて日当たりの良い場所に置くと温水が作れます（緊急時）。', note:'衛生面の注意が必要。飲料用でなく体拭き用に使用' },
+      // 復旧確認
+      { id:'g11', cat:'復旧確認', level:'important', name:'復旧後は器具の安全確認', desc:'ガス復旧後は各器具の元栓が閉まっているかを確認してから順番に開けます。臭いがあれば使用を中止。', note:'不安な場合はガス会社（東京ガス等）に点検依頼を' },
+      { id:'g12', cat:'復旧確認', level:'urgent', name:'ガス漏れを感じたら窓を開けて避難', desc:'ガス臭がしたらスイッチ・電気器具に触らず窓を開けて外に出て、ガス会社・119番に連絡。', note:'ライターや火花も絶対に出さない' },
+    ]
+  };
+
+  var currentSit = 'power';
+  var currentCat = 'すべて';
+  var checkedItems = {};
+
+  // localStorage から読み込み
+  function loadChecked() {
+    try {
+      var saved = localStorage.getItem('lifeline_checked');
+      checkedItems = saved ? JSON.parse(saved) : {};
+    } catch(e) { checkedItems = {}; }
+  }
+  function saveChecked() {
+    try {
+      localStorage.setItem('lifeline_checked', JSON.stringify(checkedItems));
+    } catch(e) {}
+  }
+
+  function getCategories(sit) {
+    var cats = ['すべて'];
+    var seen = {};
+    DATA[sit].forEach(function(item) {
+      if (!seen[item.cat]) { cats.push(item.cat); seen[item.cat] = true; }
+    });
+    return cats;
+  }
+
+  function setSituation(sit) {
+    currentSit = sit;
+    currentCat = 'すべて';
+    document.querySelectorAll('.sit-btn').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.sit === sit);
+    });
+    renderFilters();
+    renderItems();
+  }
+
+  function setFilter(cat) {
+    currentCat = cat;
+    document.querySelectorAll('.filter-btn').forEach(function(b) {
+      b.classList.toggle('active', b.textContent === cat);
+    });
+    renderItems();
+  }
+
+  function renderFilters() {
+    var cats = getCategories(currentSit);
+    var row = document.getElementById('filterRow');
+    row.innerHTML = cats.map(function(cat) {
+      return '<button class="filter-btn' + (cat === 'すべて' ? ' active' : '') + '" onclick="setFilter(\'' + cat + '\')">' + cat + '</button>';
+    }).join('');
+  }
+
+  function toggleCheck(id) {
+    checkedItems[id] = !checkedItems[id];
+    saveChecked();
+    renderItems();
+  }
+
+  function levelLabel(level) {
+    if (level === 'urgent') return '最優先';
+    if (level === 'important') return '重要';
+    return '余裕があれば';
+  }
+  function levelBadgeClass(level) {
+    if (level === 'urgent') return 'badge badge-urgent';
+    if (level === 'important') return 'badge badge-important';
+    return 'badge badge-optional';
+  }
+
+  function renderItems() {
+    var items = DATA[currentSit].filter(function(item) {
+      return currentCat === 'すべて' || item.cat === currentCat;
+    });
+    var list = document.getElementById('itemList');
+    if (items.length === 0) {
+      list.innerHTML = '<p class="empty-msg">該当する項目がありません</p>';
+      return;
+    }
+    list.innerHTML = items.map(function(item) {
+      var checked = !!checkedItems[item.id];
+      var noteHtml = item.note ? '<p class="item-note">💡 ' + item.note + '</p>' : '';
+      return '<div class="item-card ' + item.level + (checked ? ' checked' : '') + '">'
+           + '<div class="item-head">'
+           + '<span class="item-name">' + item.name + '</span>'
+           + '<div class="item-badges">'
+           + '<span class="badge badge-cat">' + item.cat + '</span>'
+           + '<span class="' + levelBadgeClass(item.level) + '">' + levelLabel(item.level) + '</span>'
+           + '</div>'
+           + '<button class="check-btn' + (checked ? ' done' : '') + '" onclick="toggleCheck(\'' + item.id + '\')" title="確認済みにする">'
+           + (checked ? '✓' : '')
+           + '</button>'
+           + '</div>'
+           + '<p class="item-desc">' + item.desc + '</p>'
+           + noteHtml
+           + '</div>';
+    }).join('');
+  }
+
+  // 初期化
+  loadChecked();
+  renderFilters();
+  renderItems();
+  </script>
+
+</body>
+</html>
