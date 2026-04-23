@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>残業時間管理アプリ｜36協定違反リスクチェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 設定行 ── */
+    .settings-row {
+      display: flex; gap: 0.8rem; flex-wrap: wrap;
+    }
+    .settings-row .field { flex: 1; min-width: 130px; margin-bottom: 0; }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 入力行（名前＋時間） ── */
+    .input-row {
+      display: flex; gap: 0.6rem; align-items: flex-end;
+    }
+    .input-row .field-name { flex: 2; margin-bottom: 0; }
+    .input-row .field-hour { flex: 1; min-width: 80px; margin-bottom: 0; }
+    .input-row .field-hour input { text-align: right; }
+
+    /* ── ボタン ── */
+    .btn-add {
+      padding: 0.72rem 1.2rem;
+      font-size: 0.95rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      white-space: nowrap; flex-shrink: 0;
+      box-shadow: 0 3px 0 #b35e00;
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active { transform: translateY(2px); box-shadow: 0 1px 0 #b35e00; }
+
+    /* ── サマリーバー ── */
+    .summary-bar {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .summary-bar .summary-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 0.8rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .summary-chips {
+      display: flex; gap: 0.6rem; flex-wrap: wrap;
+    }
+    .chip {
+      padding: 0.35rem 0.8rem; border-radius: 20px;
+      font-size: 0.82rem; font-weight: 700;
+    }
+    .chip.ng   { background: var(--ng-bg);   color: var(--ng);   border: 1.5px solid var(--ng); }
+    .chip.warn { background: var(--warn-bg); color: var(--warn); border: 1.5px solid var(--warn); }
+    .chip.ok   { background: var(--ok-bg);   color: var(--ok);   border: 1.5px solid var(--ok); }
+
+    /* ── スタッフ一覧 ── */
+    .staff-list {
+      display: none;
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .staff-list .list-header {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 0 0.2rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .staff-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.9rem 1rem;
+      margin-top: 0.6rem;
+      box-shadow: var(--shadow);
+      display: flex; align-items: center; gap: 0.8rem;
+    }
+    .staff-item.ng   { border-color: var(--ng);   background: var(--ng-bg); }
+    .staff-item.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .staff-item.ok   { border-color: var(--ok);    background: var(--ok-bg); }
+
+    .staff-badge {
+      flex-shrink: 0; width: 42px; height: 42px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 900;
+    }
+    .staff-item.ng   .staff-badge { background: var(--ng);   color: #fff; }
+    .staff-item.warn .staff-badge { background: var(--warn); color: #fff; }
+    .staff-item.ok   .staff-badge { background: var(--ok);   color: #fff; }
+
+    .staff-info { flex: 1; min-width: 0; }
+    .staff-name { font-size: 1rem; font-weight: 700; }
+    .staff-detail { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .staff-item.ng   .staff-detail { color: var(--ng); }
+    .staff-item.warn .staff-detail { color: var(--warn); }
+    .staff-item.ok   .staff-detail { color: var(--ok); }
+
+    .staff-hours {
+      text-align: right; flex-shrink: 0;
+    }
+    .staff-hours .h-num {
+      font-size: 1.4rem; font-weight: 900; line-height: 1;
+    }
+    .staff-item.ng   .h-num { color: var(--ng); }
+    .staff-item.warn .h-num { color: var(--warn); }
+    .staff-item.ok   .h-num { color: var(--ok); }
+    .staff-hours .h-unit { font-size: 0.72rem; color: var(--text-sub); }
+
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1.2rem; padding: 0.2rem;
+      flex-shrink: 0; opacity: 0.5;
+    }
+    .btn-del:hover { opacity: 1; color: var(--ng); }
+
+    /* ── 空状態 ── */
+    .empty-state {
+      text-align: center; padding: 2rem 1rem;
+      color: var(--text-sub); font-size: 0.88rem;
+      background: var(--card); border: 1.5px dashed var(--border);
+      border-radius: var(--radius); margin: 0 auto 1rem; max-width: 600px;
+    }
+
+    /* ── 全クリアボタン ── */
+    .btn-clear-all {
+      display: block; margin: 0 auto 1rem; max-width: 600px;
+      width: 100%; padding: 0.65rem;
+      font-size: 0.85rem; font-weight: 600;
+      background: none; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 9px;
+      cursor: pointer;
+    }
+    .btn-clear-all:hover { color: var(--ng); border-color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .input-row { flex-wrap: wrap; }
+      .input-row .field-name { flex: 1 1 100%; }
+      .input-row .field-hour { flex: 1; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>残業時間管理アプリ</h1>
+    <p class="subtitle">月の残業時間と36協定上限を照合・スタッフ別違反リスクをチェック</p>
+  </header>
+
+  <!-- 設定カード -->
+  <div class="card">
+    <p class="card-title">設定</p>
+    <div class="settings-row">
+      <div class="field">
+        <label for="sel-year">対象年</label>
+        <select id="sel-year"></select>
+      </div>
+      <div class="field">
+        <label for="sel-month">対象月</label>
+        <select id="sel-month">
+          <option value="1">1月</option><option value="2">2月</option>
+          <option value="3">3月</option><option value="4">4月</option>
+          <option value="5">5月</option><option value="6">6月</option>
+          <option value="7">7月</option><option value="8">8月</option>
+          <option value="9">9月</option><option value="10">10月</option>
+          <option value="11">11月</option><option value="12">12月</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="sel-limit">36協定の種類</label>
+        <select id="sel-limit" onchange="onLimitChange()">
+          <option value="45">一般条項（月45時間）</option>
+          <option value="60">特別条項（月60時間）</option>
+          <option value="80">特別条項（月80時間）</option>
+          <option value="100">特別条項（月100時間）</option>
+        </select>
+        <p class="hint">上限を超えると「違反」、80%以上で「警告」</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">スタッフ追加</p>
+    <div class="input-row">
+      <div class="field field-name">
+        <label for="inp-name">スタッフ名</label>
+        <input type="text" id="inp-name" placeholder="例: 山田 太郎" maxlength="30">
+      </div>
+      <div class="field field-hour">
+        <label for="inp-hours">残業時間（h）</label>
+        <input type="number" id="inp-hours" placeholder="例: 42" min="0" max="300" step="0.5">
+      </div>
+      <button class="btn-add" onclick="addStaff()">追加</button>
+    </div>
+  </div>
+
+  <!-- サマリーバー -->
+  <div class="summary-bar" id="summary-bar">
+    <p class="summary-title">今月のサマリー</p>
+    <div class="summary-chips" id="summary-chips"></div>
+  </div>
+
+  <!-- スタッフ一覧 -->
+  <div class="staff-list" id="staff-list">
+    <div class="list-header">
+      <span>スタッフ一覧</span>
+      <span id="staff-count" style="font-size:0.75rem;color:var(--text-sub);"></span>
+    </div>
+    <div id="staff-items"></div>
+  </div>
+
+  <div class="empty-state" id="empty-state">
+    スタッフを追加するとここにリストが表示されます
+  </div>
+
+  <button class="btn-clear-all" id="btn-clear-all" style="display:none" onclick="clearAll()">
+    全員削除（リセット）
+  </button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var LS_KEY = 'zangyou-kanri-data';
+
+  // ── 初期化 ──
+  (function init() {
+    var now = new Date();
+    var ySel = document.getElementById('sel-year');
+    var curY = now.getFullYear();
+    for (var y = curY - 1; y <= curY + 1; y++) {
+      var opt = document.createElement('option');
+      opt.value = y; opt.textContent = y + '年';
+      if (y === curY) opt.selected = true;
+      ySel.appendChild(opt);
+    }
+    document.getElementById('sel-month').value = now.getMonth() + 1;
+    loadAndRender();
+  })();
+
+  // ── データ管理 ──
+  function getKey() {
+    var y = document.getElementById('sel-year').value;
+    var m = document.getElementById('sel-month').value;
+    return LS_KEY + '-' + y + '-' + m;
+  }
+
+  function loadStaff() {
+    try {
+      return JSON.parse(localStorage.getItem(getKey())) || [];
+    } catch(e) { return []; }
+  }
+
+  function saveStaff(list) {
+    localStorage.setItem(getKey(), JSON.stringify(list));
+  }
+
+  // ── 上限・判定 ──
+  function getLimit() {
+    return parseInt(document.getElementById('sel-limit').value, 10);
+  }
+
+  function judge(hours, limit) {
+    if (hours >= limit) return 'ng';
+    if (hours >= limit * 0.8) return 'warn';
+    return 'ok';
+  }
+
+  function levelLabel(lv) {
+    return lv === 'ng' ? '違反' : lv === 'warn' ? '警告' : '安全';
+  }
+
+  function levelIcon(lv) {
+    return lv === 'ng' ? '✕' : lv === 'warn' ? '!' : '✓';
+  }
+
+  // ── スタッフ追加 ──
+  function addStaff() {
+    var name  = document.getElementById('inp-name').value.trim();
+    var hours = parseFloat(document.getElementById('inp-hours').value);
+    if (!name) { alert('スタッフ名を入力してください'); return; }
+    if (isNaN(hours) || hours < 0) { alert('残業時間を正しく入力してください'); return; }
+
+    var list = loadStaff();
+    // 同名チェック（同月内）
+    var dup = list.filter(function(s) { return s.name === name; });
+    if (dup.length > 0) {
+      if (!confirm(name + ' は既に登録されています。上書きしますか？')) return;
+      list = list.filter(function(s) { return s.name !== name; });
+    }
+    list.push({ name: name, hours: hours, added: Date.now() });
+    saveStaff(list);
+    document.getElementById('inp-name').value  = '';
+    document.getElementById('inp-hours').value = '';
+    document.getElementById('inp-name').focus();
+    render(list);
+  }
+
+  // ── スタッフ削除 ──
+  function deleteStaff(name) {
+    var list = loadStaff().filter(function(s) { return s.name !== name; });
+    saveStaff(list);
+    render(list);
+  }
+
+  // ── 全クリア ──
+  function clearAll() {
+    if (!confirm('全員削除してよいですか？')) return;
+    saveStaff([]);
+    render([]);
+  }
+
+  // ── 設定変更時 ──
+  function onLimitChange() { render(loadStaff()); }
+
+  document.getElementById('sel-year').addEventListener('change', function() { render(loadStaff()); });
+  document.getElementById('sel-month').addEventListener('change', function() { render(loadStaff()); });
+  document.getElementById('inp-name').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') document.getElementById('inp-hours').focus();
+  });
+  document.getElementById('inp-hours').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') addStaff();
+  });
+
+  // ── レンダリング ──
+  function render(list) {
+    var limit    = getLimit();
+    var isEmpty  = list.length === 0;
+    var staffListEl   = document.getElementById('staff-list');
+    var summaryEl     = document.getElementById('summary-bar');
+    var emptyEl       = document.getElementById('empty-state');
+    var clearAllBtn   = document.getElementById('btn-clear-all');
+
+    if (isEmpty) {
+      staffListEl.style.display = 'none';
+      summaryEl.style.display   = 'none';
+      emptyEl.style.display     = 'block';
+      clearAllBtn.style.display = 'none';
+      return;
+    }
+
+    emptyEl.style.display     = 'none';
+    staffListEl.style.display = 'block';
+    summaryEl.style.display   = 'block';
+    clearAllBtn.style.display = 'block';
+
+    // カウント
+    var counts = { ng: 0, warn: 0, ok: 0 };
+    list.forEach(function(s) { counts[judge(s.hours, limit)]++; });
+
+    // サマリー
+    var chips = '';
+    if (counts.ng   > 0) chips += '<span class="chip ng">違反 ' + counts.ng   + '名</span>';
+    if (counts.warn > 0) chips += '<span class="chip warn">警告 ' + counts.warn + '名</span>';
+    if (counts.ok   > 0) chips += '<span class="chip ok">安全 ' + counts.ok   + '名</span>';
+    document.getElementById('summary-chips').innerHTML = chips;
+
+    // スタッフ件数
+    document.getElementById('staff-count').textContent = list.length + '名登録';
+
+    // スタッフ並び替え（危険順）
+    var sorted = list.slice().sort(function(a, b) {
+      var order = { ng: 0, warn: 1, ok: 2 };
+      var la = judge(a.hours, limit), lb = judge(b.hours, limit);
+      if (order[la] !== order[lb]) return order[la] - order[lb];
+      return b.hours - a.hours;
+    });
+
+    // スタッフアイテム
+    var html = sorted.map(function(s) {
+      var lv   = judge(s.hours, limit);
+      var pct  = Math.round(s.hours / limit * 100);
+      var over = s.hours >= limit ? (s.hours - limit).toFixed(1) + 'h超過' : '上限まであと' + (limit - s.hours).toFixed(1) + 'h';
+      var safeName = s.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      return '<div class="staff-item ' + lv + '">'
+           +   '<div class="staff-badge">' + levelIcon(lv) + '</div>'
+           +   '<div class="staff-info">'
+           +     '<div class="staff-name">' + safeName + '</div>'
+           +     '<div class="staff-detail">' + levelLabel(lv) + '｜上限比 ' + pct + '%｜' + over + '</div>'
+           +   '</div>'
+           +   '<div class="staff-hours">'
+           +     '<div class="h-num">' + s.hours + '</div>'
+           +     '<div class="h-unit">h / ' + limit + 'h</div>'
+           +   '</div>'
+           +   '<button class="btn-del" onclick="deleteStaff(\'' + safeName.replace(/'/g,"\\'") + '\')" title="削除">×</button>'
+           + '</div>';
+    }).join('');
+
+    document.getElementById('staff-items').innerHTML = html;
+  }
+
+  function loadAndRender() { render(loadStaff()); }
+  </script>
+
+</body>
+</html>
