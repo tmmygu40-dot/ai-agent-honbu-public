@@ -66,6 +66,40 @@ if ($ok -and -not $noInputApps) {
     }
 }
 
+# (2.5) Health check -- Phase 1.5: log only, no gate
+if ($ok -and -not $noInputApps -and $apps.Count -gt 0) {
+    $scanPath = "C:\Users\tmmyg\OneDrive\デスクトップ\AIエージェント本部\バグ健康診断\scan.py"
+    $histRoot = "C:\Users\tmmyg\OneDrive\デスクトップ\AIエージェント本部\バグ健康診断\publish-history"
+    $ts       = Get-Date -Format 'yyyy-MM-dd_HHmmss'
+    $histDir  = Join-Path $histRoot $ts
+
+    if (Test-Path $scanPath) {
+        try {
+            New-Item -ItemType Directory -Force -Path $histDir | Out-Null
+            $scanOut = & python $scanPath `
+                --target ($apps -join ',') `
+                --base $pub `
+                --out-dir $histDir 2>&1
+            $scanExit = $LASTEXITCODE
+            $totLine  = ($scanOut | Select-String '^Total issues:' | Select-Object -First 1)
+            $total    = if ($totLine) { [regex]::Match($totLine.ToString(), '\d+').Value } else { '?' }
+            $summary  = "[$ts] SCAN apps=$($apps -join ',') total=$total exit=$scanExit"
+            Write-Host "scan.py: $summary" -ForegroundColor Cyan
+
+            $errPath = Join-Path $pub "ERROR_LOG.md"
+            if (-not (Test-Path $errPath)) {
+                [System.IO.File]::WriteAllText($errPath, "# ERROR LOG`r`n`r`n",
+                    [System.Text.UTF8Encoding]::new($false))
+            }
+            Add-Content -LiteralPath $errPath -Value $summary -Encoding UTF8
+        } catch {
+            Write-Host "scan.py: skipped (error: $_)" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "scan.py: skipped (not found: $scanPath)" -ForegroundColor Yellow
+    }
+}
+
 # (3) Build full app list from ACTUAL pub folders (no git dependency)
 if ($ok) {
     $excludeNames = @('ai-agent-honbu-public', 'node_modules')
