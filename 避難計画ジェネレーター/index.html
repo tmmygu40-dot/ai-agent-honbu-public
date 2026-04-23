@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>避難計画ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --blue: #1d4ed8;   --blue-bg: #eff6ff;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem; }
+    .checkbox-item {
+      display: flex; align-items: center; gap: 0.4rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 0.45rem 0.75rem;
+      font-size: 0.88rem; cursor: pointer; user-select: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .checkbox-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+    .checkbox-item:has(input:checked) { border-color: var(--accent); background: var(--accent-light); }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .timeline-wrap { display: none; max-width: 600px; margin: 0 auto 1rem; }
+    .timeline-header {
+      background: var(--card); border: 2px solid var(--accent);
+      border-radius: var(--radius); padding: 1rem 1.2rem;
+      margin-bottom: 1rem; box-shadow: var(--shadow); text-align: center;
+    }
+    .timeline-header .tl-label { font-size: 0.75rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .timeline-header .tl-title { font-size: 1.1rem; font-weight: 900; color: var(--accent); }
+
+    .tl-item {
+      display: flex; gap: 0; margin-bottom: 0;
+    }
+    .tl-left {
+      display: flex; flex-direction: column; align-items: center;
+      width: 52px; flex-shrink: 0;
+    }
+    .tl-dot {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent); border: 2px solid #fff;
+      outline: 2px solid var(--accent); flex-shrink: 0;
+      margin-top: 0.9rem;
+    }
+    .tl-dot.urgent { background: var(--ng); outline-color: var(--ng); }
+    .tl-dot.safe   { background: var(--ok); outline-color: var(--ok); }
+    .tl-line {
+      width: 2px; flex: 1; background: var(--border);
+      margin-top: 2px;
+    }
+    .tl-content {
+      flex: 1; background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.8rem 1rem; margin-bottom: 0.6rem;
+      box-shadow: var(--shadow);
+    }
+    .tl-content.urgent { border-color: var(--ng); background: var(--ng-bg); }
+    .tl-content.warn   { border-color: var(--warn); background: var(--warn-bg); }
+    .tl-content.safe   { border-color: var(--ok); background: var(--ok-bg); }
+    .tl-time { font-size: 0.75rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .tl-content.urgent .tl-time { color: var(--ng); }
+    .tl-content.warn   .tl-time { color: var(--warn); }
+    .tl-content.safe   .tl-time { color: var(--ok); }
+    .tl-phase { font-size: 0.95rem; font-weight: 800; margin-bottom: 0.4rem; }
+    .tl-actions { list-style: none; padding: 0; }
+    .tl-actions li {
+      font-size: 0.84rem; color: var(--text);
+      padding: 0.25rem 0; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 0.4rem;
+    }
+    .tl-actions li:last-child { border-bottom: none; }
+    .tl-actions li::before { content: "▶"; font-size: 0.6rem; color: var(--accent); margin-top: 0.25rem; flex-shrink: 0; }
+    .tl-content.urgent .tl-actions li::before { color: var(--ng); }
+    .tl-content.warn   .tl-actions li::before { color: var(--warn); }
+    .tl-content.safe   .tl-actions li::before { color: var(--ok); }
+    .tl-tag {
+      display: inline-block; font-size: 0.65rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      padding: 0.1rem 0.4rem; border-radius: 4px; margin-left: 0.3rem;
+      vertical-align: middle;
+    }
+    .tl-tag.elderly { background: #7c3aed; }
+    .tl-tag.infant  { background: #db2777; }
+    .tl-tag.pet     { background: #059669; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🌀 避難計画ジェネレーター</h1>
+    <p class="subtitle">家族構成と台風上陸時刻を入れるだけで、行動タイムラインを即生成</p>
+  </header>
+
+  <div class="card">
+    <p class="card-title">家族構成</p>
+    <div class="field">
+      <label for="members">家族の人数</label>
+      <select id="members">
+        <option value="1">1人（一人暮らし）</option>
+        <option value="2">2人</option>
+        <option value="3">3人</option>
+        <option value="4" selected>4人</option>
+        <option value="5">5人</option>
+        <option value="6">6人以上</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>特別な配慮が必要な方（複数選択可）</label>
+      <div class="checkbox-group">
+        <label class="checkbox-item">
+          <input type="checkbox" id="elderly"> 高齢者がいる
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="infant"> 乳幼児がいる
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="disabled"> 障がい者がいる
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" id="pet"> ペットがいる
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">台風情報</p>
+    <div class="field">
+      <label for="landfall">台風の上陸・最接近予定日時</label>
+      <input type="datetime-local" id="landfall">
+      <p class="hint">気象情報などで確認した最接近予定時刻を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="area">居住エリア（任意）</label>
+      <select id="area">
+        <option value="general">一般（平地・住宅街）</option>
+        <option value="coast">海岸・河川沿い</option>
+        <option value="mountain">山間部・土砂災害警戒区域</option>
+        <option value="urban">大都市（高層マンション等）</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">タイムラインを生成する</button>
+
+  <div class="timeline-wrap" id="timelineWrap">
+    <div class="timeline-header">
+      <p class="tl-label">生成されたタイムライン</p>
+      <p class="tl-title" id="tl-title-text">—</p>
+    </div>
+    <div id="timeline"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+
+  <script>
+  // localStorage key
+  var SAVE_KEY = 'hinankei_v1';
+
+  function saveInput() {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      members:  document.getElementById('members').value,
+      elderly:  document.getElementById('elderly').checked,
+      infant:   document.getElementById('infant').checked,
+      disabled: document.getElementById('disabled').checked,
+      pet:      document.getElementById('pet').checked,
+      landfall: document.getElementById('landfall').value,
+      area:     document.getElementById('area').value,
+    }));
+  }
+
+  function loadInput() {
+    try {
+      var d = JSON.parse(localStorage.getItem(SAVE_KEY));
+      if (!d) return;
+      if (d.members)  document.getElementById('members').value  = d.members;
+      if (d.elderly)  document.getElementById('elderly').checked  = d.elderly;
+      if (d.infant)   document.getElementById('infant').checked   = d.infant;
+      if (d.disabled) document.getElementById('disabled').checked = d.disabled;
+      if (d.pet)      document.getElementById('pet').checked      = d.pet;
+      if (d.landfall) document.getElementById('landfall').value   = d.landfall;
+      if (d.area)     document.getElementById('area').value       = d.area;
+    } catch(e) {}
+  }
+
+  // Set default datetime to tomorrow 12:00
+  (function setDefault() {
+    var t = new Date();
+    t.setDate(t.getDate() + 1);
+    t.setHours(12, 0, 0, 0);
+    var pad = function(n){ return ('0'+n).slice(-2); };
+    document.getElementById('landfall').value =
+      t.getFullYear() + '-' + pad(t.getMonth()+1) + '-' + pad(t.getDate()) + 'T12:00';
+  })();
+
+  loadInput();
+
+  function generate() {
+    saveInput();
+
+    var landfallStr = document.getElementById('landfall').value;
+    if (!landfallStr) { alert('台風の上陸予定日時を入力してください'); return; }
+
+    var landfall = new Date(landfallStr);
+    var members  = parseInt(document.getElementById('members').value, 10);
+    var elderly  = document.getElementById('elderly').checked;
+    var infant   = document.getElementById('infant').checked;
+    var disabled = document.getElementById('disabled').checked;
+    var pet      = document.getElementById('pet').checked;
+    var area     = document.getElementById('area').value;
+
+    var needEarlyEvac = elderly || infant || disabled;
+    var highRisk = (area === 'coast' || area === 'mountain');
+
+    // タイムラインフェーズ定義（上陸何時間前か、負値は上陸後）
+    var phases = [
+      {
+        hBefore: 72, level: 'warn', phase: '72時間前｜情報収集・備蓄確認',
+        base: [
+          '気象庁・自治体の台風情報を確認する',
+          '非常用持ち出し袋の中身を点検する（懐中電灯・電池・救急箱）',
+          '飲料水を1人あたり3日分（9L）以上確保する',
+          '食料を3日分以上備蓄する（レトルト・缶詰など）',
+          '携帯・モバイルバッテリーを充電しておく',
+        ],
+        elderly:  ['かかりつけ医に連絡し、必要な薬を多めに準備する', '介護サービス事業者への連絡・調整をする'],
+        infant:   ['おむつ・粉ミルク・着替えを多めに用意する', '母子手帳・医療証をすぐ取り出せる場所にまとめる'],
+        disabled: ['福祉避難所の場所と連絡先を確認する', '支援者・ヘルパーへの連絡をする'],
+        pet:      ['ペットキャリーの場所を確認・準備する', 'ペットフードと水を3日分確保する', '動物病院の緊急連絡先を手帳にメモする'],
+        coast:    ['ハザードマップで浸水・高潮リスクを再確認する'],
+        mountain: ['土砂災害ハザードマップを再確認する', '早期避難の判断基準を家族で話し合っておく'],
+      },
+      {
+        hBefore: 48, level: 'warn', phase: '48時間前｜避難準備・環境整備',
+        base: [
+          '避難場所・避難経路を家族全員で確認する',
+          '屋外の植木鉢・自転車・物干し竿など飛びやすい物を室内・物置に移す',
+          '窓ガラスに養生テープまたは飛散防止フィルムを貼る',
+          '排水溝・雨どいの詰まりを確認・掃除する',
+          '懐中電灯・ラジオが使えるか確認する',
+          '車のガソリンを満タンにしておく（必要な場合）',
+        ],
+        elderly:  ['避難に使う移動手段を確保・予約する（福祉タクシー等）'],
+        infant:   ['避難先でも使えるポータブルベビー用品を袋に入れておく'],
+        pet:      ['ペット可避難所の場所を再確認する', 'ペットの迷子札・ワクチン接種記録を袋に入れる'],
+        coast:    ['高潮・浸水時の垂直避難先（建物上階）を確認する'],
+        mountain: ['早期避難の準備を完了させる（荷物を玄関にまとめる）'],
+      },
+      {
+        hBefore: 24, level: 'warn', phase: '24時間前｜最終準備・判断',
+        base: [
+          '避難勧告・指示が出ていないか自治体の情報を確認する',
+          '非常用持ち出し袋を玄関にスタンバイする',
+          '通帳・保険証・マイナンバーカードを防水袋に入れる',
+          '浴槽に水を張っておく（トイレ・生活用水として）',
+          '冷蔵庫の食品を消費・整理する',
+          '家族全員の集合場所・連絡手段を再確認する',
+        ],
+        elderly:  ['高齢者は この段階で避難開始を検討する（早めが安全）'],
+        infant:   ['乳幼児は この段階で避難開始を検討する（移動に時間がかかるため）'],
+        disabled: ['支援者と 24時間前に必ず連絡を取り、行動を確認する'],
+        pet:      ['ペットをキャリーに慣れさせておく（短時間入れて練習）'],
+        coast:    ['高潮・浸水リスクがある場合は 24時間前の避難を強く推奨'],
+        mountain: ['土砂災害リスクがある場合は この段階での避難を強く推奨'],
+      },
+      {
+        hBefore: 12, level: 'urgent', phase: '12時間前｜避難判断・行動',
+        base: [
+          '避難指示が出ていれば 直ちに避難する',
+          '窓・雨戸を閉め、カーテンを引く',
+          '電気のブレーカーの位置を確認する（浸水時は遮断）',
+          '非常用持ち出し袋を持って避難できる状態にする',
+          '車での避難が必要な場合は早めに出発する（渋滞回避）',
+        ],
+        elderly:  ['必ず 12時間前までに安全な場所へ避難完了させる'],
+        infant:   ['必ず 12時間前までに安全な場所へ避難完了させる'],
+        coast:    ['高潮・浸水警報が出たら直ちに避難する'],
+        mountain: ['土砂災害警戒情報が出たら直ちに避難する'],
+      },
+      {
+        hBefore: 3, level: 'urgent', phase: '3時間前｜屋内待機・安全確保',
+        base: [
+          'この時点での外出は非常に危険。屋内にとどまる',
+          '窓から離れ、家の中心部・低層階に移動する',
+          'ラジオ・スマホで最新の台風情報を確認し続ける',
+          '停電に備えて懐中電灯・ランタンをすぐ出せる場所に置く',
+          'お風呂に水が溜まっているか確認する',
+        ],
+        coast:    ['高潮リスクがある場合、すでに安全な場所にいること（この時間での移動は危険）'],
+      },
+      {
+        hBefore: 0, level: 'urgent', phase: '上陸時｜屋内で待機',
+        base: [
+          '外出は 絶対にしない',
+          '台風の目の中では一時的に静かになるが、再び暴風雨になる（油断しない）',
+          'ガス漏れ・浸水の気配があればすぐに安全な場所へ移動',
+          'SNSより公式情報（NHK・気象庁・自治体）を優先して確認する',
+          '緊急避難が必要な時は119・110に連絡する',
+        ],
+      },
+      {
+        hBefore: -6, level: 'safe', phase: '通過後6時間｜安全確認',
+        base: [
+          '台風が完全に通過したことを公式情報で確認してから外出する',
+          '屋外の状況（倒木・浸水・電線切断）を窓から確認する',
+          '断水・停電が続く場合は備蓄を使用する',
+          '被害があれば自治体・保険会社に連絡する',
+        ],
+        coast:    ['河川・海岸には近づかない（増水・波が続く場合がある）'],
+        mountain: ['土砂災害の二次災害に注意し、危険地帯には近づかない'],
+      },
+    ];
+
+    var wrap = document.getElementById('timelineWrap');
+    var tlEl = document.getElementById('timeline');
+    wrap.style.display = 'block';
+    tlEl.innerHTML = '';
+
+    // タイトル更新
+    var pad = function(n){ return ('0'+n).slice(-2); };
+    var landfallDisp = (landfall.getMonth()+1) + '月' + landfall.getDate() + '日 '
+      + pad(landfall.getHours()) + ':' + pad(landfall.getMinutes()) + ' 上陸予定 ／ '
+      + members + '人家族';
+    document.getElementById('tl-title-text').textContent = landfallDisp;
+
+    phases.forEach(function(ph, idx) {
+      var actionTime = new Date(landfall.getTime() - ph.hBefore * 3600000);
+      var timeStr;
+      if (ph.hBefore > 0) {
+        timeStr = '上陸 ' + ph.hBefore + '時間前  ';
+        var mo = actionTime.getMonth()+1, d = actionTime.getDate();
+        var hh = pad(actionTime.getHours()), mm = pad(actionTime.getMinutes());
+        timeStr += mo + '月' + d + '日 ' + hh + ':' + mm + ' 頃';
+      } else if (ph.hBefore === 0) {
+        var mo2 = actionTime.getMonth()+1, d2 = actionTime.getDate();
+        var hh2 = pad(actionTime.getHours()), mm2 = pad(actionTime.getMinutes());
+        timeStr = '上陸時  ' + mo2 + '月' + d2 + '日 ' + hh2 + ':' + mm2;
+      } else {
+        var mo3 = actionTime.getMonth()+1, d3 = actionTime.getDate();
+        var hh3 = pad(actionTime.getHours()), mm3 = pad(actionTime.getMinutes());
+        timeStr = '通過後  ' + mo3 + '月' + d3 + '日 ' + hh3 + ':' + mm3 + ' 以降';
+      }
+
+      // アクションリスト構築
+      var actions = ph.base.slice();
+      if (elderly  && ph.elderly)  ph.elderly.forEach(function(a){ actions.push({txt: a, tag: 'elderly', tagTxt: '高齢者'}); });
+      if (infant   && ph.infant)   ph.infant.forEach(function(a){  actions.push({txt: a, tag: 'infant',  tagTxt: '乳幼児'}); });
+      if (disabled && ph.disabled) ph.disabled.forEach(function(a){actions.push({txt: a, tag: 'elderly', tagTxt: '要支援'}); });
+      if (pet      && ph.pet)      ph.pet.forEach(function(a){     actions.push({txt: a, tag: 'pet',     tagTxt: 'ペット'}); });
+      if ((area === 'coast')    && ph.coast)    ph.coast.forEach(function(a){    actions.push({txt: a, tag: 'infant', tagTxt: '沿岸'}); });
+      if ((area === 'mountain') && ph.mountain) ph.mountain.forEach(function(a){ actions.push({txt: a, tag: 'elderly', tagTxt: '山間'}); });
+
+      var dotClass = ph.level === 'urgent' ? 'urgent' : ph.level === 'safe' ? 'safe' : '';
+      var contentClass = ph.level === 'urgent' ? 'urgent' : ph.level === 'safe' ? 'safe' : 'warn';
+      if (ph.hBefore === 72 || ph.hBefore === 48) contentClass = '';
+
+      var liHtml = actions.map(function(a) {
+        if (typeof a === 'string') {
+          return '<li>' + escHtml(a) + '</li>';
+        } else {
+          return '<li>' + escHtml(a.txt) + ' <span class="tl-tag ' + a.tag + '">' + a.tagTxt + '</span></li>';
+        }
+      }).join('');
+
+      var isLast = (idx === phases.length - 1);
+      var item = document.createElement('div');
+      item.className = 'tl-item';
+      item.innerHTML =
+        '<div class="tl-left">'
+        + '<div class="tl-dot ' + dotClass + '"></div>'
+        + (isLast ? '' : '<div class="tl-line"></div>')
+        + '</div>'
+        + '<div class="tl-content ' + contentClass + '">'
+        + '<p class="tl-time">' + escHtml(timeStr) + '</p>'
+        + '<p class="tl-phase">' + escHtml(ph.phase) + '</p>'
+        + '<ul class="tl-actions">' + liHtml + '</ul>'
+        + '</div>';
+      tlEl.appendChild(item);
+    });
+
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  </script>
+
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
