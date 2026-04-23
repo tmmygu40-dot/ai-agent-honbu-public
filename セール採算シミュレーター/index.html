@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>セール採算シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-head td {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em;
+      color: var(--accent); padding-top: 0.9rem; padding-bottom: 0.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>セール採算シミュレーター</h1>
+    <p class="subtitle">割引率と来客増加率を入れて、値引きしても利益が出るか即判断</p>
+  </header>
+
+  <!-- 通常時入力 -->
+  <div class="card">
+    <p class="card-title">通常時の数値</p>
+    <div class="field">
+      <label for="price">通常売価（円）</label>
+      <input type="number" id="price" placeholder="例: 1000" min="0">
+    </div>
+    <div class="field">
+      <label for="cost">原価（円）</label>
+      <input type="number" id="cost" placeholder="例: 400" min="0">
+    </div>
+    <div class="field">
+      <label for="qty">通常販売数（個/日）</label>
+      <input type="number" id="qty" placeholder="例: 50" min="0">
+      <p class="hint">1日あたりの販売見込み数</p>
+    </div>
+  </div>
+
+  <!-- セール条件入力 -->
+  <div class="card">
+    <p class="card-title">セール条件</p>
+    <div class="field">
+      <label for="disc">割引率（%）</label>
+      <input type="number" id="disc" placeholder="例: 20" min="0" max="100">
+      <p class="hint">例：20と入れると20%引き</p>
+    </div>
+    <div class="field">
+      <label for="uplift">来客増加率（%）</label>
+      <input type="number" id="uplift" placeholder="例: 50" min="0">
+      <p class="hint">セールによって販売数が増える割合。0なら変化なし</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算を判定する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">セール後の利益（1日）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">比較内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEYS = ['price','cost','qty','disc','uplift'];
+
+  // localStorage 読み込み
+  window.addEventListener('DOMContentLoaded', function() {
+    KEYS.forEach(function(k) {
+      var v = localStorage.getItem('sale_sim_' + k);
+      if (v !== null) document.getElementById(k).value = v;
+    });
+  });
+
+  function calc() {
+    var price  = parseFloat(document.getElementById('price').value);
+    var cost   = parseFloat(document.getElementById('cost').value);
+    var qty    = parseFloat(document.getElementById('qty').value);
+    var disc   = parseFloat(document.getElementById('disc').value);
+    var uplift = parseFloat(document.getElementById('uplift').value);
+
+    if ([price, cost, qty, disc, uplift].some(isNaN)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (disc < 0 || disc > 100) { showErr('割引率は0〜100%で入力してください'); return; }
+
+    // localStorage 保存
+    KEYS.forEach(function(k) {
+      localStorage.setItem('sale_sim_' + k, document.getElementById(k).value);
+    });
+
+    // 通常時計算
+    var normalProfit    = (price - cost) * qty;
+    var normalMargin    = price > 0 ? (price - cost) / price * 100 : 0;
+
+    // セール時計算
+    var salePrice       = price * (1 - disc / 100);
+    var saleQty         = qty  * (1 + uplift / 100);
+    var saleProfit      = (salePrice - cost) * saleQty;
+    var saleMargin      = salePrice > 0 ? (salePrice - cost) / salePrice * 100 : 0;
+    var profitDiff      = saleProfit - normalProfit;
+
+    // 判定
+    var level, eval_msg, note_msg;
+    if (saleProfit < 0) {
+      level    = 'ng';
+      eval_msg = '赤字 ― セールは見送りを推奨';
+      note_msg = '原価を下回っています。割引率を下げるか、来客増加率の改善が必要です。';
+    } else if (saleProfit >= normalProfit) {
+      level    = 'ok';
+      eval_msg = '利益増 ― セールは採算あり';
+      note_msg = '来客増加により通常時より利益が上がります。';
+    } else {
+      level    = 'warn';
+      eval_msg = '利益減 ― セールは赤字ではないが注意';
+      note_msg = '利益は出ますが、通常より ' + fmt(Math.abs(profitDiff)) + '円 少なくなります。集客・ブランド目的なら許容範囲か判断してください。';
+    }
+
+    showResult(level, fmt(saleProfit) + ' 円', eval_msg, note_msg);
+    showDetail([
+      ['section', '通常時'],
+      ['通常売価',    fmt(price)        + ' 円'],
+      ['原価',        fmt(cost)         + ' 円'],
+      ['粗利率',      normalMargin.toFixed(1) + ' %'],
+      ['販売数',      fmt(qty)          + ' 個'],
+      ['利益（1日）', fmt(normalProfit) + ' 円', true],
+      ['section', 'セール時'],
+      ['セール売価',  fmt(salePrice)    + ' 円  （' + disc + '% 引き）'],
+      ['原価',        fmt(cost)         + ' 円'],
+      ['粗利率',      saleMargin.toFixed(1) + ' %'],
+      ['販売数',      fmt(saleQty)      + ' 個  （' + uplift + '% 増）'],
+      ['利益（1日）', fmt(saleProfit)   + ' 円', true],
+      ['section', '差分'],
+      ['利益の増減',  (profitDiff >= 0 ? '+' : '') + fmt(profitDiff) + ' 円', true],
+    ]);
+  }
+
+  function showResult(level, val, eval_msg, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = eval_msg;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      if (r[0] === 'section') {
+        return '<tr class="section-head"><td colspan="2">' + r[1] + '</td></tr>';
+      }
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg, '');
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
