@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品入替え判断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 100px 110px 44px;
+      gap: 0.5rem;
+      align-items: end;
+      margin-bottom: 0.75rem;
+    }
+    @media (max-width: 500px) {
+      .input-grid {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto;
+      }
+      .input-grid .name-col { grid-column: 1 / -1; }
+      .input-grid .del-col { grid-column: 2; justify-self: end; }
+    }
+
+    .field { }
+    .field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.75rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 0.75rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 2px dashed var(--accent); border-radius: var(--radius);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-add:hover { background: #ffefd6; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .btn-del {
+      padding: 0.65rem 0.6rem;
+      background: var(--ng-bg); color: var(--ng);
+      border: 1.5px solid #fca5a5; border-radius: 9px;
+      cursor: pointer; font-size: 0.85rem; font-weight: 700;
+      line-height: 1;
+    }
+    .btn-del:hover { background: #fee2e2; }
+
+    /* ランキング */
+    .ranking-list { list-style: none; }
+    .ranking-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.85rem 0.75rem;
+      border-radius: 10px;
+      margin-bottom: 0.6rem;
+      border: 1.5px solid var(--border);
+    }
+    .ranking-item.dead { background: var(--ng-bg); border-color: #fca5a5; }
+    .ranking-item.slow { background: var(--warn-bg); border-color: #fcd34d; }
+    .ranking-item.ok   { background: var(--ok-bg); border-color: #86efac; }
+
+    .rank-num {
+      font-size: 1.1rem; font-weight: 900; min-width: 28px; text-align: center;
+      color: var(--text-sub);
+    }
+    .rank-info { flex: 1; }
+    .rank-name { font-size: 1rem; font-weight: 700; margin-bottom: 0.2rem; }
+    .rank-meta { font-size: 0.78rem; color: var(--text-sub); }
+    .rank-badge {
+      font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem;
+      border-radius: 20px; white-space: nowrap;
+    }
+    .dead .rank-badge { background: var(--ng); color: #fff; }
+    .slow .rank-badge { background: var(--warn); color: #fff; }
+    .ok .rank-badge   { background: var(--ok); color: #fff; }
+
+    .rank-score {
+      font-size: 1.3rem; font-weight: 900; min-width: 50px; text-align: right;
+    }
+    .dead .rank-score { color: var(--ng); }
+    .slow .rank-score { color: var(--warn); }
+    .ok .rank-score   { color: var(--ok); }
+
+    .legend {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      margin-bottom: 1rem; font-size: 0.76rem;
+    }
+    .legend span {
+      padding: 0.2rem 0.6rem; border-radius: 20px; font-weight: 700;
+    }
+    .leg-dead { background: var(--ng); color: #fff; }
+    .leg-slow { background: var(--warn); color: #fff; }
+    .leg-ok   { background: var(--ok); color: #fff; }
+
+    .empty-msg {
+      text-align: center; color: var(--text-sub);
+      font-size: 0.9rem; padding: 1.5rem 0;
+    }
+
+    .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.5rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>商品入替え判断アプリ</h1>
+    <p class="subtitle">売れ行き・在庫回転率から死に筋商品を即特定して入替え優先順位を表示</p>
+  </header>
+
+  <div class="card">
+    <p class="card-title">商品を登録する</p>
+    <div id="product-list"></div>
+    <button class="btn-add" onclick="addRow()">＋ 商品を追加</button>
+    <p class="hint">在庫回転率 = 売上数 ÷ 平均在庫数。目安：1.0未満は回転が遅い</p>
+  </div>
+
+  <button class="btn-calc" onclick="judge()">死に筋を判定する</button>
+
+  <div class="card" id="result-card" style="display:none">
+    <p class="card-title">入替え推奨ランキング</p>
+    <div class="legend">
+      <span class="leg-dead">死に筋</span>
+      <span class="leg-slow">要注意</span>
+      <span class="leg-ok">問題なし</span>
+    </div>
+    <ul class="ranking-list" id="ranking"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var products = [];
+  var rowCount = 0;
+
+  function init() {
+    var saved = localStorage.getItem('shohin_irekae');
+    if (saved) {
+      try { products = JSON.parse(saved); } catch(e) { products = []; }
+    }
+    if (products.length === 0) {
+      products = [
+        { id: 0, name: '', sales: '', turnover: '' },
+        { id: 1, name: '', sales: '', turnover: '' }
+      ];
+      rowCount = 2;
+    } else {
+      rowCount = products.length;
+    }
+    renderRows();
+  }
+
+  function renderRows() {
+    var container = document.getElementById('product-list');
+    container.innerHTML = '';
+    products.forEach(function(p, idx) {
+      var div = document.createElement('div');
+      div.className = 'input-grid';
+      div.id = 'row-' + p.id;
+      div.innerHTML =
+        '<div class="field name-col">' +
+          '<label>商品名</label>' +
+          '<input type="text" placeholder="例：商品A" value="' + esc(p.name) + '" ' +
+            'onchange="updateField(' + p.id + ',\'name\',this.value)">' +
+        '</div>' +
+        '<div class="field">' +
+          '<label>月間売上数</label>' +
+          '<input type="number" placeholder="例：30" min="0" value="' + esc(p.sales) + '" ' +
+            'onchange="updateField(' + p.id + ',\'sales\',this.value)">' +
+        '</div>' +
+        '<div class="field">' +
+          '<label>在庫回転率</label>' +
+          '<input type="number" placeholder="例：1.5" min="0" step="0.1" value="' + esc(p.turnover) + '" ' +
+            'onchange="updateField(' + p.id + ',\'turnover\',this.value)">' +
+        '</div>' +
+        '<div class="field del-col">' +
+          '<label>&nbsp;</label>' +
+          '<button class="btn-del" onclick="removeRow(' + p.id + ')">✕</button>' +
+        '</div>';
+      container.appendChild(div);
+    });
+  }
+
+  function esc(v) {
+    if (v === null || v === undefined) return '';
+    return String(v).replace(/"/g, '&quot;');
+  }
+
+  function updateField(id, key, value) {
+    var p = products.find(function(x) { return x.id === id; });
+    if (p) { p[key] = value; save(); }
+  }
+
+  function addRow() {
+    products.push({ id: rowCount++, name: '', sales: '', turnover: '' });
+    renderRows();
+    save();
+  }
+
+  function removeRow(id) {
+    if (products.length <= 1) return;
+    products = products.filter(function(p) { return p.id !== id; });
+    renderRows();
+    save();
+  }
+
+  function save() {
+    localStorage.setItem('shohin_irekae', JSON.stringify(products));
+  }
+
+  function judge() {
+    // 入力値を再収集（DOMから）
+    var rows = document.querySelectorAll('#product-list .input-grid');
+    var items = [];
+    rows.forEach(function(row, idx) {
+      var inputs = row.querySelectorAll('input');
+      var name     = inputs[0].value.trim() || ('商品' + (idx + 1));
+      var sales    = parseFloat(inputs[1].value);
+      var turnover = parseFloat(inputs[2].value);
+      if (!isNaN(sales) && !isNaN(turnover)) {
+        items.push({ name: name, sales: sales, turnover: turnover });
+      }
+    });
+
+    if (items.length === 0) {
+      alert('売上数と在庫回転率を入力してください');
+      return;
+    }
+
+    // スコア計算（高いほど入替え推奨）
+    // スコア = (1 - 回転率正規化) * 0.5 + (1 - 売上数正規化) * 0.5
+    var maxSales    = Math.max.apply(null, items.map(function(i) { return i.sales; }));
+    var maxTurnover = Math.max.apply(null, items.map(function(i) { return i.turnover; }));
+
+    items.forEach(function(item) {
+      var nSales    = maxSales    > 0 ? item.sales    / maxSales    : 0;
+      var nTurnover = maxTurnover > 0 ? item.turnover / maxTurnover : 0;
+      item.score = ((1 - nSales) * 0.5 + (1 - nTurnover) * 0.5) * 100;
+
+      // 判定
+      if (item.turnover < 1.0 && nSales < 0.3) {
+        item.status = 'dead';
+        item.label  = '死に筋';
+      } else if (item.turnover < 1.5 || nSales < 0.4) {
+        item.status = 'slow';
+        item.label  = '要注意';
+      } else {
+        item.status = 'ok';
+        item.label  = '問題なし';
+      }
+    });
+
+    // スコア降順でソート
+    items.sort(function(a, b) { return b.score - a.score; });
+
+    // 表示
+    var ul = document.getElementById('ranking');
+    ul.innerHTML = '';
+    items.forEach(function(item, idx) {
+      var li = document.createElement('li');
+      li.className = 'ranking-item ' + item.status;
+      li.innerHTML =
+        '<div class="rank-num">' + (idx + 1) + '</div>' +
+        '<div class="rank-info">' +
+          '<div class="rank-name">' + esc2(item.name) + '</div>' +
+          '<div class="rank-meta">月間売上：' + item.sales + '個　在庫回転率：' + item.turnover.toFixed(1) + '</div>' +
+        '</div>' +
+        '<span class="rank-badge">' + item.label + '</span>' +
+        '<div class="rank-score">' + Math.round(item.score) + '</div>';
+      ul.appendChild(li);
+    });
+
+    document.getElementById('result-card').style.display = '';
+    document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function esc2(v) {
+    return String(v)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
