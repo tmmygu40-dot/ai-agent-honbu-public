@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>賃貸退去費用シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* チェックリスト */
+    .check-group { display: flex; flex-direction: column; gap: 0.6rem; }
+    .check-item {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.7rem 0.9rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 9px; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .check-item:hover { border-color: var(--accent); }
+    .check-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+    .check-item.checked { background: var(--accent-light); border-color: var(--accent); }
+    .check-label { font-size: 0.9rem; font-weight: 600; flex: 1; }
+    .check-sub { font-size: 0.75rem; color: var(--text-sub); }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); vertical-align: middle; }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); white-space: nowrap; }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .sep td { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; color: var(--accent); padding-top: 0.9rem; border-bottom: none; }
+
+    .info-box {
+      font-size: 0.78rem; color: var(--text-sub); line-height: 1.6;
+      background: #f9f5f0; border-radius: 8px; padding: 0.8rem 1rem;
+      margin-top: 0.8rem;
+    }
+    .info-box b { color: var(--text); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>賃貸退去費用シミュレーター</h1>
+    <p class="subtitle">入居期間・部屋の状態から原状回復費用の目安を即診断（国交省ガイドラインベース）</p>
+  </header>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="years">入居期間</label>
+      <select id="years">
+        <option value="0.5">6ヶ月未満</option>
+        <option value="1">1年</option>
+        <option value="2" selected>2年</option>
+        <option value="3">3年</option>
+        <option value="4">4年</option>
+        <option value="5">5年</option>
+        <option value="6">6年</option>
+        <option value="8">8年</option>
+        <option value="10">10年以上</option>
+      </select>
+      <p class="hint">入居期間が長いほど借主の負担割合は下がります</p>
+    </div>
+    <div class="field">
+      <label for="size">部屋の広さ（㎡）</label>
+      <select id="size">
+        <option value="20">〜20㎡（ワンルーム・1K）</option>
+        <option value="35" selected>21〜35㎡（1K・1DK）</option>
+        <option value="50">36〜50㎡（1LDK・2K）</option>
+        <option value="70">51〜70㎡（2LDK・3K）</option>
+        <option value="90">71〜90㎡（3LDK・4K）</option>
+        <option value="100">91㎡以上（4LDK以上）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="struct">建物種別</label>
+      <select id="struct">
+        <option value="22" selected>木造・鉄骨造（耐用年数22年）</option>
+        <option value="47">RC・SRC造（耐用年数47年）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 損傷状況 -->
+  <div class="card">
+    <p class="card-title">損傷状況（該当するものをすべてチェック）</p>
+    <div class="check-group">
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" id="c_wall_light">
+        <div>
+          <div class="check-label">壁紙・クロスに軽微な汚れ・傷がある</div>
+          <div class="check-sub">生活による薄汚れ・小さな傷（通常使用の範囲内）</div>
+        </div>
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" id="c_wall_heavy">
+        <div>
+          <div class="check-label">壁紙・クロスに大きな汚れ・破損がある</div>
+          <div class="check-sub">落書き・穴・大きなシミ・意図的な損傷</div>
+        </div>
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" id="c_floor_light">
+        <div>
+          <div class="check-label">フローリングに軽微な傷・汚れがある</div>
+          <div class="check-sub">家具の跡・軽いすり傷など</div>
+        </div>
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" id="c_floor_heavy">
+        <div>
+          <div class="check-label">フローリングに深い傷・水濡れ・変色がある</div>
+          <div class="check-sub">放置したシミ・深い傷・部分張替えが必要な状態</div>
+        </div>
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" id="c_tobacco">
+        <div>
+          <div class="check-label">室内でタバコを吸っていた（ヤニ・臭い付着）</div>
+          <div class="check-sub">壁全体の張替え＋特殊クリーニングが必要になる場合が多い</div>
+        </div>
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" id="c_mold">
+        <div>
+          <div class="check-label">結露・カビを放置した（換気不足など）</div>
+          <div class="check-sub">借主の不注意による場合は一部負担になる</div>
+        </div>
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" id="c_equip">
+        <div>
+          <div class="check-label">設備（エアコン・給湯器・浴室等）を破損した</div>
+          <div class="check-sub">故意・過失による設備の損傷</div>
+        </div>
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" id="c_clean">
+        <div>
+          <div class="check-label">退去時のハウスクリーニングが契約で義務付けられている</div>
+          <div class="check-sub">契約書に「借主負担でクリーニング」と明記されている場合</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">費用目安を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">借主負担の目安（合計）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">費用内訳（目安）</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+    <div class="info-box" id="info-box"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  function toggleCheck(label) {
+    var cb = label.querySelector('input[type="checkbox"]');
+    if (label.contains(event.target) && event.target !== cb) {
+      cb.checked = !cb.checked;
+    }
+    label.classList.toggle('checked', cb.checked);
+  }
+
+  function calc() {
+    var years  = parseFloat(document.getElementById('years').value);
+    var size   = parseFloat(document.getElementById('size').value);
+    var lifeYr = parseFloat(document.getElementById('struct').value);
+
+    var cWallLight  = document.getElementById('c_wall_light').checked;
+    var cWallHeavy  = document.getElementById('c_wall_heavy').checked;
+    var cFloorLight = document.getElementById('c_floor_light').checked;
+    var cFloorHeavy = document.getElementById('c_floor_heavy').checked;
+    var cTobacco    = document.getElementById('c_tobacco').checked;
+    var cMold       = document.getElementById('c_mold').checked;
+    var cEquip      = document.getElementById('c_equip').checked;
+    var cClean      = document.getElementById('c_clean').checked;
+
+    // 壁の耐用年数 6年（ガイドライン）→ 6年で残存1円扱い
+    // 残存率 = (6 - 入居年数) / 6　最小0
+    var wallRemain = Math.max(0, (6 - years) / 6);
+
+    // フローリングは建物耐用年数
+    var floorRemain = Math.max(0.1, (lifeYr - years) / lifeYr);
+
+    // 壁面積（部屋面積 × 2.5倍で概算）
+    var wallArea = size * 2.5;
+
+    var rows = [];
+    var total = 0;
+    var tenantTotal = 0;
+
+    // ── 壁紙 ──
+    if (cTobacco) {
+      // タバコ：全面張替え　借主100%
+      var cost = Math.round(wallArea * 1200);
+      rows.push({ label: '壁紙全面張替え（タバコ汚染）', cost: cost, tenant: cost, full: true, note: '借主100%負担' });
+      total += cost; tenantTotal += cost;
+    } else if (cWallHeavy) {
+      var cost = Math.round(wallArea * 1200 * 0.6);
+      var t = Math.round(cost * wallRemain);
+      rows.push({ label: '壁紙張替え（大きな損傷）', cost: cost, tenant: t, note: '借主負担率 ' + pct(wallRemain) });
+      total += cost; tenantTotal += t;
+    } else if (cWallLight) {
+      var cost = Math.round(wallArea * 1200 * 0.2);
+      var t = Math.round(cost * wallRemain * 0.5);
+      rows.push({ label: '壁紙部分補修（軽微な汚れ）', cost: cost, tenant: t, note: '通常損耗の範囲内が多い' });
+      total += cost; tenantTotal += t;
+    }
+
+    // ── フローリング ──
+    if (cFloorHeavy) {
+      var repairArea = Math.min(size * 0.3, 10);
+      var cost = Math.round(repairArea * 8000);
+      var t = Math.round(cost * floorRemain);
+      rows.push({ label: 'フローリング部分張替え（深い傷・水濡れ）', cost: cost, tenant: t, note: '借主負担率 ' + pct(floorRemain) });
+      total += cost; tenantTotal += t;
+    } else if (cFloorLight) {
+      var cost = Math.round(size * 0.05 * 5000);
+      var t = Math.round(cost * floorRemain * 0.3);
+      rows.push({ label: 'フローリング補修（軽微な傷）', cost: cost, tenant: t, note: '通常使用の範囲が多い' });
+      total += cost; tenantTotal += t;
+    }
+
+    // ── カビ ──
+    if (cMold) {
+      var cost = Math.round(wallArea * 0.3 * 1200);
+      var t = Math.round(cost * 0.5);
+      rows.push({ label: 'カビ・汚損部の壁紙補修', cost: cost, tenant: t, note: '放置の程度により借主負担あり（目安50%）' });
+      total += cost; tenantTotal += t;
+    }
+
+    // ── 設備 ──
+    if (cEquip) {
+      var cost = 50000;
+      rows.push({ label: '設備修理・交換費用（概算）', cost: cost, tenant: cost, note: '故意・過失による損傷は借主100%負担' });
+      total += cost; tenantTotal += cost;
+    }
+
+    // ── ハウスクリーニング ──
+    if (cClean) {
+      var cleaning = size <= 20 ? 25000 : size <= 35 ? 35000 : size <= 50 ? 45000 : size <= 70 ? 55000 : 70000;
+      rows.push({ label: 'ハウスクリーニング（契約義務）', cost: cleaning, tenant: cleaning, note: '契約で借主負担と明記の場合' });
+      total += cleaning; tenantTotal += cleaning;
+    }
+
+    // 何もなければ通常損耗のみ
+    if (rows.length === 0) {
+      tenantTotal = 0;
+      total = 0;
+    }
+
+    // 貸主負担
+    var landlord = total - tenantTotal;
+
+    // 判定
+    var level = tenantTotal === 0 ? 'ok' : tenantTotal < 50000 ? 'warn' : 'ng';
+    var eval_ = tenantTotal === 0
+      ? '通常損耗の範囲内です'
+      : tenantTotal < 50000
+      ? '一部負担が生じる可能性があります'
+      : '相応の費用負担が見込まれます';
+    var note_ = 'あくまで目安です。実際は契約内容・管理会社の判断によります。';
+
+    // 表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = tenantTotal === 0 ? '負担なし（0円）' : '約 ' + fmt(tenantTotal) + ' 円〜';
+    document.getElementById('re').textContent = eval_;
+    document.getElementById('rn').textContent = note_;
+
+    // 内訳
+    var html = '';
+    if (rows.length === 0) {
+      html += '<tr><td colspan="2" style="text-align:center;color:var(--ok);font-weight:700;padding:1rem;">通常損耗の範囲内のため借主負担なし</td></tr>';
+    } else {
+      html += '<tr class="sep"><td colspan="2">各項目の費用内訳</td></tr>';
+      rows.forEach(function(r) {
+        html += '<tr><td><span style="font-weight:600;color:var(--text)">' + r.label + '</span><br><span style="font-size:0.72rem">' + r.note + '</span></td><td>借主 約' + fmt(r.tenant) + '円</td></tr>';
+      });
+      html += '<tr class="sep"><td colspan="2">集計</td></tr>';
+      html += '<tr><td>修繕費用 合計（概算）</td><td>' + fmt(total) + ' 円</td></tr>';
+      html += '<tr><td>貸主負担（経年劣化等）</td><td>約 ' + fmt(landlord) + ' 円</td></tr>';
+      html += '<tr class="hl"><td>借主負担 目安</td><td>約 ' + fmt(tenantTotal) + ' 円〜</td></tr>';
+    }
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = 'block';
+
+    // 補足
+    var infoHtml = '<b>参考：国土交通省ガイドラインのポイント</b><br>'
+      + '・<b>通常損耗・経年変化</b>（日焼け・自然劣化など）→ 貸主負担<br>'
+      + '・<b>故意・過失・不注意による損傷</b> → 借主負担<br>'
+      + '・壁紙の耐用年数は6年（6年で残存価値1円）<br>'
+      + '・フローリングは建物の耐用年数に準じる<br>'
+      + '・入居期間が長いほど借主の負担割合は下がる';
+    document.getElementById('info-box').innerHTML = infoHtml;
+
+    // localStorage 保存
+    try {
+      localStorage.setItem('chintai_exit_sim', JSON.stringify({
+        years: years, size: size, struct: lifeYr,
+        checkedItems: getCheckedItems()
+      }));
+    } catch(e) {}
+
+    rc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function getCheckedItems() {
+    var ids = ['c_wall_light','c_wall_heavy','c_floor_light','c_floor_heavy','c_tobacco','c_mold','c_equip','c_clean'];
+    var r = {};
+    ids.forEach(function(id) { r[id] = document.getElementById(id).checked; });
+    return r;
+  }
+
+  function pct(r) { return Math.round(r * 100) + '%'; }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage 復元
+  (function() {
+    try {
+      var saved = localStorage.getItem('chintai_exit_sim');
+      if (!saved) return;
+      var d = JSON.parse(saved);
+      if (d.years)  document.getElementById('years').value  = d.years;
+      if (d.size)   document.getElementById('size').value   = d.size;
+      if (d.struct) document.getElementById('struct').value = d.struct;
+      if (d.checkedItems) {
+        Object.keys(d.checkedItems).forEach(function(id) {
+          var cb = document.getElementById(id);
+          if (cb && d.checkedItems[id]) {
+            cb.checked = true;
+            cb.closest('.check-item').classList.add('checked');
+          }
+        });
+      }
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
