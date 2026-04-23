@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>欠品お知らせ文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { min-height: 80px; resize: vertical; line-height: 1.6; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .opt-label { font-size: 0.72rem; color: var(--text-sub); margin-left: 0.3rem; font-weight: 400; }
+
+    /* ── 文体選択タブ ── */
+    .tab-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .tab-btn {
+      flex: 1; padding: 0.6rem; font-size: 0.82rem; font-weight: 700;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn.active {
+      background: var(--accent-light); border-color: var(--accent); color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 出力エリア ── */
+    .output-section { display: none; }
+    .output-block { margin-bottom: 1rem; }
+    .output-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .output-title {
+      font-size: 0.82rem; font-weight: 700; color: var(--accent);
+    }
+    .btn-copy {
+      padding: 0.4rem 1rem; font-size: 0.8rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:hover { background: #c56a00; }
+    .btn-copy.copied { background: var(--ok); }
+    .output-text {
+      width: 100%; min-height: 160px; padding: 0.9rem;
+      font-size: 0.9rem; line-height: 1.8;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: #fafaf9; color: var(--text);
+      white-space: pre-wrap; word-break: break-all;
+      font-family: inherit; resize: vertical;
+    }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+    /* ── 履歴 ── */
+    .history-list { list-style: none; }
+    .history-item {
+      padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--border);
+      font-size: 0.82rem; cursor: pointer; transition: background 0.1s;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { background: var(--accent-light); border-radius: 6px; }
+    .history-item .hist-name { font-weight: 600; flex: 1; }
+    .history-item .hist-reason { color: var(--text-sub); font-size: 0.75rem; }
+    .history-item .hist-del {
+      color: var(--ng); font-size: 0.8rem; padding: 0.2rem 0.4rem;
+      border: 1px solid var(--ng); border-radius: 5px; cursor: pointer;
+      background: none; font-weight: 700; flex-shrink: 0;
+    }
+    .empty-msg { color: var(--text-sub); font-size: 0.82rem; text-align: center; padding: 1rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📭 欠品お知らせ文ジェネレーター</h1>
+    <p class="subtitle">品薄・欠品時のお詫び文と代替品提案文を自動生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+
+    <div class="field">
+      <label for="productName">欠品商品名 <span style="color:var(--ng)">*</span></label>
+      <input type="text" id="productName" placeholder="例：〇〇ソース、△△シリーズ">
+    </div>
+
+    <div class="field">
+      <label for="reason">欠品理由 <span style="color:var(--ng)">*</span></label>
+      <select id="reason">
+        <option value="品薄">品薄（需要増加・在庫不足）</option>
+        <option value="入荷遅延">入荷遅延（物流・製造の遅れ）</option>
+        <option value="製造中止">製造中止（メーカー都合）</option>
+        <option value="仕入れ停止">仕入れ停止（調達困難）</option>
+        <option value="原材料不足">原材料不足</option>
+        <option value="その他">その他（下の詳細欄に記入）</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="reasonDetail">欠品理由の補足 <span class="opt-label">（任意）</span></label>
+      <input type="text" id="reasonDetail" placeholder="例：海外からの原材料輸入が困難な状況、物流の混雑">
+    </div>
+
+    <div class="field">
+      <label for="altProduct">代替品・代替商品名 <span class="opt-label">（任意・なければ空欄）</span></label>
+      <input type="text" id="altProduct" placeholder="例：△△プレミアム、□□シリーズ">
+    </div>
+
+    <div class="field">
+      <label for="restoreDate">入荷・再開予定 <span class="opt-label">（任意）</span></label>
+      <input type="text" id="restoreDate" placeholder="例：〇月下旬予定、未定">
+    </div>
+
+    <div class="field">
+      <label for="extraMsg">追記メッセージ <span class="opt-label">（任意）</span></label>
+      <textarea id="extraMsg" placeholder="例：引き続きご愛顧のほどよろしくお願い申し上げます。"></textarea>
+    </div>
+  </div>
+
+  <!-- 文体選択 -->
+  <div class="card">
+    <p class="card-title">文体・用途を選ぶ</p>
+    <div class="tab-row">
+      <button class="tab-btn active" data-style="formal" onclick="setStyle(this)">丁寧（メール・文書）</button>
+      <button class="tab-btn" data-style="casual" onclick="setStyle(this)">やわらか（SNS・貼り紙）</button>
+      <button class="tab-btn" data-style="short" onclick="setStyle(this)">短文（POP・告知）</button>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">文章を生成する</button>
+
+  <!-- 出力カード -->
+  <div class="card output-section" id="outputSection">
+    <p class="card-title">生成結果</p>
+
+    <!-- お詫び文 -->
+    <div class="output-block">
+      <div class="output-header">
+        <span class="output-title">📝 お詫び文（欠品のお知らせ）</span>
+        <button class="btn-copy" id="copyBtn1" onclick="copyText('outputText1','copyBtn1')">コピー</button>
+      </div>
+      <textarea class="output-text" id="outputText1" readonly></textarea>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 代替品提案文 -->
+    <div class="output-block" id="altSection">
+      <div class="output-header">
+        <span class="output-title">🔄 代替品提案文</span>
+        <button class="btn-copy" id="copyBtn2" onclick="copyText('outputText2','copyBtn2')">コピー</button>
+      </div>
+      <textarea class="output-text" id="outputText2" readonly></textarea>
+    </div>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card">
+    <p class="card-title">生成履歴</p>
+    <ul class="history-list" id="historyList">
+      <li class="empty-msg">まだ履歴がありません</li>
+    </ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var currentStyle = 'formal';
+
+  // ── 文体切替 ──
+  function setStyle(btn) {
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentStyle = btn.dataset.style;
+    saveInputs();
+  }
+
+  // ── 生成 ──
+  function generate() {
+    var product = document.getElementById('productName').value.trim();
+    var reason = document.getElementById('reason').value;
+    var reasonDetail = document.getElementById('reasonDetail').value.trim();
+    var alt = document.getElementById('altProduct').value.trim();
+    var restoreDate = document.getElementById('restoreDate').value.trim();
+    var extra = document.getElementById('extraMsg').value.trim();
+
+    if (!product) {
+      alert('欠品商品名を入力してください。');
+      document.getElementById('productName').focus();
+      return;
+    }
+
+    var reasonText = reasonDetail ? reasonDetail : getReasonText(reason);
+    var apologyText = buildApology(product, reason, reasonText, restoreDate, extra);
+    var altText = buildAltProposal(product, alt, restoreDate);
+
+    document.getElementById('outputText1').value = apologyText;
+    document.getElementById('outputText2').value = altText;
+    document.getElementById('outputSection').style.display = '';
+
+    // 代替品セクション表示制御
+    document.getElementById('altSection').style.display = '';
+
+    // コピーボタンリセット
+    resetCopyBtn('copyBtn1');
+    resetCopyBtn('copyBtn2');
+
+    // 履歴保存
+    saveHistory(product, reason, apologyText, altText);
+    saveInputs();
+
+    // スクロール
+    document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function getReasonText(reason) {
+    var map = {
+      '品薄': '需要の増加による品薄',
+      '入荷遅延': '物流・製造工程の遅れによる入荷遅延',
+      '製造中止': 'メーカーによる製造中止',
+      '仕入れ停止': '調達困難による仕入れ停止',
+      '原材料不足': '原材料不足',
+      'その他': '諸事情'
+    };
+    return map[reason] || reason;
+  }
+
+  function buildApology(product, reason, reasonText, restoreDate, extra) {
+    var s = currentStyle;
+    var restoreStr = restoreDate ? restoreDate : '未定';
+    var restoreLine = restoreDate
+      ? (s === 'short' ? '再入荷予定：' + restoreDate : '入荷（再開）予定は' + restoreDate + 'を見込んでおります。')
+      : (s === 'short' ? '入荷未定' : '現時点では入荷の見通しが立っていない状況です。');
+
+    if (s === 'formal') {
+      return '平素より格別のご愛顧を賜り、誠にありがとうございます。\n\n' +
+        '誠に申し訳ございませんが、現在「' + product + '」につきましては、' + reasonText + 'の影響により、品切れ（品薄）の状態となっております。\n\n' +
+        restoreLine + '\n\n' +
+        'ご不便・ご迷惑をおかけしますことを、深くお詫び申し上げます。\n\n' +
+        (extra ? extra + '\n\n' : '') +
+        '引き続きご愛顧のほど、何卒よろしくお願い申し上げます。';
+    } else if (s === 'casual') {
+      return 'いつもご利用いただきありがとうございます。\n\n' +
+        '「' + product + '」ですが、現在' + reasonText + 'の影響で品切れとなっており、大変ご迷惑をおかけしております。\n\n' +
+        (restoreDate ? '入荷予定は' + restoreDate + 'を予定しております。' : '現在、入荷の見通しは未定となっております。') + '\n\n' +
+        (extra ? extra + '\n\n' : '') +
+        'ご不便をおかけして申し訳ございません。引き続きよろしくお願いいたします。';
+    } else {
+      // short
+      return '【欠品のお知らせ】\n\n' +
+        '「' + product + '」は現在品切れとなっております。\n' +
+        '理由：' + reasonText + '\n' +
+        restoreLine + '\n\n' +
+        (extra ? extra + '\n' : '') +
+        'ご不便をおかけし申し訳ございません。';
+    }
+  }
+
+  function buildAltProposal(product, alt, restoreDate) {
+    var s = currentStyle;
+    if (!alt) {
+      if (s === 'formal') {
+        return '「' + product + '」の代替品につきましては、現在鋭意探しております。\n\n' +
+          '代替品が見つかり次第、改めてご案内申し上げます。\n\n' +
+          '何かご不明な点がございましたら、お気軽にお問い合わせください。';
+      } else if (s === 'casual') {
+        return '「' + product + '」の代わりになる商品を現在探しております。\n\n' +
+          '見つかり次第、ご案内いたします。\n\nご不便をおかけして申し訳ございません。';
+      } else {
+        return '【代替品】\n現在、代替品を探しております。\n見つかり次第ご案内いたします。';
+      }
+    }
+    if (s === 'formal') {
+      return '誠に恐れ入りますが、代替品として「' + alt + '」をご提案申し上げます。\n\n' +
+        '「' + product + '」と同様の用途でご使用いただける商品でございます。\n' +
+        'ぜひご検討いただければ幸いでございます。\n\n' +
+        (restoreDate ? '「' + product + '」の入荷再開（' + restoreDate + '）まで、代替品をご利用いただけますと幸いです。' : '') +
+        '\nご不明な点はお気軽にお申し付けください。';
+    } else if (s === 'casual') {
+      return '「' + product + '」の代わりとして、「' + alt + '」はいかがでしょうか？\n\n' +
+        '同様の用途でご使用いただける商品です。\n' +
+        (restoreDate ? '「' + product + '」は' + restoreDate + 'に再入荷予定です。\n' : '') +
+        'ぜひご検討ください！';
+    } else {
+      return '【代替品のご案内】\n\n' +
+        '「' + alt + '」はいかがですか？\n' +
+        '「' + product + '」と同様にご使用いただけます。\n' +
+        (restoreDate ? '再入荷予定：' + restoreDate : '');
+    }
+  }
+
+  // ── コピー ──
+  function copyText(textareaId, btnId) {
+    var ta = document.getElementById(textareaId);
+    var text = ta.value;
+    if (!text) return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() { flashCopy(btnId); });
+    } else {
+      ta.select();
+      document.execCommand('copy');
+      flashCopy(btnId);
+    }
+  }
+  function flashCopy(btnId) {
+    var btn = document.getElementById(btnId);
+    btn.textContent = 'コピー完了!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'コピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+  function resetCopyBtn(btnId) {
+    var btn = document.getElementById(btnId);
+    btn.textContent = 'コピー';
+    btn.classList.remove('copied');
+  }
+
+  // ── 履歴 ──
+  var HIST_KEY = 'kk_history';
+  function saveHistory(product, reason, apology, altProposal) {
+    var list = loadHistoryData();
+    list.unshift({ product: product, reason: reason, apology: apology, alt: altProposal, date: new Date().toLocaleDateString('ja-JP') });
+    if (list.length > 20) list = list.slice(0, 20);
+    localStorage.setItem(HIST_KEY, JSON.stringify(list));
+    renderHistory();
+  }
+  function loadHistoryData() {
+    try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function renderHistory() {
+    var list = loadHistoryData();
+    var ul = document.getElementById('historyList');
+    if (!list.length) { ul.innerHTML = '<li class="empty-msg">まだ履歴がありません</li>'; return; }
+    ul.innerHTML = list.map(function(h, i) {
+      return '<li class="history-item" onclick="loadHistory(' + i + ')">' +
+        '<span class="hist-name">' + esc(h.product) + '</span>' +
+        '<span class="hist-reason">' + esc(h.reason) + ' · ' + esc(h.date) + '</span>' +
+        '<button class="hist-del" onclick="deleteHistory(event,' + i + ')">削除</button>' +
+        '</li>';
+    }).join('');
+  }
+  function loadHistory(i) {
+    var list = loadHistoryData();
+    if (!list[i]) return;
+    var h = list[i];
+    document.getElementById('outputText1').value = h.apology;
+    document.getElementById('outputText2').value = h.alt;
+    document.getElementById('outputSection').style.display = '';
+    resetCopyBtn('copyBtn1');
+    resetCopyBtn('copyBtn2');
+    document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function deleteHistory(e, i) {
+    e.stopPropagation();
+    var list = loadHistoryData();
+    list.splice(i, 1);
+    localStorage.setItem(HIST_KEY, JSON.stringify(list));
+    renderHistory();
+  }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── localStorage 入力保存 ──
+  var SAVE_KEY = 'kk_inputs';
+  function saveInputs() {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      productName: document.getElementById('productName').value,
+      reason: document.getElementById('reason').value,
+      reasonDetail: document.getElementById('reasonDetail').value,
+      altProduct: document.getElementById('altProduct').value,
+      restoreDate: document.getElementById('restoreDate').value,
+      extraMsg: document.getElementById('extraMsg').value,
+      style: currentStyle
+    }));
+  }
+  function restoreInputs() {
+    try {
+      var d = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}');
+      if (d.productName) document.getElementById('productName').value = d.productName;
+      if (d.reason) document.getElementById('reason').value = d.reason;
+      if (d.reasonDetail) document.getElementById('reasonDetail').value = d.reasonDetail;
+      if (d.altProduct) document.getElementById('altProduct').value = d.altProduct;
+      if (d.restoreDate) document.getElementById('restoreDate').value = d.restoreDate;
+      if (d.extraMsg) document.getElementById('extraMsg').value = d.extraMsg;
+      if (d.style) {
+        currentStyle = d.style;
+        document.querySelectorAll('.tab-btn').forEach(function(b) {
+          b.classList.toggle('active', b.dataset.style === d.style);
+        });
+      }
+    } catch(e) {}
+  }
+
+  // 入力変更時に自動保存
+  ['productName','reasonDetail','altProduct','restoreDate','extraMsg'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', saveInputs);
+  });
+  document.getElementById('reason').addEventListener('change', saveInputs);
+
+  // ── 初期化 ──
+  restoreInputs();
+  renderHistory();
+  </script>
+</body>
+</html>
