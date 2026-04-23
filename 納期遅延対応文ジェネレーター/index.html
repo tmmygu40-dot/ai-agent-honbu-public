@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>納期遅延対応文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .field-row { display: flex; gap: 0.75rem; }
+    .field-row .field { flex: 1; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 640px;
+    }
+    .result-card.show { display: block; }
+    .result-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1rem; padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .result-card-title { font-size: 0.78rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; }
+    .btn-copy {
+      padding: 0.45rem 1rem; font-size: 0.82rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 7px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:hover { opacity: 0.85; }
+    .btn-copy.copied { background: var(--ok); }
+
+    .mail-body {
+      font-size: 0.9rem; line-height: 1.9;
+      white-space: pre-wrap; word-break: break-word;
+      background: var(--bg); padding: 1rem; border-radius: 9px;
+      border: 1px solid var(--border);
+    }
+
+    /* テンプレート保存エリア */
+    .template-area {
+      max-width: 640px; margin: 0 auto 1rem;
+    }
+    .tmpl-list { list-style: none; margin-top: 0.5rem; }
+    .tmpl-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.55rem 0.75rem; background: var(--bg);
+      border-radius: 8px; margin-bottom: 0.4rem; font-size: 0.85rem;
+      border: 1px solid var(--border);
+    }
+    .tmpl-name { font-weight: 600; flex: 1; }
+    .tmpl-actions { display: flex; gap: 0.4rem; }
+    .btn-sm {
+      padding: 0.3rem 0.65rem; font-size: 0.75rem; font-weight: 700;
+      border: none; border-radius: 6px; cursor: pointer;
+    }
+    .btn-load { background: var(--accent); color: #fff; }
+    .btn-del  { background: var(--ng-bg); color: var(--ng); border: 1px solid var(--ng); }
+
+    .save-row { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .save-row input {
+      flex: 1; padding: 0.55rem 0.8rem; font-size: 0.9rem;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text); outline: none; font-family: inherit;
+    }
+    .save-row input:focus { border-color: var(--accent); background: #fff; }
+    .btn-save {
+      padding: 0.55rem 1rem; font-size: 0.85rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 1.5px solid var(--ok); border-radius: 8px; cursor: pointer;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .tag-row { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .tag {
+      padding: 0.25rem 0.6rem; font-size: 0.75rem; font-weight: 600;
+      border-radius: 99px; border: none; cursor: pointer;
+      background: var(--accent-light); color: var(--accent);
+      transition: background 0.1s;
+    }
+    .tag:hover { background: var(--accent); color: #fff; }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📨 納期遅延対応文ジェネレーター</h1>
+    <p class="subtitle">遅延状況を選ぶだけで顧客向けお詫びメールを即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">遅延情報を入力</p>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="customer">顧客名・会社名</label>
+        <input type="text" id="customer" placeholder="例：山田商事株式会社">
+      </div>
+      <div class="field">
+        <label for="product">商品・案件名</label>
+        <input type="text" id="product" placeholder="例：○○部品 100個">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="orderDate">当初の納期</label>
+      <input type="date" id="orderDate">
+    </div>
+
+    <div class="field">
+      <label for="delayDays">遅延日数</label>
+      <select id="delayDays">
+        <option value="3">約3日</option>
+        <option value="5">約5日</option>
+        <option value="7" selected>約1週間</option>
+        <option value="14">約2週間</option>
+        <option value="21">約3週間</option>
+        <option value="30">約1ヶ月</option>
+        <option value="60">約2ヶ月</option>
+        <option value="0">未定（目処が立ち次第ご連絡）</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="cause">遅延原因</label>
+      <select id="cause">
+        <option value="supply">原材料・部品の調達遅延</option>
+        <option value="transport">輸送・物流の遅延</option>
+        <option value="factory">製造工程での不具合</option>
+        <option value="customs">通関・輸入手続きの遅延</option>
+        <option value="weather">天候・災害による影響</option>
+        <option value="supplier">仕入れ先の生産遅延</option>
+        <option value="shortage">人手不足による作業遅延</option>
+        <option value="system">システム障害による遅延</option>
+        <option value="quality">品質検査での基準未達</option>
+        <option value="other">その他（詳細は本文に記入）</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="causeDetail">原因の補足（任意）</label>
+      <input type="text" id="causeDetail" placeholder="例：海外工場の操業停止、港の混雑 など">
+    </div>
+
+    <div class="field">
+      <label>代替提案・対応策（複数選択可）</label>
+      <div id="altOptions">
+        <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;font-weight:normal;font-size:0.9rem;">
+          <input type="checkbox" value="partial" style="width:auto;padding:0;border:none;"> 可能な数量から部分出荷する
+        </label>
+        <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;font-weight:normal;font-size:0.9rem;">
+          <input type="checkbox" value="substitute" style="width:auto;padding:0;border:none;"> 代替品・同等品を手配する
+        </label>
+        <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;font-weight:normal;font-size:0.9rem;">
+          <input type="checkbox" value="discount" style="width:auto;padding:0;border:none;"> 遅延分の値引き・割引対応をする
+        </label>
+        <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;font-weight:normal;font-size:0.9rem;">
+          <input type="checkbox" value="express" style="width:auto;padding:0;border:none;"> 完成後に速達・特急便で発送する
+        </label>
+        <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;font-weight:normal;font-size:0.9rem;">
+          <input type="checkbox" value="visit" style="width:auto;padding:0;border:none;"> 担当者がご訪問してご説明する
+        </label>
+        <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.4rem;font-weight:normal;font-size:0.9rem;">
+          <input type="checkbox" value="cancel" style="width:auto;padding:0;border:none;"> ご要望があればキャンセル対応も可能
+        </label>
+        <label style="display:flex;align-items:center;gap:0.5rem;font-weight:normal;font-size:0.9rem;">
+          <input type="checkbox" value="none" style="width:auto;padding:0;border:none;"> 代替提案なし（お詫びのみ）
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="tone">文体・スタイル</label>
+      <select id="tone">
+        <option value="formal">丁寧（ビジネス標準）</option>
+        <option value="very_formal">かなり丁寧（大手・重要取引先向け）</option>
+        <option value="casual">やや柔らかめ（親しみある取引先向け）</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="sender">差出人名（任意）</label>
+      <input type="text" id="sender" placeholder="例：株式会社〇〇 営業部 鈴木">
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">メール文を生成する</button>
+
+  <!-- 生成結果 -->
+  <div class="result-card" id="result">
+    <div class="result-card-header">
+      <span class="result-card-title">生成されたメール文</span>
+      <button class="btn-copy" id="copyBtn" onclick="copyMail()">コピー</button>
+    </div>
+    <div class="mail-body" id="mailBody"></div>
+  </div>
+
+  <!-- テンプレート保存 -->
+  <div class="card template-area">
+    <p class="card-title">テンプレート保存</p>
+    <div class="save-row">
+      <input type="text" id="tmplName" placeholder="テンプレート名（例：輸送遅延・1週間）">
+      <button class="btn-save" onclick="saveTemplate()">保存</button>
+    </div>
+    <ul class="tmpl-list" id="tmplList"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+
+  <script>
+  var STORAGE_KEY = 'noki_delay_templates';
+
+  var CAUSE_TEXT = {
+    supply:    '原材料・部品の調達遅延',
+    transport: '輸送・物流の遅延',
+    factory:   '製造工程での不具合',
+    customs:   '通関・輸入手続きの遅延',
+    weather:   '天候・自然災害による影響',
+    supplier:  '仕入れ先の生産遅延',
+    shortage:  '人手不足による作業遅延',
+    system:    'システム障害',
+    quality:   '品質検査での基準未達',
+    other:     '弊社内部の事情'
+  };
+
+  var ALT_TEXT = {
+    partial:    '可能な数量から順次お届けする部分出荷対応',
+    substitute: '代替品・同等品のご手配',
+    discount:   '遅延に伴う一部値引き・割引のご提案',
+    express:    '完成後の速達・特急便によるお届け',
+    visit:      '担当者によるご訪問説明',
+    cancel:     'ご要望に応じたキャンセル対応'
+  };
+
+  function generate() {
+    var customer   = document.getElementById('customer').value.trim() || 'お客様';
+    var product    = document.getElementById('product').value.trim()  || 'ご注文品';
+    var orderDate  = document.getElementById('orderDate').value;
+    var delayDays  = document.getElementById('delayDays').value;
+    var cause      = document.getElementById('cause').value;
+    var causeDetail= document.getElementById('causeDetail').value.trim();
+    var tone       = document.getElementById('tone').value;
+    var sender     = document.getElementById('sender').value.trim();
+
+    var altChecks = document.querySelectorAll('#altOptions input[type=checkbox]:checked');
+    var altValues = Array.from(altChecks).map(function(c){ return c.value; });
+
+    var dateStr = '';
+    if (orderDate) {
+      var d = new Date(orderDate);
+      dateStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+    }
+
+    var causeLabel = CAUSE_TEXT[cause] || '諸般の事情';
+    if (causeDetail) causeLabel += '（' + causeDetail + '）';
+
+    var delayLabel = delayDays === '0' ? '現時点では目処が立っておらず' : '約' + delayDays + '日';
+
+    // 文体設定
+    var greeting, closing, apology1, apology2, sorry;
+    if (tone === 'very_formal') {
+      greeting = '拝啓　時下ますますご清栄のこととお慶び申し上げます。平素は格別のお引き立てを賜り、厚く御礼申し上げます。';
+      closing  = '何卒ご容赦賜りますよう、伏してお願い申し上げます。\n\n敬具';
+      apology1 = 'このたびは、誠に申し訳なく、深くお詫び申し上げます。';
+      apology2 = '多大なるご迷惑をおかけいたしますこと、重ねて深くお詫び申し上げます。';
+      sorry    = 'ご不便・ご迷惑をおかけいたしますこと、心よりお詫び申し上げます。';
+    } else if (tone === 'casual') {
+      greeting = 'いつもお世話になっております。';
+      closing  = 'ご迷惑をおかけして申し訳ありません。どうぞよろしくお願いいたします。';
+      apology1 = '大変申し訳ございません。';
+      apology2 = 'ご不便をおかけして、本当に申し訳ありません。';
+      sorry    = 'ご迷惑をおかけしてしまい、すみません。';
+    } else {
+      greeting = 'いつも大変お世話になっております。';
+      closing  = 'ご不便・ご迷惑をおかけいたしますことを、重ねてお詫び申し上げます。\n何卒ご容赦くださいますようお願い申し上げます。';
+      apology1 = 'このたびは誠に申し訳ございません。';
+      apology2 = 'ご迷惑をおかけいたしますこと、心よりお詫び申し上げます。';
+      sorry    = 'ご不便をおかけして申し訳ございません。';
+    }
+
+    // 本文組み立て
+    var lines = [];
+
+    lines.push(customer + ' 御中');
+    lines.push('');
+    lines.push(greeting);
+    lines.push('');
+
+    // 件名ライン
+    lines.push('【件名】' + product + ' 納期遅延のお詫びとご連絡');
+    lines.push('');
+
+    // お詫び
+    if (dateStr) {
+      lines.push(product + ' につきまして、' + dateStr + 'の納期に間に合わないことが判明いたしました。' + apology1);
+    } else {
+      lines.push(product + ' の納期が遅延いたします件にて、ご連絡申し上げます。' + apology1);
+    }
+    lines.push('');
+
+    // 原因
+    lines.push('■ 遅延の原因');
+    lines.push(causeLabel + 'により、' + (delayDays === '0' ? '現時点では納期の目処が立っておらず、' : '当初予定より約' + delayDays + '日の遅延が見込まれます。') + apology2);
+    lines.push('');
+
+    // 代替提案
+    var hasAlt = altValues.length > 0 && !altValues.includes('none');
+    if (hasAlt) {
+      lines.push('■ 代替のご提案・弊社の対応');
+      altValues.forEach(function(v) {
+        if (ALT_TEXT[v]) lines.push('・' + ALT_TEXT[v]);
+      });
+      lines.push('');
+      lines.push(sorry + 'ご都合のよい対応をご選択いただければ幸いです。');
+      lines.push('');
+    }
+
+    // 新納期
+    if (delayDays !== '0') {
+      var newDate = '';
+      if (orderDate) {
+        var base = new Date(orderDate);
+        base.setDate(base.getDate() + parseInt(delayDays));
+        newDate = base.getFullYear() + '年' + (base.getMonth()+1) + '月' + base.getDate() + '日頃';
+      } else {
+        newDate = '現状より約' + delayDays + '日後';
+      }
+      lines.push('■ 新しい納期の目安');
+      lines.push(newDate + 'を予定しております。日程が確定次第、改めてご連絡いたします。');
+    } else {
+      lines.push('■ 今後のご連絡について');
+      lines.push('納期の目処が立ち次第、速やかにご連絡申し上げます。');
+    }
+    lines.push('');
+
+    // クロージング
+    lines.push(closing);
+    lines.push('');
+
+    // 署名
+    if (sender) {
+      lines.push('──────────────');
+      lines.push(sender);
+    }
+
+    var mail = lines.join('\n');
+    document.getElementById('mailBody').textContent = mail;
+    document.getElementById('result').className = 'result-card show';
+    document.getElementById('copyBtn').textContent = 'コピー';
+    document.getElementById('copyBtn').className = 'btn-copy';
+
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copyMail() {
+    var text = document.getElementById('mailBody').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        setCopied();
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied();
+    }
+  }
+
+  function setCopied() {
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = 'コピーしました！';
+    btn.className = 'btn-copy copied';
+    setTimeout(function() {
+      btn.textContent = 'コピー';
+      btn.className = 'btn-copy';
+    }, 2000);
+  }
+
+  // ── テンプレート保存 ──
+  function loadTemplates() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch(e) { return []; }
+  }
+  function saveTemplates(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function saveTemplate() {
+    var name = document.getElementById('tmplName').value.trim();
+    var mail = document.getElementById('mailBody').textContent;
+    if (!name) { alert('テンプレート名を入力してください'); return; }
+    if (!mail)  { alert('先にメールを生成してください'); return; }
+    var list = loadTemplates();
+    list.unshift({ name: name, mail: mail, ts: Date.now() });
+    if (list.length > 20) list = list.slice(0, 20);
+    saveTemplates(list);
+    document.getElementById('tmplName').value = '';
+    renderTemplates();
+  }
+
+  function renderTemplates() {
+    var list = loadTemplates();
+    var ul = document.getElementById('tmplList');
+    if (list.length === 0) {
+      ul.innerHTML = '<li style="font-size:0.82rem;color:var(--text-sub);padding:0.4rem 0;">保存されたテンプレートはありません</li>';
+      return;
+    }
+    ul.innerHTML = list.map(function(t, i) {
+      return '<li class="tmpl-item">'
+        + '<span class="tmpl-name">' + esc(t.name) + '</span>'
+        + '<span class="tmpl-actions">'
+        + '<button class="btn-sm btn-load" onclick="loadTemplate(' + i + ')">読込</button>'
+        + '<button class="btn-sm btn-del"  onclick="deleteTemplate(' + i + ')">削除</button>'
+        + '</span></li>';
+    }).join('');
+  }
+
+  function loadTemplate(i) {
+    var list = loadTemplates();
+    if (!list[i]) return;
+    document.getElementById('mailBody').textContent = list[i].mail;
+    document.getElementById('result').className = 'result-card show';
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function deleteTemplate(i) {
+    var list = loadTemplates();
+    list.splice(i, 1);
+    saveTemplates(list);
+    renderTemplates();
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // 初期化
+  document.addEventListener('DOMContentLoaded', function() {
+    var today = new Date();
+    var yyyy = today.getFullYear();
+    var mm = String(today.getMonth()+1).padStart(2,'0');
+    var dd = String(today.getDate()).padStart(2,'0');
+    document.getElementById('orderDate').value = yyyy + '-' + mm + '-' + dd;
+    renderTemplates();
+  });
+  </script>
+
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
