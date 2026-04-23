@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>棚卸し差異分析アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .fields-row { display: flex; gap: 0.6rem; margin-bottom: 0.8rem; flex-wrap: wrap; }
+    .field { flex: 1; min-width: 100px; }
+    .field.wide { flex: 2; min-width: 140px; }
+    .field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.75rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.9rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 差異バッジ ── */
+    .badge {
+      display: inline-block; padding: 0.2rem 0.55rem;
+      border-radius: 6px; font-size: 0.82rem; font-weight: 700;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge-warn { background: var(--warn-bg);  color: var(--warn); }
+    .badge-ng   { background: var(--ng-bg);    color: var(--ng);   }
+
+    /* ── リストカード ── */
+    .item-list { list-style: none; }
+    .item-list li {
+      padding: 0.85rem 0.8rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+    }
+    .item-list li:last-child { border-bottom: none; }
+    .item-name { font-size: 0.92rem; font-weight: 700; flex: 1; min-width: 80px; }
+    .item-nums { font-size: 0.8rem; color: var(--text-sub); }
+    .item-nums span { font-weight: 600; color: var(--text); }
+    .btn-del {
+      background: none; border: 1px solid var(--border);
+      color: var(--text-sub); border-radius: 6px;
+      padding: 0.25rem 0.55rem; font-size: 0.78rem; cursor: pointer;
+      margin-left: auto;
+    }
+    .btn-del:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── 分析カード ── */
+    .analysis-card {
+      display: none;
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: var(--radius); padding: 1.3rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px;
+    }
+    .analysis-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .analysis-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .analysis-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+
+    .analysis-header { margin-bottom: 0.8rem; }
+    .analysis-item-name { font-size: 1rem; font-weight: 900; }
+    .analysis-diff {
+      font-size: 1.5rem; font-weight: 900; margin: 0.3rem 0;
+    }
+    .analysis-card.ok   .analysis-diff { color: var(--ok);   }
+    .analysis-card.warn .analysis-diff { color: var(--warn); }
+    .analysis-card.ng   .analysis-diff { color: var(--ng);   }
+
+    .section-title {
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.06em; margin: 0.9rem 0 0.4rem;
+      text-transform: uppercase;
+    }
+    .cause-list, .action-list { padding-left: 0; list-style: none; }
+    .cause-list li, .action-list li {
+      font-size: 0.85rem; padding: 0.3rem 0;
+      display: flex; align-items: flex-start; gap: 0.4rem;
+      color: var(--text);
+    }
+    .cause-list li::before { content: "▶"; font-size: 0.65rem; color: var(--accent); margin-top: 0.25rem; flex-shrink: 0; }
+    .action-list li::before { content: "✓"; font-size: 0.8rem; color: var(--ok); flex-shrink: 0; }
+
+    /* ── サマリー ── */
+    .summary-row {
+      display: flex; gap: 0.7rem; flex-wrap: wrap;
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .summary-box {
+      flex: 1; min-width: 80px;
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.7rem 0.8rem; text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .summary-box .s-label { font-size: 0.7rem; color: var(--text-sub); font-weight: 600; }
+    .summary-box .s-val { font-size: 1.3rem; font-weight: 900; margin-top: 0.2rem; }
+    .summary-box.ng-box .s-val { color: var(--ng); }
+    .summary-box.warn-box .s-val { color: var(--warn); }
+    .summary-box.ok-box .s-val { color: var(--ok); }
+
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📦 棚卸し差異分析アプリ</h1>
+    <p class="subtitle">在庫数と帳簿数のズレを入力 → 原因候補と対策を即提案</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="fields-row">
+      <div class="field wide">
+        <label for="fName">品目名</label>
+        <input type="text" id="fName" placeholder="例: コーヒー豆 200g">
+      </div>
+    </div>
+    <div class="fields-row">
+      <div class="field">
+        <label for="fActual">実在庫数</label>
+        <input type="number" id="fActual" placeholder="例: 48" min="0" step="1">
+      </div>
+      <div class="field">
+        <label for="fBook">帳簿数</label>
+        <input type="number" id="fBook" placeholder="例: 52" min="0" step="1">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addItem()">追加して差異を分析する</button>
+
+  <!-- サマリー -->
+  <div class="summary-row" id="summaryRow" style="display:none">
+    <div class="summary-box"><p class="s-label">登録品目</p><p class="s-val" id="sTotal">0</p></div>
+    <div class="summary-box ng-box"><p class="s-label">不足あり</p><p class="s-val" id="sShort">0</p></div>
+    <div class="summary-box warn-box"><p class="s-label">余剰あり</p><p class="s-val" id="sSurplus">0</p></div>
+    <div class="summary-box ok-box"><p class="s-label">差異なし</p><p class="s-val" id="sMatch">0</p></div>
+  </div>
+
+  <!-- 分析カード（クリック時に表示） -->
+  <div class="analysis-card" id="analysisCard">
+    <div class="analysis-header">
+      <p class="analysis-item-name" id="aName"></p>
+      <p class="analysis-diff" id="aDiff"></p>
+      <p style="font-size:0.8rem;color:var(--text-sub)" id="aDesc"></p>
+    </div>
+    <p class="section-title">考えられる原因</p>
+    <ul class="cause-list" id="aCauses"></ul>
+    <p class="section-title">推奨アクション</p>
+    <ul class="action-list" id="aActions"></ul>
+  </div>
+
+  <!-- リストカード -->
+  <div class="card" id="listCard" style="display:none">
+    <p class="card-title">登録一覧 <span style="font-weight:400;font-size:0.75rem;color:var(--text-sub)">— 行をタップで詳細分析</span></p>
+    <ul class="item-list" id="itemList"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORE_KEY = 'tanaoroshi-diff-v1';
+  var items = load();
+  var selectedId = null;
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch(e) { return []; }
+  }
+  function save() {
+    localStorage.setItem(STORE_KEY, JSON.stringify(items));
+  }
+
+  function addItem() {
+    var name   = document.getElementById('fName').value.trim();
+    var actual = parseInt(document.getElementById('fActual').value, 10);
+    var book   = parseInt(document.getElementById('fBook').value, 10);
+
+    if (!name)            { alert('品目名を入力してください'); return; }
+    if (isNaN(actual))    { alert('実在庫数を入力してください'); return; }
+    if (isNaN(book))      { alert('帳簿数を入力してください'); return; }
+
+    var item = {
+      id: Date.now(),
+      name: name,
+      actual: actual,
+      book: book,
+      diff: actual - book
+    };
+    items.push(item);
+    save();
+
+    document.getElementById('fName').value   = '';
+    document.getElementById('fActual').value = '';
+    document.getElementById('fBook').value   = '';
+
+    render();
+    showAnalysis(item);
+  }
+
+  function deleteItem(id, e) {
+    e.stopPropagation();
+    items = items.filter(function(it) { return it.id !== id; });
+    save();
+    if (selectedId === id) {
+      document.getElementById('analysisCard').style.display = 'none';
+      selectedId = null;
+    }
+    render();
+  }
+
+  function showAnalysis(item) {
+    selectedId = item.id;
+    var card = document.getElementById('analysisCard');
+    var diff = item.diff;
+    var level = diff === 0 ? 'ok' : diff < 0 ? 'ng' : 'warn';
+
+    card.className = 'analysis-card ' + level;
+    card.style.display = '';
+
+    document.getElementById('aName').textContent = '【' + item.name + '】の分析';
+    document.getElementById('aDiff').textContent =
+      (diff === 0 ? '差異なし' : (diff > 0 ? '+' : '') + diff + ' 個');
+    document.getElementById('aDesc').textContent =
+      '実在庫 ' + item.actual + '個　帳簿 ' + item.book + '個';
+
+    var causes, actions;
+    if (diff === 0) {
+      causes  = ['実在庫と帳簿が完全に一致しています'];
+      actions = ['現状の管理を維持してください', '次回棚卸しも同様に確認しましょう'];
+    } else if (diff < 0) {
+      // 不足（実在庫 < 帳簿）
+      var abs = Math.abs(diff);
+      causes = [
+        '販売・出庫の記録漏れ（' + abs + '個未記録の可能性）',
+        '盗難・紛失（特に小物・高単価品は要注意）',
+        '破損・廃棄の帳簿未反映',
+        '棚卸し時の数え間違い（再カウント推奨）',
+        '入荷検品時の数量誤記入',
+      ];
+      actions = [
+        '販売・出庫記録を期間別に洗い直す',
+        '同じ棚区画を再カウントして確認する',
+        '廃棄・返品伝票と突き合わせる',
+        '防犯カメラや在庫区画の鍵管理を見直す',
+        '入荷検品の二重チェック体制を導入する',
+      ];
+    } else {
+      // 余剰（実在庫 > 帳簿）
+      causes = [
+        '入荷・返品の帳簿への記録漏れ',
+        '他商品との混在・誤ピック',
+        '帳簿上の二重出庫（実際は出庫していない）',
+        '棚卸し時の数え間違い（過剰カウント）',
+        '前回棚卸し時の繰越誤差の蓄積',
+      ];
+      actions = [
+        '入荷・返品の伝票と帳簿を突き合わせる',
+        '同一棚区画に別品目が混在していないか確認する',
+        '出庫伝票の内容と実際の出庫状況を照合する',
+        '再カウントして数量を確定させる',
+        '帳簿を実在庫数に修正して差異を解消する',
+      ];
+    }
+
+    document.getElementById('aCauses').innerHTML = causes.map(function(c) {
+      return '<li>' + esc(c) + '</li>';
+    }).join('');
+    document.getElementById('aActions').innerHTML = actions.map(function(a) {
+      return '<li>' + esc(a) + '</li>';
+    }).join('');
+
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function render() {
+    var list = document.getElementById('itemList');
+    var listCard = document.getElementById('listCard');
+    var summaryRow = document.getElementById('summaryRow');
+
+    if (items.length === 0) {
+      listCard.style.display = 'none';
+      summaryRow.style.display = 'none';
+      return;
+    }
+
+    listCard.style.display = '';
+    summaryRow.style.display = '';
+
+    var short = 0, surplus = 0, match = 0;
+    items.forEach(function(it) {
+      if (it.diff < 0) short++;
+      else if (it.diff > 0) surplus++;
+      else match++;
+    });
+    document.getElementById('sTotal').textContent   = items.length;
+    document.getElementById('sShort').textContent   = short;
+    document.getElementById('sSurplus').textContent = surplus;
+    document.getElementById('sMatch').textContent   = match;
+
+    list.innerHTML = items.map(function(it) {
+      var diff  = it.diff;
+      var level = diff === 0 ? 'ok' : diff < 0 ? 'ng' : 'warn';
+      var label = diff === 0 ? '差異なし'
+                : diff < 0  ? '不足 ' + Math.abs(diff) + '個'
+                :              '余剰 +' + diff + '個';
+      var cls   = 'badge badge-' + level;
+      var sel   = selectedId === it.id ? 'background:#fff8ee;' : '';
+      return '<li style="cursor:pointer;' + sel + '" onclick="showAnalysis(' + JSON.stringify(it) + ')">'
+           + '<span class="item-name">' + esc(it.name) + '</span>'
+           + '<span class="item-nums">実 <span>' + it.actual + '</span>  帳 <span>' + it.book + '</span></span>'
+           + '<span class="' + cls + '">' + label + '</span>'
+           + '<button class="btn-del" onclick="deleteItem(' + it.id + ', event)">削除</button>'
+           + '</li>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  render();
+  </script>
+</body>
+</html>
