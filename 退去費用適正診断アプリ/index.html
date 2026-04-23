@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>退去費用適正診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .row2 { display: flex; gap: 0.8rem; }
+    .row2 .field { flex: 1; }
+
+    .field { margin-bottom: 0.9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.65rem 0.85rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* 請求項目リスト */
+    .item-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.8rem; }
+    .item-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .item-row select, .item-row input {
+      padding: 0.55rem 0.7rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: var(--bg); color: var(--text);
+      outline: none; -webkit-appearance: none;
+    }
+    .item-row select:focus, .item-row input:focus { border-color: var(--accent); background: #fff; }
+    .item-row .del-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1.1rem; padding: 0.3rem;
+      border-radius: 6px; transition: color 0.15s, background 0.15s;
+    }
+    .item-row .del-btn:hover { color: var(--ng); background: var(--ng-bg); }
+    .add-btn {
+      display: block; width: 100%;
+      padding: 0.6rem; font-size: 0.88rem; font-weight: 700;
+      background: none; border: 2px dashed var(--border);
+      border-radius: 9px; color: var(--text-sub); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 640px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-eval { font-size: 1rem; font-weight: 700; line-height: 1.4; margin: 0.5rem 0 0.6rem; }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.6; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table th {
+      padding: 0.45rem 0.3rem; text-align: left;
+      font-size: 0.72rem; color: var(--text-sub); font-weight: 600;
+    }
+    .detail-table th:last-child, .detail-table th:nth-child(2), .detail-table th:nth-child(3) { text-align: right; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); vertical-align: middle; }
+    .detail-table td:nth-child(2), .detail-table td:nth-child(3) { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table td:last-child { text-align: right; }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:nth-child(2) { color: var(--accent); font-size: 1rem; }
+
+    .badge {
+      display: inline-block; font-size: 0.68rem; font-weight: 700;
+      padding: 0.18rem 0.5rem; border-radius: 99px; letter-spacing: 0.04em;
+    }
+    .badge.ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge.warn { background: var(--warn-bg); color: var(--warn); }
+    .badge.ng   { background: var(--ng-bg);   color: var(--ng);   }
+
+    /* 相場参考テーブル */
+    .ref-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .ref-table tr { border-bottom: 1px solid var(--border); }
+    .ref-table tr:last-child { border-bottom: none; }
+    .ref-table td { padding: 0.45rem 0.3rem; color: var(--text-sub); }
+    .ref-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+
+    .note-box {
+      background: var(--accent-light); border: 1px solid #f5d9a8;
+      border-radius: 9px; padding: 0.8rem 1rem;
+      font-size: 0.78rem; color: var(--text-sub); line-height: 1.6;
+      margin-bottom: 0.8rem;
+    }
+    .note-box strong { color: var(--text); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 420px) {
+      .item-row { grid-template-columns: 1fr auto; grid-template-rows: auto auto; }
+      .item-row select { grid-column: 1 / 2; }
+      .item-row input  { grid-column: 1 / 2; }
+      .item-row .del-btn { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>退去費用適正診断アプリ</h1>
+    <p class="subtitle">請求項目と相場を比較して過剰請求を即チェック</p>
+  </header>
+
+  <!-- 物件情報 -->
+  <div class="card">
+    <p class="card-title">物件情報</p>
+    <div class="row2">
+      <div class="field">
+        <label for="area">専有面積（㎡）</label>
+        <input type="number" id="area" placeholder="例: 30" min="1">
+      </div>
+      <div class="field">
+        <label for="years">居住年数</label>
+        <select id="years">
+          <option value="1">〜1年</option>
+          <option value="2">〜2年</option>
+          <option value="3">〜3年</option>
+          <option value="5" selected>〜5年</option>
+          <option value="8">〜8年</option>
+          <option value="10">10年以上</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 請求項目入力 -->
+  <div class="card">
+    <p class="card-title">請求項目と金額</p>
+    <div id="item-list" class="item-list"></div>
+    <button class="add-btn" onclick="addItem()">＋ 項目を追加</button>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" onclick="diagnose()">診断する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">診断結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">項目別チェック</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th>請求額</th>
+          <th>相場上限</th>
+          <th>判定</th>
+        </tr>
+      </thead>
+      <tbody id="detail-body"></tbody>
+    </table>
+  </div>
+
+  <!-- 合計カード -->
+  <div class="card" id="summary-card" style="display:none">
+    <p class="card-title">合計比較</p>
+    <table class="detail-table">
+      <tbody id="summary-body"></tbody>
+    </table>
+  </div>
+
+  <!-- 相場参考 -->
+  <div class="card">
+    <p class="card-title">相場参考（国交省ガイドライン準拠）</p>
+    <div class="note-box">
+      <strong>通常損耗・経年劣化は貸主負担が原則</strong>です（国土交通省「原状回復をめぐるトラブルとガイドライン」）。<br>
+      故意・過失・善管注意義務違反による損傷のみ借主負担となります。
+    </div>
+    <table class="ref-table" id="ref-table"></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // ── 相場データ ──
+  // key, label, calcFn(area, years) => { min, max }
+  var ITEMS = [
+    {
+      key: 'cleaning',
+      label: 'ハウスクリーニング（全体）',
+      calc: function(a) {
+        // 面積に応じて相場を計算
+        var base = a <= 30 ? 30000 :
+                   a <= 50 ? 45000 :
+                   a <= 70 ? 55000 :
+                   a <= 90 ? 65000 : 80000;
+        return { min: Math.round(base * 0.8), max: Math.round(base * 1.3) };
+      },
+      tenantFault: false,
+      note: '通常使用なら貸主負担が原則（特約がある場合は例外）'
+    },
+    {
+      key: 'wallpaper',
+      label: '壁紙・クロス張替え（全体）',
+      calc: function(a) {
+        var unit = 1200; // 1㎡あたり相場
+        var sqm = a * 2.5; // 壁面積概算（床面積×2.5）
+        return { min: Math.round(sqm * 900), max: Math.round(sqm * unit) };
+      },
+      tenantFault: false,
+      note: '経年劣化分は貸主負担。タバコ・落書きなど故意損傷は借主負担'
+    },
+    {
+      key: 'wallpaper_part',
+      label: '壁紙・クロス張替え（部分）',
+      calc: function(a) {
+        return { min: 5000, max: 20000 };
+      },
+      tenantFault: false,
+      note: '1〜数枚分の部分張替え'
+    },
+    {
+      key: 'floor',
+      label: 'フローリング修繕',
+      calc: function(a) {
+        return { min: 10000, max: 50000 };
+      },
+      tenantFault: false,
+      note: '部分補修。大きな傷・凹みは借主負担になる場合あり'
+    },
+    {
+      key: 'tatami',
+      label: '畳表替え（1枚あたり）',
+      calc: function(a) {
+        return { min: 5000, max: 10000 };
+      },
+      tenantFault: false,
+      note: '変色・日焼けは経年劣化（貸主負担）'
+    },
+    {
+      key: 'shoji',
+      label: '障子・ふすま張替え（1枚）',
+      calc: function(a) {
+        return { min: 3000, max: 8000 };
+      },
+      tenantFault: false,
+      note: '破損・汚損は借主負担の場合あり'
+    },
+    {
+      key: 'key',
+      label: '鍵交換',
+      calc: function(a) {
+        return { min: 0, max: 20000 };
+      },
+      tenantFault: false,
+      note: '原則として借主負担ではない（ガイドライン）。紛失・破損は別途'
+    },
+    {
+      key: 'aircon',
+      label: 'エアコンクリーニング（1台）',
+      calc: function(a) {
+        return { min: 8000, max: 15000 };
+      },
+      tenantFault: false,
+      note: '通常使用なら貸主負担が多い'
+    },
+    {
+      key: 'toilet',
+      label: 'トイレ・浴室クリーニング',
+      calc: function(a) {
+        return { min: 8000, max: 25000 };
+      },
+      tenantFault: false,
+      note: '通常汚れは経年劣化扱い'
+    },
+    {
+      key: 'paint',
+      label: '壁塗装',
+      calc: function(a) {
+        return { min: Math.round(a * 1500), max: Math.round(a * 3000) };
+      },
+      tenantFault: false,
+      note: '経年劣化分は貸主負担'
+    },
+    {
+      key: 'garbage',
+      label: '残置物撤去・ゴミ処分',
+      calc: function(a) {
+        return { min: 10000, max: 50000 };
+      },
+      tenantFault: true,
+      note: '借主が残していった場合は全額借主負担'
+    },
+    {
+      key: 'other',
+      label: 'その他（自由入力）',
+      calc: function(a) {
+        return { min: 0, max: 30000 };
+      },
+      tenantFault: false,
+      note: '内容・契約によって異なる'
+    }
+  ];
+
+  var itemMap = {};
+  ITEMS.forEach(function(it) { itemMap[it.key] = it; });
+
+  // ── 相場参考テーブル描画 ──
+  function renderRefTable() {
+    var area = parseFloat(document.getElementById('area').value) || 30;
+    var rows = ITEMS.filter(function(it) { return it.key !== 'other'; }).map(function(it) {
+      var r = it.calc(area);
+      return '<tr><td>' + it.label + '</td><td>'
+        + fmt(r.min) + '〜' + fmt(r.max) + '円</td></tr>';
+    });
+    document.getElementById('ref-table').innerHTML = rows.join('');
+  }
+
+  // ── 項目追加 ──
+  var itemCount = 0;
+  function addItem(key, amount) {
+    var id = 'item-' + (++itemCount);
+    var opts = ITEMS.map(function(it) {
+      return '<option value="' + it.key + '"' + (it.key === (key||'cleaning') ? ' selected' : '') + '>'
+        + it.label + '</option>';
+    }).join('');
+    var row = document.createElement('div');
+    row.className = 'item-row';
+    row.id = id;
+    row.innerHTML =
+      '<select onchange="save()">' + opts + '</select>' +
+      '<input type="number" placeholder="請求額（円）" min="0"' +
+        (amount ? ' value="' + amount + '"' : '') +
+        ' oninput="save()">' +
+      '<button class="del-btn" onclick="removeItem(\'' + id + '\')" title="削除">✕</button>';
+    document.getElementById('item-list').appendChild(row);
+    save();
+  }
+
+  function removeItem(id) {
+    var el = document.getElementById(id);
+    if (el) el.remove();
+    save();
+  }
+
+  // ── 診断 ──
+  function diagnose() {
+    var area = parseFloat(document.getElementById('area').value);
+    if (!area || area <= 0) { alert('専有面積を入力してください'); return; }
+
+    var rows = document.querySelectorAll('#item-list .item-row');
+    if (rows.length === 0) { alert('請求項目を1件以上追加してください'); return; }
+
+    var totalCharged = 0;
+    var totalMax = 0;
+    var details = [];
+    var ngCount = 0, warnCount = 0;
+
+    rows.forEach(function(row) {
+      var sel = row.querySelector('select').value;
+      var amt = parseFloat(row.querySelector('input').value) || 0;
+      var item = itemMap[sel];
+      var r = item.calc(area);
+      totalCharged += amt;
+      totalMax += r.max;
+
+      var level = amt > r.max * 1.5 ? 'ng'
+                : amt > r.max * 1.1 ? 'warn'
+                : 'ok';
+      if (level === 'ng') ngCount++;
+      else if (level === 'warn') warnCount++;
+
+      details.push({ label: item.label, amt: amt, max: r.max, level: level, note: item.note });
+    });
+
+    var overRatio = totalMax > 0 ? totalCharged / totalMax : 1;
+    var overallLevel = ngCount > 0 ? 'ng' : warnCount > 0 ? 'warn' : 'ok';
+
+    // 結果カード
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + overallLevel;
+    rc.style.display = '';
+    document.getElementById('rv').textContent =
+      overallLevel === 'ok'   ? '適正範囲' :
+      overallLevel === 'warn' ? '要確認'   : '過剰請求の疑い';
+    document.getElementById('re').textContent =
+      overallLevel === 'ok'   ? '請求額は相場の範囲内です' :
+      overallLevel === 'warn' ? '一部項目が相場を超えています' :
+                                '相場を大幅に超えた項目があります';
+    document.getElementById('rn').textContent =
+      '総請求額 ' + fmt(totalCharged) + '円 ／ 相場上限合計 ' + fmt(totalMax) + '円（' +
+      Math.round(overRatio * 100) + '%）\n' +
+      (ngCount > 0 ? ngCount + '件が過剰・' : '') +
+      (warnCount > 0 ? warnCount + '件が要確認' : '') +
+      (ngCount === 0 && warnCount === 0 ? '全項目が相場内です' : '');
+
+    // 内訳テーブル
+    var tbody = document.getElementById('detail-body');
+    tbody.innerHTML = details.map(function(d) {
+      return '<tr><td>' + d.label + '</td>'
+        + '<td>' + fmt(d.amt) + '円</td>'
+        + '<td>' + fmt(d.max) + '円</td>'
+        + '<td><span class="badge ' + d.level + '">'
+        + (d.level === 'ok' ? '適正' : d.level === 'warn' ? '要確認' : '過剰') + '</span></td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+
+    // 合計
+    document.getElementById('summary-body').innerHTML =
+      '<tr><td>総請求額</td><td colspan="2"><strong>' + fmt(totalCharged) + '</strong>円</td></tr>' +
+      '<tr><td>相場上限の合計</td><td colspan="2">' + fmt(totalMax) + '円</td></tr>' +
+      '<tr class="hl"><td>差額（超過分）</td><td colspan="2">' + fmt(totalCharged - totalMax) + '円</td></tr>';
+    document.getElementById('summary-card').style.display = '';
+
+    renderRefTable();
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── localStorage ──
+  function save() {
+    var rows = document.querySelectorAll('#item-list .item-row');
+    var data = [];
+    rows.forEach(function(row) {
+      data.push({
+        key: row.querySelector('select').value,
+        amt: row.querySelector('input').value
+      });
+    });
+    var area = document.getElementById('area').value;
+    var years = document.getElementById('years').value;
+    try {
+      localStorage.setItem('taikyo_items', JSON.stringify(data));
+      localStorage.setItem('taikyo_area', area);
+      localStorage.setItem('taikyo_years', years);
+    } catch(e) {}
+  }
+
+  function load() {
+    try {
+      var area = localStorage.getItem('taikyo_area');
+      var years = localStorage.getItem('taikyo_years');
+      var items = localStorage.getItem('taikyo_items');
+      if (area)  document.getElementById('area').value = area;
+      if (years) document.getElementById('years').value = years;
+      if (items) {
+        JSON.parse(items).forEach(function(d) { addItem(d.key, d.amt); });
+      }
+    } catch(e) {}
+  }
+
+  document.getElementById('area').addEventListener('input', function() {
+    save();
+    renderRefTable();
+  });
+  document.getElementById('years').addEventListener('change', save);
+
+  // fmt
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // 初期化
+  window.addEventListener('DOMContentLoaded', function() {
+    load();
+    if (document.querySelectorAll('#item-list .item-row').length === 0) {
+      addItem('cleaning', '');
+      addItem('wallpaper', '');
+    }
+    renderRefTable();
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor"
+       target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a>
+  </p>
+</body>
+</html>
