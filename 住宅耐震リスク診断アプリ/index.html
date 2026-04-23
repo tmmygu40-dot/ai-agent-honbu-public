@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>住宅耐震リスク診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 対策リスト ── */
+    .measures {
+      margin-top: 0.8rem; text-align: left;
+    }
+    .measures-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--text-sub);
+      margin-bottom: 0.4rem; letter-spacing: 0.05em;
+    }
+    .measures ul {
+      padding-left: 1.2rem; font-size: 0.82rem; color: var(--text); line-height: 1.7;
+    }
+
+    /* ── 履歴 ── */
+    .history-list { list-style: none; }
+    .history-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.55rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item .h-info { color: var(--text-sub); }
+    .history-item .h-level { font-weight: 700; font-size: 0.78rem; padding: 0.2rem 0.55rem; border-radius: 99px; }
+    .h-level.ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .h-level.warn { background: var(--warn-bg);  color: var(--warn); }
+    .h-level.ng   { background: var(--ng-bg);    color: var(--ng);   }
+    .btn-clear {
+      display: block; margin: 0.8rem auto 0; font-size: 0.78rem;
+      color: var(--text-sub); background: none; border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.35rem 0.9rem; cursor: pointer;
+    }
+    .btn-clear:hover { color: var(--ng); border-color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>住宅耐震リスク診断アプリ</h1>
+    <p class="subtitle">築年数・構造から耐震リスクを即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">診断入力</p>
+    <div class="field">
+      <label for="builtYear">建築年（西暦）</label>
+      <input type="number" id="builtYear" placeholder="例: 1985" min="1900" max="2025">
+      <p class="hint">建築確認申請年が不明な場合は竣工年・登記年を入力</p>
+    </div>
+    <div class="field">
+      <label for="structure">構造</label>
+      <select id="structure">
+        <option value="">── 選択してください ──</option>
+        <option value="mokuzou">木造（在来軸組工法）</option>
+        <option value="tsuzukara">木造（ツーバイフォー・枠組壁工法）</option>
+        <option value="tekkotsu">鉄骨造（軽量）</option>
+        <option value="jukotekkotsu">鉄骨造（重量）</option>
+        <option value="rc">鉄筋コンクリート造（RC）</option>
+        <option value="src">鉄骨鉄筋コンクリート造（SRC）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="floors">階数</label>
+      <select id="floors">
+        <option value="low">1〜2階（低層）</option>
+        <option value="mid">3〜5階（中層）</option>
+        <option value="high">6階以上（高層）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" onclick="diagnose()">耐震リスクを診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">耐震リスクレベル</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+    <div class="measures" id="measures"></div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">診断根拠</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">診断履歴</p>
+    <ul class="history-list" id="historyList"></ul>
+    <button class="btn-clear" onclick="clearHistory()">履歴を消去</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'jishin_history_v1';
+
+  /* ── 耐震基準の区切り ──
+     旧々耐震：〜1950年（建築基準法制定前）
+     旧耐震  ：1950〜1981年（震度5強相当）
+     新耐震  ：1981〜2000年（震度6〜7程度）
+     現行基準：2000年〜（接合部仕様明確化） */
+
+  var SEISMIC_STANDARD = [
+    { maxYear: 1950, label: '旧々耐震基準（1950年以前）', risk: 3 },
+    { maxYear: 1981, label: '旧耐震基準（1950〜1981年）', risk: 2 },
+    { maxYear: 2000, label: '新耐震基準（1981〜2000年）', risk: 1 },
+    { maxYear: 9999, label: '現行耐震基準（2000年以降）', risk: 0 },
+  ];
+
+  /* 構造ごとのリスク補正（相対値）
+     正値 = リスク増加、負値 = リスク軽減 */
+  var STRUCTURE_MOD = {
+    mokuzou:      1,   // 木造在来は最も変形しやすい
+    tsuzukara:    0,   // ツーバイフォーは面で支えるので若干有利
+    tekkotsu:     0,
+    jukotekkotsu:-1,
+    rc:          -1,
+    src:         -2,
+  };
+
+  /* 階数補正 */
+  var FLOOR_MOD = {
+    low:  0,
+    mid:  0,
+    high: 1,  // 高層は長周期振動の影響が大きい
+  };
+
+  var LEVEL_INFO = [
+    {
+      cls: 'ok', label: 'リスク低',
+      eval: '現行基準を満たしており、耐震性は比較的高い状態です。',
+      note: '大規模地震にも一定の耐久性が期待できます。定期的な維持管理を続けることで性能を保てます。',
+      measures: ['定期的な建物点検（ひび割れ・傾きの確認）', '家具の固定・転倒防止対策', '非常用水・食料の備蓄']
+    },
+    {
+      cls: 'warn', label: 'リスク中',
+      eval: '新耐震基準には適合していますが、更なる補強で安心度が高まります。',
+      note: '震度6〜7クラスの地震で損傷する可能性があります。耐震診断を受けることをおすすめします。',
+      measures: ['耐震診断の実施（自治体の補助金が使える場合あり）', '耐震補強工事の検討', '家具・ガラスの飛散防止対策', '避難経路の確保']
+    },
+    {
+      cls: 'ng', label: 'リスク高',
+      eval: '旧耐震基準のため、大規模地震で倒壊・損壊するリスクがあります。',
+      note: '早急な耐震診断と補強が推奨されます。多くの自治体で無料診断や補強費用の補助制度があります。',
+      measures: ['早急に耐震診断を受ける（市区町村の窓口へ相談）', '耐震補強工事（接合金物・壁量増強など）の実施', '耐震シェルター・防災ベッドの設置検討', '避難場所・避難経路の確認', '家具固定と非常用品の準備']
+    },
+    {
+      cls: 'ng', label: 'リスク最高',
+      eval: '建築基準法制定以前の建物で、耐震性が著しく低い可能性があります。',
+      note: '現代の耐震基準を大幅に下回る可能性があります。耐震診断・補強または建て替えを強くお勧めします。',
+      measures: ['専門家による緊急耐震診断', '耐震補強または建て替えの検討', '倒壊リスクを踏まえた避難計画の策定', '自治体の支援制度（無料診断・補助金）の活用']
+    },
+  ];
+
+  function diagnose() {
+    var yearVal = parseInt(document.getElementById('builtYear').value, 10);
+    var struct  = document.getElementById('structure').value;
+    var floors  = document.getElementById('floors').value;
+
+    if (!yearVal || yearVal < 1900 || yearVal > 2025) {
+      showErr('建築年を1900〜2025の範囲で入力してください');
+      return;
+    }
+    if (!struct) {
+      showErr('構造を選択してください');
+      return;
+    }
+
+    // 耐震基準のリスク値
+    var seismicEntry = SEISMIC_STANDARD.find(function(s){ return yearVal <= s.maxYear; });
+    var baseRisk = seismicEntry.risk;
+
+    // 構造・階数補正
+    var modRisk = baseRisk + (STRUCTURE_MOD[struct] || 0) + (FLOOR_MOD[floors] || 0);
+    // 0〜3 にクランプ
+    var finalRisk = Math.max(0, Math.min(3, modRisk));
+
+    var info = LEVEL_INFO[finalRisk];
+
+    // 結論カード
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + info.cls;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = info.label;
+    document.getElementById('re').textContent = info.eval;
+    document.getElementById('rn').textContent = info.note;
+
+    // 対策リスト
+    document.getElementById('measures').innerHTML =
+      '<div class="measures-title">推奨アクション</div>'
+      + '<ul>' + info.measures.map(function(m){ return '<li>' + m + '</li>'; }).join('') + '</ul>';
+
+    // 内訳
+    var structLabel = document.getElementById('structure').options[document.getElementById('structure').selectedIndex].text;
+    var floorsLabel = document.getElementById('floors').options[document.getElementById('floors').selectedIndex].text;
+    showDetail([
+      ['建築年', yearVal + ' 年'],
+      ['適用耐震基準', seismicEntry.label],
+      ['構造', structLabel],
+      ['階数', floorsLabel],
+      ['リスクレベル', info.label, true],
+    ]);
+
+    // 履歴保存
+    saveHistory({
+      date: new Date().toLocaleDateString('ja-JP'),
+      year: yearVal,
+      struct: structLabel,
+      level: info.label,
+      cls: info.cls,
+    });
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('measures').innerHTML = '';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  /* ── 履歴 ── */
+  function saveHistory(item) {
+    var list = loadHistory();
+    list.unshift(item);
+    if (list.length > 10) list = list.slice(0, 10);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    renderHistory(list);
+  }
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+
+  function renderHistory(list) {
+    var card = document.getElementById('historyCard');
+    if (!list || list.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = '';
+    document.getElementById('historyList').innerHTML = list.map(function(h){
+      return '<li class="history-item">'
+           + '<span class="h-info">' + h.date + '　' + h.year + '年築　' + h.struct + '</span>'
+           + '<span class="h-level ' + h.cls + '">' + h.level + '</span>'
+           + '</li>';
+    }).join('');
+  }
+
+  function clearHistory() {
+    localStorage.removeItem(STORAGE_KEY);
+    document.getElementById('historyCard').style.display = 'none';
+  }
+
+  // 初期表示
+  renderHistory(loadHistory());
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
