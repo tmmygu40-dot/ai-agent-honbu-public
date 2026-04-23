@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>非常食備蓄計画ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 家族メンバーリスト */
+    .member-list { margin-bottom: 0.8rem; }
+    .member-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 0.6rem; margin-bottom: 0.4rem;
+      background: var(--bg); border-radius: 8px; border: 1px solid var(--border);
+    }
+    .member-item .member-label { flex: 1; font-size: 0.9rem; }
+    .member-item button {
+      background: none; border: none; color: var(--ng); cursor: pointer;
+      font-size: 1.1rem; padding: 0 0.2rem; line-height: 1;
+    }
+    .add-member-row { display: flex; gap: 0.5rem; align-items: center; }
+    .add-member-row select {
+      flex: 1; padding: 0.6rem 0.7rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; -webkit-appearance: none;
+    }
+    .add-member-row select:focus { border-color: var(--accent); }
+    .btn-add {
+      padding: 0.6rem 1rem; font-size: 0.9rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 9px; cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-add:active { opacity: 0.7; }
+
+    /* チェックボックス群 */
+    .check-group { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .check-item {
+      display: flex; align-items: center; gap: 0.3rem;
+      padding: 0.4rem 0.8rem; border-radius: 20px;
+      border: 1.5px solid var(--border); background: var(--bg);
+      cursor: pointer; font-size: 0.85rem; user-select: none;
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .check-item input { display: none; }
+    .check-item.checked { border-color: var(--ng); background: var(--ng-bg); color: var(--ng); font-weight: 700; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 献立結果 */
+    .result-area { display: none; }
+    .day-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.1rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 0.8rem; max-width: 600px;
+    }
+    .day-title {
+      font-size: 0.9rem; font-weight: 800; color: var(--accent);
+      margin-bottom: 0.7rem;
+    }
+    .meal-row { display: flex; gap: 0.5rem; margin-bottom: 0.4rem; align-items: flex-start; }
+    .meal-time {
+      font-size: 0.75rem; font-weight: 700; color: #fff;
+      background: var(--text-sub); border-radius: 4px;
+      padding: 0.2rem 0.5rem; white-space: nowrap; margin-top: 0.1rem;
+    }
+    .meal-time.breakfast { background: #f59e0b; }
+    .meal-time.lunch     { background: #3b82f6; }
+    .meal-time.dinner    { background: #7c3aed; }
+    .meal-content { font-size: 0.88rem; line-height: 1.5; }
+    .meal-content .dish { font-weight: 600; }
+    .meal-content .note { font-size: 0.75rem; color: var(--text-sub); }
+
+    /* 買い物リスト */
+    .shop-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .shop-table th {
+      background: var(--bg); padding: 0.5rem 0.4rem;
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      border-bottom: 2px solid var(--border); text-align: left;
+    }
+    .shop-table td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border); color: var(--text); }
+    .shop-table td:last-child { text-align: right; font-weight: 600; color: var(--accent); }
+    .shop-table tr:last-child td { border-bottom: none; }
+
+    .copy-btn {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.7rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 1.5px solid var(--ok); border-radius: var(--radius); cursor: pointer;
+    }
+    .copy-btn:active { opacity: 0.7; }
+    .copied { background: var(--ok); color: #fff; }
+
+    .err-msg {
+      display: none; max-width: 600px; margin: 0 auto 0.8rem;
+      padding: 0.8rem 1rem; background: var(--ng-bg);
+      border: 1.5px solid var(--ng); border-radius: var(--radius);
+      color: var(--ng); font-size: 0.88rem;
+    }
+
+    .summary-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.8rem; }
+    .badge {
+      padding: 0.25rem 0.7rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700;
+    }
+    .badge.total { background: var(--accent-light); color: var(--accent); border: 1px solid var(--accent); }
+    .badge.ng    { background: var(--ng-bg); color: var(--ng); border: 1px solid var(--ng); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 420px) {
+      .shop-table th, .shop-table td { font-size: 0.8rem; padding: 0.45rem 0.3rem; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>非常食備蓄計画ジェネレーター</h1>
+    <p class="subtitle">家族構成と食の制限から3日分の献立と買い物リストを自動生成</p>
+  </header>
+
+  <!-- 家族構成 -->
+  <div class="card">
+    <p class="card-title">家族構成</p>
+    <div class="member-list" id="memberList"></div>
+    <div class="add-member-row">
+      <select id="ageSelect">
+        <option value="adult">大人（13歳以上）</option>
+        <option value="child">子ども（4〜12歳）</option>
+        <option value="infant">乳幼児（3歳以下）</option>
+        <option value="elder">高齢者（65歳以上）</option>
+      </select>
+      <button class="btn-add" onclick="addMember()">＋追加</button>
+    </div>
+    <p class="hint" style="margin-top:0.5rem;font-size:0.72rem;color:var(--text-sub);">家族1人ずつ追加してください</p>
+  </div>
+
+  <!-- 食の制限 -->
+  <div class="card">
+    <p class="card-title">食の制限・アレルギー</p>
+    <div class="check-group" id="allergyGroup">
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="wheat"> 小麦（グルテン）
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="egg"> 卵
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="milk"> 乳製品
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="soba"> そば
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="peanut"> 落花生
+      </label>
+      <label class="check-item" onclick="toggleCheck(this)">
+        <input type="checkbox" value="meat"> 肉類不可（ベジタリアン）
+      </label>
+    </div>
+  </div>
+
+  <div class="err-msg" id="errMsg"></div>
+
+  <button class="btn-calc" onclick="generate()">献立と買い物リストを生成</button>
+
+  <!-- 結果エリア -->
+  <div class="result-area" id="resultArea">
+
+    <div class="card" style="max-width:600px;margin:0 auto 1rem;">
+      <p class="card-title">備蓄サマリー</p>
+      <div class="summary-badges" id="summaryBadges"></div>
+      <p style="font-size:0.8rem;color:var(--text-sub);">※ 1人1日3食 × 3日分の計画です</p>
+    </div>
+
+    <div id="dayCards"></div>
+
+    <div class="card" style="max-width:600px;margin:0 auto 1rem;">
+      <p class="card-title">買い物リスト（3日分）</p>
+      <table class="shop-table">
+        <thead><tr><th>品目</th><th>内容量目安</th><th>個数</th></tr></thead>
+        <tbody id="shopBody"></tbody>
+      </table>
+    </div>
+
+    <button class="copy-btn" id="copyBtn" onclick="copyList()">買い物リストをコピー</button>
+
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor"
+       target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a>
+  </p>
+
+  <script>
+  // ── データ定義 ──────────────────────────────────────────────
+  var AGE_LABELS = {
+    adult:  '大人',
+    child:  '子ども',
+    infant: '乳幼児',
+    elder:  '高齢者'
+  };
+
+  // 食品カタログ: id, name, unit, allergens(配列), forInfant, forElder, cal, isVeg
+  var FOODS = [
+    { id:'alpha_rice',   name:'アルファ化米（白飯）', unit:'1食分',    al:[],        cal:250, veg:true,  infant:false, elder:true  },
+    { id:'alpha_okowa',  name:'アルファ化米（おこわ）', unit:'1食分',  al:['wheat'],  cal:270, veg:false, infant:false, elder:false },
+    { id:'retort_curry', name:'レトルトカレー',        unit:'1袋',     al:['wheat'],  cal:200, veg:false, infant:false, elder:true  },
+    { id:'retort_curry_v', name:'野菜カレー（レトルト）', unit:'1袋',  al:['wheat'],  cal:180, veg:true,  infant:false, elder:true  },
+    { id:'retort_stew',  name:'クリームシチュー（レトルト）', unit:'1袋', al:['wheat','milk'], cal:190, veg:false, infant:false, elder:true },
+    { id:'cup_noodle',   name:'カップ麺',              unit:'1個',     al:['wheat'],  cal:350, veg:false, infant:false, elder:false },
+    { id:'can_sardine',  name:'さんま缶（味付け）',     unit:'1缶',     al:[],         cal:160, veg:false, infant:false, elder:true  },
+    { id:'can_tuna',     name:'ツナ缶',                unit:'1缶',     al:[],         cal:130, veg:false, infant:false, elder:true  },
+    { id:'can_chicken',  name:'鶏肉缶（水煮）',         unit:'1缶',     al:[],         cal:120, veg:false, infant:false, elder:true  },
+    { id:'can_beans',    name:'大豆水煮缶',             unit:'1缶',     al:[],         cal:100, veg:true,  infant:false, elder:true  },
+    { id:'can_corn',     name:'コーン缶',               unit:'1缶',     al:[],         cal:80,  veg:true,  infant:true,  elder:true  },
+    { id:'can_bread',    name:'缶詰パン',               unit:'1缶(2個)', al:['wheat','egg','milk'], cal:320, veg:false, infant:false, elder:false },
+    { id:'cracker',      name:'クラッカー',             unit:'1袋',     al:['wheat'],  cal:240, veg:true,  infant:false, elder:false },
+    { id:'koppepan',     name:'乾パン',                 unit:'1袋',     al:['wheat'],  cal:250, veg:true,  infant:false, elder:false },
+    { id:'rice_ball',    name:'長期保存おにぎり',        unit:'1個',     al:[],         cal:180, veg:true,  infant:false, elder:true  },
+    { id:'porridge',     name:'アルファ化米（おかゆ）', unit:'1食分',   al:[],         cal:100, veg:true,  infant:true,  elder:true  },
+    { id:'baby_food',    name:'乳幼児用レトルト食品',   unit:'1袋',     al:[],         cal:80,  veg:true,  infant:true,  elder:false },
+    { id:'natto_dry',    name:'フリーズドライ納豆',     unit:'1袋',     al:[],         cal:70,  veg:true,  infant:false, elder:true  },
+    { id:'miso_soup',    name:'フリーズドライみそ汁',   unit:'1食分',   al:['wheat'],  cal:20,  veg:true,  infant:false, elder:true  },
+    { id:'water',        name:'保存水（500ml）',        unit:'1本',     al:[],         cal:0,   veg:true,  infant:true,  elder:true  },
+  ];
+
+  // 献立テンプレート（meal: [朝, 昼, 夜]）
+  // 各要素: { main: foodId, side: foodId|null, drink: 'water'|null }
+  var MEAL_TEMPLATES_ADULT = [
+    // Day1
+    [ { main:'rice_ball',    side:'can_tuna',    drink:'miso_soup' },
+      { main:'cup_noodle',   side:'can_corn',    drink:null        },
+      { main:'alpha_rice',   side:'retort_curry',drink:'miso_soup' } ],
+    // Day2
+    [ { main:'cracker',      side:'can_sardine', drink:null        },
+      { main:'alpha_rice',   side:'can_chicken', drink:'miso_soup' },
+      { main:'rice_ball',    side:'can_beans',   drink:null        } ],
+    // Day3
+    [ { main:'alpha_rice',   side:'natto_dry',   drink:'miso_soup' },
+      { main:'koppepan',     side:'can_tuna',    drink:null        },
+      { main:'alpha_rice',   side:'retort_stew', drink:'miso_soup' } ],
+  ];
+
+  var MEAL_TEMPLATES_CHILD = [
+    [ { main:'rice_ball',    side:'can_corn',    drink:'miso_soup' },
+      { main:'cracker',      side:'can_tuna',    drink:null        },
+      { main:'alpha_rice',   side:'retort_curry_v',drink:'miso_soup' } ],
+    [ { main:'rice_ball',    side:'can_sardine', drink:null        },
+      { main:'alpha_rice',   side:'can_beans',   drink:'miso_soup' },
+      { main:'koppepan',     side:'can_corn',    drink:null        } ],
+    [ { main:'alpha_rice',   side:'can_chicken', drink:'miso_soup' },
+      { main:'rice_ball',    side:'can_tuna',    drink:null        },
+      { main:'alpha_rice',   side:'retort_curry_v',drink:'miso_soup' } ],
+  ];
+
+  var MEAL_TEMPLATES_INFANT = [
+    [ { main:'porridge',   side:'baby_food',  drink:null },
+      { main:'baby_food',  side:'can_corn',   drink:null },
+      { main:'porridge',   side:'baby_food',  drink:null } ],
+    [ { main:'porridge',   side:'baby_food',  drink:null },
+      { main:'baby_food',  side:'can_corn',   drink:null },
+      { main:'porridge',   side:'baby_food',  drink:null } ],
+    [ { main:'porridge',   side:'baby_food',  drink:null },
+      { main:'baby_food',  side:'can_corn',   drink:null },
+      { main:'porridge',   side:'baby_food',  drink:null } ],
+  ];
+
+  var MEAL_TEMPLATES_ELDER = [
+    [ { main:'porridge',   side:'can_tuna',    drink:'miso_soup' },
+      { main:'alpha_rice', side:'can_beans',   drink:'miso_soup' },
+      { main:'porridge',   side:'retort_curry_v',drink:'miso_soup' } ],
+    [ { main:'porridge',   side:'can_sardine', drink:'miso_soup' },
+      { main:'rice_ball',  side:'natto_dry',   drink:'miso_soup' },
+      { main:'porridge',   side:'can_chicken', drink:'miso_soup' } ],
+    [ { main:'porridge',   side:'can_corn',    drink:'miso_soup' },
+      { main:'alpha_rice', side:'can_tuna',    drink:'miso_soup' },
+      { main:'porridge',   side:'can_beans',   drink:'miso_soup' } ],
+  ];
+
+  var MEAL_NAMES = ['朝食', '昼食', '夕食'];
+  var MEAL_CLASSES = ['breakfast', 'lunch', 'dinner'];
+  var DAY_NAMES = ['1日目', '2日目', '3日目'];
+
+  // ── 状態 ──────────────────────────────────────────────────
+  var members = [];
+  var memberCount = { adult:0, child:0, infant:0, elder:0 };
+
+  // ── LocalStorage ──────────────────────────────────────────
+  function saveLS() {
+    try { localStorage.setItem('hisshoku_members', JSON.stringify(members)); } catch(e) {}
+  }
+  function loadLS() {
+    try {
+      var d = localStorage.getItem('hisshoku_members');
+      if (d) members = JSON.parse(d);
+    } catch(e) {}
+    renderMembers();
+  }
+
+  // ── メンバー操作 ──────────────────────────────────────────
+  function addMember() {
+    var type = document.getElementById('ageSelect').value;
+    memberCount[type] = (memberCount[type] || 0) + 1;
+    members.push({ type: type, id: Date.now() });
+    renderMembers();
+    saveLS();
+  }
+  function removeMember(id) {
+    var idx = members.findIndex(function(m){ return m.id === id; });
+    if (idx !== -1) members.splice(idx, 1);
+    renderMembers();
+    saveLS();
+  }
+  function renderMembers() {
+    var list = document.getElementById('memberList');
+    if (members.length === 0) {
+      list.innerHTML = '<p style="font-size:0.82rem;color:var(--text-sub);margin-bottom:0.5rem;">まだ追加されていません</p>';
+      return;
+    }
+    var counts = {};
+    var html = '';
+    members.forEach(function(m) {
+      counts[m.type] = (counts[m.type] || 0) + 1;
+      var no = counts[m.type];
+      html += '<div class="member-item">'
+            + '<span class="member-label">' + AGE_LABELS[m.type] + ' ' + no + '人目</span>'
+            + '<button onclick="removeMember(' + m.id + ')" title="削除">✕</button>'
+            + '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  // ── アレルギーチェック ────────────────────────────────────
+  function toggleCheck(el) {
+    var cb = el.querySelector('input');
+    cb.checked = !cb.checked;
+    el.classList.toggle('checked', cb.checked);
+  }
+  function getAllergies() {
+    var result = [];
+    document.querySelectorAll('#allergyGroup .check-item.checked input').forEach(function(cb){
+      result.push(cb.value);
+    });
+    return result;
+  }
+
+  // ── フード取得 ────────────────────────────────────────────
+  function getFood(id) {
+    return FOODS.find(function(f){ return f.id === id; });
+  }
+  function foodName(id) {
+    if (!id) return null;
+    var f = getFood(id);
+    return f ? f.name : id;
+  }
+  function isBlocked(foodId, allergies, isVegetarian) {
+    if (!foodId) return false;
+    var f = getFood(foodId);
+    if (!f) return false;
+    if (isVegetarian && !f.veg) return true;
+    return allergies.some(function(a){ return f.al.indexOf(a) !== -1; });
+  }
+
+  // アレルギー対応で代替食を返す
+  function getAlternative(foodId, allergies, isVeg) {
+    var alternatives = {
+      'cup_noodle':    'rice_ball',
+      'cracker':       'rice_ball',
+      'koppepan':      'alpha_rice',
+      'can_bread':     'rice_ball',
+      'retort_curry':  'retort_curry_v',
+      'retort_stew':   'can_beans',
+      'alpha_okowa':   'alpha_rice',
+      'miso_soup':     null,
+      'can_sardine':   'can_tuna',
+      'can_chicken':   'can_beans',
+      'natto_dry':     'can_corn',
+    };
+    var alt = alternatives[foodId];
+    if (!alt) return 'rice_ball';
+    if (isBlocked(alt, allergies, isVeg)) return 'rice_ball';
+    return alt;
+  }
+
+  function resolveFoodId(foodId, allergies, isVeg) {
+    if (!foodId) return null;
+    if (!isBlocked(foodId, allergies, isVeg)) return foodId;
+    return getAlternative(foodId, allergies, isVeg);
+  }
+
+  // ── 献立生成 ──────────────────────────────────────────────
+  function generate() {
+    var errEl = document.getElementById('errMsg');
+    errEl.style.display = 'none';
+
+    if (members.length === 0) {
+      errEl.textContent = '家族を1人以上追加してください';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    var allergies = getAllergies();
+    var isVeg = getAllergies().indexOf('meat') !== -1;
+
+    // 買い物リスト集計用
+    var shopMap = {};
+    function addShop(foodId, qty) {
+      if (!foodId) return;
+      shopMap[foodId] = (shopMap[foodId] || 0) + qty;
+    }
+    // 水は人数×3日×3本(1人1日1.5L=3本500ml)
+    addShop('water', members.length * 9);
+
+    // 日別・食事別の献立データ
+    var dayData = [];
+    for (var d = 0; d < 3; d++) {
+      var meals = [];
+      for (var m = 0; m < 3; m++) {
+        // 各メンバーの料理を集める
+        var dishes = [];
+        members.forEach(function(member) {
+          var tmpl;
+          if (member.type === 'infant') tmpl = MEAL_TEMPLATES_INFANT[d][m];
+          else if (member.type === 'elder') tmpl = MEAL_TEMPLATES_ELDER[d][m];
+          else if (member.type === 'child') tmpl = MEAL_TEMPLATES_CHILD[d][m];
+          else tmpl = MEAL_TEMPLATES_ADULT[d][m];
+
+          var mainId  = resolveFoodId(tmpl.main,  allergies, isVeg);
+          var sideId  = resolveFoodId(tmpl.side,  allergies, isVeg);
+          var drinkId = resolveFoodId(tmpl.drink, allergies, isVeg);
+
+          addShop(mainId,  1);
+          addShop(sideId,  1);
+          addShop(drinkId, 1);
+
+          dishes.push({
+            type: member.type,
+            main: mainId, side: sideId, drink: drinkId
+          });
+        });
+        meals.push(dishes);
+      }
+      dayData.push(meals);
+    }
+
+    renderDays(dayData);
+    renderShop(shopMap);
+    renderSummary();
+
+    document.getElementById('resultArea').style.display = 'block';
+    document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderDays(dayData) {
+    var html = '';
+    for (var d = 0; d < 3; d++) {
+      html += '<div class="day-card">';
+      html += '<p class="day-title">📅 ' + DAY_NAMES[d] + '</p>';
+      for (var m = 0; m < 3; m++) {
+        var dishes = dayData[d][m];
+        // 食事時間ラベル
+        html += '<div class="meal-row">';
+        html += '<span class="meal-time ' + MEAL_CLASSES[m] + '">' + MEAL_NAMES[m] + '</span>';
+        html += '<div class="meal-content">';
+
+        // 人数分の献立をまとめる（同じ料理は「全員」、異なればタイプ別）
+        var byType = {};
+        dishes.forEach(function(dish) {
+          var key = [dish.main, dish.side, dish.drink].join('|');
+          if (!byType[key]) byType[key] = { main:dish.main, side:dish.side, drink:dish.drink, types:[] };
+          byType[key].types.push(dish.type);
+        });
+
+        Object.values(byType).forEach(function(item) {
+          var who = item.types.length === members.length ? '全員' : item.types.map(function(t){ return AGE_LABELS[t]; }).join('・');
+          var parts = [foodName(item.main), foodName(item.side), foodName(item.drink)].filter(Boolean);
+          html += '<span class="dish">' + parts.join(' ＋ ') + '</span>';
+          if (item.types.length < members.length) {
+            html += ' <span class="note">（' + who + '）</span>';
+          }
+          html += '<br>';
+        });
+
+        html += '</div></div>';
+      }
+      html += '</div>';
+    }
+    document.getElementById('dayCards').innerHTML = html;
+  }
+
+  function renderShop(shopMap) {
+    var rows = Object.keys(shopMap).map(function(id) {
+      var f = getFood(id);
+      return { id: id, name: f ? f.name : id, unit: f ? f.unit : '', qty: shopMap[id] };
+    });
+    rows.sort(function(a, b) { return b.qty - a.qty; });
+
+    var html = '';
+    rows.forEach(function(r) {
+      html += '<tr><td>' + r.name + '</td><td style="color:var(--text-sub);font-size:0.82rem;">' + r.unit + '</td><td>' + r.qty + '個</td></tr>';
+    });
+    document.getElementById('shopBody').innerHTML = html;
+  }
+
+  function renderSummary() {
+    var counts = {};
+    members.forEach(function(m) { counts[m.type] = (counts[m.type] || 0) + 1; });
+    var allergies = getAllergies();
+
+    var html = '<span class="badge total">合計 ' + members.length + '人 × 3日分</span>';
+    Object.keys(counts).forEach(function(t) {
+      html += '<span class="badge total">' + AGE_LABELS[t] + ' ' + counts[t] + '人</span>';
+    });
+    if (allergies.length > 0) {
+      var alLabels = { wheat:'小麦除去', egg:'卵除去', milk:'乳除去', soba:'そば除去', peanut:'落花生除去', meat:'肉類除去' };
+      allergies.forEach(function(a) {
+        html += '<span class="badge ng">' + (alLabels[a] || a) + '</span>';
+      });
+    }
+    document.getElementById('summaryBadges').innerHTML = html;
+  }
+
+  function copyList() {
+    var rows = document.querySelectorAll('#shopBody tr');
+    var lines = ['【非常食買い物リスト（3日分）】'];
+    rows.forEach(function(tr) {
+      var cells = tr.querySelectorAll('td');
+      lines.push('・' + cells[0].textContent + '（' + cells[1].textContent + '）× ' + cells[2].textContent);
+    });
+    lines.push('');
+    lines.push('※ 保存水は別途1人1日1.5L目安でご用意ください');
+
+    var text = lines.join('\n');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('copyBtn');
+        btn.textContent = 'コピーしました！';
+        btn.classList.add('copied');
+        setTimeout(function() {
+          btn.textContent = '買い物リストをコピー';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      var btn = document.getElementById('copyBtn');
+      btn.textContent = 'コピーしました！';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = '買い物リストをコピー';
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+  }
+
+  // ── 初期化 ────────────────────────────────────────────────
+  loadLS();
+  </script>
+
+</body>
+</html>
