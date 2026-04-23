@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>売上進捗シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── 日次売上グリッド ── */
+    .day-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 340px; overflow-y: auto; padding-right: 0.25rem; }
+    .day-row { display: flex; align-items: center; gap: 0.6rem; }
+    .day-label {
+      font-size: 0.82rem; font-weight: 600; color: var(--text-sub);
+      width: 3rem; flex-shrink: 0; text-align: right;
+    }
+    .day-input {
+      flex: 1; padding: 0.5rem 0.75rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .day-input:focus { border-color: var(--accent); background: #fff; }
+    .day-input.has-value { border-color: var(--accent); background: var(--accent-light); }
+
+    .total-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.8rem 0 0; margin-top: 0.6rem;
+      border-top: 2px solid var(--border);
+    }
+    .total-bar-label { font-size: 0.85rem; font-weight: 700; color: var(--text-sub); }
+    .total-bar-value { font-size: 1.15rem; font-weight: 900; color: var(--accent); }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>売上進捗シミュレーター</h1>
+    <p class="subtitle">日次売上を入力 → 月末着地予測と目標ペースを即確認</p>
+  </header>
+
+  <!-- 設定カード -->
+  <div class="card">
+    <p class="card-title">設定</p>
+    <div class="field">
+      <label for="targetMonth">対象年月</label>
+      <input type="month" id="targetMonth">
+    </div>
+    <div class="field">
+      <label for="targetSales">月の目標売上（円）</label>
+      <input type="number" id="targetSales" placeholder="例: 1000000" min="0" inputmode="numeric">
+    </div>
+  </div>
+
+  <!-- 日次売上カード -->
+  <div class="card">
+    <p class="card-title">日次売上入力（円）</p>
+    <div class="day-list" id="dayList"></div>
+    <div class="total-bar">
+      <span class="total-bar-label">累計売上</span>
+      <span class="total-bar-value" id="runningTotal">¥ 0</span>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">月末を予測する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月末着地予測</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+
+  <script>
+  var LS_KEY = 'uriagedatasimv1';
+  var dayInputEls = [];
+
+  // ── 初期化 ──
+  (function init() {
+    var today = new Date();
+    var ym = today.getFullYear() + '-' + pad(today.getMonth() + 1);
+    document.getElementById('targetMonth').value = ym;
+    document.getElementById('targetMonth').addEventListener('change', buildDayInputs);
+    document.getElementById('targetSales').addEventListener('input', saveData);
+    loadData();
+    buildDayInputs();
+  })();
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function getDaysInMonth(ym) {
+    var parts = ym.split('-');
+    return new Date(+parts[0], +parts[1], 0).getDate();
+  }
+
+  function buildDayInputs() {
+    var ym = document.getElementById('targetMonth').value;
+    if (!ym) return;
+    var days = getDaysInMonth(ym);
+    var container = document.getElementById('dayList');
+    container.innerHTML = '';
+    dayInputEls = [];
+
+    var saved = getSavedDays(ym);
+
+    for (var d = 1; d <= days; d++) {
+      var row = document.createElement('div');
+      row.className = 'day-row';
+
+      var lbl = document.createElement('span');
+      lbl.className = 'day-label';
+      lbl.textContent = d + '日';
+
+      var inp = document.createElement('input');
+      inp.type = 'number';
+      inp.className = 'day-input';
+      inp.placeholder = '—';
+      inp.min = '0';
+      inp.setAttribute('inputmode', 'numeric');
+      inp.dataset.day = d;
+      if (saved[d] !== undefined) {
+        inp.value = saved[d];
+        if (+saved[d] > 0) inp.classList.add('has-value');
+      }
+      inp.addEventListener('input', onDayInput);
+
+      row.appendChild(lbl);
+      row.appendChild(inp);
+      container.appendChild(row);
+      dayInputEls.push(inp);
+    }
+    updateRunningTotal();
+  }
+
+  function onDayInput(e) {
+    var el = e.target;
+    if (el.value && +el.value > 0) {
+      el.classList.add('has-value');
+    } else {
+      el.classList.remove('has-value');
+    }
+    updateRunningTotal();
+    saveData();
+  }
+
+  function updateRunningTotal() {
+    var total = 0;
+    dayInputEls.forEach(function(el) {
+      total += parseFloat(el.value) || 0;
+    });
+    document.getElementById('runningTotal').textContent = '¥ ' + fmt(total);
+  }
+
+  // ── 計算 ──
+  function calc() {
+    var ym = document.getElementById('targetMonth').value;
+    var target = parseFloat(document.getElementById('targetSales').value);
+    if (!ym) { alert('対象年月を選択してください'); return; }
+    if (isNaN(target) || target <= 0) { alert('月の目標売上を入力してください'); return; }
+
+    var days = getDaysInMonth(ym);
+    var today = new Date();
+    var ymParts = ym.split('-');
+    var ymYear = +ymParts[0], ymMonth = +ymParts[1];
+    var isCurrentMonth = (today.getFullYear() === ymYear && today.getMonth() + 1 === ymMonth);
+    var isPastMonth    = (ymYear < today.getFullYear()) || (ymYear === today.getFullYear() && ymMonth < today.getMonth() + 1);
+
+    // 経過日数
+    var passedDays;
+    if (isCurrentMonth) {
+      passedDays = today.getDate();
+    } else if (isPastMonth) {
+      passedDays = days;
+    } else {
+      // 来月以降
+      passedDays = 0;
+    }
+
+    // 売上集計
+    var totalSales = 0;
+    dayInputEls.forEach(function(el) {
+      totalSales += parseFloat(el.value) || 0;
+    });
+
+    var remainingDays = days - passedDays;
+    var avgDaily = passedDays > 0 ? totalSales / passedDays : 0;
+
+    // 月末着地予測
+    var landing;
+    if (remainingDays <= 0) {
+      landing = totalSales;
+    } else {
+      landing = totalSales + avgDaily * remainingDays;
+    }
+
+    var achieveRate = landing / target * 100;
+    var requiredPace = remainingDays > 0 ? (target - totalSales) / remainingDays : 0;
+
+    // 判定
+    var level, eval_, note;
+    if (achieveRate >= 100) {
+      level = 'ok';
+      eval_ = '目標達成ペースです！';
+      note  = '現在のペースを維持すれば月末に目標を達成できます。';
+    } else if (achieveRate >= 80) {
+      level = 'warn';
+      eval_ = 'あと一押しで目標に届きます';
+      note  = 'ペースをやや上げれば目標達成が狙えます。';
+    } else {
+      level = 'ng';
+      eval_ = '目標達成にはペースアップが必要です';
+      note  = '残り日数での必要ペースを確認して対策を取りましょう。';
+    }
+
+    showResult(level, '¥ ' + fmt(Math.round(landing)), eval_, note);
+
+    var rows = [
+      ['月の目標売上',       '¥ ' + fmt(target)],
+      ['累計売上',           '¥ ' + fmt(totalSales)],
+      ['経過日数',           passedDays + '日 / ' + days + '日'],
+      ['残り日数',           remainingDays + '日'],
+      ['1日平均売上（実績）', '¥ ' + fmt(Math.round(avgDaily))],
+    ];
+    if (remainingDays > 0) {
+      rows.push(['目標達成の必要ペース', '¥ ' + fmt(Math.round(requiredPace)) + ' /日', true]);
+    }
+    rows.push(['達成率予測', achieveRate.toFixed(1) + '%', true]);
+
+    showDetail(rows);
+    saveData();
+  }
+
+  function showResult(level, val, eval_, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = eval_;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── localStorage ──
+  function getSavedDays(ym) {
+    try {
+      var data = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      return data.days && data.ym === ym ? data.days : {};
+    } catch(e) { return {}; }
+  }
+
+  function saveData() {
+    var ym = document.getElementById('targetMonth').value;
+    var target = document.getElementById('targetSales').value;
+    var days = {};
+    dayInputEls.forEach(function(el) {
+      if (el.value !== '') days[el.dataset.day] = el.value;
+    });
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({ ym: ym, target: target, days: days }));
+    } catch(e) {}
+  }
+
+  function loadData() {
+    try {
+      var data = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      if (data.ym) document.getElementById('targetMonth').value = data.ym;
+      if (data.target) document.getElementById('targetSales').value = data.target;
+    } catch(e) {}
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
