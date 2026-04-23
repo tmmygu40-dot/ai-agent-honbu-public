@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>フリマ出品文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-area {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .result-area .card-title { color: var(--ok); }
+
+    .generated-text {
+      width: 100%;
+      padding: 0.9rem;
+      font-size: 0.92rem;
+      line-height: 1.7;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      resize: vertical;
+      min-height: 280px;
+      outline: none;
+    }
+    .generated-text:focus { border-color: var(--accent); background: #fff; }
+
+    .copy-row {
+      display: flex;
+      gap: 0.6rem;
+      margin-top: 0.8rem;
+      align-items: center;
+    }
+    .btn-copy {
+      flex: 1;
+      padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 1.5px solid var(--ok); border-radius: 9px; cursor: pointer;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:active { background: #dcfce7; }
+
+    .copy-msg {
+      font-size: 0.82rem;
+      color: var(--ok);
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.3s;
+      white-space: nowrap;
+    }
+    .copy-msg.show { opacity: 1; }
+
+    .template-row {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .tpl-btn {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem; font-weight: 600;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 20px; cursor: pointer;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tpl-btn:active { background: #ffe6c0; }
+
+    .char-count {
+      font-size: 0.72rem;
+      color: var(--text-sub);
+      text-align: right;
+      margin-top: 0.25rem;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>フリマ出品文ジェネレーター</h1>
+    <p class="subtitle">商品情報を入力してメルカリ向け説明文を即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品情報を入力</p>
+
+    <div class="field">
+      <label for="name">商品名 <span style="color:var(--ng)">*</span></label>
+      <input type="text" id="name" placeholder="例：ユニクロ フリースジャケット ネイビー M">
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label for="category">カテゴリ</label>
+        <select id="category">
+          <option value="レディース">レディースファッション</option>
+          <option value="メンズ">メンズファッション</option>
+          <option value="キッズ">キッズ・ベビー</option>
+          <option value="家電">家電・スマホ・カメラ</option>
+          <option value="インテリア">インテリア・住まい</option>
+          <option value="ハンドメイド">ハンドメイド</option>
+          <option value="おもちゃ">おもちゃ・ホビー</option>
+          <option value="本">本・漫画・雑誌</option>
+          <option value="スポーツ">スポーツ・レジャー</option>
+          <option value="コスメ">美容・コスメ</option>
+          <option value="食品">食品・飲料</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="condition">商品の状態 <span style="color:var(--ng)">*</span></label>
+        <select id="condition">
+          <option value="新品・未使用">新品・未使用</option>
+          <option value="未使用に近い">未使用に近い</option>
+          <option value="目立った傷や汚れなし" selected>目立った傷や汚れなし</option>
+          <option value="やや傷や汚れあり">やや傷や汚れあり</option>
+          <option value="傷や汚れあり">傷や汚れあり</option>
+          <option value="全体的に状態が悪い">全体的に状態が悪い</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label for="price">希望価格（円）</label>
+        <input type="number" id="price" placeholder="例：1500" min="0">
+      </div>
+      <div class="field">
+        <label for="brand">ブランド・メーカー</label>
+        <input type="text" id="brand" placeholder="例：ユニクロ">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="size">サイズ・スペック</label>
+      <input type="text" id="size" placeholder="例：M / 横30cm×縦20cm / 64GB">
+    </div>
+
+    <div class="field">
+      <label for="color">カラー</label>
+      <input type="text" id="color" placeholder="例：ネイビー・ブルー系">
+    </div>
+
+    <div class="field">
+      <label for="reason">出品理由</label>
+      <select id="reason">
+        <option value="">（なし）</option>
+        <option value="引越しのため">引越しのため</option>
+        <option value="使わなくなったため">使わなくなったため</option>
+        <option value="サイズが合わなくなったため">サイズが合わなくなったため</option>
+        <option value="買い替えのため">買い替えのため</option>
+        <option value="頂き物で不要のため">頂き物で不要のため</option>
+        <option value="断捨離のため">断捨離のため</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="detail">商品の特徴・アピールポイント</label>
+      <textarea id="detail" placeholder="例：購入から1年以内。自宅保管のみ。タバコ・ペットなし。"></textarea>
+      <p class="hint">傷・汚れの詳細、付属品の有無なども書くと◎</p>
+    </div>
+
+    <div class="field">
+      <label for="shipping">配送方法</label>
+      <select id="shipping">
+        <option value="">（未定）</option>
+        <option value="らくらくメルカリ便">らくらくメルカリ便</option>
+        <option value="ゆうゆうメルカリ便">ゆうゆうメルカリ便</option>
+        <option value="普通郵便">普通郵便</option>
+        <option value="宅急便">宅急便</option>
+        <option value="直接引渡し">直接引渡し</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">説明文を生成する</button>
+
+  <!-- 生成結果 -->
+  <div class="result-area" id="resultArea">
+    <p class="card-title">生成された出品説明文</p>
+
+    <div class="template-row" id="tplRow">
+      <button class="tpl-btn" onclick="switchTpl('standard')">標準テンプレ</button>
+      <button class="tpl-btn" onclick="switchTpl('simple')">シンプル版</button>
+      <button class="tpl-btn" onclick="switchTpl('detailed')">詳細版</button>
+    </div>
+
+    <textarea class="generated-text" id="generatedText" oninput="updateCharCount()"></textarea>
+    <p class="char-count" id="charCount">0文字</p>
+
+    <div class="copy-row">
+      <button class="btn-copy" onclick="copyText()">コピーする</button>
+      <span class="copy-msg" id="copyMsg">コピーしました！</span>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var LS_KEY = 'frima_gen_v1';
+  var currentInputs = {};
+
+  // 起動時にlocalStorageから復元
+  window.addEventListener('DOMContentLoaded', function() {
+    var saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      try {
+        var d = JSON.parse(saved);
+        ['name','category','condition','price','brand','size','color','reason','detail','shipping'].forEach(function(k) {
+          var el = document.getElementById(k);
+          if (el && d[k] !== undefined) el.value = d[k];
+        });
+      } catch(e) {}
+    }
+  });
+
+  function collectInputs() {
+    return {
+      name: document.getElementById('name').value.trim(),
+      category: document.getElementById('category').value,
+      condition: document.getElementById('condition').value,
+      price: document.getElementById('price').value.trim(),
+      brand: document.getElementById('brand').value.trim(),
+      size: document.getElementById('size').value.trim(),
+      color: document.getElementById('color').value.trim(),
+      reason: document.getElementById('reason').value,
+      detail: document.getElementById('detail').value.trim(),
+      shipping: document.getElementById('shipping').value,
+    };
+  }
+
+  function generate() {
+    var inp = collectInputs();
+    if (!inp.name) {
+      alert('商品名を入力してください');
+      document.getElementById('name').focus();
+      return;
+    }
+    currentInputs = inp;
+    localStorage.setItem(LS_KEY, JSON.stringify(inp));
+    var text = buildText(inp, 'standard');
+    var area = document.getElementById('resultArea');
+    area.style.display = '';
+    document.getElementById('generatedText').value = text;
+    updateCharCount();
+    area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function buildText(inp, mode) {
+    var name = inp.name;
+    var cond = inp.condition;
+    var brand = inp.brand ? inp.brand + '　' : '';
+    var size = inp.size;
+    var color = inp.color;
+    var price = inp.price ? Number(inp.price).toLocaleString('ja-JP') + '円' : '';
+    var reason = inp.reason;
+    var detail = inp.detail;
+    var shipping = inp.shipping;
+
+    if (mode === 'simple') {
+      var lines = [];
+      lines.push('【' + name + '】');
+      lines.push('');
+      lines.push('■ 状態：' + cond);
+      if (brand) lines.push('■ ブランド：' + inp.brand);
+      if (size) lines.push('■ サイズ：' + size);
+      if (color) lines.push('■ カラー：' + color);
+      if (price) lines.push('■ 価格：' + price);
+      if (shipping) lines.push('■ 配送：' + shipping);
+      if (detail) { lines.push(''); lines.push(detail); }
+      lines.push('');
+      lines.push('お気軽にコメントください！');
+      return lines.join('\n');
+    }
+
+    if (mode === 'detailed') {
+      var lines = [];
+      lines.push('╔══════════════════════╗');
+      lines.push('　　' + name);
+      lines.push('╚══════════════════════╝');
+      lines.push('');
+      lines.push('▼ 商品について');
+      if (brand) lines.push('ブランド：' + inp.brand);
+      lines.push('状態：' + cond);
+      if (size) lines.push('サイズ：' + size);
+      if (color) lines.push('カラー：' + color);
+      lines.push('');
+      if (detail) {
+        lines.push('▼ 詳細説明');
+        lines.push(detail);
+        lines.push('');
+      }
+      if (reason) { lines.push('▼ 出品理由'); lines.push(reason); lines.push(''); }
+      lines.push('▼ 取引について');
+      if (price) lines.push('・希望価格：' + price + '（値引き交渉はコメントでどうぞ）');
+      if (shipping) lines.push('・配送方法：' + shipping);
+      lines.push('・ノークレーム・ノーリターンでお願いします');
+      lines.push('・お値下げはコメント後購入でお願いします（横取り防止）');
+      lines.push('');
+      lines.push('何かご質問があればお気軽にコメントください！');
+      lines.push('丁寧な対応を心がけています。');
+      return lines.join('\n');
+    }
+
+    // standard
+    var lines = [];
+    lines.push('【' + brand + name + '】');
+    lines.push('');
+    lines.push('◆ 商品状態');
+    lines.push(cond + 'の商品です。');
+    if (cond === '新品・未使用') {
+      lines.push('一度も使用していない新品です。');
+    } else if (cond === '未使用に近い') {
+      lines.push('ほぼ使用しておらず、状態は良好です。');
+    }
+    lines.push('');
+
+    var specs = [];
+    if (size) specs.push('サイズ：' + size);
+    if (color) specs.push('カラー：' + color);
+    if (brand) specs.push('ブランド：' + inp.brand);
+    if (specs.length) {
+      lines.push('◆ 商品詳細');
+      specs.forEach(function(s) { lines.push(s); });
+      lines.push('');
+    }
+
+    if (detail) {
+      lines.push('◆ 補足');
+      lines.push(detail);
+      lines.push('');
+    }
+
+    if (reason) {
+      lines.push('◆ 出品理由');
+      lines.push(reason + '出品しています。');
+      lines.push('');
+    }
+
+    lines.push('◆ 取引について');
+    if (price) lines.push('・ 希望価格：' + price);
+    if (shipping) lines.push('・ 配送方法：' + shipping);
+    lines.push('・ ノークレーム・ノーリターンでお願いします');
+    lines.push('・ お値下げ交渉はコメントでお気軽にどうぞ');
+    lines.push('');
+    lines.push('ご質問があればお気軽にコメントください！');
+    lines.push('迅速な発送を心がけています。よろしくお願いいたします。');
+
+    return lines.join('\n');
+  }
+
+  function switchTpl(mode) {
+    if (!currentInputs.name) return;
+    document.getElementById('generatedText').value = buildText(currentInputs, mode);
+    updateCharCount();
+  }
+
+  function updateCharCount() {
+    var len = document.getElementById('generatedText').value.length;
+    document.getElementById('charCount').textContent = len + '文字';
+  }
+
+  function copyText() {
+    var text = document.getElementById('generatedText').value;
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() { showCopyMsg(); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showCopyMsg();
+    }
+  }
+
+  function showCopyMsg() {
+    var msg = document.getElementById('copyMsg');
+    msg.classList.add('show');
+    setTimeout(function() { msg.classList.remove('show'); }, 2000);
+  }
+  </script>
+
+</body>
+</html>
