@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>金利上昇影響シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── パターン比較テーブル ── */
+    .pattern-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
+    .pattern-table th {
+      background: var(--accent-light); color: var(--accent);
+      font-size: 0.75rem; font-weight: 700; padding: 0.5rem 0.4rem;
+      text-align: center; border-bottom: 2px solid var(--border);
+    }
+    .pattern-table td { padding: 0.55rem 0.4rem; text-align: right; border-bottom: 1px solid var(--border); color: var(--text-sub); }
+    .pattern-table td:first-child { text-align: center; font-weight: 700; color: var(--accent); }
+    .pattern-table tr:last-child td { border-bottom: none; }
+    .pattern-table .hl-row td { background: var(--warn-bg); color: var(--warn); font-weight: 700; }
+    .pattern-table .hl-row td:first-child { color: var(--warn); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>金利上昇影響シミュレーター</h1>
+    <p class="subtitle">変動金利が上がると月々・総返済額がいくら増えるか即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">ローン情報を入力</p>
+    <div class="field">
+      <label for="balance">ローン残高（万円）</label>
+      <input type="number" id="balance" placeholder="例: 3000" min="1" step="1">
+      <p class="hint">現在の残高を万円単位で入力</p>
+    </div>
+    <div class="field">
+      <label for="years">残りの返済期間（年）</label>
+      <input type="number" id="years" placeholder="例: 25" min="1" max="50" step="1">
+    </div>
+    <div class="field">
+      <label for="rate">現在の金利（%）</label>
+      <input type="number" id="rate" placeholder="例: 0.5" min="0" step="0.01">
+      <p class="hint">変動金利の現在適用金利を入力</p>
+    </div>
+    <div class="field">
+      <label for="rise">金利上昇幅（%）</label>
+      <select id="rise">
+        <option value="0.5">+0.5%</option>
+        <option value="1" selected>+1.0%</option>
+        <option value="1.5">+1.5%</option>
+        <option value="2">+2.0%</option>
+        <option value="3">+3.0%</option>
+        <option value="custom">手動入力</option>
+      </select>
+    </div>
+    <div class="field" id="custom-field" style="display:none">
+      <label for="custom-rise">金利上昇幅（手動入力・%）</label>
+      <input type="number" id="custom-rise" placeholder="例: 2.5" min="0.01" step="0.01">
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">影響額を試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月々の返済増加額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- パターン比較カード -->
+  <div class="card" id="pattern-card" style="display:none">
+    <p class="card-title">金利上昇パターン別 比較</p>
+    <table class="pattern-table">
+      <thead>
+        <tr>
+          <th>上昇幅</th>
+          <th>上昇後<br>月額（円）</th>
+          <th>月額増加<br>（円）</th>
+          <th>総返済増加<br>（万円）</th>
+        </tr>
+      </thead>
+      <tbody id="pattern-body"></tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'kinri_simulator_v1';
+
+  // 金利上昇幅 select の切り替え
+  document.getElementById('rise').addEventListener('change', function() {
+    document.getElementById('custom-field').style.display = this.value === 'custom' ? '' : 'none';
+  });
+
+  // localStorage から復元
+  (function() {
+    try {
+      var s = localStorage.getItem(LS_KEY);
+      if (!s) return;
+      var d = JSON.parse(s);
+      if (d.balance) document.getElementById('balance').value = d.balance;
+      if (d.years)   document.getElementById('years').value   = d.years;
+      if (d.rate)    document.getElementById('rate').value    = d.rate;
+      if (d.rise)    document.getElementById('rise').value    = d.rise;
+      if (d.customRise) {
+        document.getElementById('custom-rise').value = d.customRise;
+        if (d.rise === 'custom') document.getElementById('custom-field').style.display = '';
+      }
+    } catch(e) {}
+  })();
+
+  // 元利均等返済の月額計算
+  function monthlyPayment(principal, annualRate, years) {
+    var n = years * 12;
+    if (annualRate === 0) return principal / n;
+    var r = annualRate / 100 / 12;
+    return principal * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
+  }
+
+  function calc() {
+    var balance    = parseFloat(document.getElementById('balance').value);
+    var years      = parseFloat(document.getElementById('years').value);
+    var rate       = parseFloat(document.getElementById('rate').value);
+    var riseVal    = document.getElementById('rise').value;
+    var rise;
+    if (riseVal === 'custom') {
+      rise = parseFloat(document.getElementById('custom-rise').value);
+    } else {
+      rise = parseFloat(riseVal);
+    }
+
+    if (isNaN(balance) || balance <= 0) { showErr('ローン残高を入力してください'); return; }
+    if (isNaN(years)   || years  <= 0)  { showErr('残りの返済期間を入力してください'); return; }
+    if (isNaN(rate)    || rate   < 0)   { showErr('現在の金利を入力してください'); return; }
+    if (isNaN(rise)    || rise   <= 0)  { showErr('金利上昇幅を入力してください'); return; }
+
+    // localStorage 保存
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        balance: document.getElementById('balance').value,
+        years:   document.getElementById('years').value,
+        rate:    document.getElementById('rate').value,
+        rise:    document.getElementById('rise').value,
+        customRise: document.getElementById('custom-rise').value
+      }));
+    } catch(e) {}
+
+    var principal  = balance * 10000;
+    var n          = years * 12;
+    var monthly0   = monthlyPayment(principal, rate, years);
+    var monthly1   = monthlyPayment(principal, rate + rise, years);
+    var diff       = monthly1 - monthly0;
+    var totalDiff  = diff * n;
+
+    var level = diff < 5000 ? 'ok' : diff < 15000 ? 'warn' : 'ng';
+    var note  = '総返済増加額: 約' + fmt(totalDiff / 10000, 1) + '万円\n'
+              + '上昇後の月額返済: ' + fmt(monthly1) + '円';
+
+    showResult(level, '+' + fmt(diff) + ' 円/月', note);
+    showDetail([
+      ['現在の月額返済',         fmt(monthly0) + ' 円'],
+      ['上昇後の月額返済（+' + rise + '%）', fmt(monthly1) + ' 円', true],
+      ['月々の増加額',           '+' + fmt(diff) + ' 円'],
+      ['残り返済回数',           n + ' 回（' + years + '年）'],
+      ['総返済増加額',           '+' + fmt(totalDiff / 10000, 1) + ' 万円'],
+    ]);
+    showPatterns(principal, rate, years, n, rise);
+  }
+
+  var PATTERNS = [0.5, 1, 1.5, 2, 3];
+
+  function showPatterns(principal, rate, years, n, selectedRise) {
+    var monthly0 = monthlyPayment(principal, rate, years);
+    var rows = PATTERNS.map(function(p) {
+      var m1   = monthlyPayment(principal, rate + p, years);
+      var diff = m1 - monthly0;
+      var total = diff * n;
+      var isSelected = Math.abs(p - selectedRise) < 0.001;
+      return '<tr' + (isSelected ? ' class="hl-row"' : '') + '>'
+           + '<td>+' + p.toFixed(1) + '%</td>'
+           + '<td>' + fmt(m1) + '</td>'
+           + '<td>+' + fmt(diff) + '</td>'
+           + '<td>+' + fmt(total / 10000, 1) + '万</td>'
+           + '</tr>';
+    });
+    document.getElementById('pattern-body').innerHTML = rows.join('');
+    document.getElementById('pattern-card').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('pattern-card').style.display = 'none';
+  }
+  function fmt(n, decimals) {
+    if (decimals !== undefined) return parseFloat(n.toFixed(decimals)).toLocaleString('ja-JP');
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
