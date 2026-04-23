@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>議事録ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; font-family: inherit;
+    }
+    .field input:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field textarea { resize: vertical; min-height: 3.5rem; }
+
+    /* 議題アイテム */
+    .agenda-list { display: flex; flex-direction: column; gap: 0.8rem; }
+    .agenda-item {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      background: var(--bg);
+      position: relative;
+    }
+    .agenda-item .item-num {
+      font-size: 0.72rem; font-weight: 700; color: var(--accent);
+      margin-bottom: 0.6rem; letter-spacing: 0.05em;
+    }
+    .agenda-item .field { margin-bottom: 0.7rem; }
+    .agenda-item .field:last-child { margin-bottom: 0; }
+    .btn-remove {
+      position: absolute; top: 0.7rem; right: 0.7rem;
+      background: none; border: none; color: var(--text-sub);
+      font-size: 1.1rem; cursor: pointer; line-height: 1;
+      padding: 0.2rem 0.4rem; border-radius: 6px;
+      transition: background 0.1s;
+    }
+    .btn-remove:hover { background: var(--ng-bg); color: var(--ng); }
+
+    .btn-add {
+      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+      width: 100%; padding: 0.7rem;
+      font-size: 0.92rem; font-weight: 700;
+      border: 2px dashed var(--border);
+      border-radius: 10px; background: none; color: var(--text-sub);
+      cursor: pointer; margin-top: 0.8rem; transition: all 0.15s;
+    }
+    .btn-add:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+    .btn-generate {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-generate:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 出力エリア */
+    .output-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--ok);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .output-card .card-title { color: var(--ok); border-color: #bbf7d0; }
+    .output-text {
+      width: 100%;
+      font-size: 0.88rem;
+      font-family: "Hiragino Sans", "Noto Sans JP", monospace;
+      line-height: 1.8;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      padding: 0.9rem 1rem;
+      background: #f9fafb;
+      color: var(--text);
+      resize: vertical;
+      min-height: 12rem;
+      margin-bottom: 0.8rem;
+    }
+    .btn-copy {
+      display: block; width: 100%; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 2px solid var(--ok); border-radius: 10px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: #dcfce7; }
+    .copy-ok {
+      text-align: center; font-size: 0.82rem;
+      color: var(--ok); margin-top: 0.5rem; display: none;
+    }
+
+    .btn-reset {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1rem; padding: 0.7rem;
+      font-size: 0.88rem; color: var(--text-sub);
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 10px; cursor: pointer;
+    }
+    .btn-reset:hover { color: var(--ng); border-color: var(--ng); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 480px) {
+      .card, .output-card, .btn-generate, .btn-reset { max-width: 100%; margin-left: 0.8rem; margin-right: 0.8rem; width: calc(100% - 1.6rem); }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>議事録ジェネレーター</h1>
+    <p class="subtitle">会議情報を入力するだけで議事録を即生成</p>
+  </header>
+
+  <!-- 基本情報カード -->
+  <div class="card">
+    <p class="card-title">会議の基本情報</p>
+    <div class="field">
+      <label for="meetingName">会議名</label>
+      <input type="text" id="meetingName" placeholder="例: 2026年4月 営業会議">
+    </div>
+    <div class="field">
+      <label for="meetingDate">日時</label>
+      <input type="datetime-local" id="meetingDate">
+    </div>
+    <div class="field">
+      <label for="meetingPlace">場所</label>
+      <input type="text" id="meetingPlace" placeholder="例: 会議室A / オンライン（Zoom）">
+    </div>
+    <div class="field">
+      <label for="meetingMembers">参加者</label>
+      <input type="text" id="meetingMembers" placeholder="例: 田中、鈴木、佐藤（3名）">
+    </div>
+    <div class="field">
+      <label for="meetingFacilitator">司会・議事録担当</label>
+      <input type="text" id="meetingFacilitator" placeholder="例: 田中（司会）、鈴木（記録）">
+    </div>
+  </div>
+
+  <!-- 議題カード -->
+  <div class="card">
+    <p class="card-title">議題と決定事項</p>
+    <div class="agenda-list" id="agendaList"></div>
+    <button class="btn-add" onclick="addAgendaItem()">＋ 議題を追加</button>
+  </div>
+
+  <!-- 備考カード -->
+  <div class="card">
+    <p class="card-title">備考・次回予定</p>
+    <div class="field">
+      <label for="meetingNext">次回開催予定</label>
+      <input type="text" id="meetingNext" placeholder="例: 2026年5月1日（金）14:00〜">
+    </div>
+    <div class="field">
+      <label for="meetingNote">その他備考</label>
+      <textarea id="meetingNote" placeholder="例: 資料は共有フォルダにアップ済み"></textarea>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-generate" onclick="generate()">議事録を生成する</button>
+
+  <!-- 出力カード -->
+  <div class="output-card" id="outputCard">
+    <p class="card-title">生成された議事録</p>
+    <textarea class="output-text" id="outputText" readonly></textarea>
+    <button class="btn-copy" onclick="copyText()">テキストをコピー</button>
+    <p class="copy-ok" id="copyOk">コピーしました！</p>
+  </div>
+
+  <!-- リセット -->
+  <button class="btn-reset" onclick="resetAll()">リセット（全クリア）</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var LS_KEY = 'gijirokugenerator_v1';
+  var agendaItems = [];
+
+  function init() {
+    var saved = loadData();
+    if (saved) {
+      document.getElementById('meetingName').value = saved.name || '';
+      document.getElementById('meetingDate').value = saved.date || '';
+      document.getElementById('meetingPlace').value = saved.place || '';
+      document.getElementById('meetingMembers').value = saved.members || '';
+      document.getElementById('meetingFacilitator').value = saved.facilitator || '';
+      document.getElementById('meetingNext').value = saved.next || '';
+      document.getElementById('meetingNote').value = saved.note || '';
+      agendaItems = saved.agenda || [];
+    }
+    if (agendaItems.length === 0) agendaItems.push({ topic: '', decision: '', action: '' });
+    renderAgenda();
+    autoSaveEvents();
+  }
+
+  function autoSaveEvents() {
+    ['meetingName','meetingDate','meetingPlace','meetingMembers','meetingFacilitator','meetingNext','meetingNote'].forEach(function(id) {
+      document.getElementById(id).addEventListener('input', saveData);
+    });
+  }
+
+  function renderAgenda() {
+    var list = document.getElementById('agendaList');
+    list.innerHTML = '';
+    agendaItems.forEach(function(item, idx) {
+      var div = document.createElement('div');
+      div.className = 'agenda-item';
+      div.innerHTML =
+        '<p class="item-num">議題 ' + (idx + 1) + '</p>' +
+        (agendaItems.length > 1 ? '<button class="btn-remove" onclick="removeItem(' + idx + ')" title="削除">×</button>' : '') +
+        '<div class="field"><label>議題・テーマ</label>' +
+          '<input type="text" placeholder="例: 来月の販促キャンペーンについて" value="' + esc(item.topic) + '" oninput="updateItem(' + idx + ',\'topic\',this.value)"></div>' +
+        '<div class="field"><label>決定事項</label>' +
+          '<textarea placeholder="例: キャンペーン期間を4月15日〜30日に決定" oninput="updateItem(' + idx + ',\'decision\',this.value)">' + esc(item.decision) + '</textarea></div>' +
+        '<div class="field"><label>アクション（担当者・期限）</label>' +
+          '<textarea placeholder="例: 田中がポスターデザインを4/10までに作成" oninput="updateItem(' + idx + ',\'action\',this.value)">' + esc(item.action) + '</textarea></div>';
+      list.appendChild(div);
+    });
+  }
+
+  function esc(str) {
+    return (str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function updateItem(idx, key, val) {
+    agendaItems[idx][key] = val;
+    saveData();
+  }
+
+  function addAgendaItem() {
+    agendaItems.push({ topic: '', decision: '', action: '' });
+    renderAgenda();
+    saveData();
+    document.getElementById('agendaList').lastElementChild.querySelector('input').focus();
+  }
+
+  function removeItem(idx) {
+    agendaItems.splice(idx, 1);
+    renderAgenda();
+    saveData();
+  }
+
+  function generate() {
+    var name = document.getElementById('meetingName').value.trim();
+    var dateVal = document.getElementById('meetingDate').value;
+    var place = document.getElementById('meetingPlace').value.trim();
+    var members = document.getElementById('meetingMembers').value.trim();
+    var facilitator = document.getElementById('meetingFacilitator').value.trim();
+    var nextMeeting = document.getElementById('meetingNext').value.trim();
+    var note = document.getElementById('meetingNote').value.trim();
+
+    var dateStr = '';
+    if (dateVal) {
+      var d = new Date(dateVal);
+      var days = ['日','月','火','水','木','金','土'];
+      dateStr = d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日（' + days[d.getDay()] + '）' +
+        pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    var lines = [];
+    lines.push('■ 議事録');
+    lines.push('═'.repeat(40));
+    lines.push('');
+    if (name) lines.push('【会議名】' + name);
+    if (dateStr) lines.push('【日　時】' + dateStr);
+    if (place) lines.push('【場　所】' + place);
+    if (members) lines.push('【参加者】' + members);
+    if (facilitator) lines.push('【担　当】' + facilitator);
+    lines.push('');
+    lines.push('━'.repeat(40));
+    lines.push('■ 議題と決定事項');
+    lines.push('━'.repeat(40));
+    lines.push('');
+
+    var hasContent = false;
+    agendaItems.forEach(function(item, idx) {
+      if (!item.topic && !item.decision && !item.action) return;
+      hasContent = true;
+      lines.push('【議題' + (idx+1) + '】' + (item.topic || '（テーマ未入力）'));
+      if (item.decision) {
+        lines.push('  ▷ 決定事項：' + item.decision.replace(/\n/g, '\n              '));
+      }
+      if (item.action) {
+        lines.push('  ▷ アクション：' + item.action.replace(/\n/g, '\n               '));
+      }
+      lines.push('');
+    });
+
+    if (!hasContent) {
+      lines.push('（議題の入力がありません）');
+      lines.push('');
+    }
+
+    if (nextMeeting || note) {
+      lines.push('━'.repeat(40));
+      lines.push('■ その他');
+      lines.push('━'.repeat(40));
+      lines.push('');
+      if (nextMeeting) lines.push('【次回予定】' + nextMeeting);
+      if (note) lines.push('【備　考】' + note);
+      lines.push('');
+    }
+
+    lines.push('─'.repeat(40));
+    lines.push('以上');
+
+    var text = lines.join('\n');
+    document.getElementById('outputText').value = text;
+    var card = document.getElementById('outputCard');
+    card.style.display = '';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('copyOk').style.display = 'none';
+    saveData();
+  }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function copyText() {
+    var ta = document.getElementById('outputText');
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    try {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(ta.value);
+      } else {
+        document.execCommand('copy');
+      }
+      var ok = document.getElementById('copyOk');
+      ok.style.display = 'block';
+      setTimeout(function(){ ok.style.display = 'none'; }, 2000);
+    } catch(e) {}
+  }
+
+  function saveData() {
+    var data = {
+      name: document.getElementById('meetingName').value,
+      date: document.getElementById('meetingDate').value,
+      place: document.getElementById('meetingPlace').value,
+      members: document.getElementById('meetingMembers').value,
+      facilitator: document.getElementById('meetingFacilitator').value,
+      next: document.getElementById('meetingNext').value,
+      note: document.getElementById('meetingNote').value,
+      agenda: agendaItems
+    };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadData() {
+    try {
+      var s = localStorage.getItem(LS_KEY);
+      return s ? JSON.parse(s) : null;
+    } catch(e) { return null; }
+  }
+
+  function resetAll() {
+    if (!confirm('入力内容をすべてクリアしますか？')) return;
+    try { localStorage.removeItem(LS_KEY); } catch(e) {}
+    document.getElementById('meetingName').value = '';
+    document.getElementById('meetingDate').value = '';
+    document.getElementById('meetingPlace').value = '';
+    document.getElementById('meetingMembers').value = '';
+    document.getElementById('meetingFacilitator').value = '';
+    document.getElementById('meetingNext').value = '';
+    document.getElementById('meetingNote').value = '';
+    agendaItems = [{ topic: '', decision: '', action: '' }];
+    renderAgenda();
+    document.getElementById('outputCard').style.display = 'none';
+  }
+
+  init();
+  </script>
+
+</body>
+</html>
