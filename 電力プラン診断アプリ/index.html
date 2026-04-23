@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>電力プラン診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力グリッド ── */
+    .zone-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .field { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field .zone-time { font-size: 0.7rem; color: var(--text-sub); font-weight: 400; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.8rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .unit { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.2rem; text-align: right; }
+
+    /* ── プランカード ── */
+    .plan-list { display: flex; flex-direction: column; gap: 1rem; }
+    .plan-card {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      background: var(--bg);
+    }
+    .plan-card.best { border-color: var(--ok); background: var(--ok-bg); }
+    .plan-name-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .plan-name-input {
+      flex: 1; font-size: 0.95rem; font-weight: 700;
+      border: none; background: transparent; color: var(--text);
+      outline: none; padding: 0;
+    }
+    .plan-name-input:focus { border-bottom: 1.5px solid var(--accent); }
+    .plan-rates {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+    .rate-field label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; display: block; margin-bottom: 0.2rem; }
+    .rate-field input {
+      width: 100%; padding: 0.5rem 0.6rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 7px; background: var(--card); color: var(--text);
+      outline: none; -webkit-appearance: none;
+    }
+    .rate-field input:focus { border-color: var(--accent); }
+    .rate-field .unit-label { font-size: 0.68rem; color: var(--text-sub); }
+    .basic-row {
+      margin-top: 0.6rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .basic-row label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; white-space: nowrap; }
+    .basic-row input {
+      width: 110px; padding: 0.45rem 0.6rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 7px; background: var(--card); color: var(--text);
+      outline: none; -webkit-appearance: none;
+    }
+    .basic-row input:focus { border-color: var(--accent); }
+    .basic-row .unit-label { font-size: 0.72rem; color: var(--text-sub); }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 640px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok); }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-eval { font-size: 1rem; font-weight: 700; margin-top: 0.4rem; margin-bottom: 0.5rem; }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 比較テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table th {
+      text-align: left; padding: 0.5rem 0.4rem;
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      border-bottom: 2px solid var(--border);
+    }
+    .detail-table th:last-child { text-align: right; }
+    .detail-table td { padding: 0.6rem 0.4rem; color: var(--text-sub); border-bottom: 1px solid var(--border); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table tr:last-child td { border-bottom: none; }
+    .detail-table .best-row td { font-weight: 700; color: var(--ok); }
+    .detail-table .best-row td:last-child { color: var(--ok); font-size: 1rem; }
+    .best-badge {
+      display: inline-block; background: var(--ok); color: #fff;
+      font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.4rem;
+      border-radius: 4px; margin-left: 0.4rem; vertical-align: middle;
+    }
+    .saving-note { font-size: 0.8rem; color: var(--ok); font-weight: 600; margin-top: 0.75rem; text-align: center; }
+
+    /* ── リセットボタン ── */
+    .btn-reset {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 0.5rem; padding: 0.65rem;
+      font-size: 0.88rem; font-weight: 700;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 480px) {
+      .plan-rates { grid-template-columns: 1fr 1fr; }
+      .zone-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⚡ 電力プラン診断アプリ</h1>
+    <p class="subtitle">時間帯別の使用パターンから、最安の電力プランを即診断</p>
+  </header>
+
+  <!-- 使用量入力 -->
+  <div class="card">
+    <p class="card-title">月間使用量を入力</p>
+    <div class="zone-grid">
+      <div class="field">
+        <label>朝 <span class="zone-time">6〜9時（3h）</span></label>
+        <input type="number" id="z_morning" placeholder="例: 30" min="0">
+        <p class="unit">kWh / 月</p>
+      </div>
+      <div class="field">
+        <label>昼 <span class="zone-time">9〜18時（9h）</span></label>
+        <input type="number" id="z_day" placeholder="例: 50" min="0">
+        <p class="unit">kWh / 月</p>
+      </div>
+      <div class="field">
+        <label>夜 <span class="zone-time">18〜22時（4h）</span></label>
+        <input type="number" id="z_evening" placeholder="例: 60" min="0">
+        <p class="unit">kWh / 月</p>
+      </div>
+      <div class="field">
+        <label>深夜 <span class="zone-time">22〜6時（8h）</span></label>
+        <input type="number" id="z_night" placeholder="例: 20" min="0">
+        <p class="unit">kWh / 月</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- プラン設定 -->
+  <div class="card">
+    <p class="card-title">料金プラン設定（時間帯別単価 円/kWh）</p>
+    <div class="plan-list" id="planList"></div>
+    <button class="btn-reset" onclick="addPlan()" style="margin-top:0.75rem;width:auto;padding:0.5rem 1rem;font-size:0.82rem;">＋ プランを追加</button>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" onclick="diagnose()">最安プランを診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">最安プラン</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 比較テーブル -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">プラン別 月額比較</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>プラン名</th>
+          <th style="text-align:right">月額概算</th>
+        </tr>
+      </thead>
+      <tbody id="db"></tbody>
+    </table>
+    <p class="saving-note" id="savingNote"></p>
+  </div>
+
+  <button class="btn-reset" onclick="resetAll()">入力をリセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var ZONES = ['morning','day','evening','night'];
+  var ZONE_LABELS = ['朝','昼','夜','深夜'];
+
+  // プリセットプランデータ
+  var DEFAULT_PLANS = [
+    {
+      name: '従量電灯B（標準プラン）',
+      basic: 286,
+      rates: { morning: 30, day: 30, evening: 30, night: 30 }
+    },
+    {
+      name: '時間帯別電灯（夜トク）',
+      basic: 286,
+      rates: { morning: 35, day: 35, evening: 28, night: 16 }
+    },
+    {
+      name: '深夜電力重視プラン',
+      basic: 286,
+      rates: { morning: 40, day: 40, evening: 36, night: 10 }
+    }
+  ];
+
+  var plans = [];
+
+  function initPlans() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem('denpryoku_plans')); } catch(e){}
+    plans = saved || JSON.parse(JSON.stringify(DEFAULT_PLANS));
+    renderPlans();
+  }
+
+  function renderPlans() {
+    var list = document.getElementById('planList');
+    list.innerHTML = '';
+    plans.forEach(function(p, i) {
+      var div = document.createElement('div');
+      div.className = 'plan-card';
+      div.id = 'plan_' + i;
+      div.innerHTML =
+        '<div class="plan-name-row">' +
+          '<input class="plan-name-input" value="' + esc(p.name) + '" oninput="updatePlanName(' + i + ',this.value)" placeholder="プラン名">' +
+          (plans.length > 1 ? '<button onclick="removePlan(' + i + ')" style="background:none;border:none;color:var(--text-sub);cursor:pointer;font-size:1rem;padding:0 0.3rem;" title="削除">✕</button>' : '') +
+        '</div>' +
+        '<div class="plan-rates">' +
+          ZONES.map(function(z, zi) {
+            return '<div class="rate-field">' +
+              '<label>' + ZONE_LABELS[zi] + '</label>' +
+              '<input type="number" value="' + p.rates[z] + '" min="0" step="0.1" ' +
+                'oninput="updateRate(' + i + ',\'' + z + '\',this.value)">' +
+              '<span class="unit-label">円/kWh</span>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+        '<div class="basic-row">' +
+          '<label>基本料金</label>' +
+          '<input type="number" value="' + p.basic + '" min="0" oninput="updateBasic(' + i + ',this.value)">' +
+          '<span class="unit-label">円/月</span>' +
+        '</div>';
+      list.appendChild(div);
+    });
+    savePlans();
+  }
+
+  function esc(s) { return String(s).replace(/"/g,'&quot;'); }
+
+  function updatePlanName(i, v) { plans[i].name = v; savePlans(); }
+  function updateRate(i, z, v) { plans[i].rates[z] = parseFloat(v) || 0; savePlans(); }
+  function updateBasic(i, v) { plans[i].basic = parseFloat(v) || 0; savePlans(); }
+
+  function addPlan() {
+    plans.push({ name: '新しいプラン', basic: 286, rates: { morning:30, day:30, evening:30, night:30 } });
+    renderPlans();
+  }
+
+  function removePlan(i) {
+    plans.splice(i, 1);
+    renderPlans();
+  }
+
+  function savePlans() {
+    try { localStorage.setItem('denpryoku_plans', JSON.stringify(plans)); } catch(e){}
+  }
+
+  function getUsage() {
+    return {
+      morning: parseFloat(document.getElementById('z_morning').value) || 0,
+      day:     parseFloat(document.getElementById('z_day').value) || 0,
+      evening: parseFloat(document.getElementById('z_evening').value) || 0,
+      night:   parseFloat(document.getElementById('z_night').value) || 0
+    };
+  }
+
+  function calcPlanCost(plan, usage) {
+    var cost = plan.basic;
+    ZONES.forEach(function(z) {
+      cost += (usage[z] || 0) * (plan.rates[z] || 0);
+    });
+    return cost;
+  }
+
+  function diagnose() {
+    var usage = getUsage();
+    var totalUsage = ZONES.reduce(function(s, z) { return s + usage[z]; }, 0);
+    if (totalUsage <= 0) {
+      showErr('少なくとも1つの時間帯に使用量を入力してください');
+      return;
+    }
+
+    var costs = plans.map(function(p) { return calcPlanCost(p, usage); });
+    var minCost = Math.min.apply(null, costs);
+    var maxCost = Math.max.apply(null, costs);
+    var bestIdx = costs.indexOf(minCost);
+
+    // 結論カード
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = fmt(minCost) + ' 円/月';
+    document.getElementById('re').textContent = '最安：' + plans[bestIdx].name;
+    document.getElementById('rn').textContent = '月間使用量 ' + fmt(totalUsage) + ' kWh で試算';
+
+    // 比較テーブル
+    var rows = costs.map(function(c, i) {
+      var isBest = (i === bestIdx);
+      return '<tr class="' + (isBest ? 'best-row' : '') + '">' +
+        '<td>' + esc(plans[i].name) + (isBest ? '<span class="best-badge">最安</span>' : '') + '</td>' +
+        '<td>' + fmt(c) + ' 円</td>' +
+      '</tr>';
+    }).join('');
+    document.getElementById('db').innerHTML = rows;
+
+    var saving = maxCost - minCost;
+    document.getElementById('savingNote').textContent =
+      saving > 0 ? '最安と最高の差：月 ' + fmt(saving) + ' 円（年 ' + fmt(saving * 12) + ' 円）' : '';
+
+    document.getElementById('detail').style.display = '';
+
+    // プランカードにbest強調
+    plans.forEach(function(p, i) {
+      var el = document.getElementById('plan_' + i);
+      if (el) el.className = 'plan-card' + (i === bestIdx ? ' best' : '');
+    });
+
+    // 使用量をlocalStorage保存
+    try {
+      localStorage.setItem('denpryoku_usage', JSON.stringify(usage));
+    } catch(e){}
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card warn';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function resetAll() {
+    ZONES.forEach(function(z) { document.getElementById('z_' + z).value = ''; });
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    plans.forEach(function(p, i) {
+      var el = document.getElementById('plan_' + i);
+      if (el) el.className = 'plan-card';
+    });
+    try { localStorage.removeItem('denpryoku_usage'); } catch(e){}
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // 起動時：保存済み使用量の復元
+  function restoreUsage() {
+    try {
+      var saved = JSON.parse(localStorage.getItem('denpryoku_usage'));
+      if (saved) {
+        ZONES.forEach(function(z) {
+          if (saved[z] != null) document.getElementById('z_' + z).value = saved[z];
+        });
+      }
+    } catch(e){}
+  }
+
+  initPlans();
+  restoreUsage();
+  </script>
+
+</body>
+</html>
