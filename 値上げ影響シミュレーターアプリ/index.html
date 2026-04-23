@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>値上げ影響シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 0.9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input, .field textarea {
+      width: 100%; padding: 0.65rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field textarea { resize: vertical; min-height: 60px; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.9rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 合計カード */
+    .total-card {
+      background: var(--warn-bg);
+      border: 2px solid var(--warn);
+      border-radius: var(--radius);
+      padding: 1.2rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+      text-align: center;
+    }
+    .total-label { font-size: 0.78rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.3rem; letter-spacing: 0.06em; }
+    .total-value { font-size: 2.2rem; font-weight: 900; color: var(--ng); letter-spacing: -0.03em; }
+    .total-sub { font-size: 0.82rem; color: var(--text-sub); margin-top: 0.3rem; }
+
+    /* 品目リスト */
+    .item-list { list-style: none; }
+    .item-row {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.7rem;
+      background: var(--bg);
+      position: relative;
+    }
+    .item-name { font-weight: 700; font-size: 1rem; margin-bottom: 0.35rem; }
+    .item-meta { font-size: 0.82rem; color: var(--text-sub); margin-bottom: 0.25rem; }
+    .item-increase {
+      font-size: 1.05rem; font-weight: 800;
+      color: var(--ng); margin-bottom: 0.25rem;
+    }
+    .item-alt { font-size: 0.8rem; color: var(--text-sub); background: #fff; border-radius: 6px; padding: 0.3rem 0.6rem; margin-top: 0.35rem; }
+    .item-alt-label { font-weight: 600; color: var(--accent); }
+    .btn-del {
+      position: absolute; top: 0.7rem; right: 0.8rem;
+      background: none; border: none; cursor: pointer;
+      font-size: 1.1rem; color: var(--text-sub); line-height: 1;
+      padding: 0.2rem 0.4rem;
+    }
+    .btn-del:hover { color: var(--ng); }
+
+    .empty-msg {
+      text-align: center; color: var(--text-sub);
+      font-size: 0.88rem; padding: 1.5rem 0;
+    }
+
+    .btn-clear-all {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.65rem;
+      font-size: 0.88rem; font-weight: 600;
+      background: none; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+    .btn-clear-all:hover { border-color: var(--ng); color: var(--ng); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>値上げ影響シミュレーター</h1>
+    <p class="subtitle">品目ごとの月次コスト増加額を即算出・代替品メモも管理</p>
+  </header>
+
+  <!-- 合計カード -->
+  <div class="total-card" id="totalCard">
+    <p class="total-label">月次コスト増加額 合計</p>
+    <p class="total-value" id="totalValue">¥0</p>
+    <p class="total-sub" id="totalSub">品目を追加してください</p>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="field">
+      <label for="itemName">品目名</label>
+      <input type="text" id="itemName" placeholder="例: 小麦粉・段ボール・燃料代">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="beforePrice">値上げ前単価（円）</label>
+        <input type="number" id="beforePrice" placeholder="例: 500" min="0">
+      </div>
+      <div class="field">
+        <label for="afterPrice">値上げ後単価（円）</label>
+        <input type="number" id="afterPrice" placeholder="例: 650" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="qty">月間仕入れ数量</label>
+      <input type="number" id="qty" placeholder="例: 100" min="0">
+    </div>
+    <div class="field">
+      <label for="altMemo">代替品候補メモ（任意）</label>
+      <textarea id="altMemo" placeholder="例: A社の代替品で単価480円／国産に切り替えを検討"></textarea>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addItem()">追加する</button>
+
+  <!-- 品目リスト -->
+  <div class="card" id="listCard">
+    <p class="card-title">品目一覧</p>
+    <ul class="item-list" id="itemList">
+      <li class="empty-msg">まだ品目がありません</li>
+    </ul>
+  </div>
+
+  <button class="btn-clear-all" onclick="clearAll()">すべてクリア</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'neage-simulator-items';
+  var items = [];
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      items = raw ? JSON.parse(raw) : [];
+    } catch(e) { items = []; }
+    render();
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+
+  function addItem() {
+    var name = document.getElementById('itemName').value.trim();
+    var before = parseFloat(document.getElementById('beforePrice').value);
+    var after = parseFloat(document.getElementById('afterPrice').value);
+    var qty = parseFloat(document.getElementById('qty').value);
+    var alt = document.getElementById('altMemo').value.trim();
+
+    if (!name) { alert('品目名を入力してください'); return; }
+    if (isNaN(before) || isNaN(after) || isNaN(qty)) { alert('単価と数量をすべて入力してください'); return; }
+    if (before < 0 || after < 0 || qty < 0) { alert('0以上の値を入力してください'); return; }
+
+    items.push({ id: Date.now(), name: name, before: before, after: after, qty: qty, alt: alt });
+    save();
+    render();
+
+    document.getElementById('itemName').value = '';
+    document.getElementById('beforePrice').value = '';
+    document.getElementById('afterPrice').value = '';
+    document.getElementById('qty').value = '';
+    document.getElementById('altMemo').value = '';
+    document.getElementById('itemName').focus();
+  }
+
+  function deleteItem(id) {
+    items = items.filter(function(it){ return it.id !== id; });
+    save();
+    render();
+  }
+
+  function clearAll() {
+    if (items.length === 0) return;
+    if (!confirm('品目をすべて削除しますか？')) return;
+    items = [];
+    save();
+    render();
+  }
+
+  function render() {
+    var list = document.getElementById('itemList');
+    var totalEl = document.getElementById('totalValue');
+    var subEl = document.getElementById('totalSub');
+
+    if (items.length === 0) {
+      list.innerHTML = '<li class="empty-msg">まだ品目がありません</li>';
+      totalEl.textContent = '¥0';
+      subEl.textContent = '品目を追加してください';
+      return;
+    }
+
+    var total = 0;
+    var html = '';
+    items.forEach(function(it) {
+      var diff = it.after - it.before;
+      var increase = diff * it.qty;
+      total += increase;
+      var rateStr = it.before > 0 ? '（' + (diff / it.before * 100).toFixed(1) + '% 上昇）' : '';
+      html += '<li class="item-row">'
+        + '<button class="btn-del" onclick="deleteItem(' + it.id + ')" title="削除">✕</button>'
+        + '<p class="item-name">' + esc(it.name) + '</p>'
+        + '<p class="item-meta">単価: ' + fmt(it.before) + ' → ' + fmt(it.after) + ' 円' + rateStr + '　数量: ' + fmt(it.qty) + '</p>'
+        + '<p class="item-increase">月次増加: +' + fmt(increase) + ' 円</p>'
+        + (it.alt ? '<p class="item-alt"><span class="item-alt-label">代替品候補:</span> ' + esc(it.alt) + '</p>' : '')
+        + '</li>';
+    });
+
+    list.innerHTML = html;
+    totalEl.textContent = (total >= 0 ? '+' : '') + '¥' + fmt(total);
+    subEl.textContent = items.length + ' 品目　単価差・数量から計算';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
