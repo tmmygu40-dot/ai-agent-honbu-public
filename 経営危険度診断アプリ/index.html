@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>経営危険度診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --danger: #c2410c; --danger-bg: #fff7ed;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .card-title .cat-score {
+      font-size: 0.72rem; color: var(--text-sub); font-weight: 600; letter-spacing: 0;
+    }
+
+    /* チェックリスト */
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.6rem;
+      padding: 0.65rem 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .check-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .check-item input[type="checkbox"] {
+      width: 1.2rem; height: 1.2rem; min-width: 1.2rem;
+      accent-color: var(--accent);
+      margin-top: 0.1rem; cursor: pointer;
+    }
+    .check-item label {
+      font-size: 0.9rem; line-height: 1.55; color: var(--text);
+      cursor: pointer; flex: 1;
+    }
+    .check-item.checked label { color: var(--text-sub); text-decoration: line-through; }
+
+    /* スコアバー */
+    .score-bar-wrap {
+      background: var(--bg); border-radius: 99px;
+      height: 12px; overflow: hidden; margin: 0.8rem 0 0.4rem;
+    }
+    .score-bar {
+      height: 100%; border-radius: 99px;
+      transition: width 0.3s ease, background 0.3s;
+      background: var(--ok);
+    }
+
+    /* 結論カード */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok     { border-color: var(--ok);     background: var(--ok-bg);     }
+    .result-card.warn   { border-color: var(--warn);   background: var(--warn-bg);   }
+    .result-card.danger { border-color: var(--danger); background: var(--danger-bg); }
+    .result-card.ng     { border-color: var(--ng);     background: var(--ng-bg);     }
+
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.25rem; }
+    .result-card.ok     .result-value { color: var(--ok);     }
+    .result-card.warn   .result-value { color: var(--warn);   }
+    .result-card.danger .result-value { color: var(--danger); }
+    .result-card.ng     .result-value { color: var(--ng);     }
+
+    .result-level { font-size: 1rem; font-weight: 800; margin-bottom: 0.6rem; }
+    .result-card.ok     .result-level { color: var(--ok);     }
+    .result-card.warn   .result-level { color: var(--warn);   }
+    .result-card.danger .result-level { color: var(--danger); }
+    .result-card.ng     .result-level { color: var(--ng);     }
+
+    .result-note { font-size: 0.85rem; color: var(--text-sub); line-height: 1.6; text-align: left; }
+
+    /* 内訳テーブル */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* リセットボタン */
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.75rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      cursor: pointer;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* 総合スコアヘッダー */
+    .score-header {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1.2rem;
+      max-width: 600px;
+    }
+    .score-header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+    .score-header-label { font-size: 0.78rem; font-weight: 700; color: var(--text-sub); letter-spacing: 0.04em; }
+    .score-header-num { font-size: 1.5rem; font-weight: 900; color: var(--text); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>経営危険度診断アプリ</h1>
+    <p class="subtitle">廃業・倒産の前兆サインをチェックして経営危険度を即診断</p>
+  </header>
+
+  <!-- 総合スコア表示 -->
+  <div class="score-header" id="scoreHeader">
+    <div class="score-header-top">
+      <span class="score-header-label">経営危険度スコア</span>
+      <span class="score-header-num" id="headerScore">0 / 20</span>
+    </div>
+    <div class="score-bar-wrap">
+      <div class="score-bar" id="scoreBar" style="width:0%"></div>
+    </div>
+  </div>
+
+  <!-- 結論カード -->
+  <div class="result-card ok" id="result" style="display:none">
+    <p class="result-label">危険度スコア</p>
+    <p class="result-value" id="rv">0%</p>
+    <p class="result-level" id="rl">安全</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- カテゴリ1: 財務・資金繰り -->
+  <div class="card">
+    <p class="card-title">
+      財務・資金繰り
+      <span class="cat-score" id="cat0-score">0 / 4</span>
+    </p>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="0">
+      <label>売上が3ヶ月以上連続して前年比を下回っている</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="0">
+      <label>月末になると資金繰りが苦しくなっている</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="0">
+      <label>借入金の返済が滞ったことがある、または滞りそう</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="0">
+      <label>銀行の新規融資を断られたことがある</label>
+    </div>
+  </div>
+
+  <!-- カテゴリ2: 売上・顧客 -->
+  <div class="card">
+    <p class="card-title">
+      売上・顧客
+      <span class="cat-score" id="cat1-score">0 / 4</span>
+    </p>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="1">
+      <label>主力商品・サービスの売上が大きく落ちている</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="1">
+      <label>顧客数（来客数）が半年以上減少傾向にある</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="1">
+      <label>特定の顧客・取引先に売上の7割以上を依存している</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="1">
+      <label>新規顧客がほとんど獲得できていない</label>
+    </div>
+  </div>
+
+  <!-- カテゴリ3: コスト・利益 -->
+  <div class="card">
+    <p class="card-title">
+      コスト・利益
+      <span class="cat-score" id="cat2-score">0 / 4</span>
+    </p>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="2">
+      <label>粗利率（売上総利益率）が業界平均より5%以上低い</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="2">
+      <label>固定費が売上に対して重くなっている（固定費率50%超）</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="2">
+      <label>人件費が売上の40%を超えている</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="2">
+      <label>光熱費・原材料費の高騰を価格に転嫁できていない</label>
+    </div>
+  </div>
+
+  <!-- カテゴリ4: 人材・組織 -->
+  <div class="card">
+    <p class="card-title">
+      人材・組織
+      <span class="cat-score" id="cat3-score">0 / 4</span>
+    </p>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="3">
+      <label>従業員の離職率が高まっている、または主力スタッフが辞めた</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="3">
+      <label>採用してもすぐに辞める状況が続いている</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="3">
+      <label>後継者・幹部候補が育っていない</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="3">
+      <label>経営者一人に業務・判断が集中していて属人化している</label>
+    </div>
+  </div>
+
+  <!-- カテゴリ5: 外部環境・競合 -->
+  <div class="card">
+    <p class="card-title">
+      外部環境・競合
+      <span class="cat-score" id="cat4-score">0 / 4</span>
+    </p>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="4">
+      <label>競合他社に顧客を奪われていると感じる</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="4">
+      <label>業界全体が縮小・低迷しており先行きが暗い</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="4">
+      <label>主要な仕入れ先から取引条件を悪化させられた</label>
+    </div>
+    <div class="check-item" onclick="toggle(this)">
+      <input type="checkbox" data-cat="4">
+      <label>法改正・規制変更で事業継続が難しくなりつつある</label>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">カテゴリ別集計</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <button class="btn-reset" onclick="resetAll()">チェックをリセットする</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'keiei-kiken-checks';
+  var TOTAL = 20;
+  var CAT_NAMES = ['財務・資金繰り', '売上・顧客', 'コスト・利益', '人材・組織', '外部環境・競合'];
+  var CAT_SIZE = 4;
+
+  function getChecks() {
+    var all = document.querySelectorAll('.check-item input[type="checkbox"]');
+    return Array.from(all);
+  }
+
+  function toggle(item) {
+    var cb = item.querySelector('input[type="checkbox"]');
+    cb.checked = !cb.checked;
+    item.classList.toggle('checked', cb.checked);
+    update();
+  }
+
+  function update() {
+    var checks = getChecks();
+    var total = 0;
+    var catCounts = [0, 0, 0, 0, 0];
+
+    checks.forEach(function(cb) {
+      if (cb.checked) {
+        total++;
+        catCounts[parseInt(cb.dataset.cat)]++;
+      }
+    });
+
+    var pct = Math.round(total / TOTAL * 100);
+
+    // スコアバー
+    document.getElementById('headerScore').textContent = total + ' / ' + TOTAL;
+    var bar = document.getElementById('scoreBar');
+    bar.style.width = pct + '%';
+    bar.style.background = getColor(pct);
+
+    // 結論カード（常に表示）
+    var rc = document.getElementById('result');
+    var levelInfo = getLevel(pct);
+    rc.style.display = '';
+    rc.className = 'result-card ' + levelInfo.cls;
+    document.getElementById('rv').textContent = pct + '%';
+    document.getElementById('rl').textContent = levelInfo.label;
+    document.getElementById('rn').textContent = levelInfo.advice;
+
+    // カテゴリ別集計
+    for (var i = 0; i < 5; i++) {
+      document.getElementById('cat' + i + '-score').textContent = catCounts[i] + ' / ' + CAT_SIZE;
+    }
+
+    // 内訳テーブル
+    var rows = CAT_NAMES.map(function(name, i) {
+      var c = catCounts[i];
+      var p = Math.round(c / CAT_SIZE * 100);
+      return '<tr><td>' + name + '</td><td>' + c + ' / ' + CAT_SIZE + '（' + p + '%）</td></tr>';
+    });
+    rows.push('<tr class="hl"><td>合計</td><td>' + total + ' / ' + TOTAL + '（' + pct + '%）</td></tr>');
+    document.getElementById('db').innerHTML = rows.join('');
+    document.getElementById('detail').style.display = '';
+
+    save();
+  }
+
+  function getColor(pct) {
+    if (pct <= 25) return 'var(--ok)';
+    if (pct <= 50) return 'var(--warn)';
+    if (pct <= 75) return 'var(--danger)';
+    return 'var(--ng)';
+  }
+
+  function getLevel(pct) {
+    if (pct <= 25) return {
+      cls: 'ok',
+      label: '安全',
+      advice: '現時点では深刻な前兆サインは少ない状況です。ただし油断せず、財務状況の定期確認と顧客基盤の維持を続けてください。'
+    };
+    if (pct <= 50) return {
+      cls: 'warn',
+      label: '要注意',
+      advice: 'いくつかの危険サインが出ています。特にチェックした項目を優先課題として対処しましょう。早めの対策が廃業リスクを大幅に下げます。'
+    };
+    if (pct <= 75) return {
+      cls: 'danger',
+      label: '危険',
+      advice: '多くの前兆サインが出ており、経営危機が近づいている可能性があります。今すぐ専門家（税理士・中小企業診断士・商工会）に相談し、抜本的な対策を検討してください。'
+    };
+    return {
+      cls: 'ng',
+      label: '緊急',
+      advice: '廃業・倒産の危険性が非常に高い状態です。一人で抱え込まず、直ちに金融機関・専門家・行政の支援窓口（事業再生ADR・中小企業再生支援協議会など）に連絡してください。'
+    };
+  }
+
+  function save() {
+    var checks = getChecks();
+    var state = checks.map(function(cb) { return cb.checked ? 1 : 0; });
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+  }
+
+  function load() {
+    try {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      var state = JSON.parse(saved);
+      var checks = getChecks();
+      checks.forEach(function(cb, i) {
+        if (state[i]) {
+          cb.checked = true;
+          cb.closest('.check-item').classList.add('checked');
+        }
+      });
+      update();
+    } catch(e) {}
+  }
+
+  function resetAll() {
+    var checks = getChecks();
+    checks.forEach(function(cb) {
+      cb.checked = false;
+      cb.closest('.check-item').classList.remove('checked');
+    });
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+    update();
+  }
+
+  load();
+  </script>
+</body>
+</html>
