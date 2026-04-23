@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>必要売上シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力行 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2列入力（現在 / 値上げ後） ── */
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .row2-label { font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; display: block; }
+    .col-head { font-size: 0.72rem; font-weight: 700; text-align: center; padding: 0.25rem 0; margin-bottom: 0.3rem; }
+    .col-head.now { color: var(--text-sub); }
+    .col-head.after { color: var(--accent); }
+    .col-headers { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.2rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.7rem;
+      font-size: 0.88rem; font-weight: 600;
+      background: #fff; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* 現在 vs 値上げ後 比較 */
+    .compare-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;
+      margin-bottom: 1rem;
+    }
+    .compare-box {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.9rem 0.8rem; text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .compare-box.after-box { border-color: var(--accent); background: var(--accent-light); }
+    .compare-box .cb-label { font-size: 0.7rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .compare-box.after-box .cb-label { color: var(--accent); }
+    .compare-box .cb-val { font-size: 1.35rem; font-weight: 900; color: var(--text); }
+    .compare-box.after-box .cb-val { color: var(--accent); }
+    .compare-box .cb-diff { font-size: 0.75rem; color: var(--ng); font-weight: 700; margin-top: 0.2rem; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:nth-child(2),
+    .detail-table td:nth-child(3) { text-align: right; font-weight: 600; color: var(--text); min-width: 90px; }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:nth-child(2),
+    .detail-table .hl td:nth-child(3) { color: var(--accent); font-size: 1rem; }
+    .detail-table th { font-size: 0.72rem; font-weight: 700; color: var(--text-sub);
+      text-align: right; padding: 0.3rem 0.3rem 0.5rem; border-bottom: 2px solid var(--border); }
+    .detail-table th:first-child { text-align: left; }
+
+    /* 上昇バッジ */
+    .up { color: var(--ng); font-size: 0.75rem; font-weight: 700; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>必要売上シミュレーター</h1>
+    <p class="subtitle">人件費・家賃・仕入れの値上げ幅から月商いくら必要か逆算</p>
+  </header>
+
+  <!-- 固定費入力カード -->
+  <div class="card">
+    <p class="card-title">固定費（月額）</p>
+
+    <div class="col-headers">
+      <div class="col-head now">現在</div>
+      <div class="col-head after">値上げ後</div>
+    </div>
+
+    <div class="field">
+      <span class="row2-label">人件費（円）</span>
+      <div class="row2">
+        <input type="number" id="labor_now" placeholder="例: 500000" min="0">
+        <input type="number" id="labor_after" placeholder="例: 550000" min="0">
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="row2-label">家賃（円）</span>
+      <div class="row2">
+        <input type="number" id="rent_now" placeholder="例: 150000" min="0">
+        <input type="number" id="rent_after" placeholder="例: 165000" min="0">
+      </div>
+    </div>
+
+    <div class="field">
+      <span class="row2-label">その他固定費（円）</span>
+      <div class="row2">
+        <input type="number" id="other_now" placeholder="例: 80000" min="0">
+        <input type="number" id="other_after" placeholder="例: 85000" min="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- 変動費・利益率入力カード -->
+  <div class="card">
+    <p class="card-title">原価率・目標利益率（%）</p>
+
+    <div class="col-headers">
+      <div class="col-head now">現在</div>
+      <div class="col-head after">値上げ後</div>
+    </div>
+
+    <div class="field">
+      <span class="row2-label">仕入れ原価率（%）</span>
+      <div class="row2">
+        <input type="number" id="cost_now" placeholder="例: 30" min="0" max="100" step="0.1">
+        <input type="number" id="cost_after" placeholder="例: 35" min="0" max="100" step="0.1">
+      </div>
+      <p class="hint">売上に対する仕入れコストの割合</p>
+    </div>
+
+    <div class="field">
+      <label for="profit_rate">目標利益率（%）</label>
+      <input type="number" id="profit_rate" placeholder="例: 10" min="0" max="99" step="0.1" value="10">
+      <p class="hint">現在・値上げ後どちらで達成したい利益率</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">必要売上を逆算する</button>
+
+  <!-- 比較カード -->
+  <div class="card" id="compareCard" style="display:none">
+    <p class="card-title">必要月商の比較</p>
+    <div class="compare-grid">
+      <div class="compare-box" id="nowBox">
+        <div class="cb-label">現在の必要売上</div>
+        <div class="cb-val" id="nowVal">—</div>
+        <div class="cb-diff" id="nowDiff"></div>
+      </div>
+      <div class="compare-box after-box" id="afterBox">
+        <div class="cb-label">値上げ後の必要売上</div>
+        <div class="cb-val" id="afterVal">—</div>
+        <div class="cb-diff" id="afterDiff"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">値上げで必要売上はどう変わる？</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">コスト内訳</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th>現在</th>
+          <th>値上げ後</th>
+        </tr>
+      </thead>
+      <tbody id="db"></tbody>
+    </table>
+  </div>
+
+  <button class="btn-reset" onclick="resetAll()">入力をリセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEYS = ['labor_now','labor_after','rent_now','rent_after','other_now','other_after','cost_now','cost_after','profit_rate'];
+
+  // localStorage 読み込み
+  (function() {
+    KEYS.forEach(function(k) {
+      var v = localStorage.getItem('hitsuyou_uriage_' + k);
+      if (v !== null) document.getElementById(k).value = v;
+    });
+  })();
+
+  function saveLS() {
+    KEYS.forEach(function(k) {
+      localStorage.setItem('hitsuyou_uriage_' + k, document.getElementById(k).value);
+    });
+  }
+
+  function gv(id) { return parseFloat(document.getElementById(id).value) || 0; }
+
+  function calc() {
+    var laborN  = gv('labor_now');
+    var laborA  = gv('labor_after');
+    var rentN   = gv('rent_now');
+    var rentA   = gv('rent_after');
+    var otherN  = gv('other_now');
+    var otherA  = gv('other_after');
+    var costRN  = gv('cost_now');
+    var costRA  = gv('cost_after');
+    var profitR = gv('profit_rate');
+
+    // 入力バリデーション
+    if (costRN + profitR >= 100) {
+      showErr('現在の原価率と目標利益率の合計が100%以上です。入力を見直してください。');
+      return;
+    }
+    if (costRA + profitR >= 100) {
+      showErr('値上げ後の原価率と目標利益率の合計が100%以上です。入力を見直してください。');
+      return;
+    }
+    if (laborN + rentN + otherN === 0 && laborA + rentA + otherA === 0) {
+      showErr('固定費をひとつ以上入力してください。');
+      return;
+    }
+
+    saveLS();
+
+    // 固定費合計
+    var fixedN = laborN + rentN + otherN;
+    var fixedA = laborA + rentA + otherA;
+
+    // 必要売上 = 固定費 / (1 - 原価率/100 - 目標利益率/100)
+    var marginN = 1 - costRN / 100 - profitR / 100;
+    var marginA = 1 - costRA / 100 - profitR / 100;
+    var salesN  = fixedN / marginN;
+    var salesA  = fixedA / marginA;
+    var diff    = salesA - salesN;
+    var diffPct = salesN > 0 ? (diff / salesN * 100).toFixed(1) : 0;
+
+    // 比較カード
+    document.getElementById('compareCard').style.display = '';
+    document.getElementById('nowVal').textContent  = '¥' + fmt(salesN);
+    document.getElementById('afterVal').textContent = '¥' + fmt(salesA);
+    document.getElementById('nowDiff').textContent  = '';
+    document.getElementById('afterDiff').textContent = diff >= 0
+      ? '+¥' + fmt(diff) + '（+' + diffPct + '%）'
+      : '-¥' + fmt(Math.abs(diff)) + '（' + diffPct + '%）';
+
+    // 結論カード
+    var level, msg;
+    if (diff > salesN * 0.2) {
+      level = 'ng';
+      msg   = 'コスト増が大きく、' + fmt(diff) + '円以上の売上上積みが必要です。値上げ対応か固定費削減を検討してください。';
+    } else if (diff > 0) {
+      level = 'warn';
+      msg   = '売上を月' + fmt(diff) + '円（+' + diffPct + '%）上積みすることで目標利益率を維持できます。';
+    } else {
+      level = 'ok';
+      msg   = 'コスト削減により現在より少ない売上で目標利益率を達成できます。';
+    }
+    showResult(level, diff >= 0 ? '+¥' + fmt(diff) : '-¥' + fmt(Math.abs(diff)), msg);
+
+    // 内訳テーブル
+    var rows = [
+      ['人件費', fmt(laborN), fmt(laborA)],
+      ['家賃',   fmt(rentN),  fmt(rentA)],
+      ['その他固定費', fmt(otherN), fmt(otherA)],
+      ['固定費合計', fmt(fixedN), fmt(fixedA), true],
+      ['原価率', costRN.toFixed(1) + '%', costRA.toFixed(1) + '%'],
+      ['目標利益率', profitR.toFixed(1) + '%', profitR.toFixed(1) + '%'],
+      ['必要月商', fmt(salesN), fmt(salesA), true],
+    ];
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[3] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td>'
+           + '<td>' + r[1] + (r[3] ? '' : '') + '</td>'
+           + '<td>' + r[2] + '</td>'
+           + '</tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showErr(msg) {
+    document.getElementById('compareCard').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    showResult('ng', '⚠️', msg);
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function resetAll() {
+    KEYS.forEach(function(k) {
+      document.getElementById(k).value = '';
+      localStorage.removeItem('hitsuyou_uriage_' + k);
+    });
+    document.getElementById('profit_rate').value = '10';
+    localStorage.setItem('hitsuyou_uriage_profit_rate', '10');
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('compareCard').style.display = 'none';
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
