@@ -218,7 +218,7 @@ if ($ok) {
 if ($ok) {
     $chkIdx   = [System.IO.File]::ReadAllText((Join-Path $pub "index.html"), [System.Text.Encoding]::UTF8)
     $chkBlock = [regex]::Match($chkIdx, '(?s)<ul id="all-apps".*?<!-- APP_LIST_END -->')
-    $cntIdx   = if ($chkBlock.Success) { [regex]::Matches($chkBlock.Value, '<li>').Count } else { -1 }
+    $cntIdx   = if ($chkBlock.Success) { [regex]::Matches($chkBlock.Value, '<li><a href="\./').Count } else { -1 }
 
     $chkPub = [System.IO.File]::ReadAllText((Join-Path $pub "PUBLISHED.md"), [System.Text.Encoding]::UTF8)
     $cntPub = [regex]::Matches($chkPub, '^\| \d+', [System.Text.RegularExpressions.RegexOptions]::Multiline).Count
