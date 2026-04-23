@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家計耐久シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 評価バッジ ── */
+    .verdict-badge {
+      display: inline-block; margin-bottom: 0.6rem;
+      padding: 0.25rem 0.9rem; border-radius: 999px;
+      font-size: 0.8rem; font-weight: 800; letter-spacing: 0.08em;
+    }
+    .ok   .verdict-badge { background: var(--ok);   color: #fff; }
+    .warn .verdict-badge { background: var(--warn); color: #fff; }
+    .ng   .verdict-badge { background: var(--ng);   color: #fff; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 年次推移テーブル ── */
+    .proj-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .proj-table th { background: var(--bg); padding: 0.45rem 0.4rem; text-align: right; font-weight: 700; color: var(--text-sub); border-bottom: 2px solid var(--border); }
+    .proj-table th:first-child { text-align: left; }
+    .proj-table td { padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--border); text-align: right; color: var(--text-sub); }
+    .proj-table td:first-child { text-align: left; font-weight: 600; color: var(--text); }
+    .proj-table .deficit td { color: var(--ng); font-weight: 700; }
+    .proj-table .deficit td:first-child { color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>家計耐久シミュレーター</h1>
+    <p class="subtitle">物価上昇ペースと収入から、家計の限界時期を即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">現在の家計状況</p>
+    <div class="field">
+      <label for="income">月収入（手取り）</label>
+      <input type="number" id="income" placeholder="例: 250000" min="0">
+      <p class="hint">円（ボーナスは除く）</p>
+    </div>
+    <div class="field">
+      <label for="expense">月支出（現在）</label>
+      <input type="number" id="expense" placeholder="例: 220000" min="0">
+      <p class="hint">円（家賃・食費・光熱費・通信費など合計）</p>
+    </div>
+    <div class="field">
+      <label for="rate">年間物価上昇率</label>
+      <input type="number" id="rate" placeholder="例: 3" step="0.1" min="0" max="50">
+      <p class="hint">%（総務省CPI基準：近年2〜4%程度）</p>
+    </div>
+    <div class="field">
+      <label for="income_growth">年間収入増加率（昇給など）</label>
+      <input type="number" id="income_growth" placeholder="例: 0" step="0.1" min="0" max="50">
+      <p class="hint">%（収入が変わらない場合は0）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">家計の限界時期を試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">家計の耐久判定</p>
+    <div class="verdict-badge" id="rb">—</div>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">現在の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 年次推移カード -->
+  <div class="card" id="proj-card" style="display:none">
+    <p class="card-title">年次推移（5年間）</p>
+    <table class="proj-table">
+      <thead>
+        <tr>
+          <th>年後</th>
+          <th>月収入</th>
+          <th>月支出</th>
+          <th>月収支</th>
+        </tr>
+      </thead>
+      <tbody id="proj-body"></tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'kakeikotai_v1';
+
+  // 起動時にlocalStorageから復元
+  window.addEventListener('DOMContentLoaded', function() {
+    var saved = localStorage.getItem(LS_KEY);
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      if (d.income)       document.getElementById('income').value = d.income;
+      if (d.expense)      document.getElementById('expense').value = d.expense;
+      if (d.rate)         document.getElementById('rate').value = d.rate;
+      if (d.income_growth !== undefined) document.getElementById('income_growth').value = d.income_growth;
+    } catch(e) {}
+  });
+
+  function calc() {
+    var income       = parseFloat(document.getElementById('income').value);
+    var expense      = parseFloat(document.getElementById('expense').value);
+    var rate         = parseFloat(document.getElementById('rate').value);
+    var incomeGrowth = parseFloat(document.getElementById('income_growth').value) || 0;
+
+    if (isNaN(income) || isNaN(expense) || isNaN(rate)) {
+      showErr('収入・支出・物価上昇率を入力してください');
+      return;
+    }
+    if (income <= 0 || expense <= 0) {
+      showErr('収入・支出は0より大きい値を入力してください');
+      return;
+    }
+
+    // localStorage に保存
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      income: income,
+      expense: expense,
+      rate: rate,
+      income_growth: incomeGrowth
+    }));
+
+    var currentBalance = income - expense;
+    var monthlyExpGrowth = rate / 100 / 12;       // 月次支出増加率
+    var monthlyIncGrowth = incomeGrowth / 100 / 12; // 月次収入増加率
+
+    // 既に赤字の場合
+    if (currentBalance < 0) {
+      showResult('ng', '既に赤字', '即対応が必要です', '現在の支出が収入を上回っています。支出の見直しや収入アップが急務です。');
+      showDetail(income, expense, currentBalance);
+      showProjection(income, expense, monthlyExpGrowth, monthlyIncGrowth);
+      return;
+    }
+
+    // 赤字転落月を探す（最大240ヶ月=20年）
+    var curIncome  = income;
+    var curExpense = expense;
+    var limitMonth = -1;
+
+    for (var m = 1; m <= 240; m++) {
+      curExpense = curExpense * (1 + monthlyExpGrowth);
+      curIncome  = curIncome  * (1 + monthlyIncGrowth);
+      if (curIncome < curExpense) {
+        limitMonth = m;
+        break;
+      }
+    }
+
+    var level, badge, mainText, noteText;
+
+    if (limitMonth === -1) {
+      // 20年以内に赤字転落しない
+      level    = 'ok';
+      badge    = '安心';
+      mainText = '20年以上 耐久';
+      noteText = '現在のペースでは20年以内に赤字転落しません。引き続き家計を管理しましょう。';
+    } else {
+      var years  = Math.floor(limitMonth / 12);
+      var months = limitMonth % 12;
+      var label  = '';
+      if (years > 0 && months > 0) label = years + '年' + months + 'ヶ月後';
+      else if (years > 0)          label = years + '年後';
+      else                         label = months + 'ヶ月後';
+
+      if (limitMonth >= 12) {
+        level    = 'warn';
+        badge    = '注意';
+        mainText = label + ' に赤字転落';
+        noteText = '今から備えれば間に合います。支出削減または収入アップを検討してください。';
+      } else if (limitMonth >= 6) {
+        level    = 'warn';
+        badge    = '要注意';
+        mainText = label + ' に赤字転落';
+        noteText = '半年以内に危機が迫っています。今すぐ固定費の見直しを始めましょう。';
+      } else {
+        level    = 'ng';
+        badge    = '危険';
+        mainText = label + ' に赤字転落';
+        noteText = '数ヶ月以内に家計が崩壊します。緊急の支出削減が必要です。';
+      }
+    }
+
+    showResult(level, badge, mainText, noteText);
+    showDetail(income, expense, currentBalance);
+    showProjection(income, expense, monthlyExpGrowth, monthlyIncGrowth);
+  }
+
+  function showResult(level, badge, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rb').textContent = badge;
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(income, expense, balance) {
+    var rows = [
+      ['月収入', fmt(income) + ' 円'],
+      ['月支出', fmt(expense) + ' 円'],
+      ['月収支', fmt(balance) + ' 円', true],
+    ];
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showProjection(baseIncome, baseExpense, monthlyExpGrowth, monthlyIncGrowth) {
+    var tbody = document.getElementById('proj-body');
+    var rows  = '';
+    var curIncome  = baseIncome;
+    var curExpense = baseExpense;
+
+    for (var yr = 1; yr <= 5; yr++) {
+      // 12ヶ月複利
+      for (var m = 0; m < 12; m++) {
+        curExpense = curExpense * (1 + monthlyExpGrowth);
+        curIncome  = curIncome  * (1 + monthlyIncGrowth);
+      }
+      var balance = curIncome - curExpense;
+      var isDef   = balance < 0;
+      rows += '<tr' + (isDef ? ' class="deficit"' : '') + '>'
+            + '<td>' + yr + '年後</td>'
+            + '<td>' + fmt(curIncome) + '円</td>'
+            + '<td>' + fmt(curExpense) + '円</td>'
+            + '<td>' + (isDef ? '▼' : '') + fmt(Math.abs(balance)) + '円</td>'
+            + '</tr>';
+    }
+    tbody.innerHTML = rows;
+    document.getElementById('proj-card').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rb').textContent = 'エラー';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('proj-card').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
