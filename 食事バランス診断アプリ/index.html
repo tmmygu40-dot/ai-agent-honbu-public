@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>食事バランス診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .meal-section { margin-bottom: 1.2rem; }
+    .meal-section:last-child { margin-bottom: 0; }
+    .meal-title {
+      font-size: 0.85rem; font-weight: 700; color: var(--text);
+      background: var(--accent-light); border-radius: 8px;
+      padding: 0.4rem 0.7rem; margin-bottom: 0.6rem;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .meal-title .icon { font-size: 1rem; }
+
+    .food-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.5rem;
+    }
+    .food-item {
+      display: flex; align-items: center; gap: 0.4rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 0.5rem 0.6rem;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .food-item input[type="checkbox"] { display: none; }
+    .food-item.selected {
+      border-color: var(--accent); background: var(--accent-light);
+    }
+    .food-item .check-box {
+      width: 16px; height: 16px; border-radius: 4px;
+      border: 2px solid var(--border); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; color: var(--accent);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .food-item.selected .check-box {
+      border-color: var(--accent); background: var(--accent); color: #fff;
+    }
+    .food-item .food-name { font-size: 0.82rem; font-weight: 600; line-height: 1.3; }
+    .food-item .food-meta { font-size: 0.68rem; color: var(--text-sub); line-height: 1.2; }
+
+    .target-info {
+      font-size: 0.75rem; color: var(--text-sub);
+      background: #f9f6f2; border-radius: 8px; padding: 0.6rem 0.8rem;
+      margin-bottom: 1rem; line-height: 1.6;
+    }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.7rem;
+      font-size: 0.88rem; font-weight: 600;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; text-align: center; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; text-align: center; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; text-align: center; }
+
+    .nutrient-row {
+      display: flex; align-items: center; gap: 0.8rem;
+      padding: 0.9rem 0; border-bottom: 1px solid var(--border);
+    }
+    .nutrient-row:last-child { border-bottom: none; }
+    .nutrient-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .nutrient-info { flex: 1; }
+    .nutrient-name { font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.15rem; }
+    .nutrient-val-row { display: flex; align-items: baseline; gap: 0.4rem; margin-bottom: 0.3rem; }
+    .nutrient-val { font-size: 1.4rem; font-weight: 900; }
+    .nutrient-unit { font-size: 0.78rem; color: var(--text-sub); }
+    .nutrient-target { font-size: 0.72rem; color: var(--text-sub); }
+    .level-ok   { color: var(--ok); }
+    .level-warn { color: var(--warn); }
+    .level-ng   { color: var(--ng); }
+
+    .bar-wrap { height: 8px; background: #e8e0d8; border-radius: 99px; overflow: hidden; margin-top: 0.2rem; }
+    .bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s; max-width: 100%; }
+    .bar-ok   { background: var(--ok);   }
+    .bar-warn { background: var(--warn); }
+    .bar-ng   { background: var(--ng);   }
+
+    .advice-box {
+      background: var(--accent-light); border-radius: 10px;
+      padding: 0.9rem 1rem; margin-top: 0.8rem;
+    }
+    .advice-title { font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-bottom: 0.4rem; }
+    .advice-list { list-style: none; }
+    .advice-list li { font-size: 0.82rem; line-height: 1.6; padding-left: 1.2em; position: relative; }
+    .advice-list li::before { content: "・"; position: absolute; left: 0; color: var(--accent); }
+
+    .food-summary { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.6rem; line-height: 1.6; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .empty-msg { font-size: 0.85rem; color: var(--text-sub); text-align: center; padding: 1.5rem 0; }
+
+    @media (max-width: 400px) {
+      .food-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>食事バランス診断アプリ</h1>
+    <p class="subtitle">今日の食事を選ぶだけで塩分・糖質の摂りすぎ度を即診断</p>
+  </header>
+
+  <div class="card" style="max-width:600px;margin:0 auto 1rem;">
+    <div class="target-info">
+      📊 <strong>1日の目標値：</strong>塩分 <strong>7.0g</strong>以下（男7.5g・女6.5gの中間値）／糖質 <strong>250g</strong>以下（適正エネルギーの50%目安）
+    </div>
+    <p class="card-title">今日食べたものを選んでください</p>
+
+    <div id="mealSections"></div>
+  </div>
+
+  <button class="btn-calc" onclick="diagnose()">診断する</button>
+  <button class="btn-reset" onclick="resetAll()">選択をリセット</button>
+
+  <div class="result-card" id="result">
+    <p class="result-label">総合診断</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <div class="card" id="detail" style="display:none;max-width:600px;margin:0 auto 1rem;">
+    <p class="card-title">栄養バランス詳細</p>
+    <div id="nutrientDetail"></div>
+    <div class="advice-box" id="adviceBox" style="display:none;">
+      <p class="advice-title">💡 改善アドバイス</p>
+      <ul class="advice-list" id="adviceList"></ul>
+    </div>
+    <p class="food-summary" id="foodSummary"></p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // ─── 食品データベース ───
+  var FOODS = {
+    breakfast: {
+      label: '朝食', icon: '🌅',
+      items: [
+        { id:'bf01', name:'ご飯（茶碗1杯）',   salt:0.0, sugar:55.7 },
+        { id:'bf02', name:'食パン（1枚）',      salt:0.7, sugar:26.6 },
+        { id:'bf03', name:'目玉焼き',           salt:0.3, sugar:0.3  },
+        { id:'bf04', name:'味噌汁',             salt:1.3, sugar:3.5  },
+        { id:'bf05', name:'納豆',               salt:0.7, sugar:4.5  },
+        { id:'bf06', name:'シリアル（1杯）',    salt:0.5, sugar:38.0 },
+        { id:'bf07', name:'ヨーグルト',         salt:0.1, sugar:12.0 },
+        { id:'bf08', name:'目玉焼き＋トースト', salt:0.9, sugar:27.0 },
+        { id:'bf09', name:'おにぎり（1個）',    salt:0.8, sugar:38.0 },
+        { id:'bf10', name:'和定食（ご飯・汁・魚）', salt:2.5, sugar:57.0 },
+      ]
+    },
+    lunch: {
+      label: '昼食', icon: '🌞',
+      items: [
+        { id:'lu01', name:'ラーメン',           salt:5.0, sugar:65.0 },
+        { id:'lu02', name:'うどん（かけ）',     salt:3.0, sugar:52.0 },
+        { id:'lu03', name:'そば（ざる）',       salt:1.5, sugar:48.0 },
+        { id:'lu04', name:'牛丼（並）',         salt:2.5, sugar:65.0 },
+        { id:'lu05', name:'カレーライス',       salt:2.8, sugar:80.0 },
+        { id:'lu06', name:'ハンバーガーセット', salt:3.0, sugar:55.0 },
+        { id:'lu07', name:'パスタ（ナポリタン）',salt:2.0,sugar:70.0 },
+        { id:'lu08', name:'コンビニ弁当',       salt:3.5, sugar:75.0 },
+        { id:'lu09', name:'チャーハン',         salt:2.0, sugar:65.0 },
+        { id:'lu10', name:'定食（魚・ご飯・汁）',salt:2.5,sugar:60.0 },
+        { id:'lu11', name:'サンドイッチ',       salt:1.5, sugar:30.0 },
+        { id:'lu12', name:'カップ麺',           salt:5.8, sugar:55.0 },
+      ]
+    },
+    dinner: {
+      label: '夕食', icon: '🌙',
+      items: [
+        { id:'di01', name:'焼肉定食',           salt:3.0, sugar:65.0 },
+        { id:'di02', name:'刺身定食',           salt:2.0, sugar:55.0 },
+        { id:'di03', name:'鍋料理（1人前）',    salt:3.5, sugar:15.0 },
+        { id:'di04', name:'餃子定食',           salt:3.0, sugar:60.0 },
+        { id:'di05', name:'麻婆豆腐定食',       salt:3.5, sugar:58.0 },
+        { id:'di06', name:'とんかつ定食',       salt:2.5, sugar:65.0 },
+        { id:'di07', name:'唐揚げ定食',         salt:2.8, sugar:62.0 },
+        { id:'di08', name:'カレーライス',       salt:2.8, sugar:80.0 },
+        { id:'di09', name:'ラーメン',           salt:5.0, sugar:65.0 },
+        { id:'di10', name:'パスタ',             salt:2.0, sugar:70.0 },
+        { id:'di11', name:'焼き魚＋ご飯＋汁',  salt:2.5, sugar:57.0 },
+        { id:'di12', name:'スープカレー',       salt:3.8, sugar:55.0 },
+      ]
+    },
+    snack: {
+      label: '間食・飲み物', icon: '🍩',
+      items: [
+        { id:'sn01', name:'チョコレート（1枚）',salt:0.1, sugar:35.0 },
+        { id:'sn02', name:'ケーキ（1切れ）',    salt:0.3, sugar:45.0 },
+        { id:'sn03', name:'スナック菓子（1袋）',salt:1.2, sugar:40.0 },
+        { id:'sn04', name:'コーラ（350ml）',    salt:0.0, sugar:38.0 },
+        { id:'sn05', name:'果汁ジュース（200ml）',salt:0.0,sugar:25.0},
+        { id:'sn06', name:'アイスクリーム',     salt:0.2, sugar:28.0 },
+        { id:'sn07', name:'おにぎり（1個）',    salt:0.8, sugar:38.0 },
+        { id:'sn08', name:'カフェラテ（L）',    salt:0.2, sugar:22.0 },
+        { id:'sn09', name:'ビール（350ml）',    salt:0.0, sugar:10.5 },
+        { id:'sn10', name:'カップ麺',           salt:5.8, sugar:55.0 },
+      ]
+    }
+  };
+
+  var SALT_TARGET  = 7.0;   // g/日
+  var SUGAR_TARGET = 250.0; // g/日
+
+  var selected = {};
+
+  // ─── UI構築 ───
+  function buildUI() {
+    var html = '';
+    Object.keys(FOODS).forEach(function(key) {
+      var meal = FOODS[key];
+      html += '<div class="meal-section">';
+      html += '<div class="meal-title"><span class="icon">' + meal.icon + '</span>' + meal.label + '</div>';
+      html += '<div class="food-grid">';
+      meal.items.forEach(function(f) {
+        html += '<label class="food-item" id="lbl_' + f.id + '" onclick="toggle(\'' + f.id + '\')">'
+              + '<div class="check-box" id="chk_' + f.id + '"></div>'
+              + '<div><div class="food-name">' + f.name + '</div>'
+              + '<div class="food-meta">塩' + f.salt.toFixed(1) + 'g・糖' + f.sugar.toFixed(0) + 'g</div></div>'
+              + '</label>';
+      });
+      html += '</div></div>';
+    });
+    document.getElementById('mealSections').innerHTML = html;
+    loadFromStorage();
+  }
+
+  function toggle(id) {
+    selected[id] = !selected[id];
+    var lbl = document.getElementById('lbl_' + id);
+    var chk = document.getElementById('chk_' + id);
+    if (selected[id]) {
+      lbl.classList.add('selected');
+      chk.textContent = '✓';
+    } else {
+      lbl.classList.remove('selected');
+      chk.textContent = '';
+    }
+    saveToStorage();
+  }
+
+  // ─── 診断 ───
+  function diagnose() {
+    var totalSalt = 0, totalSugar = 0;
+    var selectedNames = [];
+
+    Object.keys(FOODS).forEach(function(key) {
+      FOODS[key].items.forEach(function(f) {
+        if (selected[f.id]) {
+          totalSalt  += f.salt;
+          totalSugar += f.sugar;
+          selectedNames.push(f.name);
+        }
+      });
+    });
+
+    if (selectedNames.length === 0) {
+      showResult('warn', '⚠️ 未選択', '食べたものを1つ以上選んでください');
+      document.getElementById('detail').style.display = 'none';
+      return;
+    }
+
+    var saltPct  = totalSalt  / SALT_TARGET  * 100;
+    var sugarPct = totalSugar / SUGAR_TARGET * 100;
+
+    var saltLevel  = getLevel(saltPct);
+    var sugarLevel = getLevel(sugarPct);
+    var overall    = worstLevel(saltLevel, sugarLevel);
+
+    var overallText = overall === 'ok'   ? '問題なし ✅'
+                    : overall === 'warn' ? '注意が必要 ⚠️'
+                    : 'オーバー ❌';
+    var overallNote = overall === 'ok'   ? '塩分・糖質ともに目標内です。このバランスを続けましょう。'
+                    : overall === 'warn' ? '一部の栄養が多めです。下の詳細を確認してください。'
+                    : '目標を超えています。飲み物や間食を見直しましょう。';
+
+    showResult(overall, overallText, overallNote);
+    showDetail(totalSalt, totalSugar, saltPct, sugarPct, saltLevel, sugarLevel, selectedNames);
+  }
+
+  function getLevel(pct) {
+    if (pct <= 80)       return 'ok';
+    if (pct <= 110)      return 'warn';
+    return 'ng';
+  }
+
+  function worstLevel(a, b) {
+    var rank = { ok:0, warn:1, ng:2 };
+    return rank[a] >= rank[b] ? a : b;
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(salt, sugar, saltPct, sugarPct, saltLevel, sugarLevel, names) {
+    var html = '';
+
+    // 塩分
+    html += makeNutrientRow('🧂', '塩分', salt.toFixed(1), 'g', '目標: ' + SALT_TARGET + 'g以下',
+      Math.min(saltPct, 150), saltLevel, saltPct);
+
+    // 糖質
+    html += makeNutrientRow('🍚', '糖質', sugar.toFixed(0), 'g', '目標: ' + SUGAR_TARGET + 'g以下',
+      Math.min(sugarPct, 150), sugarLevel, sugarPct);
+
+    document.getElementById('nutrientDetail').innerHTML = html;
+
+    // アドバイス
+    var advices = [];
+    if (saltLevel === 'ng')   advices.push('塩分が多すぎます。ラーメン・カップ麺・鍋の汁は飲み干さず残しましょう。');
+    if (saltLevel === 'warn') advices.push('塩分がやや多めです。味噌汁を1日1杯に抑える、薄味を意識しましょう。');
+    if (sugarLevel === 'ng')  advices.push('糖質が多すぎます。白ご飯・麺類・甘い飲み物を控えるのが効果的です。');
+    if (sugarLevel === 'warn')advices.push('糖質がやや多めです。間食のジュースやお菓子を水やお茶に置き換えましょう。');
+    if (advices.length === 0) advices.push('今日のバランスは良好です。この調子で続けましょう！');
+
+    var adviceHtml = advices.map(function(a){ return '<li>' + a + '</li>'; }).join('');
+    document.getElementById('adviceList').innerHTML = adviceHtml;
+    document.getElementById('adviceBox').style.display = '';
+
+    // 選択食品
+    document.getElementById('foodSummary').textContent = '選択した食品：' + names.join('、');
+
+    document.getElementById('detail').style.display = '';
+  }
+
+  function makeNutrientRow(icon, name, val, unit, target, barPct, level, pct) {
+    var colorClass = 'level-' + level;
+    var barClass   = 'bar-' + level;
+    var pctLabel   = pct.toFixed(0) + '%';
+    return '<div class="nutrient-row">'
+      + '<div class="nutrient-icon">' + icon + '</div>'
+      + '<div class="nutrient-info">'
+      + '<div class="nutrient-name">' + name + '</div>'
+      + '<div class="nutrient-val-row">'
+      + '<span class="nutrient-val ' + colorClass + '">' + val + '</span>'
+      + '<span class="nutrient-unit">' + unit + '</span>'
+      + '<span class="nutrient-unit ' + colorClass + '" style="font-weight:700;">（目標比 ' + pctLabel + '）</span>'
+      + '</div>'
+      + '<div class="nutrient-target">' + target + '</div>'
+      + '<div class="bar-wrap"><div class="bar-fill ' + barClass + '" style="width:' + barPct + '%"></div></div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function resetAll() {
+    selected = {};
+    document.querySelectorAll('.food-item').forEach(function(el){ el.classList.remove('selected'); });
+    document.querySelectorAll('.check-box').forEach(function(el){ el.textContent = ''; });
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    saveToStorage();
+  }
+
+  // ─── localStorage ───
+  var STORAGE_KEY = 'shokuji_barance_v1';
+
+  function saveToStorage() {
+    try {
+      var today = new Date().toLocaleDateString('ja-JP');
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ date: today, selected: selected }));
+    } catch(e) {}
+  }
+
+  function loadFromStorage() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      var today = new Date().toLocaleDateString('ja-JP');
+      if (data.date !== today) return; // 別の日のデータは使わない
+      selected = data.selected || {};
+      Object.keys(selected).forEach(function(id) {
+        if (selected[id]) {
+          var lbl = document.getElementById('lbl_' + id);
+          var chk = document.getElementById('chk_' + id);
+          if (lbl) { lbl.classList.add('selected'); chk.textContent = '✓'; }
+        }
+      });
+    } catch(e) {}
+  }
+
+  // ─── 初期化 ───
+  buildUI();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
