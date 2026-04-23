@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ヒヤリハット報告書ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.show { display: block; }
+    .result-section { margin-bottom: 1rem; }
+    .result-section:last-child { margin-bottom: 0; }
+    .result-section-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; margin-bottom: 0.5rem;
+      padding-bottom: 0.35rem; border-bottom: 1px solid var(--border);
+    }
+    .cause-list, .action-list {
+      list-style: none; padding: 0;
+    }
+    .cause-list li, .action-list li {
+      font-size: 0.9rem; padding: 0.4rem 0.5rem;
+      border-left: 3px solid var(--accent);
+      margin-bottom: 0.4rem; background: var(--accent-light);
+      border-radius: 0 6px 6px 0;
+      line-height: 1.5;
+    }
+    .action-list li { border-left-color: var(--ok); background: var(--ok-bg); }
+
+    .report-box {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      padding: 1rem;
+      font-size: 0.85rem;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin-bottom: 0.75rem;
+    }
+    .btn-copy {
+      display: block; width: 100%;
+      padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: #fff; color: var(--accent);
+      border: 2px solid var(--accent); border-radius: 9px; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:hover, .btn-copy:active { background: var(--accent); color: #fff; }
+    .copy-ok { font-size: 0.78rem; color: var(--ok); text-align: center; margin-top: 0.35rem; display: none; }
+
+    .history-list { list-style: none; padding: 0; }
+    .history-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 0.75rem 0.9rem;
+      margin-bottom: 0.6rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .history-item:hover { border-color: var(--accent); }
+    .history-item .h-date { font-size: 0.75rem; color: var(--text-sub); }
+    .history-item .h-title { font-size: 0.9rem; font-weight: 600; margin-top: 0.15rem; }
+    .history-item .h-place { font-size: 0.78rem; color: var(--text-sub); }
+    .history-empty { font-size: 0.85rem; color: var(--text-sub); text-align: center; padding: 1rem 0; }
+    .btn-del-history {
+      font-size: 0.72rem; color: var(--ng); background: none; border: none;
+      cursor: pointer; float: right; padding: 0;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 420px) {
+      .card, .result-card, .btn-calc { max-width: 100%; margin-left: 0.75rem; margin-right: 0.75rem; width: auto; }
+      .btn-calc { margin-left: 0.75rem; margin-right: 0.75rem; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>ヒヤリハット報告書ジェネレーター</h1>
+    <p class="subtitle">事例を入力するだけで原因分析・対策・報告書を即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">事例入力</p>
+    <div class="field">
+      <label for="incDate">発生日</label>
+      <input type="date" id="incDate">
+    </div>
+    <div class="field">
+      <label for="incPlace">発生場所</label>
+      <input type="text" id="incPlace" placeholder="例: 倉庫A・製造ライン3番">
+    </div>
+    <div class="field">
+      <label for="incWork">作業内容</label>
+      <input type="text" id="incWork" placeholder="例: フォークリフト操作・高所作業・薬品取り扱い">
+    </div>
+    <div class="field">
+      <label for="incSit">状況・何が起きたか</label>
+      <textarea id="incSit" placeholder="例: 棚から商品を取り出す際、荷物が崩れて作業者の足元に落ちそうになった"></textarea>
+    </div>
+    <div class="field">
+      <label for="incCat">原因カテゴリ（選択）</label>
+      <select id="incCat">
+        <option value="">— 選択してください —</option>
+        <option value="human">人的ミス（確認不足・手順違い・疲労）</option>
+        <option value="equipment">設備・機器の不良（故障・老朽化・不適切な設備）</option>
+        <option value="environment">環境要因（場所・照明・天候・騒音）</option>
+        <option value="procedure">手順・ルールの問題（マニュアル未整備・教育不足）</option>
+        <option value="material">資材・材料の問題（品質・保管状態）</option>
+        <option value="other">その他・複合要因</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="incInjury">けが・損害の有無</label>
+      <select id="incInjury">
+        <option value="none">なし（ヒヤリハットのみ）</option>
+        <option value="minor">軽微（かすり傷・打撲等）</option>
+        <option value="major">重大（病院受診・休業等）</option>
+        <option value="property">物的損害のみ</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">報告書を生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <div class="result-section">
+      <p class="result-section-title">推定原因</p>
+      <ul class="cause-list" id="causeList"></ul>
+    </div>
+    <div class="result-section">
+      <p class="result-section-title">再発防止対策</p>
+      <ul class="action-list" id="actionList"></ul>
+    </div>
+    <div class="result-section">
+      <p class="result-section-title">報告書テキスト（コピー用）</p>
+      <div class="report-box" id="reportBox"></div>
+      <button class="btn-copy" onclick="copyReport()">報告書テキストをコピー</button>
+      <p class="copy-ok" id="copyOk">コピーしました！</p>
+    </div>
+  </div>
+
+  <!-- 過去記録 -->
+  <div class="card">
+    <p class="card-title">過去の記録</p>
+    <ul class="history-list" id="historyList">
+      <li class="history-empty">まだ記録がありません</li>
+    </ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'hiyarihatto_records';
+
+  var CAUSES = {
+    human: [
+      '確認・チェックの省略または不足',
+      '手順の誤りや思い込みによる操作',
+      '疲労・集中力低下による判断ミス',
+      'ルールの認識不足・習慣的な不順守',
+    ],
+    equipment: [
+      '設備・機器の点検・整備不足',
+      '老朽化による機能低下',
+      '使用環境に不適切な設備の使用',
+      '安全装置の未設置または不具合',
+    ],
+    environment: [
+      '作業スペースの狭さや整理整頓の不備',
+      '照明不足・視界の悪化',
+      '滑りやすい床面・段差などの物理的要因',
+      '騒音・温度など作業集中を妨げる環境',
+    ],
+    procedure: [
+      '作業手順書・マニュアルの未整備または不明確',
+      '安全教育・訓練の不足',
+      'リスクアセスメントの未実施',
+      '危険箇所の表示・警告の不足',
+    ],
+    material: [
+      '資材・材料の品質不良または劣化',
+      '不適切な保管状態（積み過ぎ・不安定）',
+      '危険物の取り扱いルールの不徹底',
+      '適切な保護具・容器の未使用',
+    ],
+    other: [
+      '複数要因が重なった複合的な事象',
+      '作業量・納期プレッシャーによる急ぎ作業',
+      'コミュニケーション不足による情報共有漏れ',
+      '想定外の状況変化への対応遅れ',
+    ],
+  };
+
+  var ACTIONS = {
+    human: [
+      'チェックリストを作成し、作業前後の確認を義務化する',
+      '手順書を見直し、重要手順にはダブルチェックを導入する',
+      '作業員への定期的な安全教育・KY活動を実施する',
+      '過労・体調不良時の作業交代ルールを設ける',
+    ],
+    equipment: [
+      '設備の定期点検・整備スケジュールを策定・実施する',
+      '老朽化設備の更新計画を作成し優先度をつけて対応する',
+      '安全装置の設置・動作確認を定期的に行う',
+      '設備異常の早期報告・対応フローを整備する',
+    ],
+    environment: [
+      '5S（整理・整頓・清掃・清潔・躾）を徹底する',
+      '作業場の照明を見直し、視認性を向上させる',
+      '危険箇所に滑り止め・カラーコーンなどで明示する',
+      '適切な作業スペースの確保と動線の見直しを行う',
+    ],
+    procedure: [
+      '作業手順書を整備・更新し、全員に周知する',
+      '新人・異動者への安全教育を徹底する',
+      '危険箇所・危険作業のリスクアセスメントを実施する',
+      '危険標識・注意表示を適切な場所に設置する',
+    ],
+    material: [
+      '入荷時の品質確認・検査手順を強化する',
+      '資材・製品の適切な保管方法をルール化する',
+      '危険物の取り扱いルール・手順を文書化し周知する',
+      '必要な保護具・安全用品の使用を義務化する',
+    ],
+    other: [
+      '発生状況を詳細に分析し、根本原因を特定する',
+      '作業量・工程の見直しを行い、無理のない計画を立てる',
+      '朝礼・TBM（ツールボックスミーティング）でリスク共有を行う',
+      '安全委員会で類似事例を共有し、全社的な対策を検討する',
+    ],
+  };
+
+  function generate() {
+    var date   = document.getElementById('incDate').value;
+    var place  = document.getElementById('incPlace').value.trim();
+    var work   = document.getElementById('incWork').value.trim();
+    var sit    = document.getElementById('incSit').value.trim();
+    var cat    = document.getElementById('incCat').value;
+    var injury = document.getElementById('incInjury').value;
+
+    if (!place || !work || !sit || !cat) {
+      alert('発生場所・作業内容・状況・原因カテゴリを入力してください');
+      return;
+    }
+
+    var causes  = CAUSES[cat]  || CAUSES.other;
+    var actions = ACTIONS[cat] || ACTIONS.other;
+
+    // 原因リスト
+    var causeEl = document.getElementById('causeList');
+    causeEl.innerHTML = causes.map(function(c){ return '<li>' + c + '</li>'; }).join('');
+
+    // 対策リスト
+    var actionEl = document.getElementById('actionList');
+    actionEl.innerHTML = actions.map(function(a){ return '<li>' + a + '</li>'; }).join('');
+
+    // 報告書テキスト
+    var injuryText = { none:'なし', minor:'軽微（応急処置対応）', major:'重大（医療機関受診・休業対応）', property:'物的損害あり' }[injury] || 'なし';
+    var dateText = date ? date.replace(/-/g, '/') : '（日付未入力）';
+    var catText = document.getElementById('incCat').options[document.getElementById('incCat').selectedIndex].text;
+
+    var report = [
+      '■ ヒヤリハット報告書',
+      '',
+      '発生日　　：' + dateText,
+      '発生場所　：' + place,
+      '作業内容　：' + work,
+      '被害状況　：' + injuryText,
+      '',
+      '【発生状況】',
+      sit,
+      '',
+      '【原因カテゴリ】',
+      catText,
+      '',
+      '【推定原因】',
+      causes.map(function(c, i){ return (i+1) + '. ' + c; }).join('\n'),
+      '',
+      '【再発防止対策】',
+      actions.map(function(a, i){ return (i+1) + '. ' + a; }).join('\n'),
+      '',
+      '報告日：' + new Date().toLocaleDateString('ja-JP'),
+    ].join('\n');
+
+    document.getElementById('reportBox').textContent = report;
+    document.getElementById('copyOk').style.display = 'none';
+
+    var rc = document.getElementById('resultCard');
+    rc.classList.add('show');
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // localStorage 保存
+    saveRecord({ date: dateText, place: place, work: work, sit: sit, cat: catText, injury: injuryText, report: report });
+    loadHistory();
+  }
+
+  function copyReport() {
+    var text = document.getElementById('reportBox').textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function(){
+        var ok = document.getElementById('copyOk');
+        ok.style.display = 'block';
+        setTimeout(function(){ ok.style.display = 'none'; }, 2000);
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      var ok = document.getElementById('copyOk');
+      ok.style.display = 'block';
+      setTimeout(function(){ ok.style.display = 'none'; }, 2000);
+    }
+  }
+
+  function saveRecord(rec) {
+    var list = getRecords();
+    rec.id = Date.now();
+    list.unshift(rec);
+    if (list.length > 50) list = list.slice(0, 50);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function getRecords() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+
+  function deleteRecord(id) {
+    var list = getRecords().filter(function(r){ return r.id !== id; });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    loadHistory();
+  }
+
+  function loadHistory() {
+    var list = getRecords();
+    var el = document.getElementById('historyList');
+    if (!list.length) {
+      el.innerHTML = '<li class="history-empty">まだ記録がありません</li>';
+      return;
+    }
+    el.innerHTML = list.map(function(r){
+      return '<li class="history-item" onclick="restoreRecord(' + r.id + ')">'
+           + '<button class="btn-del-history" onclick="event.stopPropagation();deleteRecord(' + r.id + ')">削除</button>'
+           + '<div class="h-date">' + r.date + '</div>'
+           + '<div class="h-title">' + escHtml(r.work) + '</div>'
+           + '<div class="h-place">' + escHtml(r.place) + '</div>'
+           + '</li>';
+    }).join('');
+  }
+
+  function restoreRecord(id) {
+    var rec = getRecords().find(function(r){ return r.id === id; });
+    if (!rec) return;
+    document.getElementById('reportBox').textContent = rec.report;
+    document.getElementById('copyOk').style.display = 'none';
+    var rc = document.getElementById('resultCard');
+    rc.classList.add('show');
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // 初期化
+  document.getElementById('incDate').value = new Date().toISOString().slice(0, 10);
+  loadHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
