@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>契約書ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .btn-calc {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+    .result-wrap { display: none; max-width: 640px; margin: 0 auto 1rem; }
+    .result-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .result-header-title { font-size: 0.78rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; }
+    .btn-copy {
+      padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy.copied { background: var(--ok); }
+    .contract-text {
+      background: #fff; border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem;
+      box-shadow: var(--shadow);
+      font-size: 0.88rem; line-height: 2; white-space: pre-wrap;
+      color: var(--text);
+    }
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    @media print {
+      .app-header, .card, .btn-calc, .btn-copy, .back-link { display: none !important; }
+      .result-wrap { display: block !important; max-width: 100%; }
+      .contract-text { border: none; box-shadow: none; font-size: 10pt; line-height: 1.8; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>契約書ジェネレーター</h1>
+    <p class="subtitle">業種と条件を選ぶだけで業務委託契約書のひな形を即生成</p>
+  </header>
+
+  <!-- 甲乙情報 -->
+  <div class="card">
+    <p class="card-title">甲・乙の情報</p>
+    <div class="row2">
+      <div class="field">
+        <label for="partyA">甲（委託者）名称</label>
+        <input type="text" id="partyA" placeholder="例：株式会社○○">
+      </div>
+      <div class="field">
+        <label for="partyB">乙（受託者）名称</label>
+        <input type="text" id="partyB" placeholder="例：山田太郎">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="partyAAddr">甲の住所</label>
+        <input type="text" id="partyAAddr" placeholder="例：東京都渋谷区○○1-2-3">
+      </div>
+      <div class="field">
+        <label for="partyBAddr">乙の住所</label>
+        <input type="text" id="partyBAddr" placeholder="例：東京都新宿区○○4-5-6">
+      </div>
+    </div>
+  </div>
+
+  <!-- 契約内容 -->
+  <div class="card">
+    <p class="card-title">契約内容</p>
+    <div class="field">
+      <label for="industry">業種・契約タイプ</label>
+      <select id="industry">
+        <option value="it">ITシステム開発・制作</option>
+        <option value="design">デザイン・クリエイティブ</option>
+        <option value="consult">コンサルティング・業務支援</option>
+        <option value="cleaning">清掃・メンテナンス</option>
+        <option value="other">その他（一般業務委託）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="workDetail">委託業務の内容</label>
+      <textarea id="workDetail" placeholder="例：Webサイトのデザインおよびコーディング業務"></textarea>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="startDate">契約開始日</label>
+        <input type="date" id="startDate">
+      </div>
+      <div class="field">
+        <label for="endDate">契約終了日</label>
+        <input type="date" id="endDate">
+      </div>
+    </div>
+  </div>
+
+  <!-- 報酬・支払い -->
+  <div class="card">
+    <p class="card-title">報酬・支払い条件</p>
+    <div class="row2">
+      <div class="field">
+        <label for="fee">報酬金額（円）</label>
+        <input type="text" id="fee" placeholder="例：300,000">
+      </div>
+      <div class="field">
+        <label for="taxType">消費税</label>
+        <select id="taxType">
+          <option value="included">税込</option>
+          <option value="excluded">税別（別途加算）</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="payMethod">支払い条件</label>
+      <select id="payMethod">
+        <option value="monthly">月末締め翌月末払い</option>
+        <option value="complete">成果物納品後30日以内</option>
+        <option value="advance">前払い（契約締結後）</option>
+        <option value="half">着手金50%・納品時50%</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="payAccount">振込先情報（任意）</label>
+      <input type="text" id="payAccount" placeholder="例：○○銀行 ○○支店 普通 1234567 ヤマダ タロウ">
+    </div>
+  </div>
+
+  <!-- その他条件 -->
+  <div class="card">
+    <p class="card-title">その他の条件</p>
+    <div class="row2">
+      <div class="field">
+        <label for="confidential">秘密保持</label>
+        <select id="confidential">
+          <option value="yes">あり（秘密保持義務を設ける）</option>
+          <option value="no">なし</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="copyright">著作権の帰属</label>
+        <select id="copyright">
+          <option value="client">甲（委託者）に帰属</option>
+          <option value="contractor">乙（受託者）に帰属</option>
+          <option value="shared">共同所有</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="subcontract">再委託</label>
+        <select id="subcontract">
+          <option value="no">禁止（甲の事前承認が必要）</option>
+          <option value="yes">許可</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="jurisdiction">合意管轄裁判所</label>
+        <input type="text" id="jurisdiction" placeholder="例：東京地方裁判所">
+      </div>
+    </div>
+    <div class="field">
+      <label for="contractDate">契約締結日</label>
+      <input type="date" id="contractDate">
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">契約書を生成する</button>
+
+  <!-- 生成結果 -->
+  <div class="result-wrap" id="resultWrap">
+    <div class="result-header">
+      <span class="result-header-title">生成された契約書</span>
+      <button class="btn-copy" id="btnCopy" onclick="copyText()">コピー</button>
+    </div>
+    <div class="contract-text" id="contractOutput"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var LS_KEY = 'keiyakusho_gen_v1';
+
+  // ── 保存・復元 ──
+  var fields = ['partyA','partyAAddr','partyB','partyBAddr','industry','workDetail',
+                'startDate','endDate','fee','taxType','payMethod','payAccount',
+                'confidential','copyright','subcontract','jurisdiction','contractDate'];
+
+  function saveData() {
+    var d = {};
+    fields.forEach(function(id) { d[id] = document.getElementById(id).value; });
+    localStorage.setItem(LS_KEY, JSON.stringify(d));
+  }
+  function loadData() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      fields.forEach(function(id) { if (d[id] !== undefined) document.getElementById(id).value = d[id]; });
+    } catch(e) {}
+  }
+
+  // 入力変更時に自動保存
+  fields.forEach(function(id) {
+    document.getElementById(id).addEventListener('change', saveData);
+    document.getElementById(id).addEventListener('input', saveData);
+  });
+
+  // ── 業種別の条文スニペット ──
+  function getIndustryClause(industry, work) {
+    if (industry === 'it') {
+      return '　乙は、本件業務として' + (work || 'ITシステムの開発・構築') + 'を行うものとし、甲が指定する仕様・要件に従い誠実に履行する。\n' +
+             '　乙は、成果物の納品に際し、合理的なテストを実施した上で甲に提出するものとする。';
+    } else if (industry === 'design') {
+      return '　乙は、本件業務として' + (work || 'デザイン・制作業務') + 'を行うものとし、甲との打ち合わせ内容に従い誠実に履行する。\n' +
+             '　乙は、初稿提出後、甲の指摘に基づく修正を○回まで無償で行うものとする。';
+    } else if (industry === 'consult') {
+      return '　乙は、本件業務として' + (work || 'コンサルティング・業務支援') + 'を行うものとし、甲の経営課題・業務課題に対して専門的知見をもって支援する。\n' +
+             '　乙の助言・提案は参考意見であり、最終的な意思決定は甲が行うものとする。';
+    } else if (industry === 'cleaning') {
+      return '　乙は、本件業務として' + (work || '清掃・メンテナンス業務') + 'を行うものとし、甲が指定する場所・頻度・手順に従い誠実に履行する。\n' +
+             '　乙は、業務中に発見した施設の損傷・不具合を速やかに甲へ報告するものとする。';
+    } else {
+      return '　乙は、本件業務として' + (work || '委託業務') + 'を行うものとし、甲の指示に従い誠実に履行する。';
+    }
+  }
+
+  function getConfidentialClause(conf) {
+    if (conf === 'no') return null;
+    return '第○条（秘密保持）\n' +
+      '１　甲及び乙は、本契約の遂行に際して知り得た相手方の技術上、営業上、その他の情報（以下「秘密情報」という）を、相手方の事前の書面による承諾なく、第三者に開示・漏洩し、または本業務の遂行以外の目的に使用してはならない。\n' +
+      '２　前項の規定は、本契約終了後○年間継続して効力を有する。';
+  }
+
+  function getCopyrightClause(cp) {
+    if (cp === 'client') {
+      return '第○条（著作権・知的財産権）\n' +
+        '　本業務の遂行により乙が作成した成果物に係る著作権（著作権法第27条及び第28条の権利を含む）その他の知的財産権は、甲乙間で別段の合意がない限り、乙から甲へ譲渡されるものとする。乙は甲に対して著作者人格権を行使しないものとする。';
+    } else if (cp === 'contractor') {
+      return '第○条（著作権・知的財産権）\n' +
+        '　本業務の遂行により乙が作成した成果物に係る著作権その他の知的財産権は、乙に帰属するものとする。甲は、本契約の目的の範囲内でのみ成果物を利用できる。';
+    } else {
+      return '第○条（著作権・知的財産権）\n' +
+        '　本業務の遂行により乙が作成した成果物に係る著作権その他の知的財産権は、甲乙の共同所有とし、各自の持分割合は別途協議の上決定するものとする。';
+    }
+  }
+
+  function getSubcontractClause(sub) {
+    if (sub === 'yes') {
+      return '第○条（再委託）\n' +
+        '　乙は、本業務の一部または全部を第三者に再委託することができる。ただし、再委託先に対しても本契約と同等の義務を負わせるものとする。';
+    } else {
+      return '第○条（再委託）\n' +
+        '　乙は、甲の事前の書面による承諾なく、本業務の一部または全部を第三者に再委託してはならない。';
+    }
+  }
+
+  // ── 契約書生成 ──
+  function generate() {
+    var a       = document.getElementById('partyA').value || '（委託者名）';
+    var aAddr   = document.getElementById('partyAAddr').value || '（委託者住所）';
+    var b       = document.getElementById('partyB').value || '（受託者名）';
+    var bAddr   = document.getElementById('partyBAddr').value || '（受託者住所）';
+    var ind     = document.getElementById('industry').value;
+    var work    = document.getElementById('workDetail').value;
+    var sd      = document.getElementById('startDate').value;
+    var ed      = document.getElementById('endDate').value;
+    var fee     = document.getElementById('fee').value || '○○○,○○○';
+    var tax     = document.getElementById('taxType').value;
+    var payM    = document.getElementById('payMethod').value;
+    var payAcc  = document.getElementById('payAccount').value;
+    var conf    = document.getElementById('confidential').value;
+    var cp      = document.getElementById('copyright').value;
+    var sub     = document.getElementById('subcontract').value;
+    var jur     = document.getElementById('jurisdiction').value || '○○地方裁判所';
+    var cdate   = document.getElementById('contractDate').value;
+
+    var periodStr = (sd && ed) ? sd + ' から ' + ed + ' まで' : '別途協議の上決定する期間';
+    var cdateStr  = cdate ? cdate : '　　年　　月　　日';
+
+    var taxStr = tax === 'included' ? '（税込）' : '（税別。別途消費税を加算する）';
+
+    var payStr = '';
+    if (payM === 'monthly')  payStr = '月末締め翌月末払い';
+    else if (payM === 'complete') payStr = '成果物納品後30日以内';
+    else if (payM === 'advance')  payStr = '契約締結後速やかに前払い';
+    else if (payM === 'half')     payStr = '着手時に報酬の50%、成果物納品時に残り50%';
+
+    var indStr = {it:'ITシステム開発・制作', design:'デザイン・クリエイティブ', consult:'コンサルティング・業務支援', cleaning:'清掃・メンテナンス', other:'一般業務委託'}[ind] || '業務委託';
+
+    var lines = [];
+    lines.push('業務委託契約書');
+    lines.push('');
+    lines.push('　' + a + '（以下「甲」という）と' + b + '（以下「乙」という）は、以下の条件で業務委託契約（以下「本契約」という）を締結する。');
+    lines.push('');
+    lines.push('第1条（目的）');
+    lines.push('　甲は乙に対し、次条に定める業務（以下「本件業務」という）を委託し、乙はこれを受託する。');
+    lines.push('');
+    lines.push('第2条（委託業務）');
+    lines.push('　業務種別：' + indStr);
+    lines.push(getIndustryClause(ind, work));
+    lines.push('');
+    lines.push('第3条（契約期間）');
+    lines.push('　本契約の有効期間は、' + periodStr + 'とする。ただし、期間満了の1ヶ月前までにいずれかの当事者から書面による解除の申し出がない場合は、同一条件で自動更新されるものとする。');
+    lines.push('');
+    lines.push('第4条（報酬）');
+    lines.push('１　甲は乙に対し、本件業務の対価として金 ' + fee + ' 円' + taxStr + 'を支払うものとする。');
+    lines.push('２　支払い条件：' + payStr + '。');
+    if (payAcc) {
+      lines.push('３　振込先：' + payAcc);
+      lines.push('　　振込手数料は甲の負担とする。');
+    }
+    lines.push('');
+    lines.push('第5条（費用負担）');
+    lines.push('　本件業務の遂行に必要な経費は、別途甲乙で協議の上決定する。甲の事前承認なく乙が支出した費用は、原則として乙の負担とする。');
+    lines.push('');
+
+    // 秘密保持
+    var confClause = getConfidentialClause(conf);
+    if (confClause) {
+      lines.push(confClause);
+      lines.push('');
+    }
+
+    // 著作権
+    lines.push(getCopyrightClause(cp));
+    lines.push('');
+
+    // 再委託
+    lines.push(getSubcontractClause(sub));
+    lines.push('');
+
+    lines.push('第○条（善管注意義務）');
+    lines.push('　乙は、本件業務を善良な管理者の注意をもって遂行するものとする。');
+    lines.push('');
+    lines.push('第○条（損害賠償）');
+    lines.push('　当事者の一方が本契約に違反し、相手方に損害を与えた場合、相手方は違反した当事者に対して損害賠償を請求できる。ただし、損害賠償の上限は、本契約における総報酬額を上限とする。');
+    lines.push('');
+    lines.push('第○条（解除）');
+    lines.push('　甲または乙は、相手方が次の各号の一に該当する場合、何らの催告なく本契約を即時に解除することができる。');
+    lines.push('（1）本契約に違反し、相当期間内に是正しないとき');
+    lines.push('（2）支払停止、破産、民事再生、会社更生等の申し立てがあったとき');
+    lines.push('（3）その他、契約の継続が困難な重大な事由が生じたとき');
+    lines.push('');
+    lines.push('第○条（協議）');
+    lines.push('　本契約に定めのない事項または解釈上の疑義が生じた場合は、甲乙誠意をもって協議し解決するものとする。');
+    lines.push('');
+    lines.push('第○条（合意管轄）');
+    lines.push('　本契約に関して訴訟の必要が生じた場合、' + jur + 'を第一審の専属的合意管轄裁判所とする。');
+    lines.push('');
+    lines.push('');
+    lines.push('以上を証するため、本契約書2通を作成し、甲乙それぞれ署名・押印の上、各1通を保有する。');
+    lines.push('');
+    lines.push(cdateStr);
+    lines.push('');
+    lines.push('甲　住所：' + aAddr);
+    lines.push('　　名称：' + a);
+    lines.push('　　署名：＿＿＿＿＿＿＿＿＿＿＿＿＿＿　　印');
+    lines.push('');
+    lines.push('乙　住所：' + bAddr);
+    lines.push('　　名称：' + b);
+    lines.push('　　署名：＿＿＿＿＿＿＿＿＿＿＿＿＿＿　　印');
+
+    var text = lines.join('\n');
+    document.getElementById('contractOutput').textContent = text;
+    document.getElementById('resultWrap').style.display = '';
+    document.getElementById('btnCopy').textContent = 'コピー';
+    document.getElementById('btnCopy').className = 'btn-copy';
+
+    // スクロール
+    document.getElementById('resultWrap').scrollIntoView({behavior:'smooth', block:'start'});
+
+    saveData();
+  }
+
+  // ── コピー ──
+  function copyText() {
+    var text = document.getElementById('contractOutput').textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      var btn = document.getElementById('btnCopy');
+      btn.textContent = 'コピー済み';
+      btn.className = 'btn-copy copied';
+      setTimeout(function() {
+        btn.textContent = 'コピー';
+        btn.className = 'btn-copy';
+      }, 2000);
+    }).catch(function() {
+      // fallback
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      var btn = document.getElementById('btnCopy');
+      btn.textContent = 'コピー済み';
+      btn.className = 'btn-copy copied';
+      setTimeout(function() { btn.textContent = 'コピー'; btn.className = 'btn-copy'; }, 2000);
+    });
+  }
+
+  // ── 初期化 ──
+  loadData();
+
+  // 今日の日付をデフォルトで設定
+  (function() {
+    var today = new Date().toISOString().slice(0,10);
+    var cdEl = document.getElementById('contractDate');
+    var sdEl = document.getElementById('startDate');
+    if (!cdEl.value) cdEl.value = today;
+    if (!sdEl.value) sdEl.value = today;
+  })();
+  </script>
+
+</body>
+</html>
