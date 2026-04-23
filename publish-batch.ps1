@@ -36,9 +36,11 @@ function LogError($msg) {
 }
 
 # (0) Validate input
+$noInputApps = $false
 if (-not $apps -or $apps.Count -eq 0) {
-    LogError "No apps specified"
-    $ok = $false
+    Write-Host "No apps specified -- running in sitemap-refresh mode" -ForegroundColor Yellow
+    $noInputApps = $true
+    $apps = @()
 }
 
 # Max 10 apps per run
@@ -56,8 +58,8 @@ if ($ok) {
     }
 }
 
-# (2) Copy dev -> pub
-if ($ok) {
+# (2) Copy dev -> pub (skipped in sitemap-refresh mode)
+if ($ok -and -not $noInputApps) {
     foreach ($a in $apps) {
         Copy-Item -Recurse -Force (Join-Path $dev $a) (Join-Path $pub $a)
         Write-Host "Copied: $a"
@@ -259,14 +261,24 @@ if ($ok) {
 }
 
 # (8) Commit and push
+$didCommit = $false
 if ($ok) {
-    $prev = $totalApps - $apps.Count
-    $msg  = "add: $($apps.Count) apps / $prev->$totalApps"
-    git commit -m $msg
-    if ($LASTEXITCODE -ne 0) { LogError "git commit failed"; $ok = $false }
+    git diff --cached --quiet
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "Nothing staged -- skipping commit/push" -ForegroundColor Yellow
+    } else {
+        if ($noInputApps) {
+            $msg = "chore: regenerate sitemap.xml ($totalApps apps)"
+        } else {
+            $prev = $totalApps - $apps.Count
+            $msg  = "add: $($apps.Count) apps / $prev->$totalApps"
+        }
+        git commit -m $msg
+        if ($LASTEXITCODE -ne 0) { LogError "git commit failed"; $ok = $false } else { $didCommit = $true }
+    }
 }
 
-if ($ok) {
+if ($ok -and $didCommit) {
     git push origin main
     if ($LASTEXITCODE -ne 0) { LogError "git push failed"; $ok = $false }
 }
