@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家賃交渉ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .field-row { display: flex; gap: 0.75rem; }
+    .field-row .field { flex: 1; margin-bottom: 0; }
+
+    .checkbox-group { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.35rem; }
+    .checkbox-group label {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.88rem; font-weight: 400; color: var(--text); cursor: pointer;
+    }
+    .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 値上げ率バッジ */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* 反論ポイント */
+    .point-list { list-style: none; }
+    .point-list li {
+      padding: 0.75rem 0.9rem;
+      border-radius: 9px;
+      margin-bottom: 0.6rem;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      border-left: 4px solid;
+    }
+    .point-list li.strong {
+      border-color: var(--ng);
+      background: var(--ng-bg);
+    }
+    .point-list li.medium {
+      border-color: var(--warn);
+      background: var(--warn-bg);
+    }
+    .point-list li.soft {
+      border-color: #94a3b8;
+      background: #f8fafc;
+    }
+    .point-list li .ptag {
+      display: inline-block;
+      font-size: 0.7rem; font-weight: 700;
+      padding: 0.1rem 0.45rem; border-radius: 4px;
+      margin-right: 0.4rem; vertical-align: middle;
+    }
+    .point-list li.strong .ptag { background: var(--ng); color: #fff; }
+    .point-list li.medium .ptag { background: var(--warn); color: #fff; }
+    .point-list li.soft .ptag { background: #64748b; color: #fff; }
+
+    /* 交渉メール */
+    .mail-area {
+      width: 100%; min-height: 280px;
+      padding: 0.9rem; font-size: 0.85rem; line-height: 1.7;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      resize: vertical; outline: none;
+    }
+    .mail-area:focus { border-color: var(--accent); background: #fff; }
+    .btn-copy {
+      display: block; width: 100%;
+      margin-top: 0.75rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: #1c1917; color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: #292524; }
+    .copy-done { background: var(--ok) !important; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>家賃交渉ジェネレーター</h1>
+    <p class="subtitle">値上げへの反論ポイントと交渉メール文を即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">家賃情報</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="currentRent">現在の家賃（円）</label>
+        <input type="number" id="currentRent" placeholder="例: 80000" min="0">
+      </div>
+      <div class="field">
+        <label for="newRent">値上げ後の家賃（円）</label>
+        <input type="number" id="newRent" placeholder="例: 88000" min="0">
+      </div>
+    </div>
+    <div class="field-row" style="margin-top:1rem;">
+      <div class="field">
+        <label for="years">入居期間（年）</label>
+        <input type="number" id="years" placeholder="例: 5" min="0">
+      </div>
+      <div class="field">
+        <label for="age">建物の築年数（年）</label>
+        <input type="number" id="age" placeholder="例: 20" min="0">
+      </div>
+    </div>
+    <div class="field" style="margin-top:1rem;">
+      <label for="marketRent">周辺の相場家賃（円・任意）</label>
+      <input type="number" id="marketRent" placeholder="未入力でも可">
+      <p class="hint">似た条件の物件の相場がわかれば入力してください</p>
+    </div>
+    <div class="field" style="margin-top:1rem;">
+      <label for="reason">値上げの理由（大家からの説明）</label>
+      <select id="reason">
+        <option value="">選択してください</option>
+        <option value="tax">固定資産税・管理費の増加</option>
+        <option value="repair">修繕費の増加</option>
+        <option value="market">周辺相場の上昇</option>
+        <option value="inflation">物価上昇・インフレ</option>
+        <option value="other">説明なし・その他</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">物件の状態（当てはまるものを選択）</p>
+    <div class="checkbox-group">
+      <label><input type="checkbox" id="noRepair"> 入居中に設備修繕が行われていない</label>
+      <label><input type="checkbox" id="noRenovate"> リフォーム・リノベーションがない</label>
+      <label><input type="checkbox" id="hasDefect"> 不具合・劣化箇所がある（水漏れ・カビ等）</label>
+      <label><input type="checkbox" id="noParkingUpdate"> 駐車場・共用設備の更新なし</label>
+      <label><input type="checkbox" id="lowOccupancy"> 同じ建物に空室が目立つ</label>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">反論ポイント＆交渉文を生成する</button>
+
+  <!-- 値上げ率カード -->
+  <div class="result-card" id="rateCard">
+    <p class="result-label">値上げ率</p>
+    <p class="result-value" id="rateVal">—</p>
+    <p class="result-eval" id="rateEval"></p>
+    <p class="result-note" id="rateNote"></p>
+  </div>
+
+  <!-- 金額内訳 -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">金額内訳</p>
+    <table class="detail-table"><tbody id="detailBody"></tbody></table>
+  </div>
+
+  <!-- 反論ポイント -->
+  <div class="card" id="pointCard" style="display:none">
+    <p class="card-title">反論ポイント</p>
+    <ul class="point-list" id="pointList"></ul>
+  </div>
+
+  <!-- 交渉メール -->
+  <div class="card" id="mailCard" style="display:none">
+    <p class="card-title">交渉メール文</p>
+    <textarea class="mail-area" id="mailText" readonly></textarea>
+    <button class="btn-copy" id="copyBtn" onclick="copyMail()">メール文をコピーする</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'yachin_nego_v1';
+
+  window.addEventListener('load', function() {
+    try {
+      var s = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      if (s.currentRent) document.getElementById('currentRent').value = s.currentRent;
+      if (s.newRent)     document.getElementById('newRent').value = s.newRent;
+      if (s.years)       document.getElementById('years').value = s.years;
+      if (s.age)         document.getElementById('age').value = s.age;
+      if (s.marketRent)  document.getElementById('marketRent').value = s.marketRent;
+      if (s.reason)      document.getElementById('reason').value = s.reason;
+      if (s.noRepair)    document.getElementById('noRepair').checked = true;
+      if (s.noRenovate)  document.getElementById('noRenovate').checked = true;
+      if (s.hasDefect)   document.getElementById('hasDefect').checked = true;
+      if (s.noParkingUpdate) document.getElementById('noParkingUpdate').checked = true;
+      if (s.lowOccupancy) document.getElementById('lowOccupancy').checked = true;
+    } catch(e) {}
+  });
+
+  function saveState() {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        currentRent: document.getElementById('currentRent').value,
+        newRent: document.getElementById('newRent').value,
+        years: document.getElementById('years').value,
+        age: document.getElementById('age').value,
+        marketRent: document.getElementById('marketRent').value,
+        reason: document.getElementById('reason').value,
+        noRepair: document.getElementById('noRepair').checked,
+        noRenovate: document.getElementById('noRenovate').checked,
+        hasDefect: document.getElementById('hasDefect').checked,
+        noParkingUpdate: document.getElementById('noParkingUpdate').checked,
+        lowOccupancy: document.getElementById('lowOccupancy').checked
+      }));
+    } catch(e) {}
+  }
+
+  function generate() {
+    var cur = parseFloat(document.getElementById('currentRent').value);
+    var nxt = parseFloat(document.getElementById('newRent').value);
+    if (isNaN(cur) || cur <= 0 || isNaN(nxt) || nxt <= 0) {
+      alert('現在の家賃と値上げ後の家賃を入力してください');
+      return;
+    }
+    if (nxt <= cur) {
+      alert('値上げ後の家賃は現在より高い金額を入力してください');
+      return;
+    }
+
+    saveState();
+
+    var years = parseFloat(document.getElementById('years').value) || 0;
+    var age   = parseFloat(document.getElementById('age').value) || 0;
+    var market = parseFloat(document.getElementById('marketRent').value) || 0;
+    var reason = document.getElementById('reason').value;
+    var noRepair = document.getElementById('noRepair').checked;
+    var noRenovate = document.getElementById('noRenovate').checked;
+    var hasDefect = document.getElementById('hasDefect').checked;
+    var noParkingUpdate = document.getElementById('noParkingUpdate').checked;
+    var lowOccupancy = document.getElementById('lowOccupancy').checked;
+
+    var diff = nxt - cur;
+    var rate = (diff / cur * 100);
+    var annualIncrease = diff * 12;
+
+    // 値上げ率評価
+    var rateLevel, rateEval, rateNote;
+    if (rate <= 3) {
+      rateLevel = 'ok';
+      rateEval = '比較的小幅な値上げです';
+      rateNote = '値上げ率は低めですが、交渉により据え置きや小幅値上げに抑えられる可能性があります。';
+    } else if (rate <= 7) {
+      rateLevel = 'warn';
+      rateEval = '一般的な値上げ幅を超えています';
+      rateNote = '賃貸の値上げは通常1〜3%程度が目安です。交渉の余地は十分にあります。';
+    } else {
+      rateLevel = 'ng';
+      rateEval = '大幅な値上げです。強く交渉できます';
+      rateNote = '10%近い値上げは慣行的に無理があります。借地借家法の観点からも交渉を強く進めましょう。';
+    }
+
+    var rc = document.getElementById('rateCard');
+    rc.className = 'result-card ' + rateLevel;
+    rc.style.display = '';
+    document.getElementById('rateVal').textContent = rate.toFixed(1) + '%';
+    document.getElementById('rateEval').textContent = rateEval;
+    document.getElementById('rateNote').textContent = rateNote;
+
+    // 内訳
+    var rows = [
+      ['現在の家賃', fmt(cur) + ' 円'],
+      ['値上げ後の家賃', fmt(nxt) + ' 円'],
+      ['月額増加分', '+' + fmt(diff) + ' 円', true],
+      ['年間増加総額', '+' + fmt(annualIncrease) + ' 円'],
+    ];
+    if (market > 0) {
+      var mDiff = nxt - market;
+      rows.push(['周辺相場との差', (mDiff >= 0 ? '+' : '') + fmt(mDiff) + ' 円']);
+    }
+    var db = document.getElementById('detailBody');
+    db.innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detailCard').style.display = '';
+
+    // 反論ポイント生成
+    var points = [];
+
+    // 借地借家法（常に表示）
+    points.push({
+      level: 'strong',
+      text: '借地借家法第32条により、家賃増額請求は「経済事情の変動」「税負担の変化」「近隣相場との乖離」が客観的に認められる場合のみ正当化されます。交渉により値上げを拒否することは借主の正当な権利です。'
+    });
+
+    if (rate > 5) {
+      points.push({
+        level: 'strong',
+        text: '今回の値上げ率は' + rate.toFixed(1) + '%です。一般的な賃貸の値上げは1〜3%程度が相場であり、今回の値上げ幅は慣行的に高すぎます。せめて3%以内（月額＋' + fmt(Math.round(cur * 0.03)) + '円）への圧縮を求める根拠があります。'
+      });
+    }
+
+    if (years >= 3) {
+      points.push({
+        level: 'strong',
+        text: '入居から' + years + '年間、家賃を一度も滞納せず支払ってきた実績があります。長期優良入居者として安定した賃料収入を提供してきたことを強調し、値上げ据え置きまたは小幅値上げを要求できます。'
+      });
+    }
+
+    if (market > 0 && nxt > market) {
+      points.push({
+        level: 'strong',
+        text: '周辺相場（月額' + fmt(market) + '円）と比べると、値上げ後は月額' + fmt(nxt - market) + '円（' + ((nxt - market) / market * 100).toFixed(1) + '%）上回ります。同条件の物件がより安く借りられる状況であり、相場乖離を根拠に交渉できます。'
+      });
+    }
+
+    if (reason === 'tax') {
+      points.push({
+        level: 'medium',
+        text: '固定資産税や管理費の増加は、原則としてオーナー（貸主）が負担すべきコストです。借主がこれを負担する義務はなく、値上げ理由として十分な根拠になりません。'
+      });
+    }
+    if (reason === 'repair') {
+      points.push({
+        level: 'medium',
+        text: '修繕費の増加を理由とした値上げは、その修繕が借主の生活環境を改善するものでなければ根拠として弱いです。特に設備の老朽化・劣化への対処はオーナーの義務です。'
+      });
+    }
+    if (reason === 'inflation') {
+      points.push({
+        level: 'medium',
+        text: '物価上昇・インフレは世帯全員に影響しており、借主も生活コストが増加しています。家賃値上げは生活費を二重に圧迫するものであり、値上げ根拠としては一方的です。'
+      });
+    }
+    if (reason === 'other' || reason === '') {
+      points.push({
+        level: 'medium',
+        text: '値上げに明確な根拠・説明がない場合、借地借家法に基づき値上げを拒否できます。書面での理由説明を求め、根拠が不明瞭なら値上げに応じる義務はありません。'
+      });
+    }
+
+    if (age >= 20) {
+      points.push({
+        level: 'medium',
+        text: '建物は築' + age + '年が経過しており、設備・外壁・配管等の老朽化が想定されます。新築・築浅物件と同等の家賃水準に引き上げる根拠はありません。'
+      });
+    }
+
+    if (noRepair) {
+      points.push({
+        level: 'medium',
+        text: '入居期間中、設備の修繕・交換が行われておらず、物件価値の維持が図られていません。サービスの質が維持されないまま家賃を上げることには合理的根拠がありません。'
+      });
+    }
+    if (noRenovate) {
+      points.push({
+        level: 'soft',
+        text: 'リフォームやリノベーションが実施されていない物件で家賃を引き上げることは、付加価値のない値上げです。'
+      });
+    }
+    if (hasDefect) {
+      points.push({
+        level: 'strong',
+        text: '現在も物件に不具合・劣化箇所（水漏れ・カビ等）が存在します。貸主の修繕義務（民法606条）が履行されていない状況での値上げは、交渉で強く反論できます。同時に修繕要求も行いましょう。'
+      });
+    }
+    if (noParkingUpdate) {
+      points.push({
+        level: 'soft',
+        text: '駐車場や共用設備に改善がない中での値上げは、入居者へのサービス向上が伴っていません。'
+      });
+    }
+    if (lowOccupancy) {
+      points.push({
+        level: 'medium',
+        text: '同じ建物に空室が目立つ状況では、値上げよりも現状維持で優良入居者を確保する方がオーナーにとっても有利です。この点を指摘することで交渉が有効に働きます。'
+      });
+    }
+
+    var pl = document.getElementById('pointList');
+    pl.innerHTML = points.map(function(p) {
+      var tag = p.level === 'strong' ? '強い根拠' : p.level === 'medium' ? '有効' : '補足';
+      return '<li class="' + p.level + '"><span class="ptag">' + tag + '</span>' + p.text + '</li>';
+    }).join('');
+    document.getElementById('pointCard').style.display = '';
+
+    // 交渉メール生成
+    var mailLines = [];
+    mailLines.push('【件名】家賃改定のご相談について');
+    mailLines.push('');
+    mailLines.push('○○様');
+    mailLines.push('');
+    mailLines.push('お世話になっております。');
+    mailLines.push('現在、○○にて' + (years > 0 ? years + '年間' : '') + 'お世話になっている入居者です。');
+    mailLines.push('');
+    mailLines.push('このたびは家賃改定のご通知をいただきありがとうございました。');
+    mailLines.push('現在の家賃（月額' + fmt(cur) + '円）から' + fmt(nxt) + '円への改定（' + rate.toFixed(1) + '%増）について、');
+    mailLines.push('以下の点からご再考いただきたく、ご連絡申し上げます。');
+    mailLines.push('');
+    mailLines.push('【ご相談の理由】');
+
+    var mailPoints = [];
+    mailPoints.push('・今回の値上げ率（' + rate.toFixed(1) + '%）は、賃貸市場の一般的な改定幅（1〜3%程度）を上回っています。');
+    if (years >= 3) {
+      mailPoints.push('・入居から' + years + '年間、家賃の滞納なく支払い続けており、安定した入居実績があります。');
+    }
+    if (market > 0 && nxt > market) {
+      mailPoints.push('・周辺の類似物件の相場（約' + fmt(market) + '円/月）と比較して、値上げ後の家賃は割高になります。');
+    }
+    if (hasDefect) {
+      mailPoints.push('・現在、部屋に不具合・劣化箇所がある状況であり、合わせて修繕のご対応もお願いしたい状況です。');
+    }
+    if (age >= 20) {
+      mailPoints.push('・建物が築' + age + '年を経過していることも、値上げ判断において考慮いただければ幸いです。');
+    }
+    if (reason === 'tax' || reason === 'repair') {
+      mailPoints.push('・税負担・修繕費等の増加は、借地借家法の規定上、直ちに借主への転嫁が認められるものではないと理解しています。');
+    }
+
+    mailLines = mailLines.concat(mailPoints);
+    mailLines.push('');
+    mailLines.push('以上の理由から、今回の家賃改定について下記のいずれかでのご調整をお願いしたく存じます。');
+    mailLines.push('');
+
+    var propRate = Math.min(rate, 3).toFixed(1);
+    var propRent = Math.round(cur * (1 + parseFloat(propRate) / 100));
+    mailLines.push('  ① 家賃を現状（' + fmt(cur) + '円）据え置きにする');
+    mailLines.push('  ② 値上げ幅を3%以内（月額' + fmt(propRent) + '円）に抑える');
+    mailLines.push('');
+    mailLines.push('ご多忙のところ大変恐れ入りますが、ご検討のほどよろしくお願い申し上げます。');
+    mailLines.push('引き続きどうぞよろしくお願いいたします。');
+    mailLines.push('');
+    mailLines.push('敬具');
+    mailLines.push('');
+    mailLines.push('————————————');
+    mailLines.push('入居者名：（お名前をご記入ください）');
+    mailLines.push('部屋番号：（部屋番号をご記入ください）');
+    mailLines.push('連絡先：（連絡先をご記入ください）');
+
+    document.getElementById('mailText').value = mailLines.join('\n');
+    document.getElementById('mailCard').style.display = '';
+    document.getElementById('copyBtn').textContent = 'メール文をコピーする';
+    document.getElementById('copyBtn').classList.remove('copy-done');
+  }
+
+  function copyMail() {
+    var text = document.getElementById('mailText').value;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('copyBtn');
+        btn.textContent = 'コピーしました！';
+        btn.classList.add('copy-done');
+        setTimeout(function() {
+          btn.textContent = 'メール文をコピーする';
+          btn.classList.remove('copy-done');
+        }, 2500);
+      });
+    } else {
+      document.getElementById('mailText').select();
+      document.execCommand('copy');
+    }
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
