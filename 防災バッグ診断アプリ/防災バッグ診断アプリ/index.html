@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>防災バッグ診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ラジオボタン行 ── */
+    .radio-group { display: flex; gap: 0.8rem; margin-top: 0.1rem; }
+    .radio-group label {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.95rem; font-weight: 400; color: var(--text);
+      cursor: pointer; padding: 0.5rem 1rem;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); transition: all 0.15s; flex: 1; justify-content: center;
+    }
+    .radio-group input[type="radio"] { display: none; }
+    .radio-group input[type="radio"]:checked + span {
+      color: var(--accent); font-weight: 700;
+    }
+    .radio-group label:has(input:checked) {
+      border-color: var(--accent); background: var(--accent-light);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.7rem;
+      font-size: 0.9rem; font-weight: 600;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── 結果サマリー ── */
+    .result-summary {
+      display: none;
+      background: var(--ok-bg);
+      border: 2px solid var(--ok);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      margin: 0 auto 1rem; max-width: 600px;
+      text-align: center;
+    }
+    .result-summary .sum-label { font-size: 0.78rem; font-weight: 700; color: var(--ok); letter-spacing: 0.06em; margin-bottom: 0.3rem; }
+    .result-summary .sum-value { font-size: 1.5rem; font-weight: 900; color: var(--ok); }
+    .result-summary .sum-note { font-size: 0.82rem; color: var(--text-sub); margin-top: 0.3rem; }
+
+    /* ── カテゴリカード ── */
+    .cat-card {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .cat-title {
+      font-size: 0.82rem; font-weight: 700;
+      display: flex; align-items: center; gap: 0.5rem;
+      margin-bottom: 0.8rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .cat-icon { font-size: 1.1rem; }
+    .cat-name { color: var(--accent); letter-spacing: 0.04em; }
+    .cat-count { margin-left: auto; font-size: 0.75rem; color: var(--text-sub); }
+
+    /* ── チェックリスト ── */
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.7rem;
+      padding: 0.55rem 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type="checkbox"] { display: none; }
+    .check-box {
+      width: 20px; height: 20px; min-width: 20px;
+      border: 2px solid var(--border); border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px; transition: all 0.15s;
+      background: var(--bg);
+    }
+    .check-item input:checked ~ .check-box {
+      background: var(--ok); border-color: var(--ok);
+    }
+    .check-item input:checked ~ .check-box::after {
+      content: '✓'; color: #fff; font-size: 0.75rem; font-weight: 900;
+    }
+    .check-text { flex: 1; }
+    .check-name { font-size: 0.92rem; font-weight: 500; line-height: 1.4; }
+    .check-item input:checked ~ .check-box + .check-text .check-name {
+      text-decoration: line-through; color: var(--text-sub);
+    }
+    .check-note { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.1rem; }
+    .badge-must {
+      display: inline-block; font-size: 0.65rem; font-weight: 700;
+      background: var(--ng-bg); color: var(--ng);
+      border-radius: 4px; padding: 0 0.35rem; margin-left: 0.35rem;
+      vertical-align: middle;
+    }
+    .badge-rec {
+      display: inline-block; font-size: 0.65rem; font-weight: 700;
+      background: var(--warn-bg); color: var(--warn);
+      border-radius: 4px; padding: 0 0.35rem; margin-left: 0.35rem;
+      vertical-align: middle;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>防災バッグ診断アプリ</h1>
+    <p class="subtitle">家族構成・持病・ペットから、必要な非常持ち出し品を診断します</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">家族構成を入力</p>
+
+    <div class="field">
+      <label for="adults">大人の人数（中学生以上）</label>
+      <select id="adults">
+        <option value="1">1人</option>
+        <option value="2" selected>2人</option>
+        <option value="3">3人</option>
+        <option value="4">4人</option>
+        <option value="5">5人以上</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="children">子どもの人数（12歳以下）</label>
+      <select id="children">
+        <option value="0" selected>0人（いない）</option>
+        <option value="1">1人</option>
+        <option value="2">2人</option>
+        <option value="3">3人以上</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="infants">乳幼児の人数（3歳以下）</label>
+      <select id="infants">
+        <option value="0" selected>0人（いない）</option>
+        <option value="1">1人</option>
+        <option value="2">2人以上</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="elderly">高齢者の人数（65歳以上）</label>
+      <select id="elderly">
+        <option value="0" selected>0人（いない）</option>
+        <option value="1">1人</option>
+        <option value="2">2人以上</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>持病・常用薬あり</label>
+      <div class="radio-group">
+        <label>
+          <input type="radio" name="illness" value="0" checked><span>なし</span>
+        </label>
+        <label>
+          <input type="radio" name="illness" value="1"><span>あり</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>ペットがいる</label>
+      <div class="radio-group">
+        <label>
+          <input type="radio" name="pet" value="0" checked><span>いない</span>
+        </label>
+        <label>
+          <input type="radio" name="pet" value="1"><span>いる</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="diagnose()">診断する</button>
+
+  <!-- 結果サマリー -->
+  <div class="result-summary" id="summary">
+    <p class="sum-label">診断完了 — 必要な品目数</p>
+    <p class="sum-value" id="sumValue">— 品目</p>
+    <p class="sum-note" id="sumNote"></p>
+  </div>
+
+  <!-- カテゴリ別リスト -->
+  <div id="catFood" class="cat-card">
+    <div class="cat-title"><span class="cat-icon">🍱</span><span class="cat-name">食料</span><span class="cat-count" id="cntFood"></span></div>
+    <div id="listFood"></div>
+  </div>
+
+  <div id="catWater" class="cat-card">
+    <div class="cat-title"><span class="cat-icon">💧</span><span class="cat-name">水・飲料</span><span class="cat-count" id="cntWater"></span></div>
+    <div id="listWater"></div>
+  </div>
+
+  <div id="catMedical" class="cat-card">
+    <div class="cat-title"><span class="cat-icon">💊</span><span class="cat-name">医療・救急</span><span class="cat-count" id="cntMedical"></span></div>
+    <div id="listMedical"></div>
+  </div>
+
+  <div id="catHygiene" class="cat-card">
+    <div class="cat-title"><span class="cat-icon">🧴</span><span class="cat-name">衛生・生活用品</span><span class="cat-count" id="cntHygiene"></span></div>
+    <div id="listHygiene"></div>
+  </div>
+
+  <div id="catInfo" class="cat-card">
+    <div class="cat-title"><span class="cat-icon">📻</span><span class="cat-name">情報・通信・照明</span><span class="cat-count" id="cntInfo"></span></div>
+    <div id="listInfo"></div>
+  </div>
+
+  <div id="catOther" class="cat-card">
+    <div class="cat-title"><span class="cat-icon">📋</span><span class="cat-name">書類・その他</span><span class="cat-count" id="cntOther"></span></div>
+    <div id="listOther"></div>
+  </div>
+
+  <div id="catPet" class="cat-card">
+    <div class="cat-title"><span class="cat-icon">🐾</span><span class="cat-name">ペット用品</span><span class="cat-count" id="cntPet"></span></div>
+    <div id="listPet"></div>
+  </div>
+
+  <button class="btn-reset" id="btnReset" style="display:none" onclick="resetAll()">条件をリセットして再診断</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'bousai-bag-checklist';
+  var checkedItems = {};
+
+  // 品目定義: [id, カテゴリ, 優先度(must/rec), 品名, 補足]
+  var BASE_ITEMS = [
+    // 食料
+    ['food-01', 'food', 'must', '非常食（3日分）', 'カンパン・缶詰・レトルト食品など'],
+    ['food-02', 'food', 'must', '使い捨て食器・割り箸', '衛生的に使用するため'],
+    ['food-03', 'food', 'rec',  '調理不要なエネルギー補給食', 'カロリーメイト・ゼリー飲料など'],
+    // 水
+    ['water-01', 'water', 'must', '飲料水（1人3L×3日分）', '家族の人数×3L×3日を備蓄'],
+    ['water-02', 'water', 'must', 'ペットボトル水（携帯用）', '避難時に持ち出せるサイズ'],
+    ['water-03', 'water', 'rec',  '携帯浄水器・浄水タブレット', '断水が長引く場合に有効'],
+    // 医療
+    ['med-01', 'medical', 'must', '救急セット', '絆創膏・消毒液・包帯・はさみ'],
+    ['med-02', 'medical', 'must', '体温計', '非接触型が便利'],
+    ['med-03', 'medical', 'rec',  '市販常備薬', '痛み止め・胃腸薬・風邪薬'],
+    // 衛生
+    ['hyg-01', 'hygiene', 'must', 'マスク（人数分×予備）', 'ウイルス・粉塵対策'],
+    ['hyg-02', 'hygiene', 'must', '手指消毒液', '断水時の衛生確保'],
+    ['hyg-03', 'hygiene', 'must', 'ウェットティッシュ', '顔・手・身体の清拭に'],
+    ['hyg-04', 'hygiene', 'must', 'トイレットペーパー', '圧縮タイプが省スペース'],
+    ['hyg-05', 'hygiene', 'rec',  '歯ブラシ・歯磨き粉', '長期避難に備えて'],
+    ['hyg-06', 'hygiene', 'rec',  '携帯用簡易トイレ', '断水時・避難所のトイレ渋滞対策'],
+    // 情報・通信
+    ['info-01', 'info', 'must', '携帯ラジオ（手動発電・乾電池）', '停電時でも情報収集できる'],
+    ['info-02', 'info', 'must', '懐中電灯', '停電対策。LEDが長持ち'],
+    ['info-03', 'info', 'must', '予備電池（単1・単3）', 'ラジオ・懐中電灯用'],
+    ['info-04', 'info', 'must', 'モバイルバッテリー（大容量）', 'スマートフォン充電用'],
+    ['info-05', 'info', 'must', '防災笛（ホイッスル）', '瓦礫に埋まったときの救助要請'],
+    ['info-06', 'info', 'rec',  '充電式ランタン', '避難所・テント内の照明'],
+    // 書類・その他
+    ['other-01', 'other', 'must', '現金（小銭・千円札）', '停電時はカード・電子マネー不可'],
+    ['other-02', 'other', 'must', '身分証のコピー', '保険証・免許証・マイナンバーカード'],
+    ['other-03', 'other', 'must', 'ビニール袋（大中小）', '防水・ごみ入れ・仕切りに'],
+    ['other-04', 'other', 'must', '着替え（2〜3日分）', '下着・靴下を優先'],
+    ['other-05', 'other', 'must', '雨具・ポンチョ', '避難時の悪天候対策'],
+    ['other-06', 'other', 'rec',  '軍手・厚手手袋', '瓦礫除去・怪我防止'],
+    ['other-07', 'other', 'rec',  'ロープ（5〜10m）', '救助・固定・目印に'],
+    ['other-08', 'other', 'rec',  'ハザードマップのコピー', '紙媒体で持つと安心'],
+  ];
+
+  // 子どもがいる場合の追加品目
+  var CHILD_ITEMS = [
+    ['child-01', 'food', 'must', '子ども用食品・おやつ', 'アレルギーに配慮した食品を'],
+    ['child-02', 'hygiene', 'must', '子ども用常備薬', '解熱剤・鼻炎薬など'],
+    ['child-03', 'other', 'rec',  '子ども用安心グッズ', 'お気に入りのおもちゃ・絵本など'],
+  ];
+
+  // 乳幼児がいる場合の追加品目
+  var INFANT_ITEMS = [
+    ['infant-01', 'hygiene', 'must', 'おむつ（多め）', '1日10〜15枚×3日分'],
+    ['infant-02', 'hygiene', 'must', 'おしりふき', '大量に必要。複数パック'],
+    ['infant-03', 'food', 'must', '粉ミルク・哺乳瓶', '母乳でも備蓄を推奨'],
+    ['infant-04', 'food', 'must', 'ベビーフード（月齢対応）', '離乳食が必要な場合'],
+    ['infant-05', 'hygiene', 'rec',  '抱っこ紐（スリング）', '避難時に両手が使える'],
+  ];
+
+  // 高齢者がいる場合の追加品目
+  var ELDERLY_ITEMS = [
+    ['elderly-01', 'medical', 'must', '常用薬（多め）', '最低7日分は確保'],
+    ['elderly-02', 'medical', 'must', '医療情報メモ', '血液型・既往症・かかりつけ医を記録'],
+    ['elderly-03', 'hygiene', 'rec',  '大人用おむつ・尿漏れパッド', '必要な場合に備えて'],
+    ['elderly-04', 'other', 'rec',  '介護用品・補助具', '杖・補聴器の予備電池など'],
+  ];
+
+  // 持病ありの場合の追加品目
+  var ILLNESS_ITEMS = [
+    ['illness-01', 'medical', 'must', '処方薬（7日分以上）', '定期的に補充して期限管理'],
+    ['illness-02', 'medical', 'must', 'お薬手帳のコピー', '処方内容を他の医師に伝えられる'],
+    ['illness-03', 'medical', 'rec',  '医療機器の予備バッテリー', '在宅酸素・透析など必要な場合'],
+  ];
+
+  // ペットありの場合の追加品目
+  var PET_ITEMS = [
+    ['pet-01', 'pet', 'must', 'ペットフード（3日分）', '普段食べているものを備蓄'],
+    ['pet-02', 'pet', 'must', 'ペット用飲料水（3日分）', '1日あたり体重1kgにつき60ml'],
+    ['pet-03', 'pet', 'must', 'キャリーバッグ・ケージ', '避難所ではケージ必須の場合が多い'],
+    ['pet-04', 'pet', 'must', 'リード・首輪（予備）', '屋外での脱走防止'],
+    ['pet-05', 'pet', 'must', 'ワクチン証明書・健康手帳のコピー', '避難所入所時に必要な場合がある'],
+    ['pet-06', 'pet', 'rec',  'ペット用常備薬', '持病がある場合は多めに'],
+    ['pet-07', 'pet', 'rec',  'ペット用ウェットシート・トイレシート', '衛生管理に'],
+  ];
+
+  function diagnose() {
+    var adults  = parseInt(document.getElementById('adults').value);
+    var children= parseInt(document.getElementById('children').value);
+    var infants = parseInt(document.getElementById('infants').value);
+    var elderly = parseInt(document.getElementById('elderly').value);
+    var illnessEl = document.querySelector('input[name="illness"]:checked');
+    var petEl     = document.querySelector('input[name="pet"]:checked');
+    var illness   = illnessEl ? parseInt(illnessEl.value, 10) : 0;
+    var pet       = petEl     ? parseInt(petEl.value, 10)     : 0;
+
+    // 既存チェック状態を読み込む
+    try { checkedItems = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { checkedItems = {}; }
+
+    var items = [].concat(BASE_ITEMS);
+    if (children > 0) items = items.concat(CHILD_ITEMS);
+    if (infants  > 0) items = items.concat(INFANT_ITEMS);
+    if (elderly  > 0) items = items.concat(ELDERLY_ITEMS);
+    if (illness)      items = items.concat(ILLNESS_ITEMS);
+    if (pet)          items = items.concat(PET_ITEMS);
+
+    // カテゴリ別に仕分け
+    var cats = { food:[], water:[], medical:[], hygiene:[], info:[], other:[], pet:[] };
+    items.forEach(function(it) { cats[it[1]].push(it); });
+
+    renderCategory('catFood',    'listFood',    'cntFood',    cats.food);
+    renderCategory('catWater',   'listWater',   'cntWater',   cats.water);
+    renderCategory('catMedical', 'listMedical', 'cntMedical', cats.medical);
+    renderCategory('catHygiene', 'listHygiene', 'cntHygiene', cats.hygiene);
+    renderCategory('catInfo',    'listInfo',    'cntInfo',    cats.info);
+    renderCategory('catOther',   'listOther',   'cntOther',   cats.other);
+    if (pet) {
+      renderCategory('catPet', 'listPet', 'cntPet', cats.pet);
+      document.getElementById('catPet').style.display = 'block';
+    } else {
+      document.getElementById('catPet').style.display = 'none';
+    }
+
+    var total = items.length;
+    var checked = items.filter(function(it){ return checkedItems[it[0]]; }).length;
+    var summary = document.getElementById('summary');
+    summary.style.display = 'block';
+    document.getElementById('sumValue').textContent = total + ' 品目（準備済み ' + checked + ' 品目）';
+
+    var notes = [];
+    var totalLiters = (adults + children + infants + elderly) * 3 * 3;
+    notes.push('水の目安: ' + totalLiters + 'L（' + (adults+children+infants+elderly) + '人×3日分）');
+    document.getElementById('sumNote').textContent = notes.join(' ／ ');
+
+    document.getElementById('btnReset').style.display = 'block';
+
+    // 入力エリアを折りたたまない（再利用しやすくするため）
+  }
+
+  function renderCategory(cardId, listId, cntId, items) {
+    var card = document.getElementById(cardId);
+    var list = document.getElementById(listId);
+    var cnt  = document.getElementById(cntId);
+    if (!items || items.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    var checked = items.filter(function(it){ return checkedItems[it[0]]; }).length;
+    cnt.textContent = checked + '/' + items.length + ' 完了';
+    list.innerHTML = items.map(function(it) {
+      var isChecked = checkedItems[it[0]] ? 'checked' : '';
+      var badge = it[2] === 'must'
+        ? '<span class="badge-must">必須</span>'
+        : '<span class="badge-rec">推奨</span>';
+      return '<label class="check-item" onclick="toggleCheck(\'' + it[0] + '\', \'' + cardId + '\', \'' + listId + '\', \'' + cntId + '\')">'
+           + '<input type="checkbox" id="chk-' + it[0] + '" ' + isChecked + '>'
+           + '<div class="check-box"></div>'
+           + '<div class="check-text">'
+           + '<div class="check-name">' + it[3] + badge + '</div>'
+           + '<div class="check-note">' + it[4] + '</div>'
+           + '</div></label>';
+    }).join('');
+  }
+
+  function toggleCheck(id, cardId, listId, cntId) {
+    checkedItems[id] = !checkedItems[id];
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(checkedItems)); } catch(e) {}
+    // チェックボックスのビジュアルを即更新
+    var chk = document.getElementById('chk-' + id);
+    if (chk) chk.checked = checkedItems[id];
+    // カウント更新
+    var card = document.getElementById(cardId);
+    var list = document.getElementById(listId);
+    var cnt  = document.getElementById(cntId);
+    var items = list.querySelectorAll('input[type="checkbox"]');
+    var total = items.length;
+    var done  = 0;
+    items.forEach(function(c){ if(c.checked) done++; });
+    cnt.textContent = done + '/' + total + ' 完了';
+    // サマリー更新
+    updateSummary();
+  }
+
+  function updateSummary() {
+    var allChks = document.querySelectorAll('.check-item input[type="checkbox"]');
+    var total = allChks.length, done = 0;
+    allChks.forEach(function(c){ if(c.checked) done++; });
+    document.getElementById('sumValue').textContent = total + ' 品目（準備済み ' + done + ' 品目）';
+  }
+
+  function resetAll() {
+    if (!confirm('チェック状態をリセットして再診断しますか？')) return;
+    checkedItems = {};
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+    // 結果エリアを非表示
+    document.getElementById('summary').style.display = 'none';
+    ['catFood','catWater','catMedical','catHygiene','catInfo','catOther','catPet'].forEach(function(id){
+      document.getElementById(id).style.display = 'none';
+    });
+    document.getElementById('btnReset').style.display = 'none';
+  }
+  </script>
+
+</body>
+</html>
