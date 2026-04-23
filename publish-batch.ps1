@@ -179,6 +179,39 @@ if ($ok) {
     Write-Host "PUBLISHED.md regenerated ($totalApps entries)"
 }
 
+# (5.5) Regenerate sitemap.xml
+if ($ok) {
+    $domain = "https://nekopoke.jp"
+    $today  = Get-Date -Format 'yyyy-MM-dd'
+
+    $smLines = @(
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        "  <url><loc>$domain/</loc><lastmod>$today</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>"
+        "  <url><loc>$domain/tools.html</loc><lastmod>$today</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>"
+        "  <url><loc>$domain/about.html</loc><lastmod>$today</lastmod><changefreq>monthly</changefreq><priority>0.4</priority></url>"
+        "  <url><loc>$domain/privacy.html</loc><lastmod>$today</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>"
+        "  <url><loc>$domain/contact.html</loc><lastmod>$today</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>"
+    )
+
+    foreach ($a in $allApps) {
+        $enc = [uri]::EscapeDataString($a)
+        $appDir = Join-Path $pub $a
+        $lm = $today
+        if (Test-Path $appDir) {
+            try {
+                $lm = (Get-Item $appDir).LastWriteTime.ToString('yyyy-MM-dd')
+            } catch {}
+        }
+        $smLines += "  <url><loc>$domain/$enc/</loc><lastmod>$lm</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>"
+    }
+
+    $smLines += '</urlset>'
+    $smXml = $smLines -join "`r`n"
+    [System.IO.File]::WriteAllText((Join-Path $pub "sitemap.xml"), $smXml, [System.Text.UTF8Encoding]::new($false))
+    Write-Host "sitemap.xml regenerated ($($allApps.Count + 5) urls)"
+}
+
 # (6) 3-point consistency check
 if ($ok) {
     $chkIdx   = [System.IO.File]::ReadAllText((Join-Path $pub "index.html"), [System.Text.Encoding]::UTF8)
@@ -207,8 +240,8 @@ if ($ok) {
 
 # (7) Git add -- all app folders + core files (explicit, no wildcard)
 if ($ok) {
-    git add -- index.html PUBLISHED.md
-    if ($LASTEXITCODE -ne 0) { LogError "git add index.html/PUBLISHED.md failed"; $ok = $false }
+    git add -- index.html PUBLISHED.md sitemap.xml
+    if ($LASTEXITCODE -ne 0) { LogError "git add index.html/PUBLISHED.md/sitemap.xml failed"; $ok = $false }
 }
 
 if ($ok) {
