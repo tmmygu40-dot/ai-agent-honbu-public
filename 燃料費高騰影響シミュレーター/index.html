@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>燃料費高騰影響シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.warn { border-color: var(--warn); background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);   background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng);   }
+
+    .year-loss {
+      font-size: 1rem; font-weight: 700;
+      margin-top: 0.8rem; padding-top: 0.8rem;
+      border-top: 1px solid var(--border);
+      color: var(--ng);
+    }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--ng); font-size: 1.05rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⛽ 燃料費高騰影響シミュレーター</h1>
+    <p class="subtitle">ガソリン価格上昇による月次・年間損失を即試算</p>
+  </header>
+
+  <!-- 車両情報カード -->
+  <div class="card">
+    <p class="card-title">車両情報</p>
+    <div class="row2">
+      <div class="field">
+        <label for="vehicles">車両台数</label>
+        <input type="number" id="vehicles" placeholder="例: 3" min="1" step="1">
+        <p class="hint">台</p>
+      </div>
+      <div class="field">
+        <label for="fuel_eff">燃費</label>
+        <input type="number" id="fuel_eff" placeholder="例: 15" min="0.1" step="0.1">
+        <p class="hint">km/L（1台あたり平均）</p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="distance">月間走行距離（1台あたり）</label>
+      <input type="number" id="distance" placeholder="例: 1000" min="1" step="1">
+      <p class="hint">km/月</p>
+    </div>
+  </div>
+
+  <!-- ガソリン価格カード -->
+  <div class="card">
+    <p class="card-title">ガソリン価格</p>
+    <div class="row2">
+      <div class="field">
+        <label for="price_base">基準価格（高騰前）</label>
+        <input type="number" id="price_base" placeholder="例: 150" min="1" step="1">
+        <p class="hint">円/L</p>
+      </div>
+      <div class="field">
+        <label for="price_now">現在価格</label>
+        <input type="number" id="price_now" placeholder="例: 185" min="1" step="1">
+        <p class="hint">円/L</p>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">損失額を試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月次損失額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+    <p class="year-loss" id="yl"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var LS_KEY = 'nenryo_koton_sim';
+
+  function save() {
+    var d = {
+      vehicles:   document.getElementById('vehicles').value,
+      distance:   document.getElementById('distance').value,
+      fuel_eff:   document.getElementById('fuel_eff').value,
+      price_base: document.getElementById('price_base').value,
+      price_now:  document.getElementById('price_now').value
+    };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch(e) {}
+  }
+
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+      if (!d) return;
+      document.getElementById('vehicles').value   = d.vehicles   || '';
+      document.getElementById('distance').value   = d.distance   || '';
+      document.getElementById('fuel_eff').value   = d.fuel_eff   || '';
+      document.getElementById('price_base').value = d.price_base || '';
+      document.getElementById('price_now').value  = d.price_now  || '';
+    } catch(e) {}
+  }
+
+  ['vehicles','distance','fuel_eff','price_base','price_now'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', save);
+  });
+
+  function calc() {
+    var vehicles   = parseFloat(document.getElementById('vehicles').value);
+    var distance   = parseFloat(document.getElementById('distance').value);
+    var fuel_eff   = parseFloat(document.getElementById('fuel_eff').value);
+    var price_base = parseFloat(document.getElementById('price_base').value);
+    var price_now  = parseFloat(document.getElementById('price_now').value);
+
+    if ([vehicles, distance, fuel_eff, price_base, price_now].some(isNaN)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (fuel_eff <= 0) { showErr('燃費は0より大きい値を入力してください'); return; }
+    if (price_now <= price_base) {
+      showErr('現在価格が基準価格以下です。価格差がありません');
+      return;
+    }
+
+    // 月間総燃料消費量 (L)
+    var total_L = vehicles * distance / fuel_eff;
+    // 基準月額
+    var base_cost = total_L * price_base;
+    // 現在月額
+    var now_cost  = total_L * price_now;
+    // 月次損失
+    var month_loss = now_cost - base_cost;
+    // 年間損失
+    var year_loss  = month_loss * 12;
+    // 価格差
+    var price_diff = price_now - price_base;
+
+    var level = month_loss >= 100000 ? 'ng' : 'warn';
+    var eval_msg = month_loss >= 100000
+      ? '大きなコスト増。対策が急務です'
+      : month_loss >= 30000
+      ? 'かなりのコスト増です'
+      : 'コスト増が発生しています';
+
+    showResult(level,
+      '月 −' + fmt(month_loss) + ' 円',
+      eval_msg,
+      '車両' + vehicles + '台 × 月' + fmt(distance) + 'km / 燃費' + fuel_eff + 'km/L',
+      '年間換算：−' + fmt(year_loss) + ' 円'
+    );
+    showDetail([
+      ['車両台数',           vehicles + ' 台'],
+      ['1台あたり月間走行距離', fmt(distance) + ' km'],
+      ['燃費',               fuel_eff + ' km/L'],
+      ['月間総燃料消費量',    fmt(total_L) + ' L'],
+      ['基準ガソリン価格',   fmt(price_base) + ' 円/L'],
+      ['現在ガソリン価格',   fmt(price_now) + ' 円/L'],
+      ['価格差',             '+' + fmt(price_diff) + ' 円/L'],
+      ['基準月額燃料費',     fmt(base_cost) + ' 円'],
+      ['現在月額燃料費',     fmt(now_cost) + ' 円'],
+      ['月次損失額',         '−' + fmt(month_loss) + ' 円', true],
+      ['年間損失額',         '−' + fmt(year_loss) + ' 円', true],
+    ]);
+    save();
+  }
+
+  function showResult(level, val, eval_msg, note, year) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = eval_msg;
+    document.getElementById('rn').textContent = note;
+    document.getElementById('yl').textContent = year;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('yl').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  load();
+  </script>
+</body>
+</html>
