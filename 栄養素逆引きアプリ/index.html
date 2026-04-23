@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>栄養素逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 不調タグ選択 ── */
+    .tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .tag {
+      display: inline-block;
+      padding: 0.5rem 0.85rem;
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      background: var(--bg);
+      color: var(--text-sub);
+      transition: all 0.15s;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tag:hover { border-color: var(--accent); color: var(--accent); }
+    .tag.selected {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 700;
+    }
+    .hint-text { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.8rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.7rem;
+      font-size: 0.88rem; font-weight: 600;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-reset:hover { border-color: var(--text-sub); }
+
+    /* ── 結果エリア ── */
+    #result-area { display: none; }
+
+    /* ── 栄養素カード ── */
+    .nutrient-block {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border-left: 4px solid var(--accent);
+      background: var(--accent-light);
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    .nutrient-name {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--accent);
+      margin-bottom: 0.3rem;
+    }
+    .nutrient-desc {
+      font-size: 0.82rem;
+      color: var(--text-sub);
+      margin-bottom: 0.6rem;
+      line-height: 1.5;
+    }
+    .nutrient-foods-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      letter-spacing: 0.05em;
+      margin-bottom: 0.35rem;
+    }
+    .foods-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .food-chip {
+      display: inline-block;
+      padding: 0.28rem 0.65rem;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      color: var(--text);
+    }
+
+    /* ── 症状まとめラベル ── */
+    .selected-symptoms {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      margin-bottom: 1rem;
+    }
+    .selected-symptoms strong { color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 空の案内 ── */
+    .empty-note {
+      text-align: center;
+      color: var(--text-sub);
+      font-size: 0.9rem;
+      padding: 1.5rem 0;
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🥦 栄養素逆引きアプリ</h1>
+    <p class="subtitle">体の不調から不足栄養素と補える食材を即チェック</p>
+  </header>
+
+  <!-- 不調選択カード -->
+  <div class="card">
+    <p class="card-title">不調を選ぶ（複数選択可）</p>
+    <p class="hint-text">当てはまるものをタップしてください</p>
+    <div class="tags" id="tag-area"></div>
+  </div>
+
+  <!-- 検索ボタン -->
+  <button class="btn-calc" onclick="showResult()">不足栄養素を調べる</button>
+  <button class="btn-reset" onclick="resetAll()">選択をリセット</button>
+
+  <!-- 結果エリア -->
+  <div id="result-area">
+    <div class="card">
+      <p class="card-title">不足している栄養素と食材</p>
+      <p class="selected-symptoms" id="selected-label"></p>
+      <div id="nutrient-list"></div>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // ──────────────────────────────────────────
+  // 栄養素データ
+  // ──────────────────────────────────────────
+  var NUTRIENTS = {
+    'vitB1': {
+      name: 'ビタミンB1',
+      desc: 'エネルギー代謝を助ける。不足すると疲れやすくなり、集中力が低下します。',
+      foods: ['豚肉', '豆腐', '枝豆', '玄米', '大豆', 'うなぎ']
+    },
+    'vitB2': {
+      name: 'ビタミンB2',
+      desc: '粘膜の保護・再生を助ける。不足すると口内炎や肌荒れが起こりやすくなります。',
+      foods: ['レバー', '牛乳', 'チーズ', '卵', 'さば', 'アーモンド']
+    },
+    'vitB6': {
+      name: 'ビタミンB6',
+      desc: 'タンパク質代謝・神経機能を支える。不足するとイライラや睡眠トラブルにつながります。',
+      foods: ['バナナ', 'まぐろ', '鶏むね肉', 'アボカド', 'にんにく', '大豆']
+    },
+    'vitB12': {
+      name: 'ビタミンB12',
+      desc: '赤血球生成・神経機能を支える。不足すると貧血や疲労感が出やすくなります。',
+      foods: ['あさり', 'レバー', 'さんま', 'サーモン', '牛肉', 'チーズ']
+    },
+    'vitC': {
+      name: 'ビタミンC',
+      desc: 'コラーゲン生成・免疫強化・鉄の吸収促進。不足すると肌荒れや風邪をひきやすくなります。',
+      foods: ['柑橘類', 'ブロッコリー', 'パプリカ', 'いちご', 'キウイ', 'じゃがいも']
+    },
+    'vitA': {
+      name: 'ビタミンA',
+      desc: '皮膚・粘膜の再生・視力維持。不足すると目の疲れや乾燥肌につながります。',
+      foods: ['にんじん', '南瓜', 'レバー', '海苔', '小松菜', 'ほうれん草']
+    },
+    'vitD': {
+      name: 'ビタミンD',
+      desc: 'カルシウム吸収を助け、免疫機能を整える。不足すると骨が弱くなりやすくなります。',
+      foods: ['鮭', 'さんま', 'きのこ類', '卵黄', 'いわし', 'マグロ']
+    },
+    'vitE': {
+      name: 'ビタミンE',
+      desc: '血行促進・抗酸化作用。不足すると冷え性や肌のくすみにつながります。',
+      foods: ['アーモンド', 'かぼちゃ', 'アボカド', 'オリーブオイル', 'うなぎ', 'ほうれん草']
+    },
+    'iron': {
+      name: '鉄',
+      desc: 'ヘモグロビン生成で酸素を運搬。不足すると貧血・疲れ・集中力低下が起こります。',
+      foods: ['レバー', 'ほうれん草', 'あさり', '赤身肉', '豆腐', '海苔']
+    },
+    'calcium': {
+      name: 'カルシウム',
+      desc: '骨・歯の形成。不足すると骨がもろくなり、筋肉けいれんも起こりやすくなります。',
+      foods: ['牛乳', 'ヨーグルト', '小魚', 'チーズ', '豆腐', 'ひじき']
+    },
+    'magnesium': {
+      name: 'マグネシウム',
+      desc: '筋肉・神経の正常化、エネルギー代謝を助ける。不足するとこわばり・不眠・イライラが出やすくなります。',
+      foods: ['アーモンド', '大豆', '豆腐', 'バナナ', 'ひじき', '玄米']
+    },
+    'potassium': {
+      name: 'カリウム',
+      desc: '余分なナトリウムを排出しむくみを和らげ、筋肉の正常な収縮を助けます。',
+      foods: ['バナナ', 'アボカド', 'ほうれん草', '納豆', 'じゃがいも', 'きゅうり']
+    },
+    'zinc': {
+      name: '亜鉛',
+      desc: '免疫機能・細胞修復・毛髪合成に不可欠。不足すると免疫低下・肌荒れ・抜け毛が起こりやすくなります。',
+      foods: ['牡蠣', '牛赤身肉', 'ごま', 'チーズ', 'アーモンド', '大豆']
+    },
+    'protein': {
+      name: 'タンパク質',
+      desc: '筋肉・毛髪・皮膚の材料。不足すると疲れやすくなり、抜け毛や免疫低下にもつながります。',
+      foods: ['鶏むね肉', '卵', '大豆', '魚全般', 'ヨーグルト', '豆腐']
+    },
+    'tryptophan': {
+      name: 'トリプトファン',
+      desc: 'セロトニン・メラトニンの前駆体。不足すると睡眠が浅くなり、気分の落ち込みにもつながります。',
+      foods: ['バナナ', '牛乳', '大豆', '卵', 'まぐろ', 'チーズ']
+    },
+    'fiber': {
+      name: '食物繊維',
+      desc: '腸内環境を整え、便通を改善。不足すると便秘・腸内細菌バランスの乱れが起こります。',
+      foods: ['ごぼう', '海藻', 'りんご', 'オートミール', '大豆', 'キャベツ']
+    },
+    'dha': {
+      name: 'DHA・EPA',
+      desc: '脳神経細胞の材料・血流改善。不足すると集中力低下・気分の不安定さにつながります。',
+      foods: ['サバ', 'サーモン', 'いわし', 'あじ', 'まぐろ', 'ぶり']
+    },
+    'biotin': {
+      name: 'ビオチン',
+      desc: '毛髪・爪・皮膚の健康維持。不足すると抜け毛・爪の割れ・肌荒れが起こりやすくなります。',
+      foods: ['卵黄', 'レバー', '大豆', 'アーモンド', 'さつまいも', '牛乳']
+    },
+    'folate': {
+      name: '葉酸',
+      desc: '赤血球生成・DNA合成を助ける。不足すると貧血・疲労・免疫低下につながります。',
+      foods: ['ほうれん草', 'ブロッコリー', 'レバー', '豆類', 'アスパラガス', 'いちご']
+    },
+    'lutein': {
+      name: 'ルテイン',
+      desc: '目の黄斑部を保護し、目の疲れやかすみを和らげます。',
+      foods: ['ほうれん草', 'ケール', 'ブロッコリー', '卵黄', 'とうもろこし', 'パプリカ']
+    }
+  };
+
+  // ──────────────────────────────────────────
+  // 不調→栄養素マッピング
+  // ──────────────────────────────────────────
+  var SYMPTOM_MAP = [
+    { id: 'tired',     label: '疲れ・倦怠感',     nutrients: ['vitB1','iron','magnesium','protein'] },
+    { id: 'skin',      label: '肌荒れ・乾燥肌',   nutrients: ['vitC','vitA','vitB2','biotin','zinc'] },
+    { id: 'edema',     label: 'むくみ',             nutrients: ['potassium','vitB6'] },
+    { id: 'immunity',  label: '免疫低下・風邪をひきやすい', nutrients: ['vitC','zinc','vitD','folate'] },
+    { id: 'anemia',    label: '貧血・立ちくらみ',  nutrients: ['iron','vitB12','folate','vitC'] },
+    { id: 'bone',      label: '骨・歯が弱い',       nutrients: ['calcium','vitD','magnesium'] },
+    { id: 'eyes',      label: '目の疲れ・かすみ',  nutrients: ['vitA','lutein','dha'] },
+    { id: 'sleep',     label: '睡眠が浅い・不眠',  nutrients: ['tryptophan','magnesium','vitB6'] },
+    { id: 'constip',   label: '便秘・お腹の張り',  nutrients: ['fiber','magnesium'] },
+    { id: 'stress',    label: 'ストレス・イライラ', nutrients: ['magnesium','vitB6','tryptophan'] },
+    { id: 'focus',     label: '集中力・記憶力の低下', nutrients: ['iron','dha','vitB1'] },
+    { id: 'stomatit',  label: '口内炎・口の荒れ',  nutrients: ['vitB2','vitB6','zinc'] },
+    { id: 'cold',      label: '冷え性',              nutrients: ['iron','vitE','magnesium'] },
+    { id: 'hair',      label: '抜け毛・薄毛',       nutrients: ['biotin','zinc','protein','iron'] },
+    { id: 'digestion', label: '胃もたれ・消化不良', nutrients: ['fiber','vitB1'] },
+    { id: 'muscle',    label: '筋肉のこわばり・けいれん', nutrients: ['magnesium','calcium','potassium'] },
+    { id: 'mood',      label: '気分が落ち込む',     nutrients: ['tryptophan','dha','vitB12','folate'] },
+    { id: 'weight',    label: '体重が落ちにくい',   nutrients: ['vitB1','vitB2','magnesium','protein'] }
+  ];
+
+  // ──────────────────────────────────────────
+  // 初期化
+  // ──────────────────────────────────────────
+  var selected = [];
+
+  function init() {
+    var saved = localStorage.getItem('nutrient_selected');
+    if (saved) { try { selected = JSON.parse(saved); } catch(e) { selected = []; } }
+    renderTags();
+  }
+
+  function renderTags() {
+    var area = document.getElementById('tag-area');
+    area.innerHTML = SYMPTOM_MAP.map(function(s) {
+      var isSelected = selected.indexOf(s.id) !== -1;
+      return '<span class="tag' + (isSelected ? ' selected' : '') + '" '
+           + 'data-id="' + s.id + '" onclick="toggleTag(this)">' + s.label + '</span>';
+    }).join('');
+  }
+
+  function toggleTag(el) {
+    var id = el.getAttribute('data-id');
+    var idx = selected.indexOf(id);
+    if (idx === -1) {
+      selected.push(id);
+      el.classList.add('selected');
+    } else {
+      selected.splice(idx, 1);
+      el.classList.remove('selected');
+    }
+    localStorage.setItem('nutrient_selected', JSON.stringify(selected));
+  }
+
+  // ──────────────────────────────────────────
+  // 結果表示
+  // ──────────────────────────────────────────
+  function showResult() {
+    if (selected.length === 0) {
+      alert('不調をひとつ以上選んでください');
+      return;
+    }
+
+    // 選択した症状のラベルを取得
+    var labels = SYMPTOM_MAP.filter(function(s) { return selected.indexOf(s.id) !== -1; })
+                            .map(function(s) { return s.label; });
+
+    // 不足栄養素をまとめる（出現回数でソート、重複は1件に）
+    var count = {};
+    selected.forEach(function(sid) {
+      var s = SYMPTOM_MAP.find(function(x) { return x.id === sid; });
+      if (!s) return;
+      s.nutrients.forEach(function(nid) {
+        count[nid] = (count[nid] || 0) + 1;
+      });
+    });
+
+    var sorted = Object.keys(count).sort(function(a, b) { return count[b] - count[a]; });
+
+    // ラベル表示
+    document.getElementById('selected-label').innerHTML =
+      '選択した不調：<strong>' + labels.join('・') + '</strong>';
+
+    // 栄養素カード生成
+    var html = '';
+    if (sorted.length === 0) {
+      html = '<p class="empty-note">該当する栄養素が見つかりませんでした</p>';
+    } else {
+      sorted.forEach(function(nid) {
+        var n = NUTRIENTS[nid];
+        if (!n) return;
+        html += '<div class="nutrient-block">'
+             +  '<div class="nutrient-name">' + n.name + '</div>'
+             +  '<div class="nutrient-desc">' + n.desc + '</div>'
+             +  '<div class="nutrient-foods-label">▶ 補える食材</div>'
+             +  '<div class="foods-wrap">'
+             +  n.foods.map(function(f) { return '<span class="food-chip">' + f + '</span>'; }).join('')
+             +  '</div>'
+             + '</div>';
+      });
+    }
+
+    document.getElementById('nutrient-list').innerHTML = html;
+    document.getElementById('result-area').style.display = '';
+
+    // スクロール
+    setTimeout(function() {
+      document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }
+
+  function resetAll() {
+    selected = [];
+    localStorage.removeItem('nutrient_selected');
+    renderTags();
+    document.getElementById('result-area').style.display = 'none';
+  }
+
+  init();
+  </script>
+
+</body>
+</html>
