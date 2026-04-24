@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>症状別受診科案内アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── カテゴリグリッド ── */
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+    }
+    .cat-btn {
+      padding: 0.7rem 0.4rem;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+      text-align: center;
+      transition: all 0.15s;
+      line-height: 1.4;
+    }
+    .cat-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .cat-btn.active {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    .cat-icon { display: block; font-size: 1.4rem; margin-bottom: 0.2rem; }
+
+    /* ── 症状リスト ── */
+    .symptom-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+    .sym-btn {
+      padding: 0.65rem 0.75rem;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--text);
+      text-align: left;
+      transition: all 0.15s;
+    }
+    .sym-btn:hover { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+    .sym-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+
+    .result-header { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; }
+    .urgency-badge {
+      flex-shrink: 0;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .ok .urgency-badge   { background: var(--ok);   color: #fff; }
+    .warn .urgency-badge { background: var(--warn);  color: #fff; }
+    .ng .urgency-badge   { background: var(--ng);    color: #fff; }
+
+    .result-dept {
+      font-size: 1.4rem;
+      font-weight: 900;
+      line-height: 1.3;
+    }
+    .ok .result-dept   { color: var(--ok); }
+    .warn .result-dept { color: var(--warn); }
+    .ng .result-dept   { color: var(--ng); }
+
+    .result-note {
+      font-size: 0.84rem;
+      color: var(--text-sub);
+      line-height: 1.6;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── 最近の履歴 ── */
+    .history-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .history-tag {
+      padding: 0.3rem 0.75rem;
+      background: var(--accent-light);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 0.78rem;
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+    .history-tag:hover { background: var(--accent); color: #fff; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .category-grid { grid-template-columns: repeat(2, 1fr); }
+      .symptom-list { grid-template-columns: 1fr; }
+    }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .back-link, #fav-widget, .no-print { display: none !important; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🏥 症状別受診科案内</h1>
+    <p class="subtitle">体の不調・症状を選ぶだけで受診すべき診療科を即案内</p>
+  </header>
+
+  <!-- カテゴリ選択 -->
+  <div class="card">
+    <p class="card-title">① 部位・カテゴリを選ぶ</p>
+    <div class="category-grid" id="catGrid"></div>
+  </div>
+
+  <!-- 症状選択 -->
+  <div class="card" id="symCard" style="display:none">
+    <p class="card-title" id="symCardTitle">② 症状を選ぶ</p>
+    <div class="symptom-list" id="symList"></div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="result-card" id="result">
+    <div class="result-header">
+      <span class="urgency-badge" id="urgencyBadge"></span>
+      <div class="result-dept" id="resultDept"></div>
+    </div>
+    <p class="result-note" id="resultNote"></p>
+  </div>
+
+  <!-- 最近見た症状 -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">最近見た症状</p>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <p style="max-width:600px;margin:0 auto 1rem;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;">
+    ⚠️ このアプリは目安の案内です。実際の受診科は症状の詳細や既往症によって異なります。緊急の場合は迷わず救急（119番）へ。
+  </p>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var DATA = {
+    '頭': {
+      icon: '🧠',
+      symptoms: [
+        { name: '頭痛', dept: '脳神経内科・内科', urgency: 'warn', note: '繰り返す頭痛や市販薬が効かない場合は早めに受診を。' },
+        { name: '突然の激しい頭痛', dept: '脳神経外科（救急）', urgency: 'ng', note: 'くも膜下出血などの可能性があります。すぐに救急へ。' },
+        { name: 'めまい・ふらつき', dept: '耳鼻科・脳神経内科', urgency: 'warn', note: '立っていられないほどのめまいは早急に受診してください。' },
+        { name: '頭がぼーっとする', dept: '内科', urgency: 'ok', note: '睡眠不足や疲労でも起きますが、続く場合は受診を。' },
+        { name: '物忘れが多い', dept: '脳神経内科', urgency: 'warn', note: '認知機能の低下の可能性があります。専門医に相談を。' },
+        { name: '頭を打った', dept: '脳神経外科', urgency: 'warn', note: '意識がない・嘔吐がある場合はすぐに救急へ。' },
+      ]
+    },
+    '目': {
+      icon: '👁️',
+      symptoms: [
+        { name: '目が赤い', dept: '眼科', urgency: 'warn', note: '結膜炎や充血など。目薬では改善しない場合は受診を。' },
+        { name: '目が痛い', dept: '眼科', urgency: 'warn', note: '急性緑内障の可能性もあります。痛みが強い場合は早急に。' },
+        { name: '視力が急に落ちた', dept: '眼科（救急）', urgency: 'ng', note: '網膜剥離などの可能性があります。すぐに眼科へ。' },
+        { name: '目やにが多い', dept: '眼科', urgency: 'warn', note: '細菌性・ウイルス性結膜炎の可能性があります。' },
+        { name: '目がかゆい', dept: '眼科', urgency: 'ok', note: 'アレルギー性結膜炎が多いです。市販点眼薬で様子を。' },
+        { name: '見えにくい・ぼやける', dept: '眼科', urgency: 'warn', note: '白内障・緑内障・糖尿病性網膜症の可能性があります。' },
+      ]
+    },
+    '耳': {
+      icon: '👂',
+      symptoms: [
+        { name: '耳が痛い', dept: '耳鼻科', urgency: 'warn', note: '外耳炎・中耳炎など。子どもの場合は特に早めに受診を。' },
+        { name: '耳が聞こえにくい', dept: '耳鼻科', urgency: 'warn', note: '突発性難聴は早期治療が重要です。できるだけ早く受診を。' },
+        { name: '耳鳴り', dept: '耳鼻科', urgency: 'warn', note: '突然の耳鳴りは突発性難聴の場合も。早めの受診を。' },
+        { name: '耳から液が出る', dept: '耳鼻科', urgency: 'warn', note: '中耳炎や外耳炎の可能性があります。' },
+        { name: '耳がつまった感じ', dept: '耳鼻科', urgency: 'ok', note: '耳管狭窄症など。改善しない場合は受診を。' },
+      ]
+    },
+    '鼻': {
+      icon: '👃',
+      symptoms: [
+        { name: '鼻水が続く', dept: '耳鼻科・内科', urgency: 'ok', note: 'アレルギー性鼻炎・風邪など。市販薬で様子を見ても可。' },
+        { name: '鼻づまり', dept: '耳鼻科', urgency: 'ok', note: '慢性的な場合は鼻中隔弯曲症・ポリープも考えられます。' },
+        { name: '鼻血が続く・止まらない', dept: '耳鼻科', urgency: 'warn', note: '30分以上止まらない場合は早急に受診を。' },
+        { name: 'においがしない', dept: '耳鼻科', urgency: 'warn', note: '副鼻腔炎・感染後嗅覚障害など。長引く場合は受診を。' },
+        { name: '顔が痛い・頭痛と鼻づまり', dept: '耳鼻科', urgency: 'warn', note: '副鼻腔炎（蓄膿症）の可能性があります。' },
+      ]
+    },
+    'のど': {
+      icon: '🗣️',
+      symptoms: [
+        { name: 'のどが痛い', dept: '耳鼻科・内科', urgency: 'ok', note: '風邪・扁桃炎など。高熱を伴う場合は早めに受診を。' },
+        { name: '声がかすれる・出ない', dept: '耳鼻科', urgency: 'warn', note: '喉頭炎・声帯ポリープなど。1週間以上続く場合は受診を。' },
+        { name: '飲み込みにくい', dept: '耳鼻科・消化器内科', urgency: 'warn', note: '食道疾患の可能性もあります。徐々に悪化する場合は早めに。' },
+        { name: '息苦しい', dept: '呼吸器内科（救急）', urgency: 'ng', note: 'アナフィラキシーや喉頭浮腫の可能性があります。すぐに救急へ。' },
+        { name: 'のどに異物感', dept: '耳鼻科', urgency: 'warn', note: '咽喉頭異常感症・逆流性食道炎など。続く場合は受診を。' },
+      ]
+    },
+    '胸': {
+      icon: '❤️',
+      symptoms: [
+        { name: '胸が痛い', dept: '循環器内科（救急）', urgency: 'ng', note: '狭心症・心筋梗塞の可能性があります。すぐに救急へ。' },
+        { name: '動悸がする', dept: '循環器内科', urgency: 'warn', note: '不整脈の可能性があります。息切れを伴う場合は特に早めに。' },
+        { name: '息が切れる', dept: '呼吸器内科・循環器内科', urgency: 'warn', note: '心不全・肺疾患の可能性があります。安静にしても続く場合は早急に。' },
+        { name: '咳が2週間以上続く', dept: '呼吸器内科・内科', urgency: 'warn', note: '結核・喘息・肺がんの可能性もあります。早めに受診を。' },
+        { name: '血を吐いた（吐血）', dept: '救急', urgency: 'ng', note: 'すぐに救急へ。消化器系の出血が考えられます。' },
+        { name: '胸のつかえ感・胸やけ', dept: '消化器内科', urgency: 'ok', note: '逆流性食道炎が多いです。市販薬で様子見も可。' },
+      ]
+    },
+    'お腹': {
+      icon: '🫀',
+      symptoms: [
+        { name: 'お腹が痛い', dept: '消化器内科', urgency: 'warn', note: '部位・痛み方で原因が異なります。発熱を伴う場合は早めに受診を。' },
+        { name: '激しいお腹の痛み', dept: '消化器外科（救急）', urgency: 'ng', note: '腸閉塞・虫垂炎など。すぐに救急へ。' },
+        { name: '下痢が続く', dept: '内科', urgency: 'ok', note: '脱水に注意。血便・発熱を伴う場合は早めに受診を。' },
+        { name: '嘔吐・吐き気', dept: '内科', urgency: 'warn', note: '食中毒・胃腸炎など。脱水になる前に受診を。' },
+        { name: '便が黒い', dept: '消化器内科（救急）', urgency: 'ng', note: '上部消化管出血の可能性があります。すぐに受診を。' },
+        { name: '食欲がない', dept: '内科', urgency: 'ok', note: '1週間以上続く場合や体重減少を伴う場合は早めに受診を。' },
+        { name: 'お腹が張る', dept: '消化器内科', urgency: 'ok', report: '便秘・過敏性腸症候群など。腹痛が強い場合は受診を。' },
+      ]
+    },
+    '皮膚': {
+      icon: '🩹',
+      symptoms: [
+        { name: '発疹・湿疹', dept: '皮膚科', urgency: 'warn', note: '原因に応じた治療が必要です。広範囲・発熱を伴う場合は早めに。' },
+        { name: '皮膚がかゆい', dept: '皮膚科', urgency: 'ok', note: 'アトピー・ドライスキンなど。市販薬で様子見も可。' },
+        { name: 'じんましん', dept: '皮膚科・アレルギー科', urgency: 'warn', note: '呼吸困難・顔の腫れを伴う場合はすぐに救急へ。' },
+        { name: 'やけど', dept: '皮膚科・形成外科', urgency: 'warn', note: '広範囲や深いやけどはすぐに救急へ。水ぶくれも早めに受診を。' },
+        { name: '皮膚が黄色い（黄疸）', dept: '内科・消化器内科', urgency: 'ng', note: '肝臓・胆道疾患の可能性があります。すぐに受診を。' },
+        { name: 'できもの・しこり', dept: '皮膚科・外科', urgency: 'warn', note: '形や色が変わるほくろは悪性の可能性も。早めに受診を。' },
+      ]
+    },
+    '手足': {
+      icon: '🦾',
+      symptoms: [
+        { name: '手足がしびれる', dept: '脳神経内科・整形外科', urgency: 'warn', note: '片側だけのしびれは脳梗塞の可能性も。急な場合は救急へ。' },
+        { name: '突然の片側のしびれ', dept: '脳神経内科（救急）', urgency: 'ng', note: '脳梗塞・TIAの可能性があります。すぐに救急へ。' },
+        { name: '関節が痛む', dept: '整形外科・リウマチ科', urgency: 'warn', note: '関節リウマチ・痛風など。複数箇所の場合はリウマチ科も。' },
+        { name: '足がむくんでいる', dept: '内科・循環器内科', urgency: 'warn', note: '心不全・腎臓病・静脈血栓など。片側のみの場合は早急に。' },
+        { name: '骨折・捻挫の疑い', dept: '整形外科', urgency: 'warn', note: '強い痛み・腫れがある場合はレントゲン確認が必要です。' },
+        { name: '力が入らない', dept: '脳神経内科', urgency: 'warn', note: '片側の脱力は脳梗塞の可能性も。急な場合は救急へ。' },
+      ]
+    },
+    'その他': {
+      icon: '🌡️',
+      symptoms: [
+        { name: '高熱（38℃以上）', dept: '内科', urgency: 'warn', note: '意識の変容・ひどい頭痛を伴う場合はすぐに救急へ。' },
+        { name: '意識がおかしい', dept: '救急', urgency: 'ng', note: 'すぐに119番に電話してください。' },
+        { name: '体重が急に減った', dept: '内科', urgency: 'warn', note: '1ヶ月で5%以上の体重減少は検査が必要です。' },
+        { name: '疲れやすい', dept: '内科', urgency: 'ok', note: '貧血・甲状腺疾患・糖尿病などの可能性があります。' },
+        { name: '頻尿・排尿痛', dept: '泌尿器科・婦人科', urgency: 'warn', note: '膀胱炎・前立腺疾患など。発熱を伴う場合は早急に。' },
+        { name: '血尿', dept: '泌尿器科（救急）', urgency: 'warn', note: '腎臓・膀胱・前立腺の疾患の可能性があります。早めに受診を。' },
+        { name: '強い口渇・多尿', dept: '内科・糖尿病内科', urgency: 'warn', note: '糖尿病の可能性があります。意識障害を伴う場合は救急へ。' },
+      ]
+    },
+  };
+
+  var URGENCY_TEXT = { ok: '様子を見てもOK', warn: '数日以内に受診', ng: 'すぐ受診・救急' };
+  var selectedCat = null;
+  var selectedSym = null;
+
+  function init() {
+    renderCategories();
+    renderHistory();
+  }
+
+  function renderCategories() {
+    var grid = document.getElementById('catGrid');
+    grid.innerHTML = '';
+    Object.keys(DATA).forEach(function(cat) {
+      var btn = document.createElement('button');
+      btn.className = 'cat-btn';
+      btn.innerHTML = '<span class="cat-icon">' + DATA[cat].icon + '</span>' + cat;
+      btn.onclick = function() { selectCategory(cat); };
+      grid.appendChild(btn);
+    });
+  }
+
+  function selectCategory(cat) {
+    selectedCat = cat;
+    selectedSym = null;
+
+    // カテゴリボタンのactive更新
+    document.querySelectorAll('.cat-btn').forEach(function(b) {
+      b.classList.toggle('active', b.textContent.trim().includes(cat));
+    });
+
+    // 症状リストを表示
+    var symCard = document.getElementById('symCard');
+    var symList = document.getElementById('symList');
+    document.getElementById('symCardTitle').textContent = '② 症状を選ぶ（' + cat + '）';
+    symCard.style.display = 'block';
+    symList.innerHTML = '';
+    DATA[cat].symptoms.forEach(function(s, i) {
+      var btn = document.createElement('button');
+      btn.className = 'sym-btn';
+      btn.textContent = s.name;
+      btn.onclick = function() { selectSymptom(i); };
+      symList.appendChild(btn);
+    });
+
+    // 結果を隠す
+    document.getElementById('result').style.display = 'none';
+
+    // スクロール
+    symCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function selectSymptom(idx) {
+    if (!selectedCat) return;
+    var s = DATA[selectedCat].symptoms[idx];
+    selectedSym = s;
+
+    // ボタンactive
+    document.querySelectorAll('.sym-btn').forEach(function(b, i) {
+      b.classList.toggle('active', i === idx);
+    });
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + s.urgency;
+    rc.style.display = 'block';
+    document.getElementById('urgencyBadge').textContent = URGENCY_TEXT[s.urgency];
+    document.getElementById('resultDept').textContent = s.dept;
+    document.getElementById('resultNote').textContent = s.note || (s.report || '');
+
+    // 履歴保存
+    saveHistory(selectedCat, s.name, idx);
+    renderHistory();
+
+    rc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // ── localStorage 履歴 ──
+  var HIST_KEY = 'symptom_guide_history';
+
+  function saveHistory(cat, sym, idx) {
+    var hist = loadHistory();
+    // 重複削除
+    hist = hist.filter(function(h) { return !(h.cat === cat && h.sym === sym); });
+    hist.unshift({ cat: cat, sym: sym, idx: idx });
+    if (hist.length > 10) hist = hist.slice(0, 10);
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(hist)); } catch(e) {}
+  }
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HIST_KEY) || '[]'); } catch(e) { return []; }
+  }
+
+  function renderHistory() {
+    var hist = loadHistory();
+    var card = document.getElementById('historyCard');
+    var list = document.getElementById('historyList');
+    if (hist.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    list.innerHTML = '';
+    hist.forEach(function(h) {
+      var tag = document.createElement('span');
+      tag.className = 'history-tag';
+      tag.textContent = h.sym + '（' + h.cat + '）';
+      tag.onclick = function() {
+        selectCategory(h.cat);
+        // 少し待ってから症状を選ぶ（DOM生成後）
+        setTimeout(function() { selectSymptom(h.idx); }, 50);
+      };
+      list.appendChild(tag);
+    });
+  }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a>
+  </p>
+</body>
+</html>
