@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品別利益ランキングアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.7rem;
+      margin-bottom: 0.7rem;
+    }
+    .field { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.62rem 0.8rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field-name { margin-bottom: 0.7rem; }
+    .field-name input { width: 100%; padding: 0.62rem 0.8rem; font-size: 0.95rem; border: 1.5px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.15s; }
+    .field-name input:focus { border-color: var(--accent); background: #fff; }
+    .field-name label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ランキングカード */
+    .rank-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 0.7rem;
+      max-width: 600px;
+      position: relative;
+    }
+    .rank-card:hover { border-color: var(--accent); }
+    .rank-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 2rem; height: 2rem; border-radius: 50%;
+      font-size: 0.85rem; font-weight: 900;
+      background: var(--bg); color: var(--text-sub);
+      border: 2px solid var(--border);
+      margin-right: 0.6rem; flex-shrink: 0;
+    }
+    .rank-card.rank-1 .rank-badge { background: #ffd700; color: #7a5a00; border-color: #f0c800; }
+    .rank-card.rank-2 .rank-badge { background: #e0e0e0; color: #555; border-color: #ccc; }
+    .rank-card.rank-3 .rank-badge { background: #e8c09a; color: #7a4a1a; border-color: #d4a870; }
+
+    .rank-top { display: flex; align-items: center; margin-bottom: 0.7rem; }
+    .rank-name { font-size: 1rem; font-weight: 800; flex: 1; }
+    .rank-profit-total {
+      font-size: 1.15rem; font-weight: 900;
+      color: var(--accent);
+    }
+    .rank-profit-total.ng { color: var(--ng); }
+
+    .rank-detail {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.4rem;
+      font-size: 0.78rem;
+    }
+    .rank-detail-item { background: var(--bg); border-radius: 7px; padding: 0.35rem 0.5rem; }
+    .rank-detail-item .d-label { color: var(--text-sub); margin-bottom: 0.1rem; font-size: 0.72rem; }
+    .rank-detail-item .d-val { font-weight: 700; color: var(--text); }
+    .rank-detail-item .d-val.ok { color: var(--ok); }
+    .rank-detail-item .d-val.ng { color: var(--ng); }
+
+    .btn-delete {
+      position: absolute; top: 0.8rem; right: 0.9rem;
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1.1rem;
+      padding: 0.2rem 0.4rem; border-radius: 5px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-delete:hover { background: var(--ng-bg); color: var(--ng); }
+
+    .empty-state {
+      text-align: center; color: var(--text-sub);
+      font-size: 0.9rem; padding: 2rem 0;
+    }
+
+    /* サマリー */
+    .summary-card {
+      background: var(--accent-light);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+    }
+    .summary-card .card-title { border-bottom-color: var(--accent); }
+    .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0; border-bottom: 1px solid var(--border); }
+    .summary-row:last-child { border-bottom: none; font-size: 1.05rem; font-weight: 900; color: var(--accent); }
+    .summary-row .s-label { font-size: 0.85rem; color: var(--text-sub); }
+    .summary-row .s-val { font-weight: 700; }
+
+    .sort-bar {
+      max-width: 600px; margin: 0 auto 0.8rem;
+      display: flex; gap: 0.5rem;
+    }
+    .sort-btn {
+      flex: 1; padding: 0.5rem; font-size: 0.8rem; font-weight: 700;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--card); color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s;
+    }
+    .sort-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .btn-delete, .sort-bar { display: none !important; }
+      .card, .rank-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📊 商品別利益ランキングアプリ</h1>
+    <p class="subtitle">仕入れ値・販売価格・販売数を入力して利益貢献度をランキング表示</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品を追加</p>
+    <div class="field-name">
+      <label for="name">商品名</label>
+      <input type="text" id="name" placeholder="例: りんご" maxlength="50">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="cost">仕入れ値（円/個）</label>
+        <input type="number" id="cost" placeholder="例: 80" min="0">
+      </div>
+      <div class="field">
+        <label for="price">販売価格（円/個）</label>
+        <input type="number" id="price" placeholder="例: 150" min="0">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="qty">販売数（個）</label>
+        <input type="number" id="qty" placeholder="例: 200" min="0">
+      </div>
+      <div class="field" style="display:flex;align-items:flex-end;">
+        <div style="width:100%"></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="addProduct()">＋ 商品を追加する</button>
+
+  <!-- サマリー -->
+  <div class="summary-card" id="summary" style="display:none">
+    <p class="card-title">合計サマリー</p>
+    <div class="summary-row"><span class="s-label">登録商品数</span><span class="s-val" id="s-count">0件</span></div>
+    <div class="summary-row"><span class="s-label">総売上</span><span class="s-val" id="s-sales">0円</span></div>
+    <div class="summary-row"><span class="s-label">総仕入れコスト</span><span class="s-val" id="s-cost">0円</span></div>
+    <div class="summary-row"><span class="s-label">総利益（粗利）</span><span class="s-val" id="s-profit">0円</span></div>
+  </div>
+
+  <!-- ソートバー -->
+  <div class="sort-bar" id="sort-bar" style="display:none">
+    <button class="sort-btn active" id="sort-profit" onclick="setSort('profit')">粗利額順</button>
+    <button class="sort-btn" id="sort-rate" onclick="setSort('rate')">粗利率順</button>
+    <button class="sort-btn" id="sort-sales" onclick="setSort('sales')">売上額順</button>
+  </div>
+
+  <!-- ランキング一覧 -->
+  <div id="ranking-list"></div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'profit_ranking_v1';
+  var sortMode = 'profit';
+  var products = [];
+
+  function load() {
+    try {
+      var s = localStorage.getItem(STORAGE_KEY);
+      products = s ? JSON.parse(s) : [];
+    } catch(e) { products = []; }
+  }
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+  }
+
+  function addProduct() {
+    var name  = document.getElementById('name').value.trim();
+    var cost  = parseFloat(document.getElementById('cost').value);
+    var price = parseFloat(document.getElementById('price').value);
+    var qty   = parseFloat(document.getElementById('qty').value);
+
+    if (!name) { alert('商品名を入力してください'); return; }
+    if (isNaN(cost) || cost < 0) { alert('仕入れ値を正しく入力してください'); return; }
+    if (isNaN(price) || price <= 0) { alert('販売価格を正しく入力してください'); return; }
+    if (isNaN(qty) || qty < 0) { alert('販売数を正しく入力してください'); return; }
+
+    products.push({
+      id: Date.now(),
+      name: name,
+      cost: cost,
+      price: price,
+      qty: qty
+    });
+    save();
+    render();
+
+    // フォームクリア
+    document.getElementById('name').value = '';
+    document.getElementById('cost').value = '';
+    document.getElementById('price').value = '';
+    document.getElementById('qty').value = '';
+    document.getElementById('name').focus();
+  }
+
+  function deleteProduct(id) {
+    products = products.filter(function(p) { return p.id !== id; });
+    save();
+    render();
+  }
+
+  function setSort(mode) {
+    sortMode = mode;
+    document.querySelectorAll('.sort-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.getElementById('sort-' + mode).classList.add('active');
+    render();
+  }
+
+  function calcProduct(p) {
+    var sales  = p.price * p.qty;
+    var costTotal = p.cost * p.qty;
+    var profit = (p.price - p.cost) * p.qty;
+    var rate   = p.price > 0 ? (p.price - p.cost) / p.price * 100 : 0;
+    return { sales: sales, costTotal: costTotal, profit: profit, rate: rate };
+  }
+
+  function render() {
+    var list = document.getElementById('ranking-list');
+    var summary = document.getElementById('summary');
+    var sortBar = document.getElementById('sort-bar');
+
+    if (products.length === 0) {
+      list.innerHTML = '<div class="empty-state">まだ商品が登録されていません<br>上のフォームから追加してください</div>';
+      summary.style.display = 'none';
+      sortBar.style.display = 'none';
+      return;
+    }
+
+    summary.style.display = '';
+    sortBar.style.display = '';
+
+    // ソート
+    var sorted = products.slice();
+    sorted.sort(function(a, b) {
+      var ca = calcProduct(a);
+      var cb = calcProduct(b);
+      if (sortMode === 'profit') return cb.profit - ca.profit;
+      if (sortMode === 'rate')   return cb.rate - ca.rate;
+      if (sortMode === 'sales')  return cb.sales - ca.sales;
+      return 0;
+    });
+
+    // サマリー計算
+    var totalSales = 0, totalCost = 0, totalProfit = 0;
+    products.forEach(function(p) {
+      var c = calcProduct(p);
+      totalSales += c.sales;
+      totalCost  += c.costTotal;
+      totalProfit += c.profit;
+    });
+    document.getElementById('s-count').textContent = products.length + '件';
+    document.getElementById('s-sales').textContent = fmt(totalSales) + '円';
+    document.getElementById('s-cost').textContent  = fmt(totalCost)  + '円';
+    document.getElementById('s-profit').textContent = fmt(totalProfit) + '円';
+
+    // ランキング表示
+    var html = '';
+    sorted.forEach(function(p, i) {
+      var c = calcProduct(p);
+      var rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
+      var profitSign = c.profit >= 0 ? '' : '';
+      var profitClass = c.profit >= 0 ? '' : ' ng';
+      var rateClass = c.rate >= 0 ? 'ok' : 'ng';
+      html += '<div class="rank-card ' + rankClass + '">'
+            + '<button class="btn-delete" onclick="deleteProduct(' + p.id + ')" title="削除">✕</button>'
+            + '<div class="rank-top">'
+            + '<div class="rank-badge">' + (i + 1) + '</div>'
+            + '<div class="rank-name">' + esc(p.name) + '</div>'
+            + '<div class="rank-profit-total' + profitClass + '">粗利 ' + fmt(c.profit) + '円</div>'
+            + '</div>'
+            + '<div class="rank-detail">'
+            + '<div class="rank-detail-item"><div class="d-label">売上額</div><div class="d-val">' + fmt(c.sales) + '円</div></div>'
+            + '<div class="rank-detail-item"><div class="d-label">仕入れコスト</div><div class="d-val">' + fmt(c.costTotal) + '円</div></div>'
+            + '<div class="rank-detail-item"><div class="d-label">粗利率</div><div class="d-val ' + rateClass + '">' + c.rate.toFixed(1) + '%</div></div>'
+            + '<div class="rank-detail-item"><div class="d-label">販売単価</div><div class="d-val">' + fmt(p.price) + '円</div></div>'
+            + '<div class="rank-detail-item"><div class="d-label">仕入れ単価</div><div class="d-val">' + fmt(p.cost) + '円</div></div>'
+            + '<div class="rank-detail-item"><div class="d-label">販売数</div><div class="d-val">' + fmt(p.qty) + '個</div></div>'
+            + '</div>'
+            + '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Enterキーで追加
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { addProduct(); }
+  });
+
+  load();
+  render();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
