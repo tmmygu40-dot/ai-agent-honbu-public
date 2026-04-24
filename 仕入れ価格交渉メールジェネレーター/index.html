@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>仕入れ価格交渉メールジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field textarea { resize: vertical; min-height: 80px; font-family: inherit; }
+
+    /* ── スタンス選択 ── */
+    .stance-group { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .stance-btn {
+      flex: 1; min-width: 120px; padding: 0.65rem 0.5rem;
+      font-size: 0.88rem; font-weight: 700;
+      background: var(--bg); color: var(--text-sub);
+      border: 2px solid var(--border); border-radius: 10px;
+      cursor: pointer; text-align: center; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .stance-btn.active {
+      background: var(--accent-light); color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 生成結果エリア ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--accent); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+      margin-bottom: 0.8rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .mail-text {
+      font-size: 0.9rem; line-height: 1.8;
+      color: var(--text); white-space: pre-wrap;
+      background: var(--bg); border-radius: 8px;
+      padding: 1rem; margin-bottom: 1rem;
+      border: 1px solid var(--border);
+      font-family: inherit;
+    }
+    .btn-copy {
+      display: block; width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 2px solid var(--ok); border-radius: 10px;
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:active { opacity: 0.8; }
+    .btn-copy.copied {
+      background: var(--ok); color: #fff;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>仕入れ価格交渉メールジェネレーター</h1>
+    <p class="subtitle">値上げ通知への返答・交渉メールを即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="myCompany">自社名</label>
+      <input type="text" id="myCompany" placeholder="例: 株式会社〇〇">
+    </div>
+    <div class="field">
+      <label for="myName">自分の名前・部署</label>
+      <input type="text" id="myName" placeholder="例: 田中 一郎（購買部）">
+    </div>
+    <div class="field">
+      <label for="supplierCompany">仕入れ先会社名</label>
+      <input type="text" id="supplierCompany" placeholder="例: △△商事株式会社">
+    </div>
+    <div class="field">
+      <label for="supplierName">担当者名（省略可）</label>
+      <input type="text" id="supplierName" placeholder="例: 山田様">
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">値上げの詳細</p>
+    <div class="field">
+      <label for="itemName">品目・商品名</label>
+      <input type="text" id="itemName" placeholder="例: アルミ部品Aシリーズ">
+    </div>
+    <div class="field">
+      <label for="raiseRate">値上げ率（%）</label>
+      <input type="number" id="raiseRate" placeholder="例: 15" min="0" max="200">
+    </div>
+    <div class="field">
+      <label for="raiseDate">値上げ予定日（省略可）</label>
+      <input type="text" id="raiseDate" placeholder="例: 2026年6月1日">
+    </div>
+    <div class="field">
+      <label for="tradePeriod">取引年数（省略可）</label>
+      <input type="text" id="tradePeriod" placeholder="例: 5年">
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">交渉スタンスを選ぶ</p>
+    <div class="stance-group" id="stanceGroup">
+      <button class="stance-btn active" data-stance="hold" onclick="selectStance(this)">据え置き依頼</button>
+      <button class="stance-btn" data-stance="soft" onclick="selectStance(this)">穏やか交渉</button>
+      <button class="stance-btn" data-stance="firm" onclick="selectStance(this)">強気交渉</button>
+    </div>
+    <p class="hint" style="margin-top:0.6rem;">
+      <span id="stanceHint">現状価格の継続をお願いする丁寧な文面です。</span>
+    </p>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">メール文を生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <p class="result-card-title">
+      <span>生成されたメール文</span>
+      <span id="stanceLabel" style="font-size:0.72rem;"></span>
+    </p>
+    <div class="mail-text" id="mailText"></div>
+    <button class="btn-copy" id="copyBtn" onclick="copyMail()">コピーする</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var currentStance = 'hold';
+
+  var stanceHints = {
+    hold: '現状価格の継続をお願いする丁寧な文面です。',
+    soft: '値上げ幅の圧縮や段階的な対応をお願いする文面です。',
+    firm: '値上げを受け入れがたい旨を明確に伝え、再考を求める文面です。'
+  };
+
+  var stanceLabels = {
+    hold: '据え置き依頼',
+    soft: '穏やか交渉',
+    firm: '強気交渉'
+  };
+
+  function selectStance(el) {
+    document.querySelectorAll('.stance-btn').forEach(function(b){ b.classList.remove('active'); });
+    el.classList.add('active');
+    currentStance = el.dataset.stance;
+    document.getElementById('stanceHint').textContent = stanceHints[currentStance];
+  }
+
+  function generate() {
+    var myCompany = document.getElementById('myCompany').value.trim() || '弊社';
+    var myName = document.getElementById('myName').value.trim() || '';
+    var supplierCompany = document.getElementById('supplierCompany').value.trim() || '貴社';
+    var supplierName = document.getElementById('supplierName').value.trim();
+    var itemName = document.getElementById('itemName').value.trim() || '貴品';
+    var raiseRate = document.getElementById('raiseRate').value.trim();
+    var raiseDate = document.getElementById('raiseDate').value.trim();
+    var tradePeriod = document.getElementById('tradePeriod').value.trim();
+
+    if (!itemName || !raiseRate) {
+      alert('品目名と値上げ率を入力してください。');
+      return;
+    }
+
+    var toLine = supplierName ? supplierCompany + ' ' + supplierName : supplierCompany + ' ご担当者様';
+    var dateStr = raiseDate ? '（' + raiseDate + '予定）' : '';
+    var rateStr = raiseRate + '%';
+    var tradeStr = tradePeriod ? tradePeriod + 'にわたる' : 'これまでの';
+    var signLine = myName ? myCompany + '\n' + myName : myCompany;
+
+    var mail = '';
+
+    if (currentStance === 'hold') {
+      mail = toLine + '\n\n' +
+        'お世話になっております。\n' + signLine + ' でございます。\n\n' +
+        'このたびは、' + itemName + 'の価格改定' + dateStr + 'についてのご通知をいただき、ありがとうございます。\n\n' +
+        '拝察のとおり、昨今の原材料・エネルギーコストの上昇については十分に認識しており、\n' +
+        '貴社のご事情はご理解申し上げます。\n\n' +
+        '一方、弊社といたしましても、お客様への販売価格の維持が喫緊の課題となっており、\n' +
+        '現時点での仕入れ価格の引き上げは大変厳しい状況です。\n\n' +
+         tradeStr + 'お取引の中で培ってまいりました信頼関係を大切にしたく、\n' +
+        '誠に恐縮ではございますが、現行価格の継続につきまして、\n' +
+        'ご検討いただけますよう、お願い申し上げます。\n\n' +
+        'ご多忙のところ恐れ入りますが、何卒よろしくお願い申し上げます。\n\n' +
+        signLine;
+
+    } else if (currentStance === 'soft') {
+      mail = toLine + '\n\n' +
+        'お世話になっております。\n' + signLine + ' でございます。\n\n' +
+        'このたびは、' + itemName + 'の価格改定' + rateStr + dateStr + 'についてのご通知をいただきました。\n\n' +
+        '原材料・物流コストの高騰による貴社のご状況は重々承知しており、\n' +
+        'ご苦労のほどはお察しいたします。\n\n' +
+        'ただ、弊社といたしましては、' + rateStr + 'の価格引き上げを一度に受け入れることは、\n' +
+        '現状の経営上、非常に困難な状況でございます。\n\n' +
+        'つきましては、以下のいずれかについてご検討いただけませんでしょうか。\n\n' +
+        '① 値上げ幅の圧縮（可能な範囲でのご配慮）\n' +
+        '② 段階的な値上げ対応（時期を分けた実施）\n' +
+        '③ 現行価格での一定期間の継続（猶予期間の設定）\n\n' +
+        tradeStr + '良好なお取引を維持するためにも、\n' +
+        'ぜひ一度ご担当者様とご相談させていただければ幸いです。\n\n' +
+        'ご検討のほど、何卒よろしくお願い申し上げます。\n\n' +
+        signLine;
+
+    } else {
+      mail = toLine + '\n\n' +
+        'お世話になっております。\n' + signLine + ' でございます。\n\n' +
+        'このたびは、' + itemName + 'について' + rateStr + 'の価格改定' + dateStr + 'のご通知をいただきました。\n\n' +
+        '誠に率直に申し上げますと、' + rateStr + 'という引き上げ幅は弊社にとって\n' +
+        '到底受け入れがたい水準であり、このままでは取引継続が困難となります。\n\n' +
+        '弊社では現在、代替調達先の検討も含め、仕入れコストの見直しを進めております。\n\n' +
+        '貴社との' + tradeStr + 'お取引を継続したいという意向は変わりありませんが、\n' +
+        '今回の価格改定については再考をお願いしたく、ご連絡いたします。\n\n' +
+        '早急にご担当者様とご相談の場を設けていただけますよう、\n' +
+        'お願い申し上げます。\n\n' +
+        signLine;
+    }
+
+    document.getElementById('mailText').textContent = mail;
+    document.getElementById('stanceLabel').textContent = stanceLabels[currentStance];
+    var rc = document.getElementById('resultCard');
+    rc.style.display = 'block';
+    var copyBtn = document.getElementById('copyBtn');
+    copyBtn.textContent = 'コピーする';
+    copyBtn.classList.remove('copied');
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // localStorage保存
+    saveInputs();
+  }
+
+  function copyMail() {
+    var text = document.getElementById('mailText').textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      var btn = document.getElementById('copyBtn');
+      btn.textContent = 'コピーしました！';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = 'コピーする';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(function() {
+      // フォールバック
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      var btn = document.getElementById('copyBtn');
+      btn.textContent = 'コピーしました！';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = 'コピーする';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  function saveInputs() {
+    var data = {
+      myCompany: document.getElementById('myCompany').value,
+      myName: document.getElementById('myName').value,
+      supplierCompany: document.getElementById('supplierCompany').value,
+      supplierName: document.getElementById('supplierName').value,
+      itemName: document.getElementById('itemName').value,
+      raiseRate: document.getElementById('raiseRate').value,
+      raiseDate: document.getElementById('raiseDate').value,
+      tradePeriod: document.getElementById('tradePeriod').value,
+      stance: currentStance
+    };
+    localStorage.setItem('shiire_kosho_gen', JSON.stringify(data));
+  }
+
+  function loadInputs() {
+    var raw = localStorage.getItem('shiire_kosho_gen');
+    if (!raw) return;
+    try {
+      var data = JSON.parse(raw);
+      document.getElementById('myCompany').value = data.myCompany || '';
+      document.getElementById('myName').value = data.myName || '';
+      document.getElementById('supplierCompany').value = data.supplierCompany || '';
+      document.getElementById('supplierName').value = data.supplierName || '';
+      document.getElementById('itemName').value = data.itemName || '';
+      document.getElementById('raiseRate').value = data.raiseRate || '';
+      document.getElementById('raiseDate').value = data.raiseDate || '';
+      document.getElementById('tradePeriod').value = data.tradePeriod || '';
+      if (data.stance) {
+        var btn = document.querySelector('[data-stance="' + data.stance + '"]');
+        if (btn) selectStance(btn);
+      }
+    } catch(e) {}
+  }
+
+  loadInputs();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
