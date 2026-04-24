@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>これって経費になる？経費判断クイズアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── カテゴリグリッド ── */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .cat-btn {
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.6rem 0.4rem;
+      font-size: 0.8rem; font-weight: 600; color: var(--text-sub);
+      cursor: pointer; text-align: center; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cat-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .cat-btn.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+
+    /* ── 検索 ── */
+    .search-box {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; margin-bottom: 1rem;
+    }
+    .search-box:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── 品目リスト ── */
+    .item-list { display: flex; flex-direction: column; gap: 0.4rem; }
+    .item-btn {
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.65rem 1rem;
+      font-size: 0.9rem; font-weight: 600; color: var(--text);
+      cursor: pointer; text-align: left; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .item-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .item-btn .item-cat { font-size: 0.68rem; color: var(--text-sub); margin-top: 0.15rem; }
+
+    /* ── 判定カード ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+
+    .result-header { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 1rem; }
+    .result-badge {
+      font-size: 1.4rem; font-weight: 900;
+      border-radius: 10px; padding: 0.35rem 0.7rem; flex-shrink: 0;
+    }
+    .ok   .result-badge { background: var(--ok);   color: #fff; }
+    .warn .result-badge { background: var(--warn);  color: #fff; }
+    .ng   .result-badge { background: var(--ng);    color: #fff; }
+
+    .result-item-name { font-size: 1.1rem; font-weight: 800; }
+    .result-item-cat  { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.15rem; }
+
+    .result-section { margin-top: 0.9rem; }
+    .result-section .label {
+      font-size: 0.72rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.06em; margin-bottom: 0.3rem;
+    }
+    .result-section .value {
+      font-size: 0.95rem; font-weight: 700; color: var(--text);
+    }
+    .ok   .result-section .value { color: var(--ok); }
+    .warn .result-section .value { color: var(--warn); }
+    .ng   .result-section .value { color: var(--ng); }
+
+    .result-desc {
+      font-size: 0.85rem; color: var(--text-sub); line-height: 1.6;
+      margin-top: 0.4rem; padding: 0.7rem 0.9rem;
+      background: rgba(255,255,255,0.6); border-radius: 9px;
+      border: 1px solid var(--border);
+    }
+    .result-note {
+      font-size: 0.8rem; color: var(--warn); font-weight: 600;
+      margin-top: 0.6rem; padding: 0.5rem 0.8rem;
+      background: var(--warn-bg); border-radius: 8px;
+      border: 1px solid var(--warn);
+    }
+
+    /* ── 履歴 ── */
+    .history-item {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.85rem; cursor: pointer;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover .hi-name { color: var(--accent); }
+    .hist-badge {
+      width: 36px; text-align: center; font-size: 0.65rem; font-weight: 700;
+      border-radius: 5px; padding: 0.2rem 0.1rem; flex-shrink: 0;
+    }
+    .hist-badge.ok   { background: var(--ok-bg);   color: var(--ok); }
+    .hist-badge.warn { background: var(--warn-bg);  color: var(--warn); }
+    .hist-badge.ng   { background: var(--ng-bg);    color: var(--ng); }
+    .hi-name { flex: 1; font-weight: 600; }
+    .hi-account { font-size: 0.72rem; color: var(--text-sub); }
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1.2rem 0; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 480px) {
+      .cat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .card, .result-card { box-shadow: none; }
+      .app-header { border-bottom: 2px solid #000; }
+      .cat-grid, .search-box, .item-list, .back-link { display: none !important; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🧾 これって経費になる？</h1>
+    <p class="subtitle">支出の種類を選ぶだけで経費OK/NGと勘定科目を即判断</p>
+  </header>
+
+  <!-- 選択カード -->
+  <div class="card">
+    <p class="card-title">支出の種類を選ぶ</p>
+    <input class="search-box" type="text" id="searchBox" placeholder="キーワードで検索（例：ランチ、タクシー）" oninput="filterItems()">
+    <div class="cat-grid" id="catGrid"></div>
+    <div class="item-list" id="itemList"></div>
+  </div>
+
+  <!-- 判定結果 -->
+  <div class="result-card" id="resultCard">
+    <div class="result-header">
+      <div class="result-badge" id="rBadge">OK</div>
+      <div>
+        <div class="result-item-name" id="rName"></div>
+        <div class="result-item-cat"  id="rCat"></div>
+      </div>
+    </div>
+    <div class="result-section">
+      <div class="label">勘定科目</div>
+      <div class="value" id="rAccount"></div>
+    </div>
+    <div class="result-desc" id="rDesc"></div>
+    <div class="result-note" id="rNote" style="display:none;"></div>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="card">
+    <p class="card-title">最近チェックした支出</p>
+    <div id="historyList"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // ── 経費データ ──
+  // level: ok=経費OK, warn=条件次第, ng=経費NG
+  var ITEMS = [
+    // 食費・飲食
+    { id:1,  cat:'食費・飲食', name:'取引先との食事（接待）',         level:'ok',   account:'接待交際費', desc:'取引先・顧客との接待目的の飲食は接待交際費として経費になります。参加者と目的を記録しておきましょう。', note:'一人1万円超の接待は領収書に相手の名前・人数・目的を必ず記載。' },
+    { id:2,  cat:'食費・飲食', name:'一人ランチ・プライベート食事',    level:'ng',   account:'経費不可', desc:'プライベートの食事は業務と直接関係がないため経費になりません。', note:'' },
+    { id:3,  cat:'食費・飲食', name:'会議・打ち合わせ中の茶菓・弁当', level:'ok',   account:'会議費', desc:'社内外の会議や打ち合わせで提供した飲食代は会議費として経費になります。', note:'' },
+    { id:4,  cat:'食費・飲食', name:'従業員への差し入れ・歓送迎会',   level:'ok',   account:'福利厚生費', desc:'社員全員を対象とした差し入れや懇親会は福利厚生費として経費になります。', note:'特定の人だけへの接待は接待交際費扱い。' },
+
+    // 交通費
+    { id:5,  cat:'交通費',     name:'出張・業務の電車・バス代',        level:'ok',   account:'旅費交通費', desc:'業務目的の移動に使った公共交通費は旅費交通費として経費になります。', note:'' },
+    { id:6,  cat:'交通費',     name:'自家用車のガソリン代（業務用）',  level:'warn', account:'旅費交通費 / 車両費', desc:'業務で使った分のみ経費になります。私用と業務の走行距離を按分して計算します。', note:'業務日誌・走行記録を残しておくと安心。' },
+    { id:7,  cat:'交通費',     name:'自宅〜会社の通勤交通費',          level:'warn', account:'旅費交通費', desc:'法人の場合は通勤手当として非課税枠内で経費可。個人事業主は原則経費不可（例外あり）。', note:'個人事業主の場合は事業専従者への通勤費として扱う。' },
+    { id:8,  cat:'交通費',     name:'出張時のタクシー代',              level:'ok',   account:'旅費交通費', desc:'業務目的の出張中のタクシー代は経費になります。領収書を保管しましょう。', note:'' },
+    { id:9,  cat:'交通費',     name:'プライベートの旅行・交通費',      level:'ng',   account:'経費不可', desc:'業務と関係のない私的な移動は経費になりません。', note:'' },
+
+    // 通信費
+    { id:10, cat:'通信費',     name:'業務用スマホ・携帯代',            level:'ok',   account:'通信費', desc:'業務専用のスマートフォン・携帯電話の料金は全額経費になります。', note:'' },
+    { id:11, cat:'通信費',     name:'プライベート兼用スマホ代',        level:'warn', account:'通信費', desc:'業務・私用兼用の場合は按分が必要です。業務使用割合（例：70%）を決めて計上します。', note:'按分の根拠を記録しておくと安心。' },
+    { id:12, cat:'通信費',     name:'インターネット回線代（自宅）',    level:'warn', account:'通信費', desc:'在宅勤務の場合は業務使用割合で按分して経費計上できます。', note:'自宅の床面積や使用時間で按分比率を決める。' },
+    { id:13, cat:'通信費',     name:'切手・郵送料（業務用）',          level:'ok',   account:'通信費', desc:'業務上の郵送・切手代は通信費として経費になります。', note:'' },
+
+    // 備品・消耗品
+    { id:14, cat:'備品・消耗品', name:'文房具・コピー用紙',            level:'ok',   account:'消耗品費', desc:'業務で使う文房具・用紙類は消耗品費として経費になります。', note:'' },
+    { id:15, cat:'備品・消耗品', name:'パソコン・周辺機器',            level:'warn', account:'消耗品費 / 固定資産', desc:'10万円未満なら消耗品費として全額経費。10万円以上は固定資産として減価償却が必要です。', note:'30万円未満は中小企業特例（即時償却）が使える場合あり。' },
+    { id:16, cat:'備品・消耗品', name:'プリンター・インク',            level:'ok',   account:'消耗品費', desc:'業務用プリンターのインク・用紙は消耗品費として経費になります。', note:'' },
+    { id:17, cat:'備品・消耗品', name:'制服・作業着',                  level:'ok',   account:'消耗品費 / 福利厚生費', desc:'業務専用の制服・作業着は経費になります。普段着にも使える私服は経費になりません。', note:'' },
+
+    // 広告・宣伝
+    { id:18, cat:'広告・宣伝', name:'チラシ・名刺・パンフレット作成',  level:'ok',   account:'広告宣伝費', desc:'販促・宣伝目的のチラシ・名刺作成費は広告宣伝費として経費になります。', note:'' },
+    { id:19, cat:'広告・宣伝', name:'ウェブ広告費（Google・SNS広告）', level:'ok',   account:'広告宣伝費', desc:'業務の売上に貢献するWeb広告費は広告宣伝費として全額経費になります。', note:'' },
+    { id:20, cat:'広告・宣伝', name:'取引先への手土産・贈り物',         level:'ok',   account:'接待交際費', desc:'取引先・顧客への贈答品は接待交際費として経費になります。', note:'一人5,000円超のものは特に記録を残しておく。' },
+
+    // 家賃・光熱費
+    { id:21, cat:'家賃・光熱費', name:'事務所・店舗の家賃',            level:'ok',   account:'地代家賃', desc:'業務用の事務所・店舗家賃は全額経費になります。', note:'' },
+    { id:22, cat:'家賃・光熱費', name:'自宅兼事務所の家賃',            level:'warn', account:'地代家賃', desc:'自宅兼事務所の場合は業務使用面積・時間の割合で按分して経費計上できます。', note:'按分比率の根拠（間取り図など）を保管しておく。' },
+    { id:23, cat:'家賃・光熱費', name:'電気・ガス・水道代（店舗・事務所）', level:'ok', account:'水道光熱費', desc:'業務用の店舗・事務所の光熱費は全額経費になります。', note:'' },
+    { id:24, cat:'家賃・光熱費', name:'自宅の電気・ガス代（在宅勤務）', level:'warn', account:'水道光熱費', desc:'在宅勤務の場合は業務使用時間の割合で按分して経費計上できます。', note:'' },
+
+    // 書籍・研修
+    { id:25, cat:'書籍・研修', name:'業務関連の書籍・専門書',           level:'ok',   account:'新聞図書費', desc:'業務に関連する書籍・専門誌の購入費は新聞図書費として経費になります。', note:'' },
+    { id:26, cat:'書籍・研修', name:'業務スキルアップのセミナー・研修', level:'ok',   account:'研修費 / 教育訓練費', desc:'業務能力向上のための研修・セミナー費用は経費になります。', note:'' },
+    { id:27, cat:'書籍・研修', name:'趣味・無関係の本・資格',           level:'ng',   account:'経費不可', desc:'業務と無関係な趣味の書籍や資格費用は経費になりません。', note:'' },
+
+    // 保険・税金
+    { id:28, cat:'保険・税金', name:'事業用の火災保険・損害保険',       level:'ok',   account:'損害保険料', desc:'事業のリスクに備える保険料は損害保険料として経費になります。', note:'' },
+    { id:29, cat:'保険・税金', name:'国民健康保険料・国民年金',          level:'warn', account:'社会保険料控除（確定申告）', desc:'個人事業主の国民健康保険・年金は経費ではなく確定申告の社会保険料控除として扱います。', note:'' },
+    { id:30, cat:'保険・税金', name:'生命保険料（経営者保険）',         level:'warn', account:'保険料 / 長期前払費用', desc:'経営者向けの法人保険は一部または全額損金算入できます。個人事業主の生命保険は生命保険料控除として扱います。', note:'保険の種類・契約内容により処理が異なる。税理士に確認推奨。' },
+
+    // その他
+    { id:31, cat:'その他',     name:'クレジットカードの年会費（業務用）', level:'ok',  account:'諸会費', desc:'業務専用クレジットカードの年会費は諸会費として経費になります。', note:'' },
+    { id:32, cat:'その他',     name:'駐車場代（業務用）',               level:'ok',   account:'旅費交通費 / 地代家賃', desc:'業務目的の駐車場代は経費になります。月極は地代家賃、コインパーキングは旅費交通費。', note:'' },
+    { id:33, cat:'その他',     name:'銀行振込手数料・各種手数料',        level:'ok',   account:'支払手数料', desc:'業務上発生する振込手数料・各種手数料は支払手数料として経費になります。', note:'' },
+    { id:34, cat:'その他',     name:'従業員への給与・賞与',             level:'ok',   account:'給与賃金 / 役員報酬', desc:'従業員への給与・賞与は全額経費になります。役員報酬は事前に定款・株主総会での決議が必要。', note:'' },
+    { id:35, cat:'その他',     name:'プライベートの趣味・娯楽費',        level:'ng',   account:'経費不可', desc:'業務と無関係なプライベートの趣味・娯楽費は経費になりません。', note:'' },
+  ];
+
+  var CATEGORIES = [...new Set(ITEMS.map(function(i){ return i.cat; }))];
+  var HISTORY_KEY = 'keihi_history_v1';
+  var currentCat = 'ALL';
+  var history = [];
+
+  function init() {
+    var saved = localStorage.getItem(HISTORY_KEY);
+    if (saved) { try { history = JSON.parse(saved); } catch(e) {} }
+    renderCategories();
+    renderItems('ALL', '');
+    renderHistory();
+  }
+
+  function renderCategories() {
+    var grid = document.getElementById('catGrid');
+    var allBtn = '<button class="cat-btn active" onclick="selectCat(\'ALL\', this)">すべて</button>';
+    var catBtns = CATEGORIES.map(function(c) {
+      return '<button class="cat-btn" onclick="selectCat(\'' + esc(c) + '\', this)">' + esc(c) + '</button>';
+    }).join('');
+    grid.innerHTML = allBtn + catBtns;
+  }
+
+  function selectCat(cat, btn) {
+    currentCat = cat;
+    document.querySelectorAll('.cat-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    renderItems(cat, document.getElementById('searchBox').value);
+  }
+
+  function filterItems() {
+    renderItems(currentCat, document.getElementById('searchBox').value);
+  }
+
+  function renderItems(cat, kw) {
+    var filtered = ITEMS.filter(function(item) {
+      var catOk = cat === 'ALL' || item.cat === cat;
+      var kwOk  = !kw || item.name.includes(kw) || item.cat.includes(kw) || item.account.includes(kw);
+      return catOk && kwOk;
+    });
+    var el = document.getElementById('itemList');
+    if (filtered.length === 0) {
+      el.innerHTML = '<p class="empty-msg">該当する支出が見つかりません</p>';
+      return;
+    }
+    el.innerHTML = filtered.map(function(item) {
+      return '<button class="item-btn" onclick="showResult(' + item.id + ')">'
+        + esc(item.name)
+        + '<div class="item-cat">' + esc(item.cat) + '　' + levelLabel(item.level) + '</div>'
+        + '</button>';
+    }).join('');
+  }
+
+  function levelLabel(lv) {
+    return lv === 'ok' ? '✅ 経費OK' : lv === 'warn' ? '⚠️ 条件次第' : '❌ 経費NG';
+  }
+
+  function showResult(id) {
+    var item = ITEMS.find(function(i){ return i.id === id; });
+    if (!item) return;
+
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card ' + item.level;
+    rc.style.display = 'block';
+
+    var badgeText = item.level === 'ok' ? '経費OK' : item.level === 'warn' ? '条件次第' : '経費NG';
+    document.getElementById('rBadge').textContent   = badgeText;
+    document.getElementById('rName').textContent    = item.name;
+    document.getElementById('rCat').textContent     = item.cat;
+    document.getElementById('rAccount').textContent = item.account;
+    document.getElementById('rDesc').textContent    = item.desc;
+
+    var noteEl = document.getElementById('rNote');
+    if (item.note) {
+      noteEl.textContent   = '⚠️ 注意：' + item.note;
+      noteEl.style.display = 'block';
+    } else {
+      noteEl.style.display = 'none';
+    }
+
+    // スクロール
+    rc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // 履歴追加
+    addHistory(item);
+  }
+
+  function addHistory(item) {
+    history = history.filter(function(h){ return h.id !== item.id; });
+    history.unshift({ id: item.id, name: item.name, level: item.level, account: item.account });
+    if (history.length > 10) history = history.slice(0, 10);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    renderHistory();
+  }
+
+  function renderHistory() {
+    var el = document.getElementById('historyList');
+    if (history.length === 0) {
+      el.innerHTML = '<p class="empty-msg">まだ履歴がありません</p>';
+      return;
+    }
+    el.innerHTML = history.map(function(h) {
+      var label = h.level === 'ok' ? 'OK' : h.level === 'warn' ? '条件付' : 'NG';
+      return '<div class="history-item" onclick="showResult(' + h.id + ')">'
+        + '<div class="hist-badge ' + h.level + '">' + label + '</div>'
+        + '<div class="hi-name">' + esc(h.name) + '</div>'
+        + '<div class="hi-account">' + esc(h.account) + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  init();
+  </script>
+</body>
+</html>
