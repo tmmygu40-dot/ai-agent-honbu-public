@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>業務工程表ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;
+      --ng: #b91c1c;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 700px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 0.9rem; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    /* 入力行グリッド */
+    .input-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 80px auto;
+      gap: 0.5rem;
+      align-items: end;
+      margin-bottom: 0.6rem;
+    }
+    .input-row input { margin-bottom: 0; }
+    .btn-add {
+      padding: 0.65rem 0.8rem;
+      font-size: 1.1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-add:active { opacity: 0.8; }
+
+    /* メインボタン */
+    .btn-bar {
+      max-width: 700px; margin: 0 auto 1rem;
+      display: flex; gap: 0.6rem;
+    }
+    .btn-main {
+      flex: 1; padding: 0.85rem;
+      font-size: 0.95rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 3px 0 #b35e00;
+    }
+    .btn-main:active { transform: translateY(2px); box-shadow: none; }
+    .btn-sub {
+      flex: 1; padding: 0.85rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+    .btn-sub:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* 工程表 */
+    .table-wrap { overflow-x: auto; }
+    table.kouteihyo {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.9rem; min-width: 480px;
+    }
+    table.kouteihyo th {
+      background: var(--accent); color: #fff;
+      padding: 0.55rem 0.6rem; font-weight: 700;
+      text-align: left; white-space: nowrap;
+    }
+    table.kouteihyo td {
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    table.kouteihyo tr:last-child td { border-bottom: none; }
+    table.kouteihyo tr:nth-child(even) td { background: #fafaf8; }
+    .no-col { width: 40px; text-align: center; color: var(--text-sub); font-size: 0.82rem; }
+    .time-col { text-align: right; white-space: nowrap; }
+    .total-row td { font-weight: 700; background: var(--accent-light) !important; color: var(--accent); }
+    .act-col { width: 80px; text-align: center; }
+    .btn-del {
+      background: none; border: 1px solid #ddd; border-radius: 6px;
+      padding: 0.2rem 0.4rem; font-size: 0.75rem; color: var(--text-sub);
+      cursor: pointer; margin: 0 2px;
+    }
+    .btn-del:hover { background: var(--ng); color: #fff; border-color: var(--ng); }
+    .btn-mv {
+      background: none; border: 1px solid #ddd; border-radius: 6px;
+      padding: 0.2rem 0.4rem; font-size: 0.8rem; color: var(--text-sub);
+      cursor: pointer; margin: 0 1px;
+    }
+    .btn-mv:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .empty-note {
+      text-align: center; color: var(--text-sub);
+      font-size: 0.85rem; padding: 1.5rem 0;
+    }
+
+    /* ヘッダー情報 */
+    .hdr-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem;
+    }
+
+    /* 印刷 */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .app-header, .no-print { display: none !important; }
+      .card { box-shadow: none; border: 1px solid #ccc; max-width: 100%; border-radius: 0; }
+      .btn-del, .btn-mv, .act-col, th.act-col { display: none !important; }
+      table.kouteihyo th { background: #333; -webkit-print-color-adjust: exact; }
+      .print-title {
+        font-size: 1.3rem; font-weight: 900;
+        text-align: center; margin-bottom: 0.5rem;
+      }
+      .print-meta { font-size: 0.82rem; color: #555; text-align: center; margin-bottom: 1rem; }
+    }
+
+    @media (max-width: 500px) {
+      .input-row { grid-template-columns: 1fr 1fr; }
+      .input-row .time-field { grid-column: 1; }
+      .input-row .add-btn   { grid-column: 2; }
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>業務工程表ジェネレーター</h1>
+    <p class="subtitle">作業名・担当者・所要時間を入力してそのまま使える工程表を即生成</p>
+  </header>
+
+  <!-- 工程表情報 -->
+  <div class="card no-print">
+    <p class="card-title">工程表の基本情報</p>
+    <div class="hdr-grid">
+      <div class="field">
+        <label for="title">工程表タイトル</label>
+        <input type="text" id="title" placeholder="例: ○○プロジェクト 作業工程">
+      </div>
+      <div class="field">
+        <label for="date">作成日</label>
+        <input type="date" id="date">
+      </div>
+    </div>
+    <div class="field">
+      <label for="author">作成者</label>
+      <input type="text" id="author" placeholder="例: 山田 太郎">
+    </div>
+  </div>
+
+  <!-- 作業追加フォーム -->
+  <div class="card no-print">
+    <p class="card-title">作業を追加</p>
+    <div class="input-row">
+      <div class="field" style="margin:0">
+        <label for="in-task">作業名</label>
+        <input type="text" id="in-task" placeholder="例: 要件定義" autocomplete="off">
+      </div>
+      <div class="field" style="margin:0">
+        <label for="in-person">担当者</label>
+        <input type="text" id="in-person" placeholder="例: 田中">
+      </div>
+      <div class="field time-field" style="margin:0">
+        <label for="in-time">時間(分)</label>
+        <input type="number" id="in-time" placeholder="60" min="1">
+      </div>
+      <div>
+        <button class="btn-add add-btn" onclick="addTask()" title="追加">＋</button>
+      </div>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text-sub);margin-top:0.4rem;">Enterキーでも追加できます</p>
+  </div>
+
+  <!-- ボタンバー -->
+  <div class="btn-bar no-print">
+    <button class="btn-main" onclick="printTable()">🖨️ 印刷 / PDF保存</button>
+    <button class="btn-sub" onclick="clearAll()">🗑️ 全消去</button>
+  </div>
+
+  <!-- 工程表プレビュー -->
+  <div class="card" id="table-card">
+    <div id="print-hdr" style="display:none">
+      <p class="print-title" id="print-title-txt"></p>
+      <p class="print-meta" id="print-meta-txt"></p>
+    </div>
+    <p class="card-title no-print">工程表プレビュー</p>
+    <div class="table-wrap">
+      <table class="kouteihyo" id="kotei-table">
+        <thead>
+          <tr>
+            <th class="no-col">No.</th>
+            <th>作業名</th>
+            <th>担当者</th>
+            <th class="time-col">所要時間</th>
+            <th class="time-col">累計時間</th>
+            <th class="act-col no-print">操作</th>
+          </tr>
+        </thead>
+        <tbody id="kotei-body">
+          <tr id="empty-row"><td colspan="6" class="empty-note">作業を追加してください</td></tr>
+        </tbody>
+        <tfoot id="kotei-foot" style="display:none">
+          <tr class="total-row">
+            <td colspan="3" style="text-align:right;font-weight:700;">合計</td>
+            <td class="time-col" id="total-time">0 分</td>
+            <td class="time-col"></td>
+            <td class="act-col no-print"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'gyomu-koutei-v1';
+  var tasks = [];
+
+  // 今日の日付をセット
+  var today = new Date();
+  document.getElementById('date').value = today.getFullYear() + '-'
+    + String(today.getMonth() + 1).padStart(2, '0') + '-'
+    + String(today.getDate()).padStart(2, '0');
+
+  function addTask() {
+    var name   = document.getElementById('in-task').value.trim();
+    var person = document.getElementById('in-person').value.trim();
+    var time   = parseInt(document.getElementById('in-time').value, 10);
+    if (!name) { alert('作業名を入力してください'); return; }
+    if (!time || time <= 0) { alert('所要時間（分）を入力してください'); return; }
+    tasks.push({ name: name, person: person || '—', time: time });
+    document.getElementById('in-task').value   = '';
+    document.getElementById('in-person').value = '';
+    document.getElementById('in-time').value   = '';
+    document.getElementById('in-task').focus();
+    render();
+    save();
+  }
+
+  function deleteTask(idx) {
+    tasks.splice(idx, 1);
+    render();
+    save();
+  }
+
+  function moveTask(idx, dir) {
+    var to = idx + dir;
+    if (to < 0 || to >= tasks.length) return;
+    var tmp = tasks[idx]; tasks[idx] = tasks[to]; tasks[to] = tmp;
+    render();
+    save();
+  }
+
+  function fmtTime(min) {
+    if (min < 60) return min + ' 分';
+    var h = Math.floor(min / 60);
+    var m = min % 60;
+    return h + ' 時間' + (m > 0 ? m + ' 分' : '');
+  }
+
+  function render() {
+    var tbody = document.getElementById('kotei-body');
+    var tfoot = document.getElementById('kotei-foot');
+    var emptyRow = document.getElementById('empty-row');
+
+    if (tasks.length === 0) {
+      tbody.innerHTML = '';
+      tbody.appendChild(emptyRow);
+      emptyRow.style.display = '';
+      tfoot.style.display = 'none';
+      document.getElementById('total-time').textContent = '0 分';
+      return;
+    }
+
+    if (emptyRow.parentNode) emptyRow.parentNode.removeChild(emptyRow);
+
+    var cum = 0;
+    var html = '';
+    for (var i = 0; i < tasks.length; i++) {
+      cum += tasks[i].time;
+      var t = tasks[i];
+      html += '<tr>'
+        + '<td class="no-col">' + (i + 1) + '</td>'
+        + '<td>' + esc(t.name) + '</td>'
+        + '<td>' + esc(t.person) + '</td>'
+        + '<td class="time-col">' + fmtTime(t.time) + '</td>'
+        + '<td class="time-col">' + fmtTime(cum) + '</td>'
+        + '<td class="act-col no-print">'
+        + '<button class="btn-mv" onclick="moveTask(' + i + ',-1)" title="上へ">▲</button>'
+        + '<button class="btn-mv" onclick="moveTask(' + i + ',1)"  title="下へ">▼</button>'
+        + '<button class="btn-del" onclick="deleteTask(' + i + ')" title="削除">✕</button>'
+        + '</td>'
+        + '</tr>';
+    }
+    tbody.innerHTML = html;
+    tfoot.style.display = '';
+    document.getElementById('total-time').textContent = fmtTime(cum);
+  }
+
+  function printTable() {
+    // 印刷前にヘッダー情報を差し込む
+    var title  = document.getElementById('title').value  || '業務工程表';
+    var date   = document.getElementById('date').value   || '';
+    var author = document.getElementById('author').value || '';
+    var phdr   = document.getElementById('print-hdr');
+    var meta   = [];
+    if (date)   meta.push('作成日: ' + date);
+    if (author) meta.push('作成者: ' + author);
+    document.getElementById('print-title-txt').textContent = title;
+    document.getElementById('print-meta-txt').textContent  = meta.join('　');
+    phdr.style.display = meta.length || title ? 'block' : 'none';
+    window.print();
+  }
+
+  function clearAll() {
+    if (!confirm('工程表を全消去してよいですか？')) return;
+    tasks = [];
+    render();
+    save();
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function save() {
+    var data = {
+      title:  document.getElementById('title').value,
+      date:   document.getElementById('date').value,
+      author: document.getElementById('author').value,
+      tasks:  tasks
+    };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.title)  document.getElementById('title').value  = data.title;
+      if (data.date)   document.getElementById('date').value   = data.date;
+      if (data.author) document.getElementById('author').value = data.author;
+      if (Array.isArray(data.tasks)) tasks = data.tasks;
+    } catch(e) {}
+  }
+
+  // 入力欄でEnterキー
+  ['in-task', 'in-person', 'in-time'].forEach(function(id) {
+    document.getElementById(id).addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') addTask();
+    });
+  });
+
+  // 基本情報変更時に自動保存
+  ['title', 'date', 'author'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', save);
+  });
+
+  load();
+  render();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
