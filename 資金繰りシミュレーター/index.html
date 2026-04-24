@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>資金繰りシミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 月カード ── */
+    .month-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.7rem;
+    }
+    .month-label {
+      grid-column: 1 / -1;
+      font-size: 0.88rem; font-weight: 700;
+      color: var(--text); padding-top: 0.4rem;
+      border-top: 1px solid var(--border);
+      margin-top: 0.4rem;
+    }
+    .month-label:first-of-type { border-top: none; margin-top: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果テーブル ── */
+    .result-section {
+      display: none;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+    }
+    .result-month {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow);
+    }
+    .result-month.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-month.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-month.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+
+    .rm-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.7rem;
+    }
+    .rm-name { font-size: 0.92rem; font-weight: 700; }
+    .rm-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem;
+      border-radius: 20px; letter-spacing: 0.04em;
+    }
+    .ok .rm-badge   { background: var(--ok);   color: #fff; }
+    .warn .rm-badge { background: var(--warn);  color: #fff; }
+    .ng .rm-badge   { background: var(--ng);    color: #fff; }
+
+    .rm-table { width: 100%; font-size: 0.85rem; border-collapse: collapse; }
+    .rm-table td { padding: 0.3rem 0; color: var(--text-sub); }
+    .rm-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .rm-balance { font-size: 1.1rem; font-weight: 900; }
+    .ok   .rm-balance { color: var(--ok); }
+    .warn .rm-balance { color: var(--warn); }
+    .ng   .rm-balance { color: var(--ng); }
+
+    /* ── サマリーカード ── */
+    .summary-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      box-shadow: var(--shadow);
+      max-width: 600px;
+      margin: 0 auto 1rem;
+      text-align: center;
+    }
+    .summary-card.ok   { border-color: var(--ok);   background: var(--ok-bg); }
+    .summary-card.ng   { border-color: var(--ng);    background: var(--ng-bg); }
+    .summary-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .summary-value { font-size: 1.6rem; font-weight: 900; }
+    .summary-card.ok .summary-value { color: var(--ok); }
+    .summary-card.ng .summary-value { color: var(--ng); }
+    .summary-note { font-size: 0.82rem; color: var(--text-sub); margin-top: 0.4rem; line-height: 1.5; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-month, .summary-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>資金繰りシミュレーター</h1>
+    <p class="subtitle">向こう3ヶ月の入出金を入力して資金ショートが起きる月を即特定</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本設定</p>
+    <div class="field">
+      <label for="start-balance">現在の手元資金（円）</label>
+      <input type="number" id="start-balance" placeholder="例: 500000" min="0">
+      <p class="hint">シミュレーション開始時点の残高</p>
+    </div>
+  </div>
+
+  <div class="card" id="month-card">
+    <p class="card-title">月別 入出金</p>
+    <div id="months-container"></div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">資金ショートを確認する</button>
+
+  <!-- サマリーカード -->
+  <div class="summary-card" id="summary-card">
+    <p class="summary-label">診断結果</p>
+    <p class="summary-value" id="summary-value">—</p>
+    <p class="summary-note" id="summary-note"></p>
+  </div>
+
+  <!-- 月別結果 -->
+  <div class="result-section" id="result-section"></div>
+
+  <p class="source-note no-print" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    ※ このツールは目安の試算用です。正確な資金計画は顧問税理士や金融機関にご相談ください。
+  </p>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var MONTHS = 3;
+  var LS_KEY = 'shikinguri-sim-v1';
+
+  // 月名の生成（今月から）
+  function getMonthNames() {
+    var now = new Date();
+    var names = [];
+    for (var i = 0; i < MONTHS; i++) {
+      var d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      names.push((d.getMonth() + 1) + '月');
+    }
+    return names;
+  }
+
+  var monthNames = getMonthNames();
+
+  // 月別入力欄を生成
+  function buildInputs() {
+    var container = document.getElementById('months-container');
+    container.innerHTML = '';
+    for (var m = 0; m < MONTHS; m++) {
+      var label = document.createElement('div');
+      label.className = 'month-label';
+      label.textContent = monthNames[m];
+      if (m === 0) label.style.borderTop = 'none';
+      container.appendChild(label);
+
+      var grid = document.createElement('div');
+      grid.className = 'month-grid';
+
+      // 入金
+      var f1 = document.createElement('div');
+      f1.className = 'field';
+      f1.innerHTML = '<label for="income-' + m + '">入金合計（円）</label>'
+        + '<input type="number" id="income-' + m + '" placeholder="例: 300000" min="0">';
+      grid.appendChild(f1);
+
+      // 出金
+      var f2 = document.createElement('div');
+      f2.className = 'field';
+      f2.innerHTML = '<label for="expense-' + m + '">出金合計（円）</label>'
+        + '<input type="number" id="expense-' + m + '" placeholder="例: 250000" min="0">';
+      grid.appendChild(f2);
+
+      container.appendChild(grid);
+    }
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function calc() {
+    var startBal = parseFloat(document.getElementById('start-balance').value) || 0;
+
+    var months = [];
+    for (var m = 0; m < MONTHS; m++) {
+      var income  = parseFloat(document.getElementById('income-' + m).value)  || 0;
+      var expense = parseFloat(document.getElementById('expense-' + m).value) || 0;
+      months.push({ income: income, expense: expense });
+    }
+
+    // 月末残高を計算
+    var results = [];
+    var bal = startBal;
+    for (var i = 0; i < MONTHS; i++) {
+      var prevBal = bal;
+      bal = prevBal + months[i].income - months[i].expense;
+      var level = bal < 0 ? 'ng' : bal < startBal * 0.2 && startBal > 0 ? 'warn' : 'ok';
+      if (startBal === 0) level = bal < 0 ? 'ng' : 'ok';
+      results.push({
+        name: monthNames[i],
+        prevBal: prevBal,
+        income: months[i].income,
+        expense: months[i].expense,
+        bal: bal,
+        level: level
+      });
+    }
+
+    // 資金ショート月を集計
+    var shortMonths = results.filter(function(r){ return r.level === 'ng'; });
+    var minBal = Math.min.apply(null, results.map(function(r){ return r.bal; }));
+
+    // サマリー表示
+    var sc = document.getElementById('summary-card');
+    var sv = document.getElementById('summary-value');
+    var sn = document.getElementById('summary-note');
+    sc.style.display = 'block';
+
+    if (shortMonths.length === 0) {
+      sc.className = 'summary-card ok';
+      sv.textContent = '資金ショートなし';
+      sn.textContent = '3ヶ月の資金繰りは問題ありません。最小残高: ' + fmt(minBal) + '円';
+    } else {
+      sc.className = 'summary-card ng';
+      sv.textContent = shortMonths.length + 'ヶ月で資金ショート';
+      var monthList = shortMonths.map(function(r){ return r.name; }).join('・');
+      sn.textContent = monthList + 'に資金不足が発生します。最大不足額: ' + fmt(Math.abs(minBal)) + '円';
+    }
+
+    // 月別結果表示
+    var section = document.getElementById('result-section');
+    section.style.display = 'block';
+    section.innerHTML = '';
+
+    for (var j = 0; j < results.length; j++) {
+      var r = results[j];
+      var div = document.createElement('div');
+      div.className = 'result-month ' + r.level;
+
+      var badge = r.level === 'ok' ? '安全' : r.level === 'warn' ? '注意' : '資金不足';
+
+      div.innerHTML = '<div class="rm-header">'
+        + '<span class="rm-name">' + r.name + '</span>'
+        + '<span class="rm-badge">' + badge + '</span>'
+        + '</div>'
+        + '<table class="rm-table"><tbody>'
+        + '<tr><td>前月繰越</td><td>' + fmt(r.prevBal) + ' 円</td></tr>'
+        + '<tr><td>入金合計</td><td>+ ' + fmt(r.income) + ' 円</td></tr>'
+        + '<tr><td>出金合計</td><td>− ' + fmt(r.expense) + ' 円</td></tr>'
+        + '<tr><td style="font-weight:700;color:var(--text)">月末残高</td>'
+        + '<td class="rm-balance">' + fmt(r.bal) + ' 円</td></tr>'
+        + '</tbody></table>';
+
+      if (r.level === 'ng') {
+        var shortage = Math.abs(r.bal);
+        var note = document.createElement('p');
+        note.style.cssText = 'font-size:0.8rem;color:var(--ng);margin-top:0.5rem;font-weight:600;';
+        note.textContent = '⚠ 不足額: ' + fmt(shortage) + '円 — 追加融資・売掛回収の前倒しを検討してください';
+        div.appendChild(note);
+      }
+
+      section.appendChild(div);
+    }
+
+    // localStorage 保存
+    saveData();
+  }
+
+  function saveData() {
+    var data = { startBal: document.getElementById('start-balance').value };
+    for (var m = 0; m < MONTHS; m++) {
+      data['income-' + m]  = document.getElementById('income-' + m).value;
+      data['expense-' + m] = document.getElementById('expense-' + m).value;
+    }
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadData() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.startBal) document.getElementById('start-balance').value = data.startBal;
+      for (var m = 0; m < MONTHS; m++) {
+        if (data['income-' + m])  document.getElementById('income-' + m).value  = data['income-' + m];
+        if (data['expense-' + m]) document.getElementById('expense-' + m).value = data['expense-' + m];
+      }
+    } catch(e) {}
+  }
+
+  // 入力変更時に自動保存
+  function bindAutoSave() {
+    document.getElementById('start-balance').addEventListener('input', saveData);
+    for (var m = 0; m < MONTHS; m++) {
+      document.getElementById('income-' + m).addEventListener('input', saveData);
+      document.getElementById('expense-' + m).addEventListener('input', saveData);
+    }
+  }
+
+  buildInputs();
+  loadData();
+  bindAutoSave();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
