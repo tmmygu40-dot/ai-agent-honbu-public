@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>発注書ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 700px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+
+    /* ── 明細テーブル入力 ── */
+    .items-table-wrap { overflow-x: auto; margin-bottom: 0.75rem; }
+    .items-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 540px; }
+    .items-table th {
+      background: var(--bg); padding: 0.5rem 0.4rem;
+      font-size: 0.76rem; font-weight: 700; color: var(--text-sub);
+      border-bottom: 2px solid var(--border); text-align: center;
+    }
+    .items-table td { padding: 0.3rem 0.3rem; border-bottom: 1px solid var(--border); }
+    .items-table input {
+      width: 100%; padding: 0.45rem 0.5rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 7px; background: var(--bg); color: var(--text);
+      outline: none;
+    }
+    .items-table input:focus { border-color: var(--accent); background: #fff; }
+    .items-table .del-btn {
+      background: none; border: none; cursor: pointer;
+      color: var(--ng); font-size: 1rem; padding: 0.2rem 0.4rem;
+    }
+    .items-table .amount-cell { text-align: right; padding: 0.3rem 0.5rem; font-size: 0.9rem; color: var(--text-sub); }
+
+    /* ── ボタン ── */
+    .btn-row { display: flex; gap: 0.75rem; max-width: 700px; margin: 0 auto 1rem; }
+    .btn-add {
+      flex: 1; padding: 0.75rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+    }
+    .btn-calc {
+      flex: 2; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+
+    /* ── 発注書プレビュー ── */
+    .po-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.5rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 700px;
+    }
+    .po-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.2rem; }
+    .po-title { font-size: 1.4rem; font-weight: 900; color: var(--accent); }
+    .po-meta { font-size: 0.82rem; color: var(--text-sub); line-height: 1.8; text-align: right; }
+    .po-to { font-size: 1rem; font-weight: 700; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    .po-to span { color: var(--text-sub); font-size: 0.82rem; font-weight: 400; }
+    .po-detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-bottom: 1rem; }
+    .po-detail-table th {
+      background: var(--bg); padding: 0.5rem 0.6rem;
+      font-size: 0.76rem; font-weight: 700; color: var(--text-sub);
+      border: 1px solid var(--border); text-align: center;
+    }
+    .po-detail-table td {
+      padding: 0.55rem 0.6rem; border: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .po-detail-table td.num { text-align: right; }
+    .po-total-row {
+      display: flex; justify-content: flex-end; gap: 1.5rem;
+      margin-top: 0.5rem; font-size: 1rem; font-weight: 700;
+    }
+    .po-total-row .total-label { color: var(--text-sub); }
+    .po-total-row .total-value { color: var(--accent); font-size: 1.2rem; font-weight: 900; min-width: 120px; text-align: right; }
+    .po-note { margin-top: 1rem; font-size: 0.82rem; color: var(--text-sub); border-top: 1px solid var(--border); padding-top: 0.75rem; }
+
+    /* ── 印刷ボタン ── */
+    .btn-print {
+      display: block; max-width: 700px; width: 100%;
+      margin: 0 auto 0.75rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+    .btn-print:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .app-header, .card, .btn-row, .btn-print, .back-link, #fav-widget, .no-print { display: none !important; }
+      .po-card { display: block !important; border: 1px solid #ccc; box-shadow: none; max-width: 100%; margin: 0; border-radius: 0; }
+      .po-title { color: #000; }
+      .po-detail-table th { background: #f0f0f0; }
+      @page { margin: 15mm; }
+    }
+
+    @media (max-width: 500px) {
+      .row2, .row3 { grid-template-columns: 1fr; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📋 発注書ジェネレーター</h1>
+    <p class="subtitle">取引先・品番・数量を入力するだけで印刷できる発注書を即生成</p>
+  </header>
+
+  <!-- 発注情報 -->
+  <div class="card">
+    <p class="card-title">発注情報</p>
+    <div class="row2">
+      <div class="field">
+        <label for="order-date">発注日</label>
+        <input type="date" id="order-date">
+      </div>
+      <div class="field">
+        <label for="order-no">発注番号（任意）</label>
+        <input type="text" id="order-no" placeholder="例: PO-2026-001">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="to-company">取引先（発注先）</label>
+        <input type="text" id="to-company" placeholder="例: 〇〇商事株式会社">
+      </div>
+      <div class="field">
+        <label for="from-company">発注元（自社名・担当者）</label>
+        <input type="text" id="from-company" placeholder="例: 株式会社△△ 山田">
+      </div>
+    </div>
+    <div class="field">
+      <label for="delivery-date">希望納期（任意）</label>
+      <input type="date" id="delivery-date">
+    </div>
+    <div class="field">
+      <label for="note">備考（任意）</label>
+      <input type="text" id="note" placeholder="例: 納品先: 〇〇倉庫">
+    </div>
+  </div>
+
+  <!-- 明細入力 -->
+  <div class="card">
+    <p class="card-title">発注明細</p>
+    <div class="items-table-wrap">
+      <table class="items-table" id="items-table">
+        <thead>
+          <tr>
+            <th style="width:5%">#</th>
+            <th style="width:20%">品番</th>
+            <th style="width:30%">品名</th>
+            <th style="width:12%">数量</th>
+            <th style="width:10%">単位</th>
+            <th style="width:16%">単価（円）</th>
+            <th style="width:14%">金額（円）</th>
+            <th style="width:5%"></th>
+          </tr>
+        </thead>
+        <tbody id="items-body">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ボタン -->
+  <div class="btn-row">
+    <button class="btn-add no-print" onclick="addRow()">＋ 行追加</button>
+    <button class="btn-calc no-print" onclick="generate()">📄 発注書を生成する</button>
+  </div>
+
+  <!-- 発注書プレビュー -->
+  <div class="po-card" id="po-preview">
+    <div class="po-header">
+      <div class="po-title">発 注 書</div>
+      <div class="po-meta" id="po-meta"></div>
+    </div>
+    <div class="po-to" id="po-to"></div>
+    <table class="po-detail-table" id="po-table">
+      <thead>
+        <tr>
+          <th style="width:5%">#</th>
+          <th style="width:20%">品番</th>
+          <th style="width:30%">品名</th>
+          <th style="width:10%">数量</th>
+          <th style="width:9%">単位</th>
+          <th style="width:13%">単価</th>
+          <th style="width:13%">金額</th>
+        </tr>
+      </thead>
+      <tbody id="po-tbody"></tbody>
+    </table>
+    <div class="po-total-row">
+      <span class="total-label">合計金額（税込）</span>
+      <span class="total-value" id="po-total">0 円</span>
+    </div>
+    <div class="po-note" id="po-note-area"></div>
+  </div>
+
+  <!-- 印刷ボタン -->
+  <button class="btn-print no-print" id="print-btn" style="display:none" onclick="window.print()">🖨️ 印刷する</button>
+
+  <a class="back-link no-print" href="../index.html">← トップへ戻る</a>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;" class="no-print"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var rowCount = 0;
+
+  function addRow() {
+    rowCount++;
+    var tbody = document.getElementById('items-body');
+    var tr = document.createElement('tr');
+    tr.id = 'row-' + rowCount;
+    tr.innerHTML =
+      '<td style="text-align:center;font-size:0.82rem;color:var(--text-sub)">' + rowCount + '</td>' +
+      '<td><input type="text" placeholder="品番" class="item-code"></td>' +
+      '<td><input type="text" placeholder="品名" class="item-name"></td>' +
+      '<td><input type="number" placeholder="0" min="0" class="item-qty" oninput="calcRowAmount(this)"></td>' +
+      '<td><input type="text" placeholder="個" class="item-unit"></td>' +
+      '<td><input type="number" placeholder="0" min="0" class="item-price" oninput="calcRowAmount(this)"></td>' +
+      '<td class="amount-cell" id="amt-' + rowCount + '">—</td>' +
+      '<td><button class="del-btn" onclick="delRow(' + rowCount + ')">✕</button></td>';
+    tbody.appendChild(tr);
+    saveState();
+  }
+
+  function delRow(id) {
+    var row = document.getElementById('row-' + id);
+    if (row) row.remove();
+    renumberRows();
+    saveState();
+  }
+
+  function renumberRows() {
+    var rows = document.querySelectorAll('#items-body tr');
+    rows.forEach(function(r, i) {
+      r.cells[0].textContent = i + 1;
+    });
+  }
+
+  function calcRowAmount(input) {
+    var row = input.closest('tr');
+    var qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+    var price = parseFloat(row.querySelector('.item-price').value) || 0;
+    var amt = qty * price;
+    var id = row.id.replace('row-', '');
+    var cell = document.getElementById('amt-' + id);
+    cell.textContent = amt > 0 ? fmt(amt) + ' 円' : '—';
+    saveState();
+  }
+
+  function generate() {
+    var toCompany = document.getElementById('to-company').value.trim();
+    var fromCompany = document.getElementById('from-company').value.trim();
+    var orderDate = document.getElementById('order-date').value;
+    var orderNo = document.getElementById('order-no').value.trim();
+    var deliveryDate = document.getElementById('delivery-date').value;
+    var note = document.getElementById('note').value.trim();
+
+    var rows = document.querySelectorAll('#items-body tr');
+    var hasItem = false;
+    rows.forEach(function(r) {
+      var name = r.querySelector('.item-name').value.trim();
+      if (name) hasItem = true;
+    });
+
+    if (!toCompany) { alert('取引先を入力してください'); return; }
+    if (!hasItem) { alert('品名を1件以上入力してください'); return; }
+
+    // 発注書メタ
+    var metaHtml = '';
+    if (orderDate) metaHtml += '発注日：' + fmtDate(orderDate) + '<br>';
+    if (orderNo) metaHtml += '発注番号：' + orderNo + '<br>';
+    if (fromCompany) metaHtml += '発注元：' + fromCompany;
+    document.getElementById('po-meta').innerHTML = metaHtml;
+
+    // 宛先
+    document.getElementById('po-to').innerHTML = '<span>御中</span> ' + toCompany + ' 御中';
+
+    // 明細
+    var tbody = document.getElementById('po-tbody');
+    tbody.innerHTML = '';
+    var total = 0;
+    rows.forEach(function(r, i) {
+      var code = r.querySelector('.item-code').value.trim();
+      var name = r.querySelector('.item-name').value.trim();
+      var qty = parseFloat(r.querySelector('.item-qty').value) || 0;
+      var unit = r.querySelector('.item-unit').value.trim() || '個';
+      var price = parseFloat(r.querySelector('.item-price').value) || 0;
+      var amt = qty * price;
+      total += amt;
+
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="num">' + (i+1) + '</td>' +
+        '<td>' + (code || '—') + '</td>' +
+        '<td>' + (name || '—') + '</td>' +
+        '<td class="num">' + (qty > 0 ? qty : '—') + '</td>' +
+        '<td style="text-align:center">' + unit + '</td>' +
+        '<td class="num">' + (price > 0 ? fmt(price) + ' 円' : '—') + '</td>' +
+        '<td class="num">' + (amt > 0 ? fmt(amt) + ' 円' : '—') + '</td>';
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('po-total').textContent = fmt(total) + ' 円';
+
+    // 備考
+    var noteArea = document.getElementById('po-note-area');
+    var noteLines = [];
+    if (deliveryDate) noteLines.push('希望納期：' + fmtDate(deliveryDate));
+    if (note) noteLines.push('備考：' + note);
+    if (noteLines.length > 0) {
+      noteArea.style.display = '';
+      noteArea.innerHTML = noteLines.join('<br>');
+    } else {
+      noteArea.style.display = 'none';
+    }
+
+    var po = document.getElementById('po-preview');
+    po.style.display = 'block';
+    document.getElementById('print-btn').style.display = 'block';
+    po.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    saveState();
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function fmtDate(d) {
+    if (!d) return '';
+    var parts = d.split('-');
+    return parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+  }
+
+  // ── localStorage ──
+  function saveState() {
+    try {
+      var rows = document.querySelectorAll('#items-body tr');
+      var items = [];
+      rows.forEach(function(r) {
+        items.push({
+          code: r.querySelector('.item-code').value,
+          name: r.querySelector('.item-name').value,
+          qty: r.querySelector('.item-qty').value,
+          unit: r.querySelector('.item-unit').value,
+          price: r.querySelector('.item-price').value,
+        });
+      });
+      var state = {
+        toCompany: document.getElementById('to-company').value,
+        fromCompany: document.getElementById('from-company').value,
+        orderDate: document.getElementById('order-date').value,
+        orderNo: document.getElementById('order-no').value,
+        deliveryDate: document.getElementById('delivery-date').value,
+        note: document.getElementById('note').value,
+        items: items,
+      };
+      localStorage.setItem('hacchu_generator_state', JSON.stringify(state));
+    } catch(e) {}
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem('hacchu_generator_state');
+      if (!raw) return;
+      var state = JSON.parse(raw);
+      document.getElementById('to-company').value = state.toCompany || '';
+      document.getElementById('from-company').value = state.fromCompany || '';
+      document.getElementById('order-date').value = state.orderDate || '';
+      document.getElementById('order-no').value = state.orderNo || '';
+      document.getElementById('delivery-date').value = state.deliveryDate || '';
+      document.getElementById('note').value = state.note || '';
+      if (state.items && state.items.length > 0) {
+        state.items.forEach(function(item) {
+          addRow();
+          var rows = document.querySelectorAll('#items-body tr');
+          var last = rows[rows.length - 1];
+          last.querySelector('.item-code').value = item.code || '';
+          last.querySelector('.item-name').value = item.name || '';
+          last.querySelector('.item-qty').value = item.qty || '';
+          last.querySelector('.item-unit').value = item.unit || '';
+          last.querySelector('.item-price').value = item.price || '';
+          if (item.qty && item.price) {
+            var amt = parseFloat(item.qty) * parseFloat(item.price);
+            var id = last.id.replace('row-', '');
+            var cell = document.getElementById('amt-' + id);
+            if (cell) cell.textContent = amt > 0 ? fmt(amt) + ' 円' : '—';
+          }
+        });
+      } else {
+        addRow();
+      }
+    } catch(e) {
+      addRow();
+    }
+  }
+
+  // 入力変更時に保存
+  document.addEventListener('input', function(e) {
+    if (e.target.closest('#items-table')) return; // items は各 handler で保存
+    saveState();
+  });
+
+  // 初期化
+  window.addEventListener('DOMContentLoaded', function() {
+    // 今日の日付をデフォルト
+    var today = new Date();
+    var yyyy = today.getFullYear();
+    var mm = String(today.getMonth()+1).padStart(2,'0');
+    var dd = String(today.getDate()).padStart(2,'0');
+    document.getElementById('order-date').value = yyyy + '-' + mm + '-' + dd;
+    loadState();
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
