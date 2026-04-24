@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>仕入れ値上げ返答メールジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── モード選択 ── */
+    .mode-buttons {
+      display: flex; gap: 0.75rem; margin-bottom: 1.2rem;
+    }
+    .mode-btn {
+      flex: 1; padding: 0.8rem 0.5rem;
+      font-size: 0.95rem; font-weight: 700;
+      border: 2.5px solid var(--border);
+      border-radius: 10px; background: var(--bg);
+      color: var(--text-sub); cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mode-btn.active-koushō {
+      border-color: var(--warn); background: var(--warn-bg); color: var(--warn);
+    }
+    .mode-btn.active-judan {
+      border-color: var(--ok); background: var(--ok-bg); color: var(--ok);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { min-height: 90px; resize: vertical; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.show { display: block; }
+    .result-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.8rem;
+    }
+    .result-card-title { font-size: 0.78rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; }
+    .result-card-mode {
+      font-size: 0.78rem; font-weight: 700; padding: 0.25rem 0.7rem;
+      border-radius: 20px;
+    }
+    .mode-koushō .result-card-mode { background: var(--warn-bg); color: var(--warn); }
+    .mode-judan  .result-card-mode { background: var(--ok-bg);   color: var(--ok);  }
+
+    .mail-label {
+      font-size: 0.78rem; font-weight: 700; color: var(--text-sub);
+      margin-bottom: 0.3rem;
+    }
+    .mail-subject {
+      font-size: 0.92rem; font-weight: 700;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 0.6rem 0.8rem;
+      margin-bottom: 1rem; word-break: break-all;
+    }
+    .mail-body {
+      font-size: 0.9rem; line-height: 1.8;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 0.8rem 0.9rem;
+      white-space: pre-wrap; word-break: break-all;
+      margin-bottom: 1rem;
+    }
+    .btn-copy {
+      display: block; width: 100%;
+      padding: 0.8rem; font-size: 0.95rem; font-weight: 700;
+      background: var(--text); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:hover { opacity: 0.85; }
+    .btn-copy.copied { background: var(--ok); }
+
+    /* ── 履歴カード ── */
+    .history-card {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 1.25rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .history-card.show { display: block; }
+    .history-list { list-style: none; }
+    .history-item {
+      border-bottom: 1px solid var(--border);
+      padding: 0.7rem 0; cursor: pointer;
+      display: flex; align-items: center; gap: 0.6rem;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item .h-mode {
+      font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.5rem;
+      border-radius: 12px; white-space: nowrap;
+    }
+    .history-item .h-mode.koushō { background: var(--warn-bg); color: var(--warn); }
+    .history-item .h-mode.judan  { background: var(--ok-bg);   color: var(--ok);  }
+    .history-item .h-info { flex: 1; min-width: 0; }
+    .history-item .h-supplier { font-size: 0.88rem; font-weight: 600; }
+    .history-item .h-date { font-size: 0.72rem; color: var(--text-sub); }
+    .history-item .h-del {
+      font-size: 0.78rem; color: var(--text-sub); cursor: pointer;
+      padding: 0.3rem 0.5rem; border-radius: 6px; background: var(--bg);
+      border: 1px solid var(--border); white-space: nowrap;
+    }
+    .history-empty { font-size: 0.85rem; color: var(--text-sub); text-align: center; padding: 1rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>仕入れ値上げ返答メールジェネレーター</h1>
+    <p class="subtitle">交渉か受諾かを選んで情報を入力するだけで返答メールを即生成</p>
+  </header>
+
+  <!-- モード選択 -->
+  <div class="card">
+    <p class="card-title">返答モードを選択</p>
+    <div class="mode-buttons">
+      <button class="mode-btn active-koushō" id="btnKoushō" onclick="setMode('koushō')">⚡ 交渉する</button>
+      <button class="mode-btn" id="btnJudan" onclick="setMode('judan')">✅ 受諾する</button>
+    </div>
+    <p id="modeDesc" style="font-size:0.82rem;color:var(--text-sub);line-height:1.5;">
+      値上げ幅の縮小・据え置き・段階的対応などを依頼するメールを生成します。
+    </p>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力情報</p>
+    <div class="field">
+      <label for="supplier">仕入れ先（会社名）</label>
+      <input type="text" id="supplier" placeholder="例：株式会社〇〇商事">
+    </div>
+    <div class="field">
+      <label for="supplierPerson">仕入れ先の担当者名（任意）</label>
+      <input type="text" id="supplierPerson" placeholder="例：田中様">
+      <p class="hint">省略すると「ご担当者様」になります</p>
+    </div>
+    <div class="field">
+      <label for="myCompany">自社名（任意）</label>
+      <input type="text" id="myCompany" placeholder="例：有限会社山田商店">
+      <p class="hint">省略すると空欄になります</p>
+    </div>
+    <div class="field">
+      <label for="myName">自分の名前（任意）</label>
+      <input type="text" id="myName" placeholder="例：山田 太郎">
+    </div>
+    <div class="field">
+      <label for="rateUp">値上げ率（%）</label>
+      <input type="number" id="rateUp" placeholder="例：15" min="0" max="200">
+    </div>
+    <div class="field">
+      <label for="item">対象品目（任意）</label>
+      <input type="text" id="item" placeholder="例：〇〇材料、全品目">
+      <p class="hint">省略すると「仕入れ品目全般」になります</p>
+    </div>
+    <!-- 交渉モード専用 -->
+    <div id="koushōFields">
+      <div class="field">
+        <label for="targetRate">希望する値上げ幅（%）（任意）</label>
+        <input type="number" id="targetRate" placeholder="例：5" min="0" max="200">
+        <p class="hint">省略すると「条件緩和」の文言になります</p>
+      </div>
+      <div class="field">
+        <label for="reason">交渉の理由・自社の状況（任意）</label>
+        <textarea id="reason" placeholder="例：市場競争が激しく価格転嫁が困難なため、またはコスト削減に取り組んでいるため"></textarea>
+      </div>
+    </div>
+    <!-- 受諾モード専用 -->
+    <div id="judanFields" style="display:none">
+      <div class="field">
+        <label for="startDate">新価格の適用開始日（任意）</label>
+        <input type="text" id="startDate" placeholder="例：2026年6月1日">
+        <p class="hint">省略すると確認依頼の文言になります</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">メール文を生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <div class="result-card-header">
+      <span class="result-card-title">生成されたメール文</span>
+      <span class="result-card-mode" id="modeLabel">交渉</span>
+    </div>
+    <p class="mail-label">件名</p>
+    <div class="mail-subject" id="mailSubject"></div>
+    <p class="mail-label">本文</p>
+    <div class="mail-body" id="mailBody"></div>
+    <button class="btn-copy" id="copyBtn" onclick="copyMail()">📋 全文をコピー</button>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="history-card" id="historyCard">
+    <p class="card-title">生成履歴</p>
+    <ul class="history-list" id="historyList"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var currentMode = 'koushō';
+  var STORAGE_KEY = 'shiire_neage_mail_history';
+
+  function setMode(mode) {
+    currentMode = mode;
+    var btnK = document.getElementById('btnKoushō');
+    var btnJ = document.getElementById('btnJudan');
+    var desc = document.getElementById('modeDesc');
+    var kFields = document.getElementById('koushōFields');
+    var jFields = document.getElementById('judanFields');
+
+    if (mode === 'koushō') {
+      btnK.className = 'mode-btn active-koushō';
+      btnJ.className = 'mode-btn';
+      desc.textContent = '値上げ幅の縮小・据え置き・段階的対応などを依頼するメールを生成します。';
+      kFields.style.display = 'block';
+      jFields.style.display = 'none';
+    } else {
+      btnK.className = 'mode-btn';
+      btnJ.className = 'mode-btn active-judan';
+      desc.textContent = '値上げ条件を受け入れ、適用開始日を確認する返答メールを生成します。';
+      kFields.style.display = 'none';
+      jFields.style.display = 'block';
+    }
+  }
+
+  function generate() {
+    var supplier = document.getElementById('supplier').value.trim();
+    if (!supplier) { alert('仕入れ先（会社名）を入力してください'); return; }
+
+    var person      = document.getElementById('supplierPerson').value.trim() || 'ご担当者様';
+    var myCompany   = document.getElementById('myCompany').value.trim();
+    var myName      = document.getElementById('myName').value.trim();
+    var rateUp      = document.getElementById('rateUp').value.trim();
+    var item        = document.getElementById('item').value.trim() || '仕入れ品目全般';
+    var rateText    = rateUp ? rateUp + '%' : 'ご提示の値上げ幅';
+
+    var subject, body;
+
+    if (currentMode === 'koushō') {
+      var targetRate = document.getElementById('targetRate').value.trim();
+      var reason     = document.getElementById('reason').value.trim();
+
+      subject = 'Re：仕入れ価格改定のご連絡について（ご相談）';
+
+      var targetText = targetRate
+        ? '値上げ幅を' + targetRate + '%以内に抑えていただくこと'
+        : 'ご提示いただいた値上げ幅のご再考';
+
+      var reasonPart = reason
+        ? reason
+        : '弊社の経営状況および市場競争の実態を鑑みますと、ご提示の値上げ幅をそのまま受け入れることが現状では困難な状況です';
+
+      body =
+        supplier + '\n' +
+        person + '\n\n' +
+        'お世話になっております。' + (myCompany ? myCompany + ' ' : '') + (myName ? myName : 'と申します') + '。\n\n' +
+        'このたびは' + item + 'に関する仕入れ価格改定（' + rateText + '値上げ）についてご連絡いただき、\n' +
+        'ありがとうございます。\n\n' +
+        '誠に恐縮ではございますが、' + reasonPart + 'ございます。\n\n' +
+        'つきましては、大変お手数をおかけしますが、以下のご対応についてご検討いただけますでしょうか。\n\n' +
+        '・' + targetText + '\n' +
+        '・または段階的な価格改定（例：当面は' + (targetRate ? targetRate + '%' : '現状据え置き') + '、6ヶ月後に残り分）\n\n' +
+        '長年にわたるお取引を今後も継続してまいりたいと考えており、\n' +
+        'ぜひご配慮いただけますと幸いです。\n\n' +
+        'ご検討のほど、どうぞよろしくお願い申し上げます。\n\n' +
+        (myCompany ? myCompany + '\n' : '') +
+        (myName ? myName : '');
+
+    } else {
+      var startDate = document.getElementById('startDate').value.trim();
+      subject = 'Re：仕入れ価格改定のご連絡について（承諾）';
+
+      var datePart = startDate
+        ? startDate + 'よりの新価格の適用で承知いたしました。'
+        : 'なお、新価格の適用開始日について、改めてご確認いただけますでしょうか。';
+
+      body =
+        supplier + '\n' +
+        person + '\n\n' +
+        'お世話になっております。' + (myCompany ? myCompany + ' ' : '') + (myName ? myName : 'と申します') + '。\n\n' +
+        'このたびは' + item + 'に関する仕入れ価格改定（' + rateText + '値上げ）についてご連絡いただき、\n' +
+        'ありがとうございます。\n\n' +
+        '誠に苦しい状況ではございますが、貴社のご事情を承知いたしました。\n' +
+        'ご提示の条件にて受け入れさせていただきます。\n\n' +
+        datePart + '\n\n' +
+        '今後ともどうぞよろしくお願い申し上げます。\n\n' +
+        (myCompany ? myCompany + '\n' : '') +
+        (myName ? myName : '');
+    }
+
+    // 表示
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card show ' + (currentMode === 'koushō' ? 'mode-koushō' : 'mode-judan');
+    document.getElementById('modeLabel').textContent = currentMode === 'koushō' ? '⚡ 交渉' : '✅ 受諾';
+    document.getElementById('mailSubject').textContent = subject;
+    document.getElementById('mailBody').textContent = body;
+    document.getElementById('copyBtn').textContent = '📋 全文をコピー';
+    document.getElementById('copyBtn').className = 'btn-copy';
+
+    // 履歴保存
+    saveHistory(supplier, currentMode, subject, body);
+
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copyMail() {
+    var subject = document.getElementById('mailSubject').textContent;
+    var body    = document.getElementById('mailBody').textContent;
+    var text    = '件名：' + subject + '\n\n' + body;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        var btn = document.getElementById('copyBtn');
+        btn.textContent = '✅ コピーしました';
+        btn.className = 'btn-copy copied';
+        setTimeout(function() {
+          btn.textContent = '📋 全文をコピー';
+          btn.className = 'btn-copy';
+        }, 2000);
+      }).catch(function() { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      var btn = document.getElementById('copyBtn');
+      btn.textContent = '✅ コピーしました';
+      btn.className = 'btn-copy copied';
+      setTimeout(function() {
+        btn.textContent = '📋 全文をコピー';
+        btn.className = 'btn-copy';
+      }, 2000);
+    } catch(e) {
+      alert('コピーできませんでした。手動でコピーしてください。');
+    }
+    document.body.removeChild(ta);
+  }
+
+  // ── 履歴 ──
+  function saveHistory(supplier, mode, subject, body) {
+    var history = loadHistory();
+    history.unshift({
+      supplier: supplier,
+      mode: mode,
+      subject: subject,
+      body: body,
+      date: new Date().toLocaleDateString('ja-JP')
+    });
+    if (history.length > 20) history = history.slice(0, 20);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch(e) {}
+    renderHistory();
+  }
+
+  function loadHistory() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch(e) { return []; }
+  }
+
+  function deleteHistory(idx) {
+    var history = loadHistory();
+    history.splice(idx, 1);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch(e) {}
+    renderHistory();
+  }
+
+  function restoreHistory(idx) {
+    var history = loadHistory();
+    var item = history[idx];
+    if (!item) return;
+    setMode(item.mode);
+    document.getElementById('supplier').value = item.supplier;
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card show ' + (item.mode === 'koushō' ? 'mode-koushō' : 'mode-judan');
+    document.getElementById('modeLabel').textContent = item.mode === 'koushō' ? '⚡ 交渉' : '✅ 受諾';
+    document.getElementById('mailSubject').textContent = item.subject;
+    document.getElementById('mailBody').textContent = item.body;
+    document.getElementById('copyBtn').textContent = '📋 全文をコピー';
+    document.getElementById('copyBtn').className = 'btn-copy';
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderHistory() {
+    var history = loadHistory();
+    var hc = document.getElementById('historyCard');
+    var ul = document.getElementById('historyList');
+    if (history.length === 0) {
+      hc.className = 'history-card';
+      return;
+    }
+    hc.className = 'history-card show';
+    ul.innerHTML = history.map(function(h, i) {
+      return '<li class="history-item">' +
+        '<span class="h-mode ' + h.mode + '">' + (h.mode === 'koushō' ? '交渉' : '受諾') + '</span>' +
+        '<span class="h-info" onclick="restoreHistory(' + i + ')" style="cursor:pointer">' +
+          '<span class="h-supplier">' + esc(h.supplier) + '</span>' +
+          '<br><span class="h-date">' + esc(h.date) + '</span>' +
+        '</span>' +
+        '<span class="h-del" onclick="deleteHistory(' + i + ')">削除</span>' +
+        '</li>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // 初期化
+  setMode('koushō');
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
