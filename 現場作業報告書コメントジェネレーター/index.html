@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>現場作業報告書コメントジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* チップ選択 */
+    .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; }
+    .chip {
+      padding: 0.4rem 0.85rem; font-size: 0.83rem; font-weight: 600;
+      border: 1.5px solid var(--border); border-radius: 50px;
+      background: var(--bg); color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s; user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    .chip.selected {
+      border-color: var(--accent); background: var(--accent-light); color: var(--accent);
+    }
+    .chip:hover { border-color: var(--accent); }
+
+    /* 不具合レベル別チップ色 */
+    .chip[data-level="ok"].selected   { border-color: var(--ok);   background: var(--ok-bg);   color: var(--ok); }
+    .chip[data-level="warn"].selected { border-color: var(--warn); background: var(--warn-bg); color: var(--warn); }
+    .chip[data-level="ng"].selected   { border-color: var(--ng);   background: var(--ng-bg);   color: var(--ng); }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 結果エリア */
+    .result-area {
+      display: none;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+    }
+    .result-textarea {
+      width: 100%; padding: 1rem;
+      font-size: 0.95rem; line-height: 1.75;
+      border: 2px solid var(--accent); border-radius: var(--radius);
+      background: var(--accent-light); color: var(--text);
+      outline: none; resize: vertical; min-height: 160px;
+      font-family: inherit;
+    }
+    .btn-copy {
+      display: block; width: 100%;
+      margin-top: 0.75rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 2px solid var(--ok); border-radius: 10px;
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:active { opacity: 0.7; }
+    .copy-msg {
+      text-align: center; font-size: 0.82rem; color: var(--ok);
+      margin-top: 0.4rem; height: 1.2em;
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.65rem;
+      font-size: 0.85rem; font-weight: 600;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer;
+    }
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .btn-reset, .back-link, #fav-widget { display: none !important; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>現場作業報告書コメントジェネレーター</h1>
+    <p class="subtitle">選ぶだけで報告コメントを自動生成</p>
+  </header>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="location">作業場所</label>
+      <input type="text" id="location" placeholder="例：3階 機械室 / A棟外壁 / 駐車場">
+    </div>
+    <div class="field">
+      <label for="date">作業日</label>
+      <input type="date" id="date">
+    </div>
+    <div class="field">
+      <label for="worker">担当者名（任意）</label>
+      <input type="text" id="worker" placeholder="例：田中 太郎">
+    </div>
+  </div>
+
+  <!-- 作業内容 -->
+  <div class="card">
+    <p class="card-title">作業内容</p>
+    <div class="field">
+      <label>作業カテゴリを選んでください</label>
+      <div class="chips" id="category-chips">
+        <span class="chip" data-val="点検">点検</span>
+        <span class="chip" data-val="清掃">清掃</span>
+        <span class="chip" data-val="修理">修理</span>
+        <span class="chip" data-val="交換">交換</span>
+        <span class="chip" data-val="設置">設置</span>
+        <span class="chip" data-val="調整">調整</span>
+        <span class="chip" data-val="確認">確認</span>
+        <span class="chip" data-val="その他">その他</span>
+      </div>
+    </div>
+    <div class="field" id="detail-field">
+      <label>作業内容の詳細</label>
+      <div class="chips" id="detail-chips"></div>
+    </div>
+    <div class="field">
+      <label for="custom-work">作業内容（自由入力・追記）</label>
+      <input type="text" id="custom-work" placeholder="例：1F共用トイレ配管の詰まり修理">
+      <p class="hint">チップで選んだ内容に追記したい場合に入力</p>
+    </div>
+  </div>
+
+  <!-- 不具合・状況 -->
+  <div class="card">
+    <p class="card-title">作業結果・状況</p>
+    <div class="field">
+      <label>不具合・状況を選んでください</label>
+      <div class="chips" id="condition-chips">
+        <span class="chip" data-val="異常なし" data-level="ok">✅ 異常なし</span>
+        <span class="chip" data-val="軽微な異常あり（経過観察）" data-level="warn">⚠️ 軽微な異常（経過観察）</span>
+        <span class="chip" data-val="要注意箇所あり（次回確認推奨）" data-level="warn">🔸 要注意（次回確認推奨）</span>
+        <span class="chip" data-val="不具合を発見・現地にて対処済み" data-level="warn">🔧 不具合発見→対処済み</span>
+        <span class="chip" data-val="不具合あり・後日対応が必要" data-level="ng">🔴 要修理（後日対応）</span>
+        <span class="chip" data-val="緊急対応が必要な問題あり" data-level="ng">🚨 緊急対応が必要</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="notes">特記事項・詳細メモ（任意）</label>
+      <textarea id="notes" placeholder="例：2箇所にひび割れを確認。次回点検時に要再確認。&#10;部品番号：ABC-123 交換実施。"></textarea>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">📝 報告コメントを生成する</button>
+
+  <!-- 結果 -->
+  <div class="result-area" id="result-area">
+    <div class="card" style="padding-bottom:0.75rem;">
+      <p class="card-title">生成された報告コメント</p>
+      <textarea class="result-textarea" id="result-text" readonly></textarea>
+      <button class="btn-copy" onclick="copyText()">📋 コピーする</button>
+      <p class="copy-msg" id="copy-msg"></p>
+    </div>
+  </div>
+
+  <button class="btn-reset" onclick="resetAll()">🔄 リセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var DETAILS = {
+    '点検': ['電気設備点検','消防設備点検','エレベーター点検','空調設備点検','給排水設備点検','建物外観点検','機械設備点検','安全設備点検'],
+    '清掃': ['共用廊下・階段清掃','駐車場清掃','外構・敷地清掃','機械室清掃','屋上清掃','トイレ清掃','窓・ガラス清掃','排水溝清掃'],
+    '修理': ['水漏れ修理','電気系統修理','ドア・窓修理','給排水修理','空調設備修理','設備機器修理','内装修理','外壁修理'],
+    '交換': ['電球・照明交換','フィルター交換','部品交換','バッテリー交換','消耗品交換','鍵・シリンダー交換','水栓金具交換'],
+    '設置': ['機器設置','看板・サイン設置','設備設置','配線・配管設置','棚・架台設置'],
+    '調整': ['機器調整・チューニング','扉・窓調整','設備調整','水量・圧力調整','タイマー設定調整'],
+    '確認': ['完了確認','動作確認','安全確認','引渡し前確認','定期確認'],
+    'その他': ['現場調査・実測','立会い対応','打合せ・報告','資材搬入・搬出','養生・片付け']
+  };
+
+  var ACTIONS = {
+    '異常なし': '特段の問題は確認されず、作業は正常に完了しました。',
+    '軽微な異常あり（経過観察）': '軽微な異常を確認しました。現時点では緊急性はなく、経過観察を継続します。',
+    '要注意箇所あり（次回確認推奨）': '懸念箇所を発見しました。次回の定期確認時に再点検することを推奨します。',
+    '不具合を発見・現地にて対処済み': '不具合箇所を発見し、現地にて対処・修理を実施しました。現在は正常な状態に復旧しています。',
+    '不具合あり・後日対応が必要': '不具合を確認しました。現地での対処が困難なため、後日の対応が必要です。担当者への報告・手配を行います。',
+    '緊急対応が必要な問題あり': '緊急度の高い問題が発生しています。即時対応が必要です。関係者への速やかな連絡と対応手配をお願いします。'
+  };
+
+  var selCategory = '';
+  var selDetail = '';
+  var selCondition = '';
+
+  // 今日の日付をセット
+  document.getElementById('date').value = new Date().toISOString().slice(0, 10);
+
+  // localStorage から復元
+  loadSaved();
+
+  // カテゴリチップ
+  document.getElementById('category-chips').addEventListener('click', function(e) {
+    var chip = e.target.closest('.chip');
+    if (!chip) return;
+    selCategory = chip.dataset.val;
+    selDetail = '';
+    updateChips('category-chips', selCategory);
+    renderDetailChips(selCategory);
+    saveState();
+  });
+
+  // 状況チップ
+  document.getElementById('condition-chips').addEventListener('click', function(e) {
+    var chip = e.target.closest('.chip');
+    if (!chip) return;
+    selCondition = chip.dataset.val;
+    updateChips('condition-chips', selCondition);
+    saveState();
+  });
+
+  function renderDetailChips(cat) {
+    var container = document.getElementById('detail-chips');
+    container.innerHTML = '';
+    var items = DETAILS[cat] || [];
+    items.forEach(function(item) {
+      var span = document.createElement('span');
+      span.className = 'chip' + (item === selDetail ? ' selected' : '');
+      span.dataset.val = item;
+      span.textContent = item;
+      container.appendChild(span);
+    });
+    container.addEventListener('click', function(e) {
+      var chip = e.target.closest('.chip');
+      if (!chip) return;
+      selDetail = chip.dataset.val;
+      updateChips('detail-chips', selDetail);
+      saveState();
+    });
+    document.getElementById('detail-field').style.display = items.length ? '' : 'none';
+  }
+
+  function updateChips(containerId, val) {
+    var chips = document.getElementById(containerId).querySelectorAll('.chip');
+    chips.forEach(function(c) {
+      c.classList.toggle('selected', c.dataset.val === val);
+    });
+  }
+
+  function generate() {
+    var location = document.getElementById('location').value.trim();
+    var date = document.getElementById('date').value;
+    var worker = document.getElementById('worker').value.trim();
+    var customWork = document.getElementById('custom-work').value.trim();
+    var notes = document.getElementById('notes').value.trim();
+
+    if (!selCategory && !customWork) {
+      alert('作業カテゴリまたは作業内容（自由入力）を入力してください。');
+      return;
+    }
+    if (!selCondition) {
+      alert('作業結果・状況を選択してください。');
+      return;
+    }
+
+    // 作業内容文字列
+    var workStr = '';
+    if (selCategory) {
+      workStr = selCategory;
+      if (selDetail) workStr += '（' + selDetail + '）';
+    }
+    if (customWork) {
+      workStr = workStr ? workStr + '、' + customWork : customWork;
+    }
+
+    // 日付フォーマット
+    var dateStr = date ? formatDate(date) : '';
+
+    // アクション文
+    var action = ACTIONS[selCondition] || '';
+
+    // コメント組み立て
+    var lines = [];
+    if (dateStr) lines.push('【作業日】' + dateStr);
+    if (location) lines.push('【作業場所】' + location);
+    lines.push('【作業内容】' + workStr + 'を実施しました。');
+    lines.push('【作業結果】' + selCondition);
+    lines.push('【対応状況】' + action);
+    if (notes) lines.push('【特記事項】' + notes);
+    if (worker) lines.push('【担当者】' + worker);
+
+    var comment = lines.join('\n');
+    document.getElementById('result-text').value = comment;
+    document.getElementById('result-area').style.display = 'block';
+    document.getElementById('copy-msg').textContent = '';
+    document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    saveState();
+  }
+
+  function copyText() {
+    var ta = document.getElementById('result-text');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(ta.value).then(function() {
+        showCopyMsg();
+      });
+    } else {
+      ta.select();
+      document.execCommand('copy');
+      showCopyMsg();
+    }
+  }
+
+  function showCopyMsg() {
+    var msg = document.getElementById('copy-msg');
+    msg.textContent = 'コピーしました！';
+    setTimeout(function() { msg.textContent = ''; }, 2000);
+  }
+
+  function resetAll() {
+    selCategory = '';
+    selDetail = '';
+    selCondition = '';
+    document.getElementById('location').value = '';
+    document.getElementById('date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('worker').value = '';
+    document.getElementById('custom-work').value = '';
+    document.getElementById('notes').value = '';
+    document.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('selected'); });
+    document.getElementById('detail-chips').innerHTML = '';
+    document.getElementById('detail-field').style.display = 'none';
+    document.getElementById('result-area').style.display = 'none';
+    localStorage.removeItem('genkoba_state');
+  }
+
+  function formatDate(str) {
+    var d = new Date(str);
+    return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+  }
+
+  function saveState() {
+    var state = {
+      location: document.getElementById('location').value,
+      date: document.getElementById('date').value,
+      worker: document.getElementById('worker').value,
+      customWork: document.getElementById('custom-work').value,
+      notes: document.getElementById('notes').value,
+      selCategory: selCategory,
+      selDetail: selDetail,
+      selCondition: selCondition
+    };
+    localStorage.setItem('genkoba_state', JSON.stringify(state));
+  }
+
+  function loadSaved() {
+    try {
+      var raw = localStorage.getItem('genkoba_state');
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      if (s.location) document.getElementById('location').value = s.location;
+      if (s.date) document.getElementById('date').value = s.date;
+      if (s.worker) document.getElementById('worker').value = s.worker;
+      if (s.customWork) document.getElementById('custom-work').value = s.customWork;
+      if (s.notes) document.getElementById('notes').value = s.notes;
+      if (s.selCategory) {
+        selCategory = s.selCategory;
+        updateChips('category-chips', selCategory);
+        selDetail = s.selDetail || '';
+        renderDetailChips(selCategory);
+      }
+      if (s.selCondition) {
+        selCondition = s.selCondition;
+        updateChips('condition-chips', selCondition);
+      }
+    } catch(e) {}
+  }
+
+  // 入力変更時に自動保存
+  ['location','date','worker','custom-work','notes'].forEach(function(id) {
+    document.getElementById(id).addEventListener('change', saveState);
+  });
+  </script>
+
+</body>
+</html>
