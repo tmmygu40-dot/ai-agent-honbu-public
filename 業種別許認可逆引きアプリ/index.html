@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>業種別許認可逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 業種グリッド ── */
+    .industry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.6rem;
+    }
+    @media (min-width: 480px) {
+      .industry-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    .industry-btn {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.8rem 0.6rem;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .industry-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .industry-btn.selected {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+    .industry-btn .icon { font-size: 1.6rem; display: block; margin-bottom: 0.3rem; }
+    .industry-btn .name { font-size: 0.78rem; font-weight: 700; color: var(--text); }
+    .industry-btn .desc { font-size: 0.66rem; color: var(--text-sub); margin-top: 0.15rem; line-height: 1.3; }
+
+    /* ── カテゴリチェックボックス ── */
+    .category-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .cat-item {
+      display: flex; align-items: flex-start; gap: 0.7rem;
+      padding: 0.7rem 0.8rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 9px; cursor: pointer; transition: all 0.12s;
+    }
+    .cat-item:hover { border-color: var(--accent); }
+    .cat-item input[type="checkbox"] { margin-top: 0.15rem; accent-color: var(--accent); width: 1rem; height: 1rem; flex-shrink: 0; }
+    .cat-item .cat-text { flex: 1; }
+    .cat-item .cat-name { font-size: 0.88rem; font-weight: 600; }
+    .cat-item .cat-hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.15rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-calc:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; }
+    .btn-reset {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1rem; padding: 0.7rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 結果エリア ── */
+    #result-area { display: none; }
+    .result-header {
+      max-width: 640px; margin: 0 auto 1rem;
+      padding: 1rem 1.2rem;
+      background: var(--ok-bg); border: 2px solid var(--ok);
+      border-radius: var(--radius);
+      display: flex; align-items: center; gap: 0.8rem;
+    }
+    .result-header .ico { font-size: 1.8rem; flex-shrink: 0; }
+    .result-header .ttl { font-size: 1rem; font-weight: 900; color: var(--ok); }
+    .result-header .sub { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* ── 許認可リスト ── */
+    .license-group { margin-bottom: 1.2rem; }
+    .license-group:last-child { margin-bottom: 0; }
+    .license-group-title {
+      font-size: 0.72rem; font-weight: 700;
+      color: var(--text-sub); letter-spacing: 0.06em;
+      margin-bottom: 0.5rem; padding-bottom: 0.3rem;
+      border-bottom: 1px dashed var(--border);
+    }
+    .license-item {
+      padding: 0.8rem 0.9rem; margin-bottom: 0.45rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 9px;
+    }
+    .license-item.required { border-left: 4px solid var(--ng); }
+    .license-item.conditional { border-left: 4px solid var(--warn); }
+    .license-item.optional { border-left: 4px solid var(--ok); }
+    .lic-name { font-size: 0.92rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .lic-meta { font-size: 0.75rem; color: var(--text-sub); line-height: 1.6; }
+    .lic-meta span { margin-right: 0.8rem; }
+    .lic-note {
+      font-size: 0.74rem; color: var(--warn);
+      background: var(--warn-bg); border-radius: 6px;
+      padding: 0.2rem 0.5rem; margin-top: 0.3rem; display: inline-block;
+    }
+    .badge {
+      display: inline-block; font-size: 0.65rem; font-weight: 700;
+      padding: 0.15rem 0.5rem; border-radius: 4px; margin-left: 0.4rem;
+      vertical-align: middle;
+    }
+    .badge.req { background: var(--ng-bg); color: var(--ng); }
+    .badge.cond { background: var(--warn-bg); color: var(--warn); }
+    .badge.opt { background: var(--ok-bg); color: var(--ok); }
+
+    /* 凡例 */
+    .legend {
+      display: flex; gap: 1rem; flex-wrap: wrap;
+      font-size: 0.73rem; color: var(--text-sub); margin-bottom: 0.8rem;
+    }
+    .legend-item { display: flex; align-items: center; gap: 0.35rem; }
+    .legend-bar { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── 印刷/PDF ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 640px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-reset, .btn-pdf, .back-link, #fav-widget, .no-print,
+      #step1-card, #step2-card { display: none !important; }
+      .card, #result-area { box-shadow: none; border: 1px solid #ccc; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>業種別許認可逆引きアプリ</h1>
+    <p class="subtitle">業種と取扱商品を選ぶだけで必要な許認可・届出を即確認</p>
+  </header>
+
+  <!-- STEP 1: 業種選択 -->
+  <div class="card" id="step1-card">
+    <p class="card-title">STEP 1 ｜ 業種を選んでください</p>
+    <div class="industry-grid" id="industry-grid"></div>
+  </div>
+
+  <!-- STEP 2: カテゴリ選択 -->
+  <div class="card" id="step2-card" style="display:none">
+    <p class="card-title" id="step2-title">STEP 2 ｜ 業態・取扱内容を選んでください（複数可）</p>
+    <div class="category-list" id="category-list"></div>
+  </div>
+
+  <!-- 表示ボタン -->
+  <button class="btn-calc no-print" id="show-btn" onclick="showResult()" style="display:none">許認可一覧を表示する</button>
+
+  <!-- 結果エリア -->
+  <div id="result-area">
+    <div class="result-header" id="result-header">
+      <div class="ico">📋</div>
+      <div>
+        <div class="ttl" id="result-title">必要な許認可・届出</div>
+        <div class="sub" id="result-sub"></div>
+      </div>
+    </div>
+    <div class="card" id="result-card">
+      <div class="legend">
+        <div class="legend-item"><div class="legend-bar" style="background:var(--ng)"></div>必須（原則全員）</div>
+        <div class="legend-item"><div class="legend-bar" style="background:var(--warn)"></div>条件付き（該当する場合）</div>
+        <div class="legend-item"><div class="legend-bar" style="background:var(--ok)"></div>任意・推奨</div>
+      </div>
+      <div id="license-list"></div>
+    </div>
+    <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+  </div>
+
+  <button class="btn-reset no-print" id="reset-btn" onclick="resetAll()" style="display:none">← 最初からやり直す</button>
+
+  <p style="max-width:640px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは公開情報をもとに目安として整理しています。実際の申請要件は各窓口（保健所・都道府県・税務署など）でご確認ください。最終判断は専門家（行政書士等）へご相談ください。
+  </p>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // ─────────────────────────────────────────────
+  //  許認可データベース
+  // ─────────────────────────────────────────────
+  const INDUSTRIES = [
+    {
+      id: 'food_service', icon: '🍽️', name: '飲食業',
+      desc: 'レストラン・カフェ・居酒屋など',
+      categories: [
+        { id: 'basic', name: '通常の飲食提供（ランチ・ディナー）', hint: '食堂・レストラン・カフェ等' },
+        { id: 'late_night', name: '深夜0時以降も酒類を提供する', hint: '居酒屋・バー・スナック等' },
+        { id: 'takeout', name: 'テイクアウト・デリバリー販売', hint: '弁当・惣菜の持ち帰り販売' },
+        { id: 'confect', name: '菓子・パン類を自家製造して販売', hint: 'ケーキ・パン・和菓子等の製造販売' },
+        { id: 'big_venue', name: '座席が50席以上・収容人数30人以上', hint: '大型店舗・宴会場等' },
+      ],
+      licenses: {
+        base: [
+          { name: '飲食店営業許可', law: '食品衛生法', office: '保健所', type: 'required', note: '' },
+          { name: '食品衛生責任者の選任', law: '食品衛生法', office: '保健所（資格取得は各都道府県）', type: 'required', note: '1店舗に1名必要' },
+        ],
+        categories: {
+          basic: [],
+          late_night: [
+            { name: '深夜酒類提供飲食店営業開始届出', law: '風俗営業等の規制及び業務の適正化等に関する法律（風営法）', office: '所轄警察署', type: 'required', note: '深夜0時〜日の出まで酒類提供の場合' },
+          ],
+          takeout: [
+            { name: '食品営業許可（菓子製造・そうざい製造等）', law: '食品衛生法', office: '保健所', type: 'conditional', note: '製造を伴う場合は別途許可が必要な場合あり' },
+          ],
+          confect: [
+            { name: '菓子製造業の営業許可', law: '食品衛生法', office: '保健所', type: 'required', note: '飲食店許可とは別に取得が必要' },
+          ],
+          big_venue: [
+            { name: '防火管理者選任・届出', law: '消防法', office: '消防署', type: 'required', note: '収容人数30人以上の場合（甲種または乙種）' },
+            { name: '消防計画の作成・届出', law: '消防法', office: '消防署', type: 'required', note: '防火管理者選任後に実施' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'food_sales', icon: '🛒', name: '食品販売業',
+      desc: '食肉・魚・乳製品・食材販売など',
+      categories: [
+        { id: 'meat', name: '食肉（精肉・ハム等）の販売', hint: '' },
+        { id: 'fish', name: '魚介類・鮮魚の販売', hint: '' },
+        { id: 'dairy', name: '乳製品・乳の販売', hint: '' },
+        { id: 'general', name: '一般食品・加工食品の販売', hint: '缶詰・菓子・飲料など' },
+        { id: 'produce', name: '野菜・果物の販売（無加工）', hint: '' },
+      ],
+      licenses: {
+        base: [],
+        categories: {
+          meat: [
+            { name: '食肉販売業の営業許可', law: '食品衛生法', office: '保健所', type: 'required', note: '' },
+          ],
+          fish: [
+            { name: '魚介類販売業の営業許可', law: '食品衛生法', office: '保健所', type: 'required', note: '' },
+            { name: '魚介類競り売り営業の許可（競り売りの場合）', law: '食品衛生法', office: '保健所', type: 'conditional', note: '競り売りを行う場合のみ' },
+          ],
+          dairy: [
+            { name: '乳類販売業の届出', law: '食品衛生法', office: '保健所', type: 'required', note: '' },
+          ],
+          general: [
+            { name: '食品衛生法に基づく届出（2021年〜）', law: '食品衛生法', office: '保健所', type: 'required', note: '食品等事業者は届出が必要（許可が不要な業種も届出対象）' },
+          ],
+          produce: [
+            { name: '農産物販売の届出（一部自治体）', law: '食品衛生法・地方条例', office: '保健所または自治体窓口', type: 'conditional', note: '無加工の野菜・果物は原則不要だが自治体により異なる' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'liquor', icon: '🍶', name: '酒類販売業',
+      desc: 'お酒の小売・卸売販売',
+      categories: [
+        { id: 'retail', name: '店舗・対面での小売販売', hint: 'スーパー・酒屋・コンビニ等' },
+        { id: 'online', name: 'ネット通販・カタログ販売', hint: 'ECサイト・通信販売' },
+        { id: 'wholesale', name: '他の酒類販売業者への卸売', hint: '問屋・卸売業者' },
+        { id: 'import', name: '輸入酒類の販売', hint: '外国産ワイン・ウイスキー等' },
+      ],
+      licenses: {
+        base: [],
+        categories: {
+          retail: [
+            { name: '一般酒類小売業免許', law: '酒税法', office: '所轄税務署', type: 'required', note: '申請から許可まで約2ヶ月' },
+          ],
+          online: [
+            { name: '通信販売酒類小売業免許', law: '酒税法', office: '所轄税務署', type: 'required', note: '実店舗のない通信販売専門の場合に必要' },
+          ],
+          wholesale: [
+            { name: '酒類卸売業免許（種別による）', law: '酒税法', office: '所轄税務署', type: 'required', note: '全酒類卸売・ビール卸売・洋酒卸売などから選択' },
+          ],
+          import: [
+            { name: '輸出入酒類卸売業免許（自己輸入の場合）', law: '酒税法', office: '所轄税務署', type: 'conditional', note: '自ら輸入して販売する場合に必要' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'construction', icon: '🏗️', name: '建設業',
+      desc: '工事の設計・施工・リフォームなど',
+      categories: [
+        { id: 'small', name: '1件500万円未満の工事のみ（軽微工事）', hint: '小規模工事・DIY代行等' },
+        { id: 'general', name: '1件500万円以上の工事も受注する', hint: '一般的な建設工事' },
+        { id: 'demolition', name: '解体工事を行う', hint: '建物の取り壊し・撤去' },
+        { id: 'multi_pref', name: '複数の都道府県に営業所を置く', hint: '大企業・全国展開' },
+      ],
+      licenses: {
+        base: [],
+        categories: {
+          small: [
+            { name: '建設業許可（任意）', law: '建設業法', office: '都道府県知事または国土交通大臣', type: 'optional', note: '軽微工事のみなら不要だが、信頼獲得のため取得を推奨' },
+          ],
+          general: [
+            { name: '建設業許可（必須）', law: '建設業法', office: '都道府県知事（知事許可）または国土交通大臣（大臣許可）', type: 'required', note: '29業種から該当業種を取得' },
+            { name: '主任技術者・監理技術者の設置', law: '建設業法', office: '—（社内対応）', type: 'required', note: '工事現場ごとに配置義務あり' },
+          ],
+          demolition: [
+            { name: '解体工事業登録（建設業許可なしの場合）', law: '建設工事に係る資材の再資源化等に関する法律（建設リサイクル法）', office: '都道府県知事', type: 'required', note: '建設業許可（解体工事業）があれば登録不要' },
+            { name: 'アスベスト事前調査と届出（旧建物の場合）', law: '大気汚染防止法', office: '都道府県（または政令市）', type: 'conditional', note: '一定規模以上の解体・改造工事で義務化（2023年〜）' },
+          ],
+          multi_pref: [
+            { name: '建設業許可（大臣許可）', law: '建設業法', office: '国土交通大臣（地方整備局経由）', type: 'required', note: '2以上の都道府県に営業所がある場合は大臣許可' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'realestate', icon: '🏠', name: '不動産業（宅建業）',
+      desc: '物件の売買・賃貸仲介・管理など',
+      categories: [
+        { id: 'brokerage', name: '物件の売買・賃貸の仲介・代理', hint: '不動産仲介業' },
+        { id: 'own_sale', name: '自社所有物件の売買（分譲）', hint: '不動産開発・分譲業' },
+        { id: 'management', name: '賃貸物件の管理業務のみ', hint: '管理会社・PM業務' },
+      ],
+      licenses: {
+        base: [],
+        categories: {
+          brokerage: [
+            { name: '宅地建物取引業免許', law: '宅地建物取引業法', office: '都道府県知事または国土交通大臣', type: 'required', note: '5年ごとに更新が必要' },
+            { name: '宅地建物取引士（宅建士）の設置', law: '宅地建物取引業法', office: '—（有資格者を雇用または代表者が取得）', type: 'required', note: '従業員5名に1名以上の設置義務' },
+            { name: '営業保証金の供託または保証協会への加入', law: '宅地建物取引業法', office: '法務局または保証協会', type: 'required', note: '供託：主たる事務所1,000万円。保証協会加入で60万円に軽減' },
+          ],
+          own_sale: [
+            { name: '宅地建物取引業免許', law: '宅地建物取引業法', office: '都道府県知事または国土交通大臣', type: 'required', note: '自社物件であっても宅建業免許が必要' },
+          ],
+          management: [
+            { name: '賃貸住宅管理業登録', law: '賃貸住宅の管理業務等の適正化に関する法律', office: '国土交通大臣（地方整備局）', type: 'required', note: '管理戸数200戸以上の場合は登録必須（200戸未満は任意）' },
+            { name: '管理業務主任者の設置（マンション管理の場合）', law: 'マンション管理業の適正化に関する法律', office: '—（有資格者を配置）', type: 'conditional', note: 'マンション管理業登録をする場合に必要' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'travel', icon: '✈️', name: '旅行業',
+      desc: '旅行の企画・手配・販売など',
+      categories: [
+        { id: 'package', name: '海外・国内のパッケージツアーを企画・販売', hint: '第1種旅行業相当' },
+        { id: 'domestic', name: '国内旅行のみの手配・販売', hint: '第2種・第3種旅行業相当' },
+        { id: 'agent', name: '他社ツアーの取次・代理販売のみ', hint: '旅行業者代理業' },
+      ],
+      licenses: {
+        base: [
+          { name: '旅行業務取扱管理者の選任', law: '旅行業法', office: '—（有資格者を配置）', type: 'required', note: '営業所ごとに1名以上の選任が必要' },
+        ],
+        categories: {
+          package: [
+            { name: '第1種旅行業登録', law: '旅行業法', office: '観光庁長官', type: 'required', note: '基準資産額3,000万円以上・営業保証金7,000万円等' },
+          ],
+          domestic: [
+            { name: '第2種または第3種旅行業登録', law: '旅行業法', office: '都道府県知事', type: 'required', note: '第2種：国内のみ募集型企画旅行可。第3種：手配旅行のみ' },
+          ],
+          agent: [
+            { name: '旅行業者代理業登録', law: '旅行業法', office: '都道府県知事', type: 'required', note: '所属旅行業者1社のみとの代理契約が必要' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'welfare', icon: '🤝', name: '介護・福祉事業',
+      desc: '介護サービス・障害者支援など',
+      categories: [
+        { id: 'nursing_home', name: '通所介護（デイサービス）・訪問介護', hint: '介護保険適用サービス' },
+        { id: 'disability', name: '障害者支援・就労継続支援', hint: '障害福祉サービス' },
+        { id: 'childcare', name: '保育所・学童保育・放課後デイサービス', hint: '子ども向け福祉事業' },
+      ],
+      licenses: {
+        base: [],
+        categories: {
+          nursing_home: [
+            { name: '介護サービス事業者指定', law: '介護保険法', office: '都道府県または市区町村', type: 'required', note: 'サービス種類ごとに指定申請が必要（更新は6年ごと）' },
+            { name: '法人格の取得', law: '社会福祉法・NPO法等', office: '都道府県', type: 'required', note: '指定申請には法人格が必須（株式会社でも可）' },
+          ],
+          disability: [
+            { name: '障害福祉サービス事業者指定', law: '障害者総合支援法', office: '都道府県または市区町村', type: 'required', note: 'サービス種類ごとに申請（就労継続支援A型・B型等）' },
+          ],
+          childcare: [
+            { name: '認可保育所の設置認可', law: '児童福祉法', office: '都道府県または市区町村', type: 'required', note: '認可外保育施設は届出のみの場合あり' },
+            { name: '放課後等デイサービス事業者指定', law: '障害者総合支援法', office: '都道府県または市区町村', type: 'required', note: '通所系障害福祉サービスとして申請' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'pharma', icon: '💊', name: '医薬品・化粧品販売',
+      desc: '薬局・ドラッグストア・化粧品販売など',
+      categories: [
+        { id: 'pharmacy', name: '処方箋に基づく調剤を行う（薬局）', hint: '処方薬の調剤業務' },
+        { id: 'otc1', name: '第1類・第2類医薬品（要指導含む）を販売', hint: 'ドラッグストア等' },
+        { id: 'otc3', name: '第3類医薬品のみを販売', hint: 'コンビニ・スーパー等' },
+        { id: 'cosmetic', name: '化粧品の製造・販売', hint: '自社ブランド化粧品等' },
+      ],
+      licenses: {
+        base: [],
+        categories: {
+          pharmacy: [
+            { name: '薬局開設許可', law: '医薬品、医療機器等の品質、有効性及び安全性の確保等に関する法律（薬機法）', office: '都道府県', type: 'required', note: '薬剤師の常勤が必要（管理薬剤師）' },
+          ],
+          otc1: [
+            { name: '店舗販売業許可', law: '薬機法', office: '都道府県', type: 'required', note: '第1類は薬剤師必須、第2類は薬剤師または登録販売者が必要' },
+            { name: '登録販売者の設置', law: '薬機法', office: '—（資格取得は都道府県）', type: 'required', note: '第2類・第3類を販売する場合に必要' },
+          ],
+          otc3: [
+            { name: '店舗販売業許可', law: '薬機法', office: '都道府県', type: 'required', note: '登録販売者の設置が必要' },
+          ],
+          cosmetic: [
+            { name: '化粧品製造販売業許可', law: '薬機法', office: '都道府県', type: 'required', note: '自社ブランドで化粧品を製造・販売する場合' },
+            { name: '化粧品製造業許可（製造する場合）', law: '薬機法', office: '都道府県', type: 'conditional', note: '実際の製造工程を自社で行う場合に追加で必要' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'antique', icon: '🪙', name: '古物商',
+      desc: '中古品の売買・リサイクル・フリマなど',
+      categories: [
+        { id: 'store', name: '店舗での中古品の買取・販売', hint: 'リサイクルショップ等' },
+        { id: 'online', name: 'ネットオークション・フリマアプリでの販売', hint: 'メルカリ・ヤフオク出品等' },
+        { id: 'auto', name: '中古自動車・バイクの売買', hint: '車・バイクの専門業者' },
+      ],
+      licenses: {
+        base: [
+          { name: '古物商許可', law: '古物営業法', office: '主たる営業所の所轄警察署', type: 'required', note: '個人・法人問わず必要。取得まで約40日' },
+        ],
+        categories: {
+          store: [],
+          online: [
+            { name: 'URLの届出', law: '古物営業法', office: '主たる営業所の所轄警察署', type: 'required', note: 'ネット上での古物取引に使用するURLの届出が必要' },
+          ],
+          auto: [
+            { name: '古物商許可（自動車区分）', law: '古物営業法', office: '所轄警察署', type: 'required', note: '古物商許可の「自動車」「自動二輪車及び原動機付自転車」を選択' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'beauty', icon: '✂️', name: '美容業・理容業',
+      desc: '美容室・理容室・ネイルサロン・エステなど',
+      categories: [
+        { id: 'hair', name: '美容師によるカット・パーマ・カラー', hint: '美容室' },
+        { id: 'barber', name: '理容師によるカット・ひげそり', hint: '理容室' },
+        { id: 'nail_esthetic', name: 'ネイル・エステ（美容師免許不要の施術のみ）', hint: 'ネイルサロン・エステサロン' },
+        { id: 'massage', name: 'あん摩マッサージ・鍼灸・整体', hint: 'マッサージ・整体院' },
+      ],
+      licenses: {
+        base: [],
+        categories: {
+          hair: [
+            { name: '美容所開設届', law: '美容師法', office: '保健所', type: 'required', note: '施術を行う場所ごとに届出が必要' },
+            { name: '美容師免許の保有（管理美容師の選任）', law: '美容師法', office: '—（国家資格）', type: 'required', note: '従業員2名以上の場合は管理美容師選任も必要' },
+          ],
+          barber: [
+            { name: '理容所開設届', law: '理容師法', office: '保健所', type: 'required', note: '施術を行う場所ごとに届出が必要' },
+            { name: '理容師免許の保有（管理理容師の選任）', law: '理容師法', office: '—（国家資格）', type: 'required', note: '従業員2名以上の場合は管理理容師選任も必要' },
+          ],
+          nail_esthetic: [
+            { name: '許認可は原則不要（確認推奨）', law: '—', office: '—', type: 'optional', note: '美容師免許不要の施術のみなら届出不要。ただし「まつ毛エクステ」は美容師法適用の可能性あり、自治体確認を推奨' },
+          ],
+          massage: [
+            { name: 'あん摩マッサージ指圧師・鍼師・灸師免許', law: 'あん摩マッサージ指圧師、はり師、きゅう師等に関する法律', office: '—（国家資格）', type: 'required', note: '「整体」「リラクゼーション」は資格不要だが、「マッサージ」という表記に注意' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'cleaning', icon: '👕', name: 'クリーニング業',
+      desc: '洗濯物のクリーニング・集配など',
+      categories: [
+        { id: 'shop', name: '店舗でのクリーニング受付・処理', hint: 'クリーニング店・コインランドリー' },
+        { id: 'pickup', name: '集配・宅配クリーニング', hint: '出張集配・宅配サービス' },
+      ],
+      licenses: {
+        base: [
+          { name: 'クリーニング所開設届出', law: 'クリーニング業法', office: '都道府県知事（保健所）', type: 'required', note: '処理を行う施設（洗濯物処理機を置く場所）ごとに届出' },
+          { name: 'クリーニング師の設置', law: 'クリーニング業法', office: '—（国家資格）', type: 'required', note: '都道府県知事免許。各施設に1名以上の選任が必要' },
+        ],
+        categories: {
+          shop: [],
+          pickup: [
+            { name: '取次店の開設届出', law: 'クリーニング業法', office: '都道府県知事（保健所）', type: 'required', note: '受付のみで処理を自社外に委託する取次店の場合' },
+          ],
+        }
+      }
+    },
+    {
+      id: 'lodging', icon: '🏨', name: '旅館・ホテル・民泊',
+      desc: '宿泊施設の経営・運営',
+      categories: [
+        { id: 'hotel', name: '旅館・ホテルの経営', hint: '旅館業法に基づく本格的な宿泊施設' },
+        { id: 'minpaku', name: '民泊・Airbnbでの自宅貸出', hint: '年間180日以内の住宅宿泊事業' },
+        { id: 'simple', name: '簡易宿所（ゲストハウス・ドミトリー）', hint: '相部屋型・廉価型宿泊施設' },
+      ],
+      licenses: {
+        base: [],
+        categories: {
+          hotel: [
+            { name: '旅館業許可（旅館・ホテル営業）', law: '旅館業法', office: '都道府県知事（保健所）', type: 'required', note: '構造設備基準を満たす建物が必要' },
+            { name: '防火管理者選任・消防計画届出', law: '消防法', office: '消防署', type: 'required', note: '収容人数により選任義務あり' },
+          ],
+          minpaku: [
+            { name: '住宅宿泊事業届出', law: '住宅宿泊事業法（民泊新法）', office: '都道府県知事（または市区町村）', type: 'required', note: '年間提供日数は180日以内。自治体により更に制限される場合あり' },
+          ],
+          simple: [
+            { name: '旅館業許可（簡易宿所営業）', law: '旅館業法', office: '都道府県知事（保健所）', type: 'required', note: '宿泊者定員10名未満でも許可が必要' },
+          ],
+        }
+      }
+    },
+  ];
+
+  // ─────────────────────────────────────────────
+  //  状態
+  // ─────────────────────────────────────────────
+  let selectedIndustry = null;
+  let selectedCategories = new Set();
+
+  // ─────────────────────────────────────────────
+  //  初期化
+  // ─────────────────────────────────────────────
+  function init() {
+    renderIndustries();
+    loadFromStorage();
+  }
+
+  function renderIndustries() {
+    var grid = document.getElementById('industry-grid');
+    grid.innerHTML = INDUSTRIES.map(function(ind) {
+      return '<button class="industry-btn" id="ind-' + ind.id + '" onclick="selectIndustry(\'' + ind.id + '\')">'
+        + '<span class="icon">' + ind.icon + '</span>'
+        + '<div class="name">' + ind.name + '</div>'
+        + '<div class="desc">' + ind.desc + '</div>'
+        + '</button>';
+    }).join('');
+  }
+
+  function selectIndustry(id) {
+    selectedIndustry = id;
+    selectedCategories.clear();
+
+    // ボタン選択状態
+    document.querySelectorAll('.industry-btn').forEach(function(b) { b.classList.remove('selected'); });
+    document.getElementById('ind-' + id).classList.add('selected');
+
+    // カテゴリ描画
+    var ind = INDUSTRIES.find(function(x) { return x.id === id; });
+    var list = document.getElementById('category-list');
+    list.innerHTML = ind.categories.map(function(cat) {
+      return '<label class="cat-item">'
+        + '<input type="checkbox" value="' + cat.id + '" onchange="toggleCategory(\'' + cat.id + '\')">'
+        + '<div class="cat-text">'
+        + '<div class="cat-name">' + cat.name + '</div>'
+        + (cat.hint ? '<div class="cat-hint">' + cat.hint + '</div>' : '')
+        + '</div></label>';
+    }).join('');
+
+    document.getElementById('step2-title').textContent = 'STEP 2 ｜ 業態・取扱内容を選んでください（複数可）';
+    document.getElementById('step2-card').style.display = '';
+    document.getElementById('result-area').style.display = 'none';
+    document.getElementById('show-btn').style.display = '';
+    document.getElementById('reset-btn').style.display = '';
+    saveToStorage();
+  }
+
+  function toggleCategory(catId) {
+    if (selectedCategories.has(catId)) {
+      selectedCategories.delete(catId);
+    } else {
+      selectedCategories.add(catId);
+    }
+    saveToStorage();
+  }
+
+  function showResult() {
+    var ind = INDUSTRIES.find(function(x) { return x.id === selectedIndustry; });
+    if (!ind) return;
+
+    // 収集
+    var groups = {};
+    var allLicenses = [];
+
+    // ベースライセンス
+    if (ind.licenses.base.length > 0) {
+      groups['【全業態共通】必須許認可'] = ind.licenses.base;
+      allLicenses = allLicenses.concat(ind.licenses.base);
+    }
+
+    // 選択カテゴリのライセンス
+    var usedCats = selectedCategories.size > 0 ? Array.from(selectedCategories) : ind.categories.map(function(c) { return c.id; });
+
+    usedCats.forEach(function(catId) {
+      var catDef = ind.categories.find(function(c) { return c.id === catId; });
+      var catLicenses = ind.licenses.categories[catId] || [];
+      if (catLicenses.length > 0 && catDef) {
+        groups['【' + catDef.name + '】'] = catLicenses;
+        allLicenses = allLicenses.concat(catLicenses);
+      }
+    });
+
+    // 選択なしでも表示
+    if (Object.keys(groups).length === 0) {
+      groups['参考情報'] = [{ name: '選択した業態に追加の許認可情報はありません', law: '—', office: '—', type: 'optional', note: '業種共通の許認可をご確認ください' }];
+    }
+
+    var html = '';
+    Object.keys(groups).forEach(function(groupName) {
+      html += '<div class="license-group">'
+        + '<div class="license-group-title">' + groupName + '</div>';
+      groups[groupName].forEach(function(lic) {
+        var badgeHtml = lic.type === 'required' ? '<span class="badge req">必須</span>'
+                      : lic.type === 'conditional' ? '<span class="badge cond">条件付き</span>'
+                      : '<span class="badge opt">任意</span>';
+        html += '<div class="license-item ' + lic.type + '">'
+          + '<div class="lic-name">' + lic.name + badgeHtml + '</div>'
+          + '<div class="lic-meta">'
+          + '<span>📖 ' + lic.law + '</span>'
+          + '<span>🏢 ' + lic.office + '</span>'
+          + '</div>'
+          + (lic.note ? '<div class="lic-note">💡 ' + lic.note + '</div>' : '')
+          + '</div>';
+      });
+      html += '</div>';
+    });
+
+    document.getElementById('license-list').innerHTML = html;
+    document.getElementById('result-title').textContent = ind.name + ' の必要許認可一覧';
+    var cats = selectedCategories.size > 0
+      ? Array.from(selectedCategories).map(function(cid) {
+          var c = ind.categories.find(function(x) { return x.id === cid; });
+          return c ? c.name : cid;
+        }).join('、')
+      : '全業態';
+    document.getElementById('result-sub').textContent = '対象業態：' + cats + '　｜　合計 ' + allLicenses.length + ' 件';
+    document.getElementById('result-area').style.display = '';
+
+    // スクロール
+    setTimeout(function() {
+      document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+
+  function resetAll() {
+    selectedIndustry = null;
+    selectedCategories.clear();
+    document.querySelectorAll('.industry-btn').forEach(function(b) { b.classList.remove('selected'); });
+    document.getElementById('step2-card').style.display = 'none';
+    document.getElementById('result-area').style.display = 'none';
+    document.getElementById('show-btn').style.display = 'none';
+    document.getElementById('reset-btn').style.display = 'none';
+    clearStorage();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ─────────────────────────────────────────────
+  //  localStorage
+  // ─────────────────────────────────────────────
+  function saveToStorage() {
+    try {
+      localStorage.setItem('gyoshu_license_industry', selectedIndustry || '');
+      localStorage.setItem('gyoshu_license_cats', JSON.stringify(Array.from(selectedCategories)));
+    } catch(e) {}
+  }
+
+  function loadFromStorage() {
+    try {
+      var ind = localStorage.getItem('gyoshu_license_industry');
+      var cats = localStorage.getItem('gyoshu_license_cats');
+      if (ind) {
+        selectIndustry(ind);
+        if (cats) {
+          var catArr = JSON.parse(cats);
+          catArr.forEach(function(cid) {
+            var cb = document.querySelector('input[value="' + cid + '"]');
+            if (cb) { cb.checked = true; selectedCategories.add(cid); }
+          });
+        }
+      }
+    } catch(e) {}
+  }
+
+  function clearStorage() {
+    try {
+      localStorage.removeItem('gyoshu_license_industry');
+      localStorage.removeItem('gyoshu_license_cats');
+    } catch(e) {}
+  }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
