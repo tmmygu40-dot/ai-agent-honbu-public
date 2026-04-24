@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>発注依頼文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 品目行 ── */
+    .item-row {
+      display: grid;
+      grid-template-columns: 1fr 80px 60px auto;
+      gap: 0.5rem;
+      align-items: center;
+      margin-bottom: 0.6rem;
+    }
+    .item-row input {
+      padding: 0.6rem 0.7rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; width: 100%;
+    }
+    .item-row input:focus { border-color: var(--accent); background: #fff; }
+    .btn-del-item {
+      background: none; border: 1.5px solid var(--border); border-radius: 8px;
+      color: var(--text-sub); cursor: pointer; padding: 0.5rem 0.6rem;
+      font-size: 1rem; line-height: 1; transition: border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+    .btn-del-item:hover { border-color: var(--ng); color: var(--ng); }
+    .item-header {
+      display: grid;
+      grid-template-columns: 1fr 80px 60px auto;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .item-header span { font-size: 0.75rem; color: var(--text-sub); font-weight: 600; }
+    .btn-add-item {
+      display: block; width: 100%; margin-top: 0.5rem;
+      padding: 0.55rem; font-size: 0.85rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px dashed var(--accent); border-radius: 9px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-add-item:hover { background: #ffe8c0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果エリア ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card .card-title { color: var(--ok); }
+    .result-textarea {
+      width: 100%; min-height: 280px;
+      padding: 1rem; font-size: 0.9rem; line-height: 1.8;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      font-family: "Hiragino Kaku Gothic ProN", "Meiryo", monospace;
+      resize: vertical; outline: none;
+    }
+    .result-textarea:focus { border-color: var(--accent); background: #fff; }
+    .btn-copy {
+      display: block; width: 100%; margin-top: 0.8rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 800;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:hover { opacity: 0.88; }
+    .copy-msg {
+      text-align: center; font-size: 0.8rem; color: var(--ok);
+      font-weight: 700; margin-top: 0.4rem; min-height: 1.2em;
+    }
+
+    /* ── 履歴 ── */
+    .history-list { list-style: none; }
+    .history-list li {
+      padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);
+      font-size: 0.82rem; color: var(--text-sub); cursor: pointer;
+      border-radius: 6px; transition: background 0.1s;
+    }
+    .history-list li:last-child { border-bottom: none; }
+    .history-list li:hover { background: var(--bg); color: var(--accent); }
+    .history-label {
+      font-size: 0.78rem; font-weight: 700; color: var(--text);
+      margin-bottom: 0.1rem;
+    }
+    .history-date { font-size: 0.72rem; color: var(--text-sub); }
+    .no-history { font-size: 0.82rem; color: var(--text-sub); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+
+    @media (max-width: 480px) {
+      .item-row { grid-template-columns: 1fr 70px 55px auto; gap: 0.35rem; }
+      .item-header { grid-template-columns: 1fr 70px 55px auto; gap: 0.35rem; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>発注依頼文ジェネレーター</h1>
+    <p class="subtitle">品名・数量・納期を入力して仕入れ先への発注メールを即生成</p>
+  </header>
+
+  <!-- 自社・宛先カード -->
+  <div class="card">
+    <p class="card-title">差出人・宛先</p>
+    <div class="field">
+      <label for="myCompany">自社名</label>
+      <input type="text" id="myCompany" placeholder="例: 株式会社〇〇">
+    </div>
+    <div class="field">
+      <label for="myName">担当者名（自分）</label>
+      <input type="text" id="myName" placeholder="例: 山田太郎">
+    </div>
+    <div class="field">
+      <label for="toCompany">仕入れ先会社名</label>
+      <input type="text" id="toCompany" placeholder="例: 株式会社△△">
+    </div>
+    <div class="field">
+      <label for="toName">担当者名（先方）</label>
+      <input type="text" id="toName" placeholder="例: 鈴木様（省略可）">
+    </div>
+  </div>
+
+  <!-- 品目カード -->
+  <div class="card">
+    <p class="card-title">発注品目</p>
+    <div class="item-header">
+      <span>品名</span>
+      <span>数量</span>
+      <span>単位</span>
+      <span></span>
+    </div>
+    <div id="itemRows"></div>
+    <button class="btn-add-item" onclick="addItemRow()">＋ 品目を追加</button>
+  </div>
+
+  <!-- 納期・備考カード -->
+  <div class="card">
+    <p class="card-title">納期・備考</p>
+    <div class="field">
+      <label for="deliveryDate">納品希望日</label>
+      <input type="date" id="deliveryDate">
+      <p class="hint">未入力の場合は「ご相談」と記載されます</p>
+    </div>
+    <div class="field">
+      <label for="remarks">備考（任意）</label>
+      <input type="text" id="remarks" placeholder="例: 分納可、倉庫着で、など">
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc no-print" onclick="generate()">発注依頼文を生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="card-title">生成された発注依頼文</p>
+    <textarea class="result-textarea" id="resultText" readonly></textarea>
+    <button class="btn-copy no-print" onclick="copyText()">📋 全文コピー</button>
+    <p class="copy-msg" id="copyMsg"></p>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">生成履歴（最大5件）</p>
+    <ul class="history-list" id="historyList"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'hachumon_history_v1';
+  var itemCount = 0;
+
+  // 初期化
+  (function init() {
+    addItemRow();
+    loadMyInfo();
+    renderHistory();
+  })();
+
+  function addItemRow() {
+    itemCount++;
+    var id = itemCount;
+    var row = document.createElement('div');
+    row.className = 'item-row';
+    row.id = 'item-' + id;
+    row.innerHTML =
+      '<input type="text" placeholder="品名" class="item-name">' +
+      '<input type="number" placeholder="1" min="0" class="item-qty">' +
+      '<input type="text" placeholder="個" class="item-unit">' +
+      '<button class="btn-del-item" onclick="delItemRow(' + id + ')">✕</button>';
+    document.getElementById('itemRows').appendChild(row);
+  }
+
+  function delItemRow(id) {
+    var rows = document.querySelectorAll('.item-row');
+    if (rows.length <= 1) return; // 最低1行は残す
+    var el = document.getElementById('item-' + id);
+    if (el) el.parentNode.removeChild(el);
+  }
+
+  function loadMyInfo() {
+    var saved = localStorage.getItem('hachumon_myinfo_v1');
+    if (!saved) return;
+    try {
+      var info = JSON.parse(saved);
+      document.getElementById('myCompany').value = info.myCompany || '';
+      document.getElementById('myName').value = info.myName || '';
+    } catch(e) {}
+  }
+
+  function saveMyInfo() {
+    localStorage.setItem('hachumon_myinfo_v1', JSON.stringify({
+      myCompany: document.getElementById('myCompany').value,
+      myName: document.getElementById('myName').value
+    }));
+  }
+
+  function generate() {
+    var myCompany = document.getElementById('myCompany').value.trim();
+    var myName = document.getElementById('myName').value.trim();
+    var toCompany = document.getElementById('toCompany').value.trim();
+    var toName = document.getElementById('toName').value.trim();
+    var deliveryDate = document.getElementById('deliveryDate').value;
+    var remarks = document.getElementById('remarks').value.trim();
+
+    // 品目取得
+    var items = [];
+    var rows = document.querySelectorAll('.item-row');
+    for (var i = 0; i < rows.length; i++) {
+      var name = rows[i].querySelector('.item-name').value.trim();
+      var qty = rows[i].querySelector('.item-qty').value.trim();
+      var unit = rows[i].querySelector('.item-unit').value.trim() || '個';
+      if (name) items.push({ name: name, qty: qty || '1', unit: unit });
+    }
+
+    if (!toCompany) { alert('仕入れ先会社名を入力してください'); return; }
+    if (items.length === 0) { alert('品目を1件以上入力してください'); return; }
+
+    // 宛先行
+    var toLine = toCompany;
+    if (toName) toLine += '\n' + toName;
+
+    // 品目行生成
+    var itemLines = items.map(function(it, idx) {
+      return '  ' + (idx + 1) + '. ' + it.name + '　' + it.qty + ' ' + it.unit;
+    }).join('\n');
+
+    // 納期行
+    var deliveryStr = deliveryDate
+      ? formatDate(deliveryDate)
+      : 'ご相談';
+
+    // 差出人行
+    var fromLine = (myCompany ? myCompany + '\n' : '') + (myName || '担当者');
+
+    // 本文生成
+    var body =
+      toLine + '\n\n' +
+      'お世話になっております。\n' +
+      (myCompany ? myCompany + 'の' : '') + (myName || '') + 'でございます。\n\n' +
+      '以下のとおりご発注をお願い申し上げます。\n\n' +
+      '【発注内容】\n' +
+      itemLines + '\n\n' +
+      '【納品希望日】' + deliveryStr + '\n' +
+      (remarks ? '【備考】' + remarks + '\n' : '') +
+      '\nご確認の上、受注可否についてご連絡いただけますと幸いです。\n' +
+      'お手数をおかけしますが、どうぞよろしくお願い申し上げます。\n\n' +
+      fromLine;
+
+    document.getElementById('resultText').value = body;
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('copyMsg').textContent = '';
+
+    saveMyInfo();
+    saveHistory(toCompany, items, body);
+    renderHistory();
+  }
+
+  function copyText() {
+    var text = document.getElementById('resultText').value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        showCopyMsg('コピーしました！');
+      }).catch(function() {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.getElementById('resultText');
+    ta.select();
+    try {
+      document.execCommand('copy');
+      showCopyMsg('コピーしました！');
+    } catch(e) {
+      showCopyMsg('手動でコピーしてください');
+    }
+  }
+
+  function showCopyMsg(msg) {
+    var el = document.getElementById('copyMsg');
+    el.textContent = msg;
+    setTimeout(function() { el.textContent = ''; }, 2500);
+  }
+
+  function saveHistory(toCompany, items, body) {
+    var history = getHistory();
+    var entry = {
+      date: new Date().toISOString(),
+      toCompany: toCompany,
+      itemSummary: items.map(function(it) { return it.name; }).join('、'),
+      body: body
+    };
+    history.unshift(entry);
+    if (history.length > 5) history = history.slice(0, 5);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  }
+
+  function getHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch(e) { return []; }
+  }
+
+  function renderHistory() {
+    var history = getHistory();
+    var card = document.getElementById('historyCard');
+    var list = document.getElementById('historyList');
+    if (history.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    list.innerHTML = history.map(function(h, i) {
+      var d = new Date(h.date);
+      var ds = d.getFullYear() + '/' + pad(d.getMonth()+1) + '/' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      return '<li onclick="loadHistory(' + i + ')">' +
+        '<div class="history-label">' + esc(h.toCompany) + ' — ' + esc(h.itemSummary) + '</div>' +
+        '<div class="history-date">' + ds + '</div>' +
+        '</li>';
+    }).join('');
+  }
+
+  function loadHistory(i) {
+    var history = getHistory();
+    if (!history[i]) return;
+    document.getElementById('resultText').value = history[i].body;
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('copyMsg').textContent = '';
+  }
+
+  function formatDate(dateStr) {
+    var d = new Date(dateStr);
+    return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+  }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function esc(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
