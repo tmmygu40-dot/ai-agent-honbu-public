@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>値上げ影響シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .up td:last-child { color: var(--ok); }
+    .detail-table .down td:last-child { color: var(--ng); }
+
+    /* ── 比較セクション ── */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+      margin-bottom: 1rem;
+    }
+    .compare-box {
+      background: var(--accent-light);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 0.8rem;
+      text-align: center;
+    }
+    .compare-box.after { background: var(--ok-bg); border-color: var(--ok); }
+    .compare-box.after-ng { background: var(--ng-bg); border-color: var(--ng); }
+    .compare-box .cb-label { font-size: 0.7rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.3rem; letter-spacing: 0.06em; }
+    .compare-box .cb-value { font-size: 1.3rem; font-weight: 900; color: var(--text); }
+    .compare-box.after .cb-value { color: var(--ok); }
+    .compare-box.after-ng .cb-value { color: var(--ng); }
+    .compare-box .cb-sub { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>値上げ影響シミュレーター</h1>
+    <p class="subtitle">値上げ率と客離れ率から売上・粗利の変化を即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">現状の数値を入力</p>
+    <div class="field">
+      <label for="sales">月間売上（円）</label>
+      <input type="number" id="sales" placeholder="例: 1000000" min="0">
+    </div>
+    <div class="field">
+      <label for="cost_rate">原価率（%）</label>
+      <input type="number" id="cost_rate" placeholder="例: 60" min="0" max="100">
+      <p class="hint">売上に占める原価・仕入れ費の割合</p>
+    </div>
+    <div class="field">
+      <label for="price_up">値上げ率（%）</label>
+      <input type="number" id="price_up" placeholder="例: 10" min="0" max="100">
+      <p class="hint">現在の売価から何%上げるか</p>
+    </div>
+    <div class="field">
+      <label for="churn">想定客離れ率（%）</label>
+      <input type="number" id="churn" placeholder="例: 15" min="0" max="100">
+      <p class="hint">値上げにより離れる見込み客の割合</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 比較カード -->
+  <div class="card" id="compare" style="display:none">
+    <p class="card-title">値上げ前後の比較</p>
+    <div class="compare-grid">
+      <div class="compare-box">
+        <p class="cb-label">値上げ前 売上</p>
+        <p class="cb-value" id="before_sales">—</p>
+        <p class="cb-sub">円/月</p>
+      </div>
+      <div class="compare-box" id="after_sales_box">
+        <p class="cb-label">値上げ後 売上</p>
+        <p class="cb-value" id="after_sales">—</p>
+        <p class="cb-sub">円/月</p>
+      </div>
+      <div class="compare-box">
+        <p class="cb-label">値上げ前 粗利</p>
+        <p class="cb-value" id="before_profit">—</p>
+        <p class="cb-sub">円/月</p>
+      </div>
+      <div class="compare-box" id="after_profit_box">
+        <p class="cb-label">値上げ後 粗利</p>
+        <p class="cb-value" id="after_profit">—</p>
+        <p class="cb-sub">円/月</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">詳細内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📊 このツールは目安として参考にしてください。実際の客離れ率は商品・業種・地域によって異なります。
+  </p>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'neage_sim_v1';
+
+  window.addEventListener('load', function() {
+    var saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      try {
+        var d = JSON.parse(saved);
+        if (d.sales)     document.getElementById('sales').value     = d.sales;
+        if (d.cost_rate) document.getElementById('cost_rate').value = d.cost_rate;
+        if (d.price_up)  document.getElementById('price_up').value  = d.price_up;
+        if (d.churn)     document.getElementById('churn').value     = d.churn;
+      } catch(e) {}
+    }
+  });
+
+  function calc() {
+    var sales     = parseFloat(document.getElementById('sales').value);
+    var cost_rate = parseFloat(document.getElementById('cost_rate').value);
+    var price_up  = parseFloat(document.getElementById('price_up').value);
+    var churn     = parseFloat(document.getElementById('churn').value);
+
+    if (isNaN(sales) || sales <= 0)            { showErr('月間売上を入力してください'); return; }
+    if (isNaN(cost_rate) || cost_rate < 0 || cost_rate > 100) { showErr('原価率を 0〜100 で入力してください'); return; }
+    if (isNaN(price_up) || price_up < 0)       { showErr('値上げ率を入力してください'); return; }
+    if (isNaN(churn) || churn < 0 || churn > 100) { showErr('客離れ率を 0〜100 で入力してください'); return; }
+
+    // 保存
+    localStorage.setItem(LS_KEY, JSON.stringify({ sales: sales, cost_rate: cost_rate, price_up: price_up, churn: churn }));
+
+    // ── 計算 ──
+    var margin_rate = (100 - cost_rate) / 100;  // 粗利率
+
+    // 値上げ前
+    var before_sales  = sales;
+    var before_cost   = sales * (cost_rate / 100);
+    var before_profit = sales * margin_rate;
+
+    // 値上げ後：売上単価が price_up% 上昇、客数が churn% 減少
+    var qty_ratio    = (100 - churn) / 100;     // 客数残存率
+    var price_ratio  = (100 + price_up) / 100;  // 単価上昇率
+    var after_sales  = before_sales * price_ratio * qty_ratio;
+    // 原価は客数に比例（仕入れコストは客数分だけ減る）
+    var after_cost   = before_cost * qty_ratio;
+    var after_profit = after_sales - after_cost;
+
+    var profit_diff  = after_profit - before_profit;
+    var profit_diff_pct = before_profit > 0 ? (profit_diff / before_profit * 100) : 0;
+
+    // 判定
+    var level, verdict, note;
+    if (profit_diff >= 0) {
+      if (profit_diff_pct >= 5) {
+        level = 'ok';
+        verdict = '値上げ推奨';
+        note = '粗利が増加します。客離れを考慮しても値上げは有利です。';
+      } else {
+        level = 'warn';
+        verdict = '値上げ検討';
+        note = '粗利の変化は軽微です。客離れ率の見直しもご確認ください。';
+      }
+    } else {
+      if (profit_diff_pct < -10) {
+        level = 'ng';
+        verdict = '値上げ要注意';
+        note = '客離れにより粗利が大幅に減少します。値上げ幅または客離れ率を見直してください。';
+      } else {
+        level = 'warn';
+        verdict = '値上げ慎重に';
+        note = '粗利がわずかに減少します。客離れ対策とセットで検討してください。';
+      }
+    }
+
+    // 結論カード
+    showResult(level, fmt(Math.round(profit_diff)) + ' 円', verdict, note);
+
+    // 比較カード
+    document.getElementById('before_sales').textContent  = fmt(Math.round(before_sales));
+    document.getElementById('after_sales').textContent   = fmt(Math.round(after_sales));
+    document.getElementById('before_profit').textContent = fmt(Math.round(before_profit));
+    document.getElementById('after_profit').textContent  = fmt(Math.round(after_profit));
+
+    var asSalesBox   = document.getElementById('after_sales_box');
+    var asProfitBox  = document.getElementById('after_profit_box');
+    asSalesBox.className  = 'compare-box ' + (after_sales  >= before_sales  ? 'after' : 'after-ng');
+    asProfitBox.className = 'compare-box ' + (after_profit >= before_profit ? 'after' : 'after-ng');
+    document.getElementById('compare').style.display = 'block';
+
+    // 内訳テーブル
+    showDetail([
+      ['値上げ前 売上',   fmt(Math.round(before_sales))  + ' 円'],
+      ['値上げ後 売上',   fmt(Math.round(after_sales))   + ' 円'],
+      ['値上げ前 粗利',   fmt(Math.round(before_profit)) + ' 円'],
+      ['値上げ後 粗利',   fmt(Math.round(after_profit))  + ' 円', true],
+      ['粗利の増減',      (profit_diff >= 0 ? '+' : '') + fmt(Math.round(profit_diff)) + ' 円'],
+      ['粗利変化率',      (profit_diff_pct >= 0 ? '+' : '') + profit_diff_pct.toFixed(1) + ' %'],
+      ['残存客数比率',    (100 - churn).toFixed(0) + ' %'],
+    ]);
+  }
+
+  function showResult(level, val, eval_text, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = eval_text;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = '';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('compare').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return n.toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
