@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新人研修チェックリストジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2378716c' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.9rem center;
+      padding-right: 2.5rem;
+    }
+    .field select:focus { border-color: var(--accent); background-color: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── チェックリストセクション ── */
+    #checklist-section { display: none; }
+
+    /* ── 進捗バー ── */
+    .progress-wrap {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .progress-bar-bg {
+      flex: 1; height: 10px; background: var(--border); border-radius: 99px; overflow: hidden;
+    }
+    .progress-bar-fg {
+      height: 100%; background: var(--ok); border-radius: 99px;
+      transition: width 0.3s ease;
+    }
+    .progress-text { font-size: 0.82rem; font-weight: 700; color: var(--text-sub); white-space: nowrap; }
+
+    /* ── チェックリスト ── */
+    .section-title {
+      font-size: 0.82rem; font-weight: 700; color: var(--text-sub);
+      background: var(--bg); padding: 0.35rem 0.6rem;
+      border-radius: 6px; margin: 1rem 0 0.5rem;
+    }
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+      border-radius: 6px;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item:hover { background: var(--accent-light); }
+    .check-item.done { opacity: 0.5; }
+    .check-item.done .item-label { text-decoration: line-through; }
+
+    .check-box {
+      width: 22px; height: 22px; flex-shrink: 0;
+      border: 2px solid var(--border); border-radius: 6px;
+      background: var(--bg); margin-top: 1px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+    }
+    .check-item.done .check-box {
+      background: var(--ok); border-color: var(--ok);
+    }
+    .check-icon { display: none; color: #fff; font-size: 14px; font-weight: 900; }
+    .check-item.done .check-icon { display: block; }
+
+    .item-label { font-size: 0.95rem; line-height: 1.5; }
+
+    /* ── アクションボタン群 ── */
+    .actions {
+      display: flex; gap: 0.75rem; max-width: 600px; margin: 0 auto 1rem; flex-wrap: wrap;
+    }
+    .btn-sub {
+      flex: 1; padding: 0.65rem 0.5rem;
+      font-size: 0.88rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-sub:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 完了バナー ── */
+    .complete-banner {
+      display: none; max-width: 600px; margin: 0 auto 1rem;
+      background: var(--ok-bg); border: 2px solid var(--ok); border-radius: var(--radius);
+      padding: 1rem 1.2rem; text-align: center;
+    }
+    .complete-banner .big { font-size: 1.4rem; font-weight: 900; color: var(--ok); }
+    .complete-banner .small { font-size: 0.82rem; color: var(--text-sub); margin-top: 0.3rem; }
+
+    /* ── 印刷 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .actions, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, #checklist-section { box-shadow: none; border: 1px solid #ccc; }
+      .app-header { border-bottom: 2px solid #000; }
+      .check-item { page-break-inside: avoid; }
+      @page { margin: 12mm; }
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>新人研修チェックリストジェネレーター</h1>
+    <p class="subtitle">業種・職種を選ぶだけで研修チェックリストを自動生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">業種・職種を選択</p>
+    <div class="field">
+      <label for="industry">業種</label>
+      <select id="industry" onchange="updateJobTypes()">
+        <option value="">-- 業種を選んでください --</option>
+        <option value="food">飲食</option>
+        <option value="retail">小売</option>
+        <option value="manufacturing">製造</option>
+        <option value="medical">医療・介護</option>
+        <option value="it">IT・Web</option>
+        <option value="construction">建設・建築</option>
+        <option value="education">教育</option>
+        <option value="service">サービス業</option>
+        <option value="logistics">物流・運輸</option>
+        <option value="office">事務・一般</option>
+        <option value="other">その他</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="jobtype">職種</label>
+      <select id="jobtype">
+        <option value="">-- 先に業種を選んでください --</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">チェックリストを生成する</button>
+
+  <!-- チェックリストセクション -->
+  <div id="checklist-section">
+
+    <div class="card" id="checklist-card">
+      <p class="card-title">研修チェックリスト</p>
+
+      <!-- 進捗バー -->
+      <div class="progress-wrap">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fg" id="progress-bar" style="width:0%"></div>
+        </div>
+        <span class="progress-text" id="progress-text">0 / 0 完了</span>
+      </div>
+
+      <div id="checklist-items"></div>
+    </div>
+
+    <!-- 完了バナー -->
+    <div class="complete-banner" id="complete-banner">
+      <div class="big">🎉 研修チェック完了！</div>
+      <div class="small">すべての項目を確認しました。お疲れさまでした。</div>
+    </div>
+
+    <!-- アクションボタン -->
+    <div class="actions no-print">
+      <button class="btn-sub" onclick="resetChecks()">チェックをリセット</button>
+      <button class="btn-sub" onclick="window.print()">📄 印刷・PDF保存</button>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // ===== チェックリストデータ =====
+  var COMMON = [
+    { section: '入社・基本手続き', items: [
+      '雇用契約書・労働条件通知書の内容確認と署名',
+      '社会保険・雇用保険の加入手続き',
+      '給与振込口座の届け出',
+      'マイナンバーの提出',
+      '通勤手当・交通費の申請方法',
+    ]},
+    { section: '職場・施設の案内', items: [
+      'トイレ・休憩室・ロッカーの場所確認',
+      '緊急出口・避難経路の確認',
+      '緊急連絡先・担当者の確認',
+      'ゴミ・分別ルールの説明',
+    ]},
+    { section: '就業ルール', items: [
+      '就業規則・服務規程の説明',
+      '勤怠管理システムの使い方（出退勤記録）',
+      '有給休暇・欠勤・遅刻の申請方法',
+      'ハラスメント防止方針の説明',
+      '情報セキュリティ・個人情報保護の基礎',
+    ]},
+    { section: 'コミュニケーション', items: [
+      '挨拶・報告・連絡・相談（ホウレンソウ）の基礎',
+      'メール・電話の基本マナー',
+      'チームメンバーへの自己紹介',
+      '業務連絡ツール（チャット・グループウェアなど）の使い方',
+    ]},
+  ];
+
+  var JOB_DATA = {
+    food: {
+      '接客・ホールスタッフ': [
+        { section: '接客・サービス', items: [
+          '基本的な接客用語と挨拶（いらっしゃいませ、ありがとうございました）',
+          '席へのご案内方法と注文の取り方',
+          'メニューの内容・アレルギー対応品の確認',
+          '料理の運び方・提供順のルール',
+          'クレーム対応の基本フロー（まず謝罪・責任者への報告）',
+        ]},
+        { section: '衛生・安全', items: [
+          '食品衛生の基礎（手洗い・消毒・清潔な制服）',
+          'テーブルの清拭・消毒方法',
+          '食中毒・アレルギー事故防止の注意点',
+        ]},
+        { section: '業務・レジ操作', items: [
+          'POS・レジシステムの操作方法',
+          '会計・お釣りの確認手順',
+          '閉店・清掃・片付け作業の手順',
+          '開店準備（仕込み・備品補充）の流れ',
+        ]},
+      ],
+      '調理・キッチンスタッフ': [
+        { section: '衛生・安全管理', items: [
+          '調理前の手洗い・消毒の徹底',
+          '食品の保管温度（冷蔵・冷凍）の管理基準',
+          'アレルギー食材の分離管理ルール',
+          '廃棄・賞味期限管理の手順',
+          'ケガ（切り傷・やけど）発生時の対応フロー',
+        ]},
+        { section: '調理業務', items: [
+          '調理機器（フライヤー・スチコン・IHなど）の操作方法',
+          '仕込み作業の手順と標準レシピの確認',
+          '盛り付け基準・提供スピードの目安',
+          '在庫・発注の確認方法',
+        ]},
+      ],
+      '店長・店舗責任者': [
+        { section: '店舗運営管理', items: [
+          '売上管理・日報の入力方法',
+          '発注・仕入れ管理のフロー',
+          'スタッフシフト作成・管理の方法',
+          'スタッフへの指導・教育の基本方針',
+          '本部・オーナーへの報告・連絡ルール',
+        ]},
+        { section: 'コンプライアンス', items: [
+          '食品衛生管理責任者の役割確認',
+          '労働基準法の基礎（残業・休日の取り扱い）',
+          '防火管理・消防設備点検のルール',
+        ]},
+      ],
+    },
+    retail: {
+      '販売スタッフ': [
+        { section: '接客・販売', items: [
+          '基本的な接客マナーと挨拶',
+          '商品案内・説明の方法',
+          '試着・試用時の対応マナー',
+          'クレーム・返品対応の基本フロー',
+          '万引き防止・不審者対応の基礎',
+        ]},
+        { section: '業務・レジ操作', items: [
+          'レジ・POSシステムの操作方法',
+          '商品陳列・フェイスアップのルール',
+          '棚卸し・在庫カウントの方法',
+          '発注・補充作業の手順',
+        ]},
+        { section: '店舗管理', items: [
+          '開店・閉店作業の手順',
+          '売場の清掃・整理整頓のルール',
+          '防犯カメラ・セキュリティの確認',
+        ]},
+      ],
+      '管理者・店長': [
+        { section: '店舗管理', items: [
+          '売上目標の設定と管理方法',
+          '発注・在庫管理の責任範囲',
+          'スタッフ採用・教育の基本フロー',
+          'シフト管理と労働時間管理',
+          '本部・バイヤーとの連絡体制',
+        ]},
+        { section: 'コンプライアンス', items: [
+          '労働基準法・パートタイム労働法の基礎',
+          '個人情報保護（顧客情報の取り扱い）',
+        ]},
+      ],
+    },
+    manufacturing: {
+      '製造オペレーター': [
+        { section: '安全管理', items: [
+          '安全教育（KY活動・ヒヤリハット報告）の基礎',
+          '保護具（ヘルメット・安全靴・手袋）の着用ルール',
+          '機械・設備の安全操作手順',
+          '化学物質・危険物の取り扱いルール',
+          'ケガ・事故発生時の緊急対応フロー',
+        ]},
+        { section: '製造業務', items: [
+          '製造ラインの流れと担当ポジションの確認',
+          '機械・設備の操作マニュアルの確認',
+          '品質チェック基準（合格・不良の判断基準）',
+          '作業日報・生産記録の記入方法',
+          '5S（整理・整頓・清掃・清潔・しつけ）の実践',
+        ]},
+        { section: '品質管理', items: [
+          '不良品発生時の対応手順（ライン停止・報告）',
+          'トレーサビリティ（ロット追跡）の仕組み',
+        ]},
+      ],
+      '品質管理・QC': [
+        { section: '検査・品質業務', items: [
+          '品質管理基準書・作業標準の確認',
+          '測定機器（ノギス・マイクロメーターなど）の使い方',
+          '検品・抜き取り検査の手順',
+          '不適合品の隔離・報告フロー',
+          'ISO・品質マネジメントシステムの基礎',
+        ]},
+        { section: '記録・報告', items: [
+          '品質記録の作成・管理方法',
+          '不良率の集計・グラフ作成方法',
+        ]},
+      ],
+      '設備保全・メンテナンス': [
+        { section: '設備管理業務', items: [
+          '設備台帳・保全記録の確認方法',
+          '日常点検・定期点検の手順',
+          '部品交換・修理依頼のフロー',
+          '電気・機械の安全作業（ロックアウト・タグアウト）',
+          '外部業者との連絡・立ち合い方法',
+        ]},
+      ],
+    },
+    medical: {
+      '介護職員': [
+        { section: '介護・ケア業務', items: [
+          '介護保険制度の基礎（要介護度・サービス区分）',
+          '排泄介助（おむつ交換・トイレ誘導）の基本手順',
+          '入浴介助・清拭の手順と注意点',
+          '食事介助（体位・とろみ食の対応）',
+          '移乗・移動介助の安全な方法',
+          '利用者の尊厳・プライバシーへの配慮',
+        ]},
+        { section: '記録・報告', items: [
+          'ケア記録・介護日誌の書き方',
+          'ヒヤリハット・事故報告書の作成方法',
+          'サービス担当者会議・ケアプランの確認方法',
+        ]},
+        { section: '感染症・安全管理', items: [
+          '感染症予防（標準予防策・手洗い・PPE着用）',
+          '緊急時（転倒・急変）の対応フロー',
+          '医療行為の範囲（介護職員ができること・できないこと）',
+        ]},
+      ],
+      '医療事務': [
+        { section: '受付・事務業務', items: [
+          '患者受付の流れと問診票の対応',
+          '診療報酬点数の基礎知識',
+          'レセプト（診療報酬請求）の仕組み',
+          '医療保険の種類（健保・国保・後期高齢者など）',
+          'カルテ・電子カルテの基本操作',
+        ]},
+        { section: '個人情報管理', items: [
+          '患者情報の厳重な管理（守秘義務）',
+          '院内での個人情報取り扱いルール',
+        ]},
+      ],
+      '看護補助・病棟補助': [
+        { section: '病棟業務', items: [
+          '病棟ルール・ナースコールへの対応方法',
+          '患者の搬送（車いす・ストレッチャー）の補助',
+          'リネン交換・清掃の手順',
+          '物品管理・補充の方法',
+          '感染症対策（標準予防策・隔離対応）の基礎',
+        ]},
+      ],
+    },
+    it: {
+      'エンジニア・開発職': [
+        { section: 'セキュリティ・ルール', items: [
+          '情報セキュリティポリシーの確認（パスワード管理・VPN利用）',
+          'ソースコード管理ツール（Git/GitHub）の利用ルール',
+          '開発環境のセットアップ手順',
+          '社内ドキュメント・Wiki の使い方',
+          'インシデント発生時の報告フロー',
+        ]},
+        { section: '開発業務', items: [
+          'チームのコーディング規約・レビュー方法の確認',
+          'タスク管理ツール（Jira・Redmine・Notionなど）の使い方',
+          'コミュニケーションツール（Slack・Teamsなど）の利用ルール',
+          'デプロイ・リリース手順の確認',
+        ]},
+      ],
+      '営業・セールス': [
+        { section: '製品・サービス知識', items: [
+          '自社製品・サービスの概要と特長の把握',
+          '競合他社との比較ポイントの確認',
+          '技術用語・業界用語の基礎学習',
+          'デモ環境の使い方',
+        ]},
+        { section: '営業業務', items: [
+          '顧客対応フロー（商談・提案・受注・納品）',
+          'SFA・CRMシステムの基本操作',
+          '見積書・提案書の作成方法',
+          '受注後の引き継ぎ・契約手続きの流れ',
+        ]},
+      ],
+      'カスタマーサポート・CS': [
+        { section: '問い合わせ対応', items: [
+          '製品・サービスの基本仕様の把握',
+          'お問い合わせ受付ツール（ZendeskなどのCRMツール）の使い方',
+          'FAQ・ナレッジベースの参照方法',
+          'エスカレーション（上位担当者への引き継ぎ）のルール',
+          '顧客情報の適切な取り扱い（個人情報保護）',
+        ]},
+      ],
+    },
+    construction: {
+      '現場作業員': [
+        { section: '安全管理', items: [
+          '安全衛生教育（KY活動・安全朝礼）の受講',
+          '保護具（ヘルメット・安全帯・安全靴）の着用ルール',
+          '高所作業・足場の安全ルール',
+          '熱中症・天候不良時の作業中止基準',
+          '事故・ケガ発生時の緊急対応フロー',
+        ]},
+        { section: '現場業務', items: [
+          '現場のルール（入退場・車両通行ルール）の確認',
+          '工具・重機の使い方と点検方法',
+          '図面の読み方の基礎',
+          '作業日報・出来高報告の記入方法',
+        ]},
+        { section: '廃棄・環境管理', items: [
+          '建設廃材の分別・処分ルール',
+          '騒音・振動・近隣対応のルール',
+        ]},
+      ],
+      '施工管理・現場監督': [
+        { section: '施工管理業務', items: [
+          '工程表の作成・管理方法',
+          '品質管理（検査・写真撮影）の手順',
+          '安全管理書類（安全書類・KY記録）の作成方法',
+          '下請け・協力会社との連絡・管理方法',
+          '竣工・引き渡し手順の確認',
+        ]},
+        { section: '法令・申請', items: [
+          '建設業法・労働安全衛生法の基礎知識',
+          '各種申請・届け出（道路使用許可など）の方法',
+        ]},
+      ],
+    },
+    education: {
+      '教員・講師': [
+        { section: '教育業務', items: [
+          'カリキュラム・年間指導計画の確認',
+          '授業準備（教材・指導案）の作成方法',
+          '児童・生徒・学生への基本的な指導方針',
+          '成績評価・テスト作成のルール',
+          '特別支援・合理的配慮の基礎知識',
+        ]},
+        { section: '保護者・外部対応', items: [
+          '保護者連絡・面談の対応方法',
+          '緊急時（いじめ・事故）の対応フロー',
+          '守秘義務（個人情報・家庭情報の取り扱い）',
+        ]},
+        { section: '校務・学校運営', items: [
+          '校務分掌（担当業務）の確認',
+          '職員会議・学年会議の参加ルール',
+          '学校施設・設備の使い方',
+        ]},
+      ],
+      '学校事務・事務職員': [
+        { section: '事務業務', items: [
+          '学籍管理（入学・転学・退学）の手順',
+          '学校会計・予算管理の基礎',
+          '給食費・授業料などの徴収管理方法',
+          '調査・統計（文部科学省への報告）の作成方法',
+          '備品・物品管理の手順',
+        ]},
+      ],
+      '保育士・幼稚園教諭': [
+        { section: '保育業務', items: [
+          '保育理念・保育方針の確認',
+          '年齢別の発達の特性と関わり方',
+          '日課（登園・保育・給食・昼寝・降園）の流れ',
+          '緊急時（発熱・けが・迷子）の対応フロー',
+          'アレルギー対応・給食管理の手順',
+        ]},
+        { section: '保護者対応', items: [
+          '連絡帳・おたよりの書き方',
+          '保護者面談・個人懇談の進め方',
+        ]},
+      ],
+    },
+    service: {
+      'フロント・受付スタッフ': [
+        { section: '接客・受付業務', items: [
+          '基本的な接客マナーと言葉遣い',
+          '予約システムの使い方（予約受付・変更・キャンセル）',
+          'チェックイン・チェックアウトの手順（ホテルの場合）',
+          'クレーム対応の基本フロー',
+          '電話対応の基本マナー（取り次ぎ・伝言）',
+        ]},
+        { section: '業務管理', items: [
+          '売上計上・精算の手順',
+          '緊急時（お客様の急病・事故）の対応フロー',
+          '施設のルール・利用案内の把握',
+        ]},
+      ],
+      '美容・理容スタッフ': [
+        { section: '技術・接客', items: [
+          '施術前のカウンセリング・確認の方法',
+          '基本施術の手順（シャンプー・カット・カラーなど）',
+          'アレルギー・パッチテストの手順',
+          '使用薬剤・消耗品の管理方法',
+          '道具の衛生管理・消毒方法',
+        ]},
+        { section: '業務・接客', items: [
+          'カルテ・顧客情報の入力方法',
+          '次回予約の案内・取り方',
+          '物品・薬剤の発注タイミングと方法',
+        ]},
+      ],
+      '清掃・施設管理スタッフ': [
+        { section: '清掃業務', items: [
+          '清掃手順・清掃チェックリストの確認',
+          '清掃用具・洗剤の使い方と保管方法',
+          '汚染物（血液・嘔吐物）への対応方法',
+          '廃棄物分別・処分ルール',
+        ]},
+        { section: '施設管理', items: [
+          '設備点検（照明・空調・水回り）のチェック方法',
+          '故障・異常発見時の報告フロー',
+          '緊急連絡先の確認',
+        ]},
+      ],
+    },
+    logistics: {
+      'ドライバー・配送スタッフ': [
+        { section: '安全運転・法令', items: [
+          '運行前点検の手順（車両チェックリスト）',
+          'デジタルタコグラフ・日報の記入方法',
+          '道路交通法・運行管理のルール',
+          '事故・違反発生時の対応フロー',
+          '飲酒運転・疲労運転の防止ルール',
+        ]},
+        { section: '配送業務', items: [
+          '配送ルート・エリアの確認方法',
+          '荷物の積み込み・固定のルール',
+          '配送伝票・宅配システムの使い方',
+          '受取確認・サインの取り方',
+          '返品・再配達の対応手順',
+        ]},
+      ],
+      '倉庫作業員・ピッキングスタッフ': [
+        { section: '倉庫業務', items: [
+          '入出庫作業の流れと手順',
+          'ピッキングリストの読み方・作業方法',
+          '在庫管理システム（WMS）の基本操作',
+          '棚番・ロケーション管理の仕組み',
+          '5S（整理・整頓・清掃・清潔・しつけ）の実践',
+        ]},
+        { section: '安全管理', items: [
+          'フォークリフト・ハンドパレットの安全ルール（資格保有者のみ操作）',
+          '重量物の持ち上げ方（腰への負担軽減）',
+          '倉庫内の通路確保・歩行ルール',
+        ]},
+      ],
+    },
+    office: {
+      '一般事務・営業事務': [
+        { section: '事務業務', items: [
+          'Excel・Wordの基本操作の確認',
+          '書類の作成・印刷・ファイリングのルール',
+          '電話応対の基本マナー（取り次ぎ・伝言メモ）',
+          'メールのマナー（件名・宛名・署名の書き方）',
+          '来客応対・お茶出しの手順',
+          '郵便物・宅配便の受け取り・発送方法',
+        ]},
+        { section: 'システム・ツール', items: [
+          '社内グループウェア・スケジューラーの使い方',
+          '勤怠管理システムの入力方法',
+          '経費精算システムの使い方',
+          'コピー機・複合機の操作方法',
+        ]},
+        { section: '文書管理', items: [
+          '書類の保管・廃棄ルール（文書保管期限）',
+          '機密情報・個人情報の取り扱いルール',
+          'シュレッダー使用のルール',
+        ]},
+      ],
+      '経理・財務スタッフ': [
+        { section: '経理業務', items: [
+          '仕訳・勘定科目の基礎知識確認',
+          '会計ソフト（freee・弥生など）の基本操作',
+          '請求書・領収書の処理方法',
+          '経費精算の承認フロー',
+          '月次締め・決算スケジュールの確認',
+        ]},
+        { section: '管理・法令', items: [
+          '消費税・源泉徴収の基礎',
+          '帳票の保管・廃棄ルール（税務上の保存期間）',
+          '内部統制・不正防止ルールの確認',
+        ]},
+      ],
+      '総務・人事スタッフ': [
+        { section: '総務業務', items: [
+          '社員情報・人事データの管理方法',
+          '入退社手続き（保険・税務）のフロー',
+          '社内規程・就業規則の管理方法',
+          '備品・消耗品の発注・管理方法',
+          '社内行事・研修の運営方法',
+        ]},
+        { section: '採用・教育', items: [
+          '採用活動のフロー（求人票・面接・内定）',
+          '新人研修・OJTプログラムの実施方法',
+          '人事評価制度の仕組みと運用方法',
+        ]},
+      ],
+    },
+    other: {
+      '一般職種': [
+        { section: '業務基礎', items: [
+          '担当業務内容・責任範囲の確認',
+          '業務マニュアル・手順書の読み込み',
+          '上司・先輩へのOJT同行・見学',
+          '業務に必要なシステム・ツールの使い方習得',
+          '目標設定・評価制度の仕組みの確認',
+        ]},
+        { section: '社内関係', items: [
+          '関連部署・チームメンバーへの挨拶',
+          '社内の決裁・申請フロー（稟議書など）の確認',
+          '会議・ミーティングへの参加ルール',
+        ]},
+      ],
+    },
+  };
+
+  var LS_KEY = 'shinkenChecklist_v1';
+
+  function updateJobTypes() {
+    var ind = document.getElementById('industry').value;
+    var sel = document.getElementById('jobtype');
+    sel.innerHTML = '';
+    if (!ind || !JOB_DATA[ind]) {
+      sel.innerHTML = '<option value="">-- 先に業種を選んでください --</option>';
+      return;
+    }
+    var jobs = Object.keys(JOB_DATA[ind]);
+    var defOpt = document.createElement('option');
+    defOpt.value = '';
+    defOpt.textContent = '-- 職種を選んでください --';
+    sel.appendChild(defOpt);
+    jobs.forEach(function(j) {
+      var opt = document.createElement('option');
+      opt.value = j;
+      opt.textContent = j;
+      sel.appendChild(opt);
+    });
+  }
+
+  function generate() {
+    var ind = document.getElementById('industry').value;
+    var job = document.getElementById('jobtype').value;
+    if (!ind) { alert('業種を選択してください'); return; }
+    if (!job) { alert('職種を選択してください'); return; }
+
+    var jobSections = (JOB_DATA[ind] && JOB_DATA[ind][job]) ? JOB_DATA[ind][job] : [];
+    var allSections = COMMON.concat(jobSections);
+
+    var stateKey = ind + '_' + job;
+    var saved = {};
+    try {
+      var all = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      saved = all[stateKey] || {};
+    } catch(e) {}
+
+    var container = document.getElementById('checklist-items');
+    container.innerHTML = '';
+
+    var totalItems = 0;
+    allSections.forEach(function(sec, si) {
+      var sTitle = document.createElement('div');
+      sTitle.className = 'section-title';
+      sTitle.textContent = sec.section;
+      container.appendChild(sTitle);
+
+      sec.items.forEach(function(item, ii) {
+        var id = 's' + si + 'i' + ii;
+        var checked = saved[id] || false;
+        totalItems++;
+
+        var div = document.createElement('div');
+        div.className = 'check-item' + (checked ? ' done' : '');
+        div.dataset.id = id;
+        div.dataset.key = stateKey;
+        div.innerHTML = '<div class="check-box"><span class="check-icon">✓</span></div>'
+                       + '<span class="item-label">' + escHtml(item) + '</span>';
+        div.addEventListener('click', function() { toggleItem(this); });
+        container.appendChild(div);
+      });
+    });
+
+    document.getElementById('checklist-section').style.display = 'block';
+    updateProgress(stateKey);
+
+    // 表示位置をスクロール
+    document.getElementById('checklist-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function toggleItem(el) {
+    var isDone = el.classList.contains('done');
+    el.classList.toggle('done', !isDone);
+    saveState(el.dataset.key);
+    updateProgress(el.dataset.key);
+  }
+
+  function saveState(stateKey) {
+    var all = {};
+    try { all = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch(e) {}
+    var state = {};
+    document.querySelectorAll('.check-item').forEach(function(el) {
+      state[el.dataset.id] = el.classList.contains('done');
+    });
+    all[stateKey] = state;
+    localStorage.setItem(LS_KEY, JSON.stringify(all));
+  }
+
+  function updateProgress(stateKey) {
+    var items = document.querySelectorAll('.check-item');
+    var total = items.length;
+    var done = 0;
+    items.forEach(function(el) { if (el.classList.contains('done')) done++; });
+    var pct = total > 0 ? Math.round(done / total * 100) : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-text').textContent = done + ' / ' + total + ' 完了';
+
+    var banner = document.getElementById('complete-banner');
+    if (done === total && total > 0) {
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+  }
+
+  function resetChecks() {
+    if (!confirm('チェック状態をリセットしますか？')) return;
+    document.querySelectorAll('.check-item').forEach(function(el) {
+      el.classList.remove('done');
+    });
+    var ind = document.getElementById('industry').value;
+    var job = document.getElementById('jobtype').value;
+    var stateKey = ind + '_' + job;
+    var all = {};
+    try { all = JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch(e) {}
+    delete all[stateKey];
+    localStorage.setItem(LS_KEY, JSON.stringify(all));
+    updateProgress(stateKey);
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  </script>
+</body>
+</html>
