@@ -44,3 +44,4 @@
   4. PUBLISHED.md 件数
   を比較する
 [2026-04-24_114040] SCAN apps=体重記録アプリ_v2 total=0 exit=0
+[2026-04-24_122946] SCAN apps=仕入れインフレ影響シミュレーター total=0 exit=0
