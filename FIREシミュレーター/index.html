@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FIREシミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 入力横並び */
+    .field-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+    .field-row .field { flex: 1; margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 推移テーブル ── */
+    .progress-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 0.5rem; }
+    .progress-table th { background: var(--accent-light); color: var(--accent); font-size: 0.75rem; font-weight: 700; padding: 0.45rem 0.4rem; text-align: right; border-bottom: 1.5px solid var(--accent); }
+    .progress-table th:first-child { text-align: left; }
+    .progress-table td { padding: 0.45rem 0.4rem; border-bottom: 1px solid var(--border); color: var(--text-sub); text-align: right; }
+    .progress-table td:first-child { text-align: left; font-weight: 600; color: var(--text); }
+    .progress-table tr.fire-row td { background: var(--ok-bg); color: var(--ok); font-weight: 700; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🔥 FIREシミュレーター</h1>
+    <p class="subtitle">年収・支出・貯蓄から早期退職（FIRE）が何年後に実現できるか即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">あなたの資産状況</p>
+    <div class="field">
+      <label for="income">年収（税引後・手取り）</label>
+      <input type="number" id="income" placeholder="例: 600" min="0">
+      <p class="hint">万円</p>
+    </div>
+    <div class="field">
+      <label for="expense">年間支出（生活費合計）</label>
+      <input type="number" id="expense" placeholder="例: 360" min="0">
+      <p class="hint">万円</p>
+    </div>
+    <div class="field">
+      <label for="savings">現在の貯蓄・投資額</label>
+      <input type="number" id="savings" placeholder="例: 200" min="0">
+      <p class="hint">万円</p>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="rate">運用利回り（年率）</label>
+        <input type="number" id="rate" value="5" min="0" max="30" step="0.1">
+        <p class="hint">% （デフォルト5%）</p>
+      </div>
+      <div class="field">
+        <label for="age">現在の年齢（任意）</label>
+        <input type="number" id="age" placeholder="例: 35" min="0" max="99">
+        <p class="hint">歳（省略可）</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">FIRE達成年数を試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">FIRE達成まで</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">試算の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 推移カード -->
+  <div class="card" id="progress-card" style="display:none">
+    <p class="card-title">資産推移（年次）</p>
+    <div style="overflow-x:auto">
+      <table class="progress-table">
+        <thead>
+          <tr>
+            <th>経過年</th>
+            <th>資産額（万円）</th>
+            <th>目標達成率</th>
+          </tr>
+        </thead>
+        <tbody id="progress-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'fire_simulator_v1';
+
+  function calc() {
+    var income  = parseFloat(document.getElementById('income').value);
+    var expense = parseFloat(document.getElementById('expense').value);
+    var savings = parseFloat(document.getElementById('savings').value);
+    var rate    = parseFloat(document.getElementById('rate').value) / 100;
+    var age     = parseInt(document.getElementById('age').value, 10);
+
+    if (isNaN(income) || isNaN(expense) || isNaN(savings)) {
+      showErr('年収・支出・貯蓄額をすべて入力してください');
+      return;
+    }
+    if (isNaN(rate) || rate < 0) {
+      showErr('利回りは0以上の数値を入力してください');
+      return;
+    }
+    if (income <= 0) {
+      showErr('年収は0より大きい値を入力してください');
+      return;
+    }
+
+    // 4%ルール：必要資産額 = 年間支出 × 25
+    var target  = expense * 25;
+    var annualSave = income - expense;
+
+    // すでにFIRE達成しているケース
+    if (savings >= target) {
+      var level = 'ok';
+      showResult(level, 'すでに達成！', '現在の資産でFIRE可能です', '');
+      showDetail(income, expense, savings, rate, target, annualSave, 0, age);
+      saveLS(income, expense, savings, rate, age);
+      hideProgress();
+      return;
+    }
+
+    // 貯蓄ができない（支出 >= 年収）
+    if (annualSave <= 0 && rate <= 0) {
+      showErr('年収が支出以下・利回りも0%のため資産が増えません。支出を減らすか収入を増やしてください。');
+      return;
+    }
+
+    // 複利計算で達成年数を求める
+    var years = 0;
+    var asset = savings;
+    var MAX_YEARS = 100;
+    var rows = [];
+
+    while (asset < target && years < MAX_YEARS) {
+      years++;
+      asset = asset * (1 + rate) + annualSave;
+      if (years <= 30 || years % 5 === 0) {
+        rows.push({ year: years, asset: asset });
+      }
+    }
+
+    var level, evalText, note;
+    if (years <= 10) {
+      level = 'ok';
+      evalText = '比較的早期にFIREできます！';
+    } else if (years <= 20) {
+      level = 'ok';
+      evalText = '20年以内のFIREが見えています';
+    } else if (years <= 35) {
+      level = 'warn';
+      evalText = '着実に積み上げればFIRE可能です';
+    } else if (years < MAX_YEARS) {
+      level = 'warn';
+      evalText = '長期戦になります。利回り向上か節約強化を検討しましょう';
+    } else {
+      level = 'ng';
+      evalText = '現状では100年以内の達成が困難です';
+      note = '支出を減らすか、収入・利回りを上げることを検討してください';
+    }
+
+    var ageText = '';
+    if (!isNaN(age) && age > 0 && years < MAX_YEARS) {
+      ageText = '（' + (age + years) + '歳でFIRE）';
+    }
+
+    if (years >= MAX_YEARS) {
+      showResult(level, '100年以上', evalText, evalText === '現状では100年以内の達成が困難です' ? '支出を減らすか、収入・利回りを上げることを検討してください' : '');
+    } else {
+      showResult(level, years + '年後' + ageText, evalText, '');
+    }
+
+    showDetail(income, expense, savings, rate, target, annualSave, years < MAX_YEARS ? years : null, age);
+    showProgress(rows, target, years < MAX_YEARS ? years : null);
+    saveLS(income, expense, savings, rate, age);
+  }
+
+  function showResult(level, val, evalText, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(income, expense, savings, rate, target, annualSave, years, age) {
+    var rows = [
+      ['手取り年収', fmt(income) + ' 万円'],
+      ['年間支出', fmt(expense) + ' 万円'],
+      ['年間貯蓄額', fmt(annualSave) + ' 万円'],
+      ['現在の貯蓄・投資額', fmt(savings) + ' 万円'],
+      ['運用利回り（年率）', (rate * 100).toFixed(1) + ' %'],
+      ['FIRE必要資産額（4%ルール）', fmt(target) + ' 万円', true],
+    ];
+    if (years !== null && years > 0) {
+      rows.push(['FIRE達成まであと', years + ' 年', true]);
+      if (!isNaN(age) && age > 0) {
+        rows.push(['FIRE達成時の年齢', (age + years) + ' 歳']);
+      }
+    }
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showProgress(rows, target, fireYear) {
+    if (!rows || rows.length === 0) { hideProgress(); return; }
+    var html = rows.map(function(r) {
+      var pct = Math.min((r.asset / target * 100).toFixed(1), 999.9);
+      var isFire = fireYear !== null && r.year === fireYear;
+      return '<tr' + (isFire ? ' class="fire-row"' : '') + '>'
+           + '<td>' + r.year + '年目' + (isFire ? ' 🔥' : '') + '</td>'
+           + '<td>' + fmt(Math.round(r.asset)) + '</td>'
+           + '<td>' + pct + ' %</td>'
+           + '</tr>';
+    }).join('');
+    document.getElementById('progress-body').innerHTML = html;
+    document.getElementById('progress-card').style.display = 'block';
+  }
+
+  function hideProgress() {
+    document.getElementById('progress-card').style.display = 'none';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    hideProgress();
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function saveLS(income, expense, savings, rate, age) {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        income: income, expense: expense,
+        savings: savings, rate: rate * 100, age: age
+      }));
+    } catch(e) {}
+  }
+
+  function loadLS() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+      if (!d) return;
+      if (d.income)  document.getElementById('income').value  = d.income;
+      if (d.expense) document.getElementById('expense').value = d.expense;
+      if (d.savings) document.getElementById('savings').value = d.savings;
+      if (d.rate)    document.getElementById('rate').value    = d.rate;
+      if (d.age)     document.getElementById('age').value     = d.age;
+    } catch(e) {}
+  }
+
+  loadLS();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
