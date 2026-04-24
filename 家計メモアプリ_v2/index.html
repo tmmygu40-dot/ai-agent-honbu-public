@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家計メモアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem;
+      margin-bottom: 0;
+    }
+    .summary-item { text-align: center; padding: 0.7rem 0.3rem; border-radius: 10px; }
+    .summary-item.income-box { background: var(--ok-bg); }
+    .summary-item.expense-box { background: var(--ng-bg); }
+    .summary-item.balance-box { background: var(--accent-light); }
+    .summary-label { font-size: 0.7rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.2rem; }
+    .summary-value { font-size: 1.1rem; font-weight: 900; }
+    .summary-item.income-box  .summary-value { color: var(--ok); }
+    .summary-item.expense-box .summary-value { color: var(--ng); }
+    .summary-item.balance-box .summary-value { color: var(--accent); }
+
+    .month-nav {
+      display: flex; align-items: center; justify-content: center; gap: 1rem;
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .month-btn {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 0.4rem 0.9rem;
+      font-size: 0.9rem; cursor: pointer; color: var(--text);
+    }
+    .month-btn:hover { border-color: var(--accent); }
+    .month-label { font-size: 1rem; font-weight: 700; min-width: 120px; text-align: center; }
+
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .field { }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field.full { grid-column: 1 / -1; }
+
+    .btn-add {
+      display: block; width: 100%; padding: 0.9rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .record-list { list-style: none; }
+    .record-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.65rem 0; border-bottom: 1px solid var(--border);
+      gap: 0.5rem;
+    }
+    .record-item:last-child { border-bottom: none; }
+    .record-left { flex: 1; min-width: 0; }
+    .record-cat { font-size: 0.72rem; color: var(--text-sub); }
+    .record-memo { font-size: 0.88rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .record-date { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.1rem; }
+    .record-amount {
+      font-size: 1rem; font-weight: 800; flex-shrink: 0;
+    }
+    .record-amount.income { color: var(--ok); }
+    .record-amount.expense { color: var(--ng); }
+    .record-del {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1rem; padding: 0.2rem 0.4rem;
+      flex-shrink: 0; opacity: 0.5;
+    }
+    .record-del:hover { opacity: 1; color: var(--ng); }
+
+    .cat-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .cat-table tr { border-bottom: 1px solid var(--border); }
+    .cat-table tr:last-child { border-bottom: none; }
+    .cat-table td { padding: 0.5rem 0.3rem; color: var(--text-sub); }
+    .cat-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .cat-table .income-row td:last-child { color: var(--ok); }
+    .cat-table .expense-row td:last-child { color: var(--ng); }
+
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.88rem; padding: 1.5rem 0; }
+
+    .tab-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .tab-btn {
+      flex: 1; padding: 0.5rem; font-size: 0.82rem; font-weight: 700;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text-sub); cursor: pointer;
+    }
+    .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>家計メモアプリ</h1>
+    <p class="subtitle">収入・支出を手軽に記録。月次残高を確認</p>
+  </header>
+
+  <!-- 月ナビ -->
+  <div class="month-nav">
+    <button class="month-btn" onclick="changeMonth(-1)">&#9664;</button>
+    <span class="month-label" id="monthLabel"></span>
+    <button class="month-btn" onclick="changeMonth(1)">&#9654;</button>
+  </div>
+
+  <!-- サマリーカード -->
+  <div class="card">
+    <p class="card-title">今月の収支</p>
+    <div class="summary-grid">
+      <div class="summary-item income-box">
+        <p class="summary-label">収入</p>
+        <p class="summary-value" id="sumIncome">¥0</p>
+      </div>
+      <div class="summary-item expense-box">
+        <p class="summary-label">支出</p>
+        <p class="summary-value" id="sumExpense">¥0</p>
+      </div>
+      <div class="summary-item balance-box">
+        <p class="summary-label">残高</p>
+        <p class="summary-value" id="sumBalance">¥0</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">記録を追加</p>
+    <div class="form-grid">
+      <div class="field">
+        <label>種別</label>
+        <select id="fType">
+          <option value="income">収入</option>
+          <option value="expense" selected>支出</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>日付</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="field">
+        <label>カテゴリ</label>
+        <select id="fCat">
+          <option value="食費">食費</option>
+          <option value="日用品">日用品</option>
+          <option value="交通費">交通費</option>
+          <option value="光熱費">光熱費</option>
+          <option value="通信費">通信費</option>
+          <option value="娯楽">娯楽</option>
+          <option value="医療">医療</option>
+          <option value="衣服">衣服</option>
+          <option value="給与">給与</option>
+          <option value="副業">副業</option>
+          <option value="その他収入">その他収入</option>
+          <option value="その他支出">その他支出</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>金額 (円)</label>
+        <input type="number" id="fAmount" placeholder="例: 3000" min="0">
+      </div>
+      <div class="field full">
+        <label>メモ（省略可）</label>
+        <input type="text" id="fMemo" placeholder="例: スーパーで買い物">
+      </div>
+    </div>
+    <button class="btn-add" onclick="addRecord()">追加する</button>
+  </div>
+
+  <!-- 明細・集計タブ -->
+  <div class="card">
+    <div class="tab-row">
+      <button class="tab-btn active" id="tabRecords" onclick="showTab('records')">明細</button>
+      <button class="tab-btn" id="tabCat" onclick="showTab('cat')">カテゴリ別</button>
+    </div>
+
+    <!-- 明細リスト -->
+    <div id="panelRecords">
+      <ul class="record-list" id="recordList">
+        <li class="empty-msg">記録がありません</li>
+      </ul>
+    </div>
+
+    <!-- カテゴリ集計 -->
+    <div id="panelCat" style="display:none">
+      <table class="cat-table"><tbody id="catTable"></tbody></table>
+      <p class="empty-msg" id="catEmpty" style="display:none">記録がありません</p>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'kakeibo_v2_records';
+  var currentYear, currentMonth;
+
+  // 初期化
+  (function init() {
+    var today = new Date();
+    currentYear  = today.getFullYear();
+    currentMonth = today.getMonth() + 1;
+    document.getElementById('fDate').value = today.toISOString().slice(0, 10);
+    render();
+  })();
+
+  function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+    if (currentMonth < 1)  { currentMonth = 12; currentYear--; }
+    render();
+  }
+
+  function loadAll() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function saveAll(arr) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+  }
+
+  function monthRecords() {
+    var all = loadAll();
+    var prefix = currentYear + '-' + pad(currentMonth);
+    return all.filter(function(r){ return r.date && r.date.startsWith(prefix); });
+  }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function fmt(n) { return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+
+  function render() {
+    var label = currentYear + '年' + currentMonth + '月';
+    document.getElementById('monthLabel').textContent = label;
+
+    var recs = monthRecords();
+    // sort by date desc
+    recs.sort(function(a,b){ return b.date < a.date ? -1 : 1; });
+
+    var income  = recs.filter(function(r){ return r.type === 'income'; })
+                      .reduce(function(s,r){ return s + r.amount; }, 0);
+    var expense = recs.filter(function(r){ return r.type === 'expense'; })
+                      .reduce(function(s,r){ return s + r.amount; }, 0);
+    var balance = income - expense;
+
+    document.getElementById('sumIncome').textContent  = fmt(income);
+    document.getElementById('sumExpense').textContent = fmt(expense);
+    document.getElementById('sumBalance').textContent = fmt(balance);
+    document.getElementById('sumBalance').style.color = balance >= 0 ? 'var(--ok)' : 'var(--ng)';
+
+    renderRecords(recs);
+    renderCat(recs);
+  }
+
+  function renderRecords(recs) {
+    var ul = document.getElementById('recordList');
+    if (recs.length === 0) {
+      ul.innerHTML = '<li class="empty-msg">記録がありません</li>';
+      return;
+    }
+    ul.innerHTML = recs.map(function(r) {
+      return '<li class="record-item">'
+        + '<div class="record-left">'
+        + '<span class="record-cat">' + esc(r.cat) + ' / ' + (r.type === 'income' ? '収入' : '支出') + '</span>'
+        + '<p class="record-memo">' + esc(r.memo || '（メモなし）') + '</p>'
+        + '<span class="record-date">' + r.date + '</span>'
+        + '</div>'
+        + '<span class="record-amount ' + r.type + '">'
+        + (r.type === 'income' ? '+' : '-') + fmt(r.amount)
+        + '</span>'
+        + '<button class="record-del" onclick="deleteRecord(\'' + r.id + '\')" title="削除">✕</button>'
+        + '</li>';
+    }).join('');
+  }
+
+  function renderCat(recs) {
+    var map = {};
+    recs.forEach(function(r) {
+      var key = r.type + '|' + r.cat;
+      map[key] = (map[key] || { type: r.type, cat: r.cat, sum: 0 });
+      map[key].sum += r.amount;
+    });
+    var rows = Object.values(map).sort(function(a,b){ return b.sum - a.sum; });
+    var tbody = document.getElementById('catTable');
+    var empty = document.getElementById('catEmpty');
+    if (rows.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = '';
+      return;
+    }
+    empty.style.display = 'none';
+    tbody.innerHTML = rows.map(function(r) {
+      return '<tr class="' + r.type + '-row">'
+        + '<td>' + esc(r.cat) + '</td>'
+        + '<td>' + (r.type === 'income' ? '収入' : '支出') + '</td>'
+        + '<td>' + (r.type === 'income' ? '+' : '-') + fmt(r.sum) + '</td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function addRecord() {
+    var type   = document.getElementById('fType').value;
+    var date   = document.getElementById('fDate').value;
+    var cat    = document.getElementById('fCat').value;
+    var amount = parseFloat(document.getElementById('fAmount').value);
+    var memo   = document.getElementById('fMemo').value.trim();
+
+    if (!date)           { alert('日付を入力してください'); return; }
+    if (isNaN(amount) || amount <= 0) { alert('金額を正しく入力してください'); return; }
+
+    var all = loadAll();
+    all.push({ id: Date.now() + '' + Math.random(), type: type, date: date, cat: cat, amount: amount, memo: memo });
+    saveAll(all);
+
+    // 入力欄リセット（日付・種別・カテゴリは保持）
+    document.getElementById('fAmount').value = '';
+    document.getElementById('fMemo').value   = '';
+
+    // 追加月に切り替え
+    var d = new Date(date);
+    currentYear  = d.getFullYear();
+    currentMonth = d.getMonth() + 1;
+    render();
+  }
+
+  function deleteRecord(id) {
+    if (!confirm('この記録を削除しますか？')) return;
+    var all = loadAll().filter(function(r){ return r.id !== id; });
+    saveAll(all);
+    render();
+  }
+
+  function showTab(tab) {
+    document.getElementById('panelRecords').style.display = tab === 'records' ? '' : 'none';
+    document.getElementById('panelCat').style.display     = tab === 'cat'     ? '' : 'none';
+    document.getElementById('tabRecords').className = 'tab-btn' + (tab === 'records' ? ' active' : '');
+    document.getElementById('tabCat').className     = 'tab-btn' + (tab === 'cat'     ? ' active' : '');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  </script>
+</body>
+</html>
