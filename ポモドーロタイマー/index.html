@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ポモドーロタイマー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+      --work-color: #e07b00;
+      --break-color: #15803d;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* タイマーカード */
+    .timer-card {
+      background: var(--card);
+      border: 2.5px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 2rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+      text-align: center;
+      transition: border-color 0.4s;
+    }
+    .timer-card.break-mode {
+      border-color: var(--break-color);
+    }
+
+    .mode-label {
+      font-size: 0.85rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--work-color);
+      margin-bottom: 0.6rem;
+      transition: color 0.4s;
+    }
+    .break-mode .mode-label { color: var(--break-color); }
+
+    .time-display {
+      font-size: 5rem; font-weight: 900;
+      letter-spacing: -0.04em; line-height: 1;
+      color: var(--work-color);
+      margin: 0.5rem 0 1.2rem;
+      transition: color 0.4s;
+      font-variant-numeric: tabular-nums;
+    }
+    .break-mode .time-display { color: var(--break-color); }
+
+    /* セッション数バッジ */
+    .session-badges {
+      display: flex; justify-content: center; gap: 0.5rem;
+      margin-bottom: 1.2rem; flex-wrap: wrap;
+    }
+    .session-badge {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--bg);
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .session-badge.done {
+      background: var(--work-color);
+      border-color: var(--work-color);
+    }
+
+    /* コントロールボタン */
+    .controls {
+      display: flex; gap: 0.75rem; justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 0.85rem 1.6rem;
+      font-size: 1rem; font-weight: 800;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: translateY(2px); }
+    .btn-start {
+      background: var(--accent); color: #fff;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      flex: 1; max-width: 180px;
+    }
+    .btn-start:active { box-shadow: 0 1px 0 #b35e00; }
+    .btn-start.break-btn {
+      background: var(--break-color);
+      box-shadow: 0 4px 0 #0e5e2d, 0 6px 16px rgba(21,128,61,0.25);
+    }
+    .btn-start.break-btn:active { box-shadow: 0 1px 0 #0e5e2d; }
+    .btn-reset {
+      background: var(--bg); color: var(--text-sub);
+      border: 1.5px solid var(--border);
+      box-shadow: none;
+    }
+    .btn-skip {
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent);
+      font-size: 0.88rem;
+    }
+    .break-mode .btn-skip { color: var(--break-color); border-color: var(--break-color); background: var(--ok-bg); }
+
+    /* 統計カード */
+    .stat-row {
+      display: flex; gap: 1rem; justify-content: space-around;
+      text-align: center;
+    }
+    .stat-item .val {
+      font-size: 1.8rem; font-weight: 900;
+      color: var(--accent); line-height: 1;
+    }
+    .stat-item .lbl { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* 設定 */
+    .setting-row { display: flex; gap: 1rem; align-items: center; margin-bottom: 0.75rem; }
+    .setting-row:last-child { margin-bottom: 0; }
+    .setting-row label { font-size: 0.82rem; font-weight: 600; color: var(--text-sub); min-width: 100px; }
+    .setting-row input[type=range] { flex: 1; accent-color: var(--accent); }
+    .setting-row .range-val { font-size: 0.9rem; font-weight: 700; color: var(--accent); min-width: 50px; text-align: right; }
+
+    .btn-reset-stat {
+      display: block; width: 100%; padding: 0.5rem;
+      background: none; border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text-sub); font-size: 0.8rem;
+      cursor: pointer; margin-top: 0.75rem;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🍅 ポモドーロタイマー</h1>
+    <p class="subtitle">25分集中 → 5分休憩のサイクルで作業効率アップ</p>
+  </header>
+
+  <!-- タイマーカード -->
+  <div class="timer-card" id="timerCard">
+    <p class="mode-label" id="modeLabel">作業中</p>
+    <div class="time-display" id="timeDisplay">25:00</div>
+
+    <div class="session-badges" id="sessionBadges"></div>
+
+    <div class="controls">
+      <button class="btn btn-start" id="btnStart" onclick="toggleTimer()">▶ スタート</button>
+      <button class="btn btn-skip" onclick="skipPhase()">スキップ →</button>
+      <button class="btn btn-reset" onclick="resetTimer()">リセット</button>
+    </div>
+  </div>
+
+  <!-- 統計カード -->
+  <div class="card">
+    <p class="card-title">今日の記録</p>
+    <div class="stat-row">
+      <div class="stat-item">
+        <div class="val" id="statToday">0</div>
+        <div class="lbl">今日の🍅</div>
+      </div>
+      <div class="stat-item">
+        <div class="val" id="statTotal">0</div>
+        <div class="lbl">累計🍅</div>
+      </div>
+      <div class="stat-item">
+        <div class="val" id="statTotalMin">0</div>
+        <div class="lbl">累計分</div>
+      </div>
+    </div>
+    <button class="btn-reset-stat" onclick="resetStats()">統計をリセット</button>
+  </div>
+
+  <!-- 設定カード -->
+  <div class="card">
+    <p class="card-title">設定</p>
+    <div class="setting-row">
+      <label>作業時間</label>
+      <input type="range" id="workMin" min="1" max="60" value="25" oninput="updateSettings()">
+      <span class="range-val" id="workMinVal">25分</span>
+    </div>
+    <div class="setting-row">
+      <label>休憩時間</label>
+      <input type="range" id="breakMin" min="1" max="30" value="5" oninput="updateSettings()">
+      <span class="range-val" id="breakMinVal">5分</span>
+    </div>
+    <div class="setting-row">
+      <label>セッション数</label>
+      <input type="range" id="cycleCount" min="2" max="8" value="4" oninput="updateSettings()">
+      <span class="range-val" id="cycleCountVal">4回</span>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // ── 状態 ──
+  var isWork = true;       // true=作業, false=休憩
+  var isRunning = false;
+  var timer = null;
+  var remaining = 0;
+  var workSec = 25 * 60;
+  var breakSec = 5 * 60;
+  var maxCycles = 4;
+  var currentCycle = 0;   // 完了したポモドーロ数(現セット内)
+
+  // localStorage キー
+  var LS_STATS = 'pomodoro_stats_v1';
+  var LS_SETTINGS = 'pomodoro_settings_v1';
+
+  // ── 初期化 ──
+  (function init() {
+    loadSettings();
+    loadStats();
+    remaining = workSec;
+    updateDisplay();
+    renderBadges();
+  })();
+
+  // ── タイマー操作 ──
+  function toggleTimer() {
+    if (isRunning) {
+      pause();
+    } else {
+      start();
+    }
+  }
+
+  function start() {
+    isRunning = true;
+    document.getElementById('btnStart').textContent = '⏸ ポーズ';
+    timer = setInterval(tick, 1000);
+  }
+
+  function pause() {
+    isRunning = false;
+    clearInterval(timer);
+    document.getElementById('btnStart').textContent = '▶ 再開';
+  }
+
+  function resetTimer() {
+    pause();
+    isWork = true;
+    remaining = workSec;
+    currentCycle = 0;
+    document.getElementById('btnStart').textContent = '▶ スタート';
+    setMode(true);
+    updateDisplay();
+    renderBadges();
+  }
+
+  function skipPhase() {
+    pause();
+    advancePhase();
+  }
+
+  function tick() {
+    remaining--;
+    if (remaining <= 0) {
+      remaining = 0;
+      updateDisplay();
+      onPhaseEnd();
+    } else {
+      updateDisplay();
+    }
+  }
+
+  function onPhaseEnd() {
+    pause();
+    if (isWork) {
+      // 作業フェーズ完了
+      currentCycle++;
+      addStat(workSec / 60);
+      renderBadges();
+      if (currentCycle >= maxCycles) {
+        // 全セット完了
+        alert('🎉 お疲れさまです！' + maxCycles + 'ポモドーロ完了しました。長めの休憩を取りましょう。');
+        resetTimer();
+        return;
+      }
+      alert('✅ 作業終了！休憩しましょう（' + (breakSec / 60) + '分）');
+      setMode(false);
+      remaining = breakSec;
+    } else {
+      // 休憩フェーズ完了
+      alert('⏰ 休憩終了！次の作業を始めましょう。');
+      setMode(true);
+      remaining = workSec;
+    }
+    updateDisplay();
+    document.getElementById('btnStart').textContent = '▶ スタート';
+  }
+
+  function advancePhase() {
+    if (isWork) {
+      currentCycle++;
+      addStat(Math.round((workSec - remaining) / 60));
+      renderBadges();
+      setMode(false);
+      remaining = breakSec;
+    } else {
+      setMode(true);
+      remaining = workSec;
+    }
+    updateDisplay();
+    document.getElementById('btnStart').textContent = '▶ スタート';
+  }
+
+  function setMode(work) {
+    isWork = work;
+    var card = document.getElementById('timerCard');
+    var label = document.getElementById('modeLabel');
+    var btn = document.getElementById('btnStart');
+    if (work) {
+      card.classList.remove('break-mode');
+      label.textContent = '作業中';
+      btn.classList.remove('break-btn');
+    } else {
+      card.classList.add('break-mode');
+      label.textContent = '休憩中';
+      btn.classList.add('break-btn');
+    }
+  }
+
+  // ── 表示更新 ──
+  function updateDisplay() {
+    var m = Math.floor(remaining / 60);
+    var s = remaining % 60;
+    document.getElementById('timeDisplay').textContent =
+      pad(m) + ':' + pad(s);
+  }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function renderBadges() {
+    var el = document.getElementById('sessionBadges');
+    var html = '';
+    for (var i = 0; i < maxCycles; i++) {
+      html += '<div class="session-badge' + (i < currentCycle ? ' done' : '') + '"></div>';
+    }
+    el.innerHTML = html;
+  }
+
+  // ── 設定 ──
+  function updateSettings() {
+    workSec  = parseInt(document.getElementById('workMin').value) * 60;
+    breakSec = parseInt(document.getElementById('breakMin').value) * 60;
+    maxCycles = parseInt(document.getElementById('cycleCount').value);
+
+    document.getElementById('workMinVal').textContent  = (workSec / 60) + '分';
+    document.getElementById('breakMinVal').textContent = (breakSec / 60) + '分';
+    document.getElementById('cycleCountVal').textContent = maxCycles + '回';
+
+    if (!isRunning) {
+      remaining = isWork ? workSec : breakSec;
+      updateDisplay();
+    }
+    renderBadges();
+    saveSettings();
+  }
+
+  function saveSettings() {
+    localStorage.setItem(LS_SETTINGS, JSON.stringify({
+      workMin: workSec / 60,
+      breakMin: breakSec / 60,
+      cycles: maxCycles
+    }));
+  }
+
+  function loadSettings() {
+    var raw = localStorage.getItem(LS_SETTINGS);
+    if (!raw) return;
+    try {
+      var s = JSON.parse(raw);
+      workSec  = (s.workMin  || 25) * 60;
+      breakSec = (s.breakMin || 5)  * 60;
+      maxCycles = s.cycles || 4;
+      document.getElementById('workMin').value    = workSec / 60;
+      document.getElementById('breakMin').value   = breakSec / 60;
+      document.getElementById('cycleCount').value = maxCycles;
+      document.getElementById('workMinVal').textContent  = (workSec / 60) + '分';
+      document.getElementById('breakMinVal').textContent = (breakSec / 60) + '分';
+      document.getElementById('cycleCountVal').textContent = maxCycles + '回';
+    } catch(e) {}
+  }
+
+  // ── 統計 ──
+  function addStat(minutes) {
+    var raw = localStorage.getItem(LS_STATS);
+    var s = raw ? JSON.parse(raw) : { total: 0, totalMin: 0, today: 0, lastDate: '' };
+    var today = new Date().toLocaleDateString('ja-JP');
+    if (s.lastDate !== today) { s.today = 0; s.lastDate = today; }
+    s.total++;
+    s.today++;
+    s.totalMin += minutes;
+    localStorage.setItem(LS_STATS, JSON.stringify(s));
+    renderStats(s);
+  }
+
+  function loadStats() {
+    var raw = localStorage.getItem(LS_STATS);
+    if (!raw) return;
+    try {
+      var s = JSON.parse(raw);
+      var today = new Date().toLocaleDateString('ja-JP');
+      if (s.lastDate !== today) s.today = 0;
+      renderStats(s);
+    } catch(e) {}
+  }
+
+  function renderStats(s) {
+    document.getElementById('statToday').textContent = s.today || 0;
+    document.getElementById('statTotal').textContent = s.total || 0;
+    document.getElementById('statTotalMin').textContent = s.totalMin || 0;
+  }
+
+  function resetStats() {
+    if (!confirm('統計データをリセットしますか？')) return;
+    localStorage.removeItem(LS_STATS);
+    renderStats({ today: 0, total: 0, totalMin: 0 });
+  }
+  </script>
+
+</body>
+</html>
