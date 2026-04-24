@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在庫発注管理アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 商品リスト ── */
+    .product-list { max-width: 600px; margin: 0 auto 1rem; }
+    .product-item {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.2rem;
+      margin-bottom: 0.6rem; box-shadow: var(--shadow);
+      display: flex; align-items: center; gap: 0.8rem;
+    }
+    .product-info { flex: 1; }
+    .product-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.2rem; }
+    .product-meta { font-size: 0.75rem; color: var(--text-sub); }
+    .product-badge {
+      font-size: 0.7rem; font-weight: 700; padding: 0.25rem 0.55rem;
+      border-radius: 20px; white-space: nowrap;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok); }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng); }
+    .product-del {
+      background: none; border: none; font-size: 1.1rem; cursor: pointer;
+      color: var(--text-sub); padding: 0.2rem 0.4rem; border-radius: 6px;
+    }
+    .product-del:hover { color: var(--ng); background: var(--ng-bg); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>在庫発注管理アプリ</h1>
+    <p class="subtitle">在庫数・販売ペース・リードタイムから発注タイミングと適正発注数を即提示</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品情報を入力</p>
+    <div class="field">
+      <label for="productName">商品名</label>
+      <input type="text" id="productName" placeholder="例: コーヒー豆A">
+    </div>
+    <div class="field">
+      <label for="stock">現在の在庫数</label>
+      <input type="number" id="stock" placeholder="例: 150" min="0">
+      <p class="hint">現時点での手持ち在庫数（個・箱・袋など）</p>
+    </div>
+    <div class="field">
+      <label for="dailySales">日次販売ペース（1日あたりの販売数）</label>
+      <input type="number" id="dailySales" placeholder="例: 10" min="0.1" step="0.1">
+      <p class="hint">1日に平均で何個売れるか</p>
+    </div>
+    <div class="field">
+      <label for="leadTime">リードタイム（発注〜入荷までの日数）</label>
+      <input type="number" id="leadTime" placeholder="例: 7" min="1">
+      <p class="hint">発注してから手元に届くまでの日数</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">発注タイミングを診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">発注状態</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">診断詳細</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 保存ボタン -->
+  <button class="btn-calc no-print" id="saveBtn" onclick="saveProduct()" style="display:none; background:#4a7c59; box-shadow:0 4px 0 #355a40, 0 6px 16px rgba(74,124,89,0.25);">この商品を登録して管理する</button>
+
+  <!-- 登録済み商品リスト -->
+  <div id="productListWrap" style="display:none">
+    <div class="card" style="max-width:600px;margin:0 auto 0.5rem;">
+      <p class="card-title">登録済み商品 <span id="productCount"></span></p>
+    </div>
+    <div class="product-list" id="productList"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'zaiko_hachu_products_v1';
+  var lastResult = null;
+
+  function calc() {
+    var name      = document.getElementById('productName').value.trim() || '（名称未設定）';
+    var stock     = parseFloat(document.getElementById('stock').value);
+    var daily     = parseFloat(document.getElementById('dailySales').value);
+    var leadTime  = parseFloat(document.getElementById('leadTime').value);
+
+    if (isNaN(stock) || isNaN(daily) || isNaN(leadTime)) {
+      showErr('在庫数・日次販売ペース・リードタイムをすべて入力してください');
+      return;
+    }
+    if (daily <= 0) { showErr('日次販売ペースは0より大きい値を入力してください'); return; }
+    if (leadTime < 1) { showErr('リードタイムは1日以上を入力してください'); return; }
+
+    // ── 計算ロジック ──
+    var daysLeft     = stock / daily;                          // 欠品まで日数
+    var safetyStock  = Math.ceil(leadTime * daily * 1.2);     // 安全在庫（20%バッファ）
+    var orderQty     = Math.max(0, Math.ceil(leadTime * daily * 2.2 - stock)); // 推奨発注数
+    var orderInDays  = Math.max(0, Math.floor(daysLeft - leadTime * 1.2));    // 発注まで余裕日数
+
+    // 判定
+    var level, statusText, evalText, noteText;
+    if (stock <= safetyStock) {
+      level      = 'ng';
+      statusText = '今すぐ発注';
+      evalText   = '在庫が安全水準を下回っています';
+      noteText   = '発注しないと欠品のリスクがあります。直ちに ' + fmt(orderQty) + ' 個を発注してください。';
+    } else if (orderInDays <= 3) {
+      level      = 'warn';
+      statusText = 'あと ' + orderInDays + ' 日以内に発注';
+      evalText   = '発注タイミングが近づいています';
+      noteText   = '欠品まで約 ' + Math.floor(daysLeft) + ' 日。推奨発注数 ' + fmt(orderQty) + ' 個を準備してください。';
+    } else {
+      level      = 'ok';
+      statusText = 'あと ' + orderInDays + ' 日後に発注';
+      evalText   = '在庫に余裕があります';
+      noteText   = '欠品まで約 ' + Math.floor(daysLeft) + ' 日。' + orderInDays + ' 日後に ' + fmt(orderQty) + ' 個を発注する計画を立てましょう。';
+    }
+
+    lastResult = { name: name, stock: stock, daily: daily, leadTime: leadTime,
+                   level: level, statusText: statusText, orderQty: orderQty,
+                   daysLeft: Math.floor(daysLeft), orderInDays: orderInDays,
+                   safetyStock: safetyStock };
+
+    showResult(level, statusText, evalText, noteText);
+    showDetail([
+      ['現在の在庫数',             fmt(stock) + ' 個'],
+      ['日次販売ペース',           fmt(daily) + ' 個/日'],
+      ['リードタイム',             leadTime + ' 日'],
+      ['欠品予測まで',             Math.floor(daysLeft) + ' 日'],
+      ['安全在庫（目安）',         fmt(safetyStock) + ' 個', false],
+      ['推奨発注数',               fmt(orderQty) + ' 個', true],
+      ['発注まで余裕',             orderInDays > 0 ? orderInDays + ' 日' : '今すぐ！'],
+    ]);
+
+    document.getElementById('saveBtn').style.display = 'block';
+  }
+
+  function showResult(level, val, evalTxt, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalTxt;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('saveBtn').style.display = 'none';
+    lastResult = null;
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── localStorage 保存・表示 ──
+  function loadProducts() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+  function saveProducts(list) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  }
+
+  function saveProduct() {
+    if (!lastResult) return;
+    var list = loadProducts();
+    // 同名商品は上書き
+    var idx = list.findIndex(function(p){ return p.name === lastResult.name; });
+    var entry = {
+      name: lastResult.name,
+      stock: lastResult.stock,
+      daily: lastResult.daily,
+      leadTime: lastResult.leadTime,
+      savedAt: new Date().toLocaleDateString('ja-JP')
+    };
+    if (idx >= 0) { list[idx] = entry; } else { list.push(entry); }
+    saveProducts(list);
+    renderList();
+    document.getElementById('saveBtn').textContent = '登録済み ✓';
+    setTimeout(function(){ document.getElementById('saveBtn').textContent = 'この商品を登録して管理する'; }, 1500);
+  }
+
+  function deleteProduct(name) {
+    var list = loadProducts().filter(function(p){ return p.name !== name; });
+    saveProducts(list);
+    renderList();
+  }
+
+  function loadProduct(p) {
+    document.getElementById('productName').value = p.name;
+    document.getElementById('stock').value = p.stock;
+    document.getElementById('dailySales').value = p.daily;
+    document.getElementById('leadTime').value = p.leadTime;
+    calc();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function getBadge(p) {
+    var daysLeft = p.stock / p.daily;
+    var safetyStock = p.leadTime * p.daily * 1.2;
+    var orderInDays = Math.max(0, Math.floor(daysLeft - p.leadTime * 1.2));
+    if (p.stock <= safetyStock) return ['badge-ng', '今すぐ発注'];
+    if (orderInDays <= 3) return ['badge-warn', orderInDays + '日以内に発注'];
+    return ['badge-ok', orderInDays + '日後に発注'];
+  }
+
+  function renderList() {
+    var list = loadProducts();
+    var wrap = document.getElementById('productListWrap');
+    var el   = document.getElementById('productList');
+    document.getElementById('productCount').textContent = '(' + list.length + '件)';
+    if (list.length === 0) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    el.innerHTML = list.map(function(p) {
+      var badge = getBadge(p);
+      return '<div class="product-item">'
+        + '<div class="product-info" onclick="loadProduct(' + JSON.stringify(p).replace(/"/g,'&quot;') + ')" style="cursor:pointer">'
+        + '<div class="product-name">' + escHtml(p.name) + '</div>'
+        + '<div class="product-meta">在庫 ' + fmt(p.stock) + '個 ／ 日販 ' + p.daily + '個 ／ LT ' + p.leadTime + '日 ／ 更新 ' + p.savedAt + '</div>'
+        + '</div>'
+        + '<span class="product-badge ' + badge[0] + '">' + badge[1] + '</span>'
+        + '<button class="product-del no-print" onclick="deleteProduct(\'' + escAttr(p.name) + '\')" title="削除">✕</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function escAttr(s) { return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+
+  // 初期表示
+  renderList();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
