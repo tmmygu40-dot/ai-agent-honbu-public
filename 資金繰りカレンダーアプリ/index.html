@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>資金繰りカレンダーアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 660px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 0.85rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.65rem 0.9rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── 行グリッド ── */
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+
+    /* ── ボタン ── */
+    .btn-add {
+      display: block; width: 100%;
+      margin-top: 1rem; padding: 0.85rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 3px 0 #b35e00;
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active { transform: translateY(2px); box-shadow: 0 1px 0 #b35e00; }
+
+    .btn-sm {
+      padding: 0.25rem 0.6rem; font-size: 0.75rem; font-weight: 600;
+      border: 1.5px solid var(--border); border-radius: 7px;
+      background: var(--bg); color: var(--text-sub); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-sm:hover { border-color: var(--ng); color: var(--ng); }
+    .btn-sm.edit { border-color: var(--border); color: var(--text-sub); }
+    .btn-sm.edit:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 月ナビ ── */
+    .month-nav {
+      display: flex; align-items: center; justify-content: center; gap: 1.2rem;
+      margin-bottom: 1rem;
+    }
+    .month-nav button {
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 9px; padding: 0.4rem 0.9rem;
+      font-size: 1rem; cursor: pointer; color: var(--text);
+      transition: border-color 0.15s;
+    }
+    .month-nav button:hover { border-color: var(--accent); color: var(--accent); }
+    .month-nav .month-label { font-size: 1.1rem; font-weight: 800; min-width: 120px; text-align: center; }
+
+    /* ── カレンダー ── */
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+    .cal-head {
+      text-align: center; font-size: 0.72rem; font-weight: 700;
+      color: var(--text-sub); padding: 0.3rem 0; background: var(--bg);
+    }
+    .cal-head.sun { color: var(--ng); }
+    .cal-head.sat { color: #1d4ed8; }
+
+    .cal-day {
+      min-height: 70px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.3rem 0.35rem; position: relative;
+      overflow: hidden;
+    }
+    .cal-day.empty { background: transparent; border-color: transparent; }
+    .cal-day.today { border-color: var(--accent); border-width: 2px; }
+    .cal-day.shortfall { background: var(--ng-bg); border-color: var(--ng); }
+
+    .cal-day .day-num {
+      font-size: 0.78rem; font-weight: 700; color: var(--text-sub);
+      margin-bottom: 0.2rem;
+    }
+    .cal-day.today .day-num { color: var(--accent); }
+    .cal-day.shortfall .day-num { color: var(--ng); }
+    .cal-day.sun .day-num { color: var(--ng); }
+    .cal-day.sat .day-num { color: #1d4ed8; }
+
+    .cal-day .ev {
+      font-size: 0.65rem; line-height: 1.3; margin-bottom: 0.1rem;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      border-radius: 4px; padding: 0.05rem 0.2rem;
+    }
+    .cal-day .ev.income { color: var(--ok); background: var(--ok-bg); }
+    .cal-day .ev.expense { color: var(--ng); background: var(--ng-bg); }
+
+    .cal-day .day-balance {
+      font-size: 0.65rem; font-weight: 700;
+      margin-top: 0.2rem; text-align: right;
+      border-top: 1px solid var(--border); padding-top: 0.1rem;
+    }
+    .cal-day.shortfall .day-balance { color: var(--ng); }
+
+    /* ── 残高サマリー ── */
+    .balance-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .balance-box {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 0.85rem 1rem; text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .balance-box .bl { font-size: 0.7rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.25rem; }
+    .balance-box .bv { font-size: 1.1rem; font-weight: 900; }
+    .balance-box.income .bv { color: var(--ok); }
+    .balance-box.expense .bv { color: var(--ng); }
+    .balance-box.balance .bv { color: var(--accent); }
+    .balance-box.balance.ng .bv { color: var(--ng); }
+
+    /* ── 警告バナー ── */
+    .alert-banner {
+      display: none; max-width: 660px; margin: 0 auto 1rem;
+      background: var(--ng-bg); border: 2px solid var(--ng);
+      border-radius: var(--radius); padding: 0.9rem 1.1rem;
+      font-size: 0.88rem; font-weight: 700; color: var(--ng);
+    }
+
+    /* ── 取引一覧 ── */
+    .tx-list { max-width: 660px; margin: 0 auto 1rem; }
+    .tx-item {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 11px; padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.7rem;
+      box-shadow: var(--shadow);
+    }
+    .tx-type {
+      width: 46px; text-align: center; font-size: 0.68rem; font-weight: 700;
+      border-radius: 6px; padding: 0.2rem 0.3rem; flex-shrink: 0;
+    }
+    .tx-type.income { background: var(--ok-bg); color: var(--ok); }
+    .tx-type.expense { background: var(--ng-bg); color: var(--ng); }
+    .tx-info { flex: 1; min-width: 0; }
+    .tx-name { font-size: 0.88rem; font-weight: 700; }
+    .tx-meta { font-size: 0.72rem; color: var(--text-sub); }
+    .tx-amount { font-size: 1rem; font-weight: 800; flex-shrink: 0; }
+    .tx-item .income-amt { color: var(--ok); }
+    .tx-item .expense-amt { color: var(--ng); }
+
+    /* ── 初期残高 ── */
+    .init-row { display: flex; gap: 0.75rem; align-items: flex-end; }
+    .init-row .field { flex: 1; margin-bottom: 0; }
+    .init-row .btn-add { margin-top: 0; width: auto; padding: 0.65rem 1.2rem; flex-shrink: 0; }
+
+    /* ── 警告ゼロ表示 ── */
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1.5rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 480px) {
+      .balance-grid { grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+      .balance-box { padding: 0.6rem 0.5rem; }
+      .balance-box .bv { font-size: 0.9rem; }
+      .row2 { grid-template-columns: 1fr; }
+      .row3 { grid-template-columns: 1fr 1fr; }
+      .cal-day { min-height: 55px; }
+    }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-add, .btn-sm, .month-nav button, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .cal-day { box-shadow: none; }
+      .app-header { border-bottom: 2px solid #000; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 資金繰りカレンダーアプリ</h1>
+    <p class="subtitle">入金・支出を登録してカレンダーで資金ショートを可視化</p>
+  </header>
+
+  <!-- 初期残高設定 -->
+  <div class="card">
+    <p class="card-title">初期残高（月初の手元資金）</p>
+    <div class="init-row">
+      <div class="field">
+        <label for="initBalance">初期残高（円）</label>
+        <input type="number" id="initBalance" placeholder="例: 500000" min="0" step="1000">
+      </div>
+      <button class="btn-add no-print" onclick="saveInitBalance()" style="font-size:0.9rem;padding:0.65rem 1rem;">設定</button>
+    </div>
+  </div>
+
+  <!-- 取引登録 -->
+  <div class="card">
+    <p class="card-title">取引を登録</p>
+    <div class="row3">
+      <div class="field">
+        <label for="txType">種別</label>
+        <select id="txType">
+          <option value="income">入金</option>
+          <option value="expense">支出</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column: span 2;">
+        <label for="txPartner">取引先・内容</label>
+        <input type="text" id="txPartner" placeholder="例: 株式会社○○">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="txDate">日付</label>
+        <input type="date" id="txDate">
+      </div>
+      <div class="field">
+        <label for="txAmount">金額（円）</label>
+        <input type="number" id="txAmount" placeholder="例: 150000" min="0" step="1000">
+      </div>
+    </div>
+    <div class="field">
+      <label for="txMemo">メモ（任意）</label>
+      <input type="text" id="txMemo" placeholder="例: 2月分売掛">
+    </div>
+    <button class="btn-add no-print" onclick="addTx()">＋ 登録する</button>
+  </div>
+
+  <!-- 月ナビ -->
+  <div class="card" style="padding:1rem 1.2rem;">
+    <div class="month-nav">
+      <button onclick="changeMonth(-1)">◀</button>
+      <span class="month-label" id="monthLabel"></span>
+      <button onclick="changeMonth(1)">▶</button>
+    </div>
+
+    <!-- 月サマリー -->
+    <div class="balance-grid" id="balanceSummary"></div>
+
+    <!-- 警告バナー -->
+    <div class="alert-banner" id="alertBanner"></div>
+
+    <!-- カレンダー -->
+    <div class="cal-grid" id="calHead"></div>
+    <div class="cal-grid" style="margin-top:2px;" id="calBody"></div>
+  </div>
+
+  <!-- 取引一覧 -->
+  <div class="card">
+    <p class="card-title">今月の取引一覧</p>
+    <div id="txList"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'cashflow_calendar_v1';
+  var INIT_KEY    = 'cashflow_init_balance_v1';
+
+  var state = {
+    transactions: [],
+    currentYear:  new Date().getFullYear(),
+    currentMonth: new Date().getMonth() // 0-indexed
+  };
+
+  // ── 初期化 ──
+  function init() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try { state.transactions = JSON.parse(saved); } catch(e) {}
+    }
+    var initBal = localStorage.getItem(INIT_KEY);
+    if (initBal !== null) {
+      document.getElementById('initBalance').value = initBal;
+    }
+    // デフォルト日付を今日に
+    document.getElementById('txDate').value = todayStr();
+    renderAll();
+  }
+
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+  }
+  function pad(n) { return n < 10 ? '0'+n : ''+n; }
+
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.transactions));
+  }
+
+  function saveInitBalance() {
+    var v = document.getElementById('initBalance').value;
+    localStorage.setItem(INIT_KEY, v || '0');
+    renderAll();
+  }
+
+  // ── 取引登録 ──
+  function addTx() {
+    var type    = document.getElementById('txType').value;
+    var partner = document.getElementById('txPartner').value.trim();
+    var date    = document.getElementById('txDate').value;
+    var amount  = parseFloat(document.getElementById('txAmount').value);
+    var memo    = document.getElementById('txMemo').value.trim();
+
+    if (!partner) { alert('取引先・内容を入力してください'); return; }
+    if (!date)    { alert('日付を選択してください'); return; }
+    if (isNaN(amount) || amount <= 0) { alert('金額を正しく入力してください'); return; }
+
+    state.transactions.push({
+      id:      Date.now(),
+      type:    type,
+      partner: partner,
+      date:    date,
+      amount:  amount,
+      memo:    memo
+    });
+
+    saveData();
+
+    // フォームクリア（日付・種別は保持）
+    document.getElementById('txPartner').value = '';
+    document.getElementById('txAmount').value  = '';
+    document.getElementById('txMemo').value    = '';
+
+    renderAll();
+  }
+
+  function deleteTx(id) {
+    state.transactions = state.transactions.filter(function(t){ return t.id !== id; });
+    saveData();
+    renderAll();
+  }
+
+  // ── 月切替 ──
+  function changeMonth(delta) {
+    state.currentMonth += delta;
+    if (state.currentMonth > 11) { state.currentMonth = 0; state.currentYear++; }
+    if (state.currentMonth < 0)  { state.currentMonth = 11; state.currentYear--; }
+    renderAll();
+  }
+
+  // ── 描画まとめ ──
+  function renderAll() {
+    renderMonthLabel();
+    renderCalendar();
+    renderTxList();
+  }
+
+  function renderMonthLabel() {
+    document.getElementById('monthLabel').textContent =
+      state.currentYear + '年' + (state.currentMonth + 1) + '月';
+  }
+
+  // ── カレンダー描画 ──
+  function renderCalendar() {
+    var year  = state.currentYear;
+    var month = state.currentMonth;
+    var initBal = parseFloat(localStorage.getItem(INIT_KEY) || '0') || 0;
+
+    // 当月の取引を日付でマップ化
+    var txMap = {}; // dateStr -> [{...}]
+    state.transactions.forEach(function(t) {
+      if (t.date.startsWith(year + '-' + pad(month+1))) {
+        if (!txMap[t.date]) txMap[t.date] = [];
+        txMap[t.date].push(t);
+      }
+    });
+
+    // 月全体の日付リスト（1日〜末日）
+    var daysInMonth = new Date(year, month+1, 0).getDate();
+    var allDays = [];
+    for (var d = 1; d <= daysInMonth; d++) {
+      allDays.push(year + '-' + pad(month+1) + '-' + pad(d));
+    }
+
+    // 日次残高計算（累積）
+    var runningBal = initBal;
+    var dailyBalance = {}; // dateStr -> balance after
+    var shortfallDays = [];
+    var monthIncome = 0, monthExpense = 0;
+
+    allDays.forEach(function(dateStr) {
+      var txs = txMap[dateStr] || [];
+      txs.forEach(function(t) {
+        if (t.type === 'income')  { runningBal += t.amount; monthIncome  += t.amount; }
+        else                      { runningBal -= t.amount; monthExpense += t.amount; }
+      });
+      dailyBalance[dateStr] = runningBal;
+      if (runningBal < 0) shortfallDays.push(dateStr);
+    });
+
+    // サマリー描画
+    var finalBalance = runningBal;
+    renderSummary(initBal, monthIncome, monthExpense, finalBalance);
+
+    // 警告バナー
+    var banner = document.getElementById('alertBanner');
+    if (shortfallDays.length > 0) {
+      var days = shortfallDays.map(function(d){ return parseInt(d.split('-')[2]) + '日'; }).join('・');
+      banner.style.display = 'block';
+      banner.textContent = '⚠️ 資金ショートの危険：' + days + ' に残高がマイナスになります';
+    } else {
+      banner.style.display = 'none';
+    }
+
+    // カレンダーヘッダー
+    var heads = ['日','月','火','水','木','金','土'];
+    var headCls = ['sun','','','','','','sat'];
+    var headEl = document.getElementById('calHead');
+    headEl.innerHTML = heads.map(function(h, i){
+      return '<div class="cal-head ' + headCls[i] + '">' + h + '</div>';
+    }).join('');
+
+    // 月初の曜日
+    var firstDow = new Date(year, month, 1).getDay(); // 0=Sun
+
+    // カレンダーボディ
+    var cells = [];
+    // 空白セル
+    for (var i = 0; i < firstDow; i++) {
+      cells.push('<div class="cal-day empty"></div>');
+    }
+
+    var today = todayStr();
+    for (var d2 = 1; d2 <= daysInMonth; d2++) {
+      var dateStr2 = year + '-' + pad(month+1) + '-' + pad(d2);
+      var dow      = (firstDow + d2 - 1) % 7;
+      var txs2     = txMap[dateStr2] || [];
+      var bal2     = dailyBalance[dateStr2];
+      var isShort  = bal2 < 0;
+
+      var cls = 'cal-day';
+      if (isShort) cls += ' shortfall';
+      if (dateStr2 === today) cls += ' today';
+      if (dow === 0) cls += ' sun';
+      if (dow === 6) cls += ' sat';
+
+      var inner = '<div class="day-num">' + d2 + '</div>';
+      // 取引イベント（最大3件表示）
+      var show = txs2.slice(0, 3);
+      show.forEach(function(t) {
+        var sign = t.type === 'income' ? '+' : '-';
+        inner += '<div class="ev ' + t.type + '">'
+               + sign + fmt(t.amount) + ' ' + esc(t.partner) + '</div>';
+      });
+      if (txs2.length > 3) {
+        inner += '<div class="ev" style="color:var(--text-sub);">他' + (txs2.length-3) + '件</div>';
+      }
+      // 日次残高
+      inner += '<div class="day-balance">' + (isShort ? '▼' : '') + fmt(bal2) + '</div>';
+
+      cells.push('<div class="' + cls + '">' + inner + '</div>');
+    }
+
+    document.getElementById('calBody').innerHTML = cells.join('');
+  }
+
+  function renderSummary(initBal, income, expense, finalBal) {
+    var endNg = finalBal < 0;
+    document.getElementById('balanceSummary').innerHTML =
+      '<div class="balance-box income">'
+        + '<div class="bl">今月の入金</div>'
+        + '<div class="bv">+' + fmt(income) + '</div>'
+      + '</div>'
+      + '<div class="balance-box expense">'
+        + '<div class="bl">今月の支出</div>'
+        + '<div class="bv">-' + fmt(expense) + '</div>'
+      + '</div>'
+      + '<div class="balance-box balance' + (endNg ? ' ng' : '') + '">'
+        + '<div class="bl">月末残高</div>'
+        + '<div class="bv">' + fmt(finalBal) + '</div>'
+      + '</div>';
+  }
+
+  // ── 取引一覧描画（今月のみ） ──
+  function renderTxList() {
+    var year  = state.currentYear;
+    var month = state.currentMonth;
+    var prefix = year + '-' + pad(month+1);
+
+    var monthTx = state.transactions
+      .filter(function(t){ return t.date.startsWith(prefix); })
+      .sort(function(a,b){ return a.date > b.date ? -1 : a.date < b.date ? 1 : 0; });
+
+    var el = document.getElementById('txList');
+    if (monthTx.length === 0) {
+      el.innerHTML = '<p class="empty-msg">今月の取引はありません</p>';
+      return;
+    }
+
+    el.innerHTML = monthTx.map(function(t) {
+      var sign = t.type === 'income' ? '+' : '-';
+      var amtCls = t.type === 'income' ? 'income-amt' : 'expense-amt';
+      return '<div class="tx-item">'
+        + '<div class="tx-type ' + t.type + '">' + (t.type === 'income' ? '入金' : '支出') + '</div>'
+        + '<div class="tx-info">'
+          + '<div class="tx-name">' + esc(t.partner) + '</div>'
+          + '<div class="tx-meta">' + t.date + (t.memo ? ' ／ ' + esc(t.memo) : '') + '</div>'
+        + '</div>'
+        + '<div class="tx-amount ' + amtCls + '">' + sign + fmt(t.amount) + '円</div>'
+        + '<button class="btn-sm no-print" onclick="deleteTx(' + t.id + ')">削除</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+  function esc(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  init();
+  </script>
+</body>
+</html>
