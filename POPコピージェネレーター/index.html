@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>売場POPコピージェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* チェックボックスグループ */
+    .check-group {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem;
+    }
+    .check-group label {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.88rem; font-weight: 500; color: var(--text);
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 0.38rem 0.7rem; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .check-group input[type="checkbox"] { display: none; }
+    .check-group input[type="checkbox"]:checked + span {
+      color: var(--accent); font-weight: 700;
+    }
+    .check-group label:has(input[type="checkbox"]:checked) {
+      border-color: var(--accent); background: var(--accent-light);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 生成結果カード ── */
+    .result-section {
+      display: none;
+      max-width: 600px; margin: 0 auto 1rem;
+    }
+    .result-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow);
+      display: flex; align-items: flex-start; gap: 0.8rem;
+    }
+    .result-item .copy-num {
+      font-size: 0.72rem; font-weight: 800; color: var(--accent);
+      background: var(--accent-light); border-radius: 6px;
+      padding: 0.2rem 0.45rem; white-space: nowrap; flex-shrink: 0;
+      margin-top: 0.15rem;
+    }
+    .result-item .copy-text {
+      flex: 1; font-size: 1rem; font-weight: 700; line-height: 1.5;
+      color: var(--text);
+    }
+    .result-item .btn-copy {
+      flex-shrink: 0; padding: 0.4rem 0.75rem;
+      font-size: 0.8rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .result-item .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+    .result-item .btn-copy.copied { border-color: var(--ok); color: var(--ok); }
+
+    /* ── 履歴カード ── */
+    .history-card { display: none; }
+    .history-item {
+      padding: 0.6rem 0.4rem; border-bottom: 1px solid var(--border);
+      font-size: 0.85rem; color: var(--text-sub); line-height: 1.4;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item .hist-time { font-size: 0.72rem; color: #bbb; margin-bottom: 0.25rem; }
+    .history-item .hist-copy { color: var(--text); font-weight: 600; }
+    .history-actions {
+      display: flex; justify-content: flex-end; margin-top: 0.8rem;
+    }
+    .btn-clear-hist {
+      font-size: 0.78rem; color: var(--text-sub); background: none;
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.3rem 0.7rem; cursor: pointer;
+    }
+    .btn-clear-hist:hover { color: var(--ng); border-color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>売場POPコピージェネレーター</h1>
+    <p class="subtitle">ジャンル・特徴・訴求ポイントを選ぶだけでPOP用コピーを自動生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品情報を選ぶ</p>
+
+    <div class="field">
+      <label for="productName">商品名（任意）</label>
+      <input type="text" id="productName" placeholder="例: 信州りんごジュース">
+      <p class="hint">入力するとコピーに商品名が入ります</p>
+    </div>
+
+    <div class="field">
+      <label>商品ジャンル</label>
+      <div class="check-group" id="genreGroup">
+        <label><input type="radio" name="genre" value="食品"><span>食品</span></label>
+        <label><input type="radio" name="genre" value="飲料"><span>飲料</span></label>
+        <label><input type="radio" name="genre" value="日用品"><span>日用品</span></label>
+        <label><input type="radio" name="genre" value="衣料・アパレル"><span>衣料・アパレル</span></label>
+        <label><input type="radio" name="genre" value="化粧品・美容"><span>化粧品・美容</span></label>
+        <label><input type="radio" name="genre" value="家電・雑貨"><span>家電・雑貨</span></label>
+        <label><input type="radio" name="genre" value="文具・事務用品"><span>文具・事務用品</span></label>
+        <label><input type="radio" name="genre" value="その他"><span>その他</span></label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>特徴（複数選択可）</label>
+      <div class="check-group" id="featureGroup">
+        <label><input type="checkbox" value="新発売"><span>新発売</span></label>
+        <label><input type="checkbox" value="数量限定"><span>数量限定</span></label>
+        <label><input type="checkbox" value="季節限定"><span>季節限定</span></label>
+        <label><input type="checkbox" value="値下げ・特価"><span>値下げ・特価</span></label>
+        <label><input type="checkbox" value="人気No.1"><span>人気No.1</span></label>
+        <label><input type="checkbox" value="無添加・自然素材"><span>無添加・自然素材</span></label>
+        <label><input type="checkbox" value="国産・地元産"><span>国産・地元産</span></label>
+        <label><input type="checkbox" value="大容量・お得"><span>大容量・お得</span></label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>訴求ポイント（複数選択可）</label>
+      <div class="check-group" id="appealGroup">
+        <label><input type="checkbox" value="お買い得"><span>お買い得</span></label>
+        <label><input type="checkbox" value="健康に良い"><span>健康に良い</span></label>
+        <label><input type="checkbox" value="時短・簡単"><span>時短・簡単</span></label>
+        <label><input type="checkbox" value="ギフト向き"><span>ギフト向き</span></label>
+        <label><input type="checkbox" value="子供に人気"><span>子供に人気</span></label>
+        <label><input type="checkbox" value="ロングセラー"><span>ロングセラー</span></label>
+        <label><input type="checkbox" value="おすすめ"><span>おすすめ</span></label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">POPコピーを生成する</button>
+
+  <!-- 生成結果 -->
+  <div class="result-section" id="resultSection">
+    <div class="card" style="margin-bottom:0.5rem;">
+      <p class="card-title">生成されたPOPコピー（全部コピー可）</p>
+    </div>
+    <div id="resultList"></div>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card history-card" id="historyCard">
+    <p class="card-title">生成履歴</p>
+    <div id="historyList"></div>
+    <div class="history-actions">
+      <button class="btn-clear-hist" onclick="clearHistory()">履歴を消す</button>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'pop_copy_history';
+
+  function getGenre() {
+    var r = document.querySelector('input[name="genre"]:checked');
+    return r ? r.value : '';
+  }
+  function getChecked(groupId) {
+    var checks = document.querySelectorAll('#' + groupId + ' input[type="checkbox"]:checked');
+    return Array.from(checks).map(function(c){ return c.value; });
+  }
+
+  function generate() {
+    var genre    = getGenre();
+    var features = getChecked('featureGroup');
+    var appeals  = getChecked('appealGroup');
+    var name     = document.getElementById('productName').value.trim();
+
+    if (!genre && features.length === 0 && appeals.length === 0) {
+      alert('ジャンル・特徴・訴求ポイントのいずれかを選んでください');
+      return;
+    }
+
+    var subject = name || genre || '商品';
+    var feat1 = features.length > 0 ? features[0] : '';
+    var feat2 = features.length > 1 ? features[1] : feat1;
+    var appeal1 = appeals.length > 0 ? appeals[0] : '';
+    var appeal2 = appeals.length > 1 ? appeals[1] : appeal1;
+
+    var copies = buildCopies(subject, genre, features, appeals, feat1, feat2, appeal1, appeal2, name);
+
+    var listEl = document.getElementById('resultList');
+    listEl.innerHTML = '';
+    copies.forEach(function(text, i) {
+      var item = document.createElement('div');
+      item.className = 'result-item';
+      item.innerHTML =
+        '<span class="copy-num">案' + (i+1) + '</span>' +
+        '<span class="copy-text">' + escHtml(text) + '</span>' +
+        '<button class="btn-copy" onclick="copyText(this, \'' + escJs(text) + '\')">コピー</button>';
+      listEl.appendChild(item);
+    });
+
+    document.getElementById('resultSection').style.display = 'block';
+    document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    saveHistory(copies[0], genre, features, appeals);
+    renderHistory();
+  }
+
+  function buildCopies(subject, genre, features, appeals, feat1, feat2, appeal1, appeal2, name) {
+    var copies = [];
+    var featStr  = features.join('・') || '';
+    var appStr   = appeals.join('・') || '';
+
+    // 案1：シンプル強調
+    if (feat1 && appeal1) {
+      copies.push('【' + feat1 + '】' + subject + ' — ' + appeal1 + 'でお試しください！');
+    } else if (feat1) {
+      copies.push('【' + feat1 + '】' + subject + ' — ぜひお試しください！');
+    } else if (appeal1) {
+      copies.push(subject + ' — ' + appeal1 + 'でお届けします！');
+    } else {
+      copies.push(subject + ' — 今だけ特別プライス！');
+    }
+
+    // 案2：お客様へ語りかけ
+    if (appeal1 && genre) {
+      copies.push(genre + 'をお探しの方へ。' + (feat1 ? feat1 + 'の' : '') + subject + 'が' + appeal1 + '！');
+    } else if (genre) {
+      copies.push(genre + 'をお探しの方へ。' + subject + ' — 見逃さないで！');
+    } else {
+      copies.push((feat1 ? feat1 + 'の' : '') + subject + '。ぜひ一度お試しを！');
+    }
+
+    // 案3：今だけ訴求
+    var limitPhrases = ['新発売', '数量限定', '季節限定', '値下げ・特価'];
+    var hasLimit = features.some(function(f){ return limitPhrases.indexOf(f) >= 0; });
+    if (hasLimit) {
+      copies.push('今だけ！' + (featStr ? featStr + 'の' : '') + subject + (appStr ? ' / ' + appStr : '') + '。お見逃しなく！');
+    } else {
+      copies.push((featStr ? featStr + 'の' : '') + subject + (appStr ? '。' + appStr + 'でご用意しています' : '。この機会にどうぞ！'));
+    }
+
+    // 案4：ポップ短文
+    var tagLine = '';
+    if (feat1 && appeal1) tagLine = feat1 + ' × ' + appeal1;
+    else if (feat1)        tagLine = feat1;
+    else if (appeal1)      tagLine = appeal1;
+    else                   tagLine = 'おすすめ';
+    copies.push('★ ' + subject + ' ★\n' + tagLine + (genre ? '（' + genre + '）' : ''));
+
+    // 案5：ベネフィット訴求
+    var benefit = '';
+    if (appeals.indexOf('健康に良い') >= 0)   benefit = '毎日の健康習慣に！';
+    else if (appeals.indexOf('時短・簡単') >= 0) benefit = '忙しい方に！サッと使えます。';
+    else if (appeals.indexOf('ギフト向き') >= 0) benefit = '贈り物にも喜ばれます。';
+    else if (appeals.indexOf('子供に人気') >= 0) benefit = 'お子様にも大人気！';
+    else if (appeals.indexOf('ロングセラー') >= 0) benefit = '長年愛されてきた定番品！';
+    else                                       benefit = '毎日のちょっとしたこだわりに。';
+    copies.push((name || subject) + ' — ' + benefit + (feat1 ? '【' + feat1 + '】' : ''));
+
+    return copies;
+  }
+
+  function copyText(btn, text) {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = 'コピー済';
+      btn.classList.add('copied');
+      setTimeout(function(){ btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 1500);
+    }).catch(function() {
+      // fallback
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      btn.textContent = 'コピー済';
+      setTimeout(function(){ btn.textContent = 'コピー'; }, 1500);
+    });
+  }
+
+  function saveHistory(topCopy, genre, features, appeals) {
+    var hist = loadHistory();
+    var entry = {
+      time: new Date().toLocaleString('ja-JP'),
+      copy: topCopy,
+      genre: genre,
+      tags: features.concat(appeals).join('・')
+    };
+    hist.unshift(entry);
+    if (hist.length > 20) hist = hist.slice(0, 20);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(hist));
+  }
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+
+  function renderHistory() {
+    var hist = loadHistory();
+    var card = document.getElementById('historyCard');
+    var listEl = document.getElementById('historyList');
+    if (hist.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    listEl.innerHTML = hist.map(function(h) {
+      return '<div class="history-item">' +
+        '<div class="hist-time">' + escHtml(h.time) + (h.tags ? ' ／ ' + escHtml(h.tags) : '') + '</div>' +
+        '<div class="hist-copy">' + escHtml(h.copy) + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function clearHistory() {
+    if (!confirm('履歴をすべて消しますか？')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    document.getElementById('historyCard').style.display = 'none';
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+      .replace(/\n/g,'<br>');
+  }
+  function escJs(s) {
+    return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
+  }
+
+  // ラジオもチェックボックスも選択ハイライト
+  document.querySelectorAll('.check-group input').forEach(function(inp) {
+    inp.addEventListener('change', function() {
+      if (inp.type === 'radio') {
+        document.querySelectorAll('input[name="' + inp.name + '"]').forEach(function(r) {
+          r.closest('label').style.borderColor = '';
+          r.closest('label').style.background = '';
+        });
+        if (inp.checked) {
+          inp.closest('label').style.borderColor = 'var(--accent)';
+          inp.closest('label').style.background = 'var(--accent-light)';
+        }
+      }
+    });
+  });
+
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
