@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>売掛金督促メールジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 状況バッジ */
+    .level-badges {
+      display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .level-badge {
+      flex: 1; min-width: 80px; padding: 0.65rem 0.5rem;
+      border: 2px solid var(--border); border-radius: 10px;
+      background: var(--bg); cursor: pointer;
+      text-align: center; font-size: 0.82rem; font-weight: 700;
+      color: var(--text-sub); transition: all 0.15s;
+    }
+    .level-badge:hover { border-color: var(--accent); }
+    .level-badge.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+    .level-badge .badge-lv { font-size: 0.7rem; font-weight: 600; margin-bottom: 0.15rem; }
+    .level-badge .badge-name { font-size: 0.78rem; font-weight: 800; }
+    .level-badge .badge-tone { font-size: 0.68rem; color: var(--text-sub); margin-top: 0.1rem; }
+    .level-badge.active .badge-tone { color: var(--accent); }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-level-badge {
+      display: inline-block; font-size: 0.72rem; font-weight: 800;
+      padding: 0.2rem 0.7rem; border-radius: 20px;
+      margin-bottom: 0.8rem; letter-spacing: 0.06em;
+    }
+    .lv1 { background: #f0fdf4; color: #15803d; border: 1.5px solid #86efac; }
+    .lv2 { background: #fffbeb; color: #b45309; border: 1.5px solid #fcd34d; }
+    .lv3 { background: #fef2f2; color: #b91c1c; border: 1.5px solid #fca5a5; }
+
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.5rem; }
+    .mail-body {
+      width: 100%; min-height: 340px; font-size: 0.88rem;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      padding: 0.9rem; line-height: 1.8; resize: vertical;
+      font-family: inherit;
+    }
+    .btn-copy {
+      display: block; width: 100%; margin-top: 0.8rem; padding: 0.7rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: 10px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-copy:hover { background: var(--accent-light); }
+    .copy-done { font-size: 0.78rem; color: var(--ok); margin-top: 0.4rem; text-align: center; display: none; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>売掛金督促メールジェネレーター</h1>
+    <p class="subtitle">状況を選んで入力するだけで督促メール文を即生成</p>
+  </header>
+
+  <!-- 督促レベル選択 -->
+  <div class="card">
+    <p class="card-title">督促レベル</p>
+    <div class="level-badges">
+      <div class="level-badge active" data-lv="1" onclick="setLevel(1)">
+        <div class="badge-lv">Lv.1</div>
+        <div class="badge-name">初回</div>
+        <div class="badge-tone">丁寧なご連絡</div>
+      </div>
+      <div class="level-badge" data-lv="2" onclick="setLevel(2)">
+        <div class="badge-lv">Lv.2</div>
+        <div class="badge-name">2回目</div>
+        <div class="badge-tone">念押し・確認</div>
+      </div>
+      <div class="level-badge" data-lv="3" onclick="setLevel(3)">
+        <div class="badge-lv">Lv.3</div>
+        <div class="badge-name">最終通告</div>
+        <div class="badge-tone">強め・法的措置示唆</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 入力フォーム -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="to_company">相手先会社名</label>
+      <input type="text" id="to_company" placeholder="例: 株式会社〇〇">
+    </div>
+    <div class="field">
+      <label for="to_person">担当者名</label>
+      <input type="text" id="to_person" placeholder="例: 山田 太郎">
+    </div>
+    <div class="field">
+      <label for="amount">未収金額（円）</label>
+      <input type="text" id="amount" placeholder="例: 385,000">
+    </div>
+    <div class="field">
+      <label for="due_date">本来の支払期日</label>
+      <input type="date" id="due_date">
+    </div>
+    <div class="field">
+      <label for="new_due_date">新しい入金期限（猶予日）</label>
+      <input type="date" id="new_due_date">
+      <p class="hint">未入力の場合は「折り返しご連絡ください」になります</p>
+    </div>
+    <div class="field">
+      <label for="item">取引内容・品名（任意）</label>
+      <input type="text" id="item" placeholder="例: 〇月分 商品Aの納品代金">
+    </div>
+    <div class="field">
+      <label for="from_company">自社名</label>
+      <input type="text" id="from_company" placeholder="例: 株式会社△△ 営業部 鈴木">
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">督促メールを生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <span class="result-level-badge" id="result-badge"></span>
+    <p class="result-label">生成されたメール文</p>
+    <textarea class="mail-body" id="mail-body" readonly></textarea>
+    <button class="btn-copy no-print" onclick="copyMail()">コピーする</button>
+    <p class="copy-done" id="copy-done">コピーしました！</p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var currentLevel = 1;
+
+  function setLevel(lv) {
+    currentLevel = lv;
+    document.querySelectorAll('.level-badge').forEach(function(el) {
+      el.classList.toggle('active', parseInt(el.dataset.lv) === lv);
+    });
+    save();
+  }
+
+  function generate() {
+    var toCompany  = document.getElementById('to_company').value.trim();
+    var toPerson   = document.getElementById('to_person').value.trim();
+    var amount     = document.getElementById('amount').value.trim();
+    var dueDate    = document.getElementById('due_date').value;
+    var newDueDate = document.getElementById('new_due_date').value;
+    var item       = document.getElementById('item').value.trim();
+    var fromCompany = document.getElementById('from_company').value.trim();
+
+    if (!toCompany || !amount || !dueDate) {
+      alert('「相手先会社名」「未収金額」「本来の支払期日」は必須です');
+      return;
+    }
+
+    var toLine = toCompany + (toPerson ? '\n' + toPerson + ' 様' : ' 御中');
+    var dueFmt = formatDate(dueDate);
+    var newDueLine = newDueDate
+      ? newDueDate + ' までにお振り込みいただきますようお願い申し上げます。'
+      : '折り返しお支払いの見通しをお知らせいただきますよう、お願い申し上げます。';
+    var itemLine = item ? '（' + item + '）' : '';
+    var fromLine = fromCompany || '（自社名）';
+    var mailText = '';
+
+    if (currentLevel === 1) {
+      mailText = [
+        toLine,
+        '',
+        '平素より大変お世話になっております。',
+        fromLine + ' でございます。',
+        '',
+        '誠に恐れ入りますが、下記のご請求につきまして、',
+        'まだご入金が確認できておりません。',
+        'ご多忙のこととは存じますが、ご確認いただけますでしょうか。',
+        '',
+        '─────────────────────',
+        '　請求内容　：' + (item || '未払い代金') + '',
+        '　ご請求金額：' + amount + '円',
+        '　お支払期日：' + dueFmt,
+        '─────────────────────',
+        '',
+        'すでにお手続き済みの場合は、本メールと行き違いとなりましたことをお詫び申し上げます。',
+        '',
+        'ご入金につきましては、' + newDueLine,
+        '',
+        'ご不明な点がございましたら、お気軽にお問い合わせください。',
+        'どうぞよろしくお願い申し上げます。',
+        '',
+        '─────────────────────',
+        fromLine,
+        '─────────────────────',
+      ].join('\n');
+
+    } else if (currentLevel === 2) {
+      mailText = [
+        toLine,
+        '',
+        '平素より大変お世話になっております。',
+        fromLine + ' でございます。',
+        '',
+        '先般よりご連絡しております下記のご請求につきまして、',
+        '現在もご入金が確認できておらず、再度ご連絡させていただきました。',
+        '',
+        '─────────────────────',
+        '　請求内容　：' + (item || '未払い代金') + '',
+        '　ご請求金額：' + amount + '円',
+        '　お支払期日：' + dueFmt + '（期日超過）',
+        '─────────────────────',
+        '',
+        'お手数をおかけしますが、お支払いの状況をご確認いただき、',
+        newDueLine,
+        '',
+        'ご事情がございましたら、お気軽にご相談ください。',
+        '何卒よろしくお願い申し上げます。',
+        '',
+        '─────────────────────',
+        fromLine,
+        '─────────────────────',
+      ].join('\n');
+
+    } else {
+      mailText = [
+        toLine,
+        '',
+        '拝啓',
+        '',
+        '平素よりお取引いただき、誠にありがとうございます。',
+        fromLine + ' でございます。',
+        '',
+        '下記のご請求金額につきまして、再三にわたりご連絡申し上げましたが、',
+        '現在もご入金の確認ができておりません。',
+        '',
+        '─────────────────────',
+        '　請求内容　：' + (item || '未払い代金') + '',
+        '　ご請求金額：' + amount + '円',
+        '　お支払期日：' + dueFmt + '（期日超過）',
+        '─────────────────────',
+        '',
+        '大変恐縮ですが、' + newDueLine,
+        '',
+        '期日までにご対応いただけない場合は、',
+        'やむを得ず法的手続きの検討を含め、然るべき対応を取らせていただく場合がございます。',
+        '',
+        '速やかなご対応のほど、何卒よろしくお願い申し上げます。',
+        '',
+        '敬具',
+        '',
+        '─────────────────────',
+        fromLine,
+        '─────────────────────',
+      ].join('\n');
+    }
+
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    document.getElementById('mail-body').value = mailText;
+
+    var badge = document.getElementById('result-badge');
+    var labels = ['', 'Lv.1 初回（丁寧）', 'Lv.2 2回目（念押し）', 'Lv.3 最終通告（強め）'];
+    var classes = ['', 'lv1', 'lv2', 'lv3'];
+    badge.textContent = labels[currentLevel];
+    badge.className = 'result-level-badge ' + classes[currentLevel];
+
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    save();
+  }
+
+  function copyMail() {
+    var ta = document.getElementById('mail-body');
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    try {
+      navigator.clipboard.writeText(ta.value).catch(function() {
+        document.execCommand('copy');
+      });
+    } catch(e) {
+      document.execCommand('copy');
+    }
+    var done = document.getElementById('copy-done');
+    done.style.display = 'block';
+    setTimeout(function() { done.style.display = 'none'; }, 2000);
+  }
+
+  function formatDate(str) {
+    if (!str) return '';
+    var parts = str.split('-');
+    return parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+  }
+
+  function save() {
+    var data = {
+      level: currentLevel,
+      to_company:   document.getElementById('to_company').value,
+      to_person:    document.getElementById('to_person').value,
+      amount:       document.getElementById('amount').value,
+      due_date:     document.getElementById('due_date').value,
+      new_due_date: document.getElementById('new_due_date').value,
+      item:         document.getElementById('item').value,
+      from_company: document.getElementById('from_company').value,
+    };
+    localStorage.setItem('saikkintokusoku', JSON.stringify(data));
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem('saikkintokusoku');
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (d.level) setLevel(d.level);
+      if (d.to_company)   document.getElementById('to_company').value   = d.to_company;
+      if (d.to_person)    document.getElementById('to_person').value    = d.to_person;
+      if (d.amount)       document.getElementById('amount').value       = d.amount;
+      if (d.due_date)     document.getElementById('due_date').value     = d.due_date;
+      if (d.new_due_date) document.getElementById('new_due_date').value = d.new_due_date;
+      if (d.item)         document.getElementById('item').value         = d.item;
+      if (d.from_company) document.getElementById('from_company').value = d.from_company;
+    } catch(e) {}
+  }
+
+  // 入力変更で自動保存
+  document.querySelectorAll('input, textarea').forEach(function(el) {
+    el.addEventListener('input', save);
+  });
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

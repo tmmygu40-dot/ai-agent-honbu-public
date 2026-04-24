@@ -48,3 +48,4 @@
 [2026-04-24_162852] SCAN apps=値上げ影響シミュレーター total=0 exit=0
 [2026-04-24_165504] SCAN apps=熱中症対策診断アプリ total=0 exit=0
 [2026-04-24_181115] SCAN apps=販促POPコピージェネレーター total=0 exit=0
+[2026-04-24_183436] SCAN apps=売掛金督促メールジェネレーター total=0 exit=0
