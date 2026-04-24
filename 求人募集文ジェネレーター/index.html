@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>求人募集文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .result-card.show { display: block; }
+    .result-card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--ok); letter-spacing: 0.06em;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .result-text {
+      white-space: pre-wrap;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      word-break: break-all;
+    }
+
+    .btn-copy {
+      display: block; width: 100%;
+      padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 2px solid var(--ok); border-radius: 9px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-copy:hover { background: #dcfce7; }
+    .btn-copy.copied { background: var(--ok); color: #fff; }
+
+    .copy-msg {
+      display: none;
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--ok);
+      margin-top: 0.5rem;
+      font-weight: 700;
+    }
+    .copy-msg.show { display: block; }
+
+    /* テンプレートタブ */
+    .template-tabs {
+      display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem; font-weight: 600;
+      border: 1.5px solid var(--border);
+      border-radius: 99px; background: var(--bg); color: var(--text-sub);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .tab-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📝 求人募集文ジェネレーター</h1>
+    <p class="subtitle">業種・条件を入力するだけで即！アルバイト・パートの求人文を自動生成</p>
+  </header>
+
+  <!-- テンプレート選択 -->
+  <div class="card">
+    <p class="card-title">テンプレートを選ぶ</p>
+    <div class="template-tabs">
+      <button class="tab-btn active" onclick="selectTemplate('standard')" id="tab-standard">標準</button>
+      <button class="tab-btn" onclick="selectTemplate('short')" id="tab-short">短め（SNS向け）</button>
+      <button class="tab-btn" onclick="selectTemplate('formal')" id="tab-formal">丁寧・フォーマル</button>
+      <button class="tab-btn" onclick="selectTemplate('casual')" id="tab-casual">フレンドリー</button>
+    </div>
+  </div>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="industry">業種</label>
+      <select id="industry" onchange="saveAll()">
+        <option value="">選択してください</option>
+        <option value="飲食・カフェ">飲食・カフェ</option>
+        <option value="小売・販売">小売・販売</option>
+        <option value="物流・倉庫">物流・倉庫</option>
+        <option value="事務・オフィス">事務・オフィス</option>
+        <option value="介護・福祉">介護・福祉</option>
+        <option value="医療・薬局">医療・薬局</option>
+        <option value="清掃・ハウスキーピング">清掃・ハウスキーピング</option>
+        <option value="製造・工場">製造・工場</option>
+        <option value="教育・塾講師">教育・塾講師</option>
+        <option value="接客・サービス">接客・サービス</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="jobTitle">職種名（募集ポジション）</label>
+      <input type="text" id="jobTitle" placeholder="例: ホールスタッフ、レジ担当、仕分け作業員" oninput="saveAll()">
+    </div>
+    <div class="field">
+      <label for="shopName">店舗名・会社名（省略可）</label>
+      <input type="text" id="shopName" placeholder="例: カフェ〇〇" oninput="saveAll()">
+    </div>
+    <div class="field">
+      <label for="location">勤務地</label>
+      <input type="text" id="location" placeholder="例: 東京都渋谷区〇〇（渋谷駅から徒歩5分）" oninput="saveAll()">
+    </div>
+  </div>
+
+  <!-- 給与・勤務条件 -->
+  <div class="card">
+    <p class="card-title">給与・勤務条件</p>
+    <div class="row2">
+      <div class="field">
+        <label for="wage">時給・給与</label>
+        <input type="text" id="wage" placeholder="例: 時給1,050円" oninput="saveAll()">
+      </div>
+      <div class="field">
+        <label for="hours">1日の勤務時間</label>
+        <input type="text" id="hours" placeholder="例: 5〜8時間" oninput="saveAll()">
+      </div>
+    </div>
+    <div class="field">
+      <label for="workDays">勤務曜日・シフト</label>
+      <input type="text" id="workDays" placeholder="例: 週3日〜OK、曜日・時間帯相談可" oninput="saveAll()">
+    </div>
+    <div class="field">
+      <label for="period">雇用期間</label>
+      <input type="text" id="period" placeholder="例: 長期歓迎、短期3ヶ月〜" oninput="saveAll()">
+    </div>
+  </div>
+
+  <!-- 仕事内容・条件 -->
+  <div class="card">
+    <p class="card-title">仕事内容・応募条件</p>
+    <div class="field">
+      <label for="jobDesc">仕事内容</label>
+      <textarea id="jobDesc" placeholder="例: お客様へのドリンク・フード提供、レジ対応、簡単な清掃など" oninput="saveAll()"></textarea>
+    </div>
+    <div class="field">
+      <label for="requirements">応募条件・資格</label>
+      <input type="text" id="requirements" placeholder="例: 未経験OK、高校生以上、接客経験あれば尚可" oninput="saveAll()">
+    </div>
+    <div class="field">
+      <label for="benefits">待遇・福利厚生</label>
+      <textarea id="benefits" placeholder="例: 交通費全額支給、まかない有、社会保険完備、制服支給" oninput="saveAll()" style="min-height:60px"></textarea>
+    </div>
+  </div>
+
+  <!-- アピール -->
+  <div class="card">
+    <p class="card-title">職場のアピールポイント（省略可）</p>
+    <div class="field">
+      <label for="appeal">職場の雰囲気・アピール</label>
+      <textarea id="appeal" placeholder="例: アットホームな職場です。未経験の方も先輩スタッフがやさしくサポートします！" oninput="saveAll()" style="min-height:60px"></textarea>
+    </div>
+    <div class="field">
+      <label for="contact">応募先・連絡方法（省略可）</label>
+      <input type="text" id="contact" placeholder="例: 電話またはWebフォームにてご応募ください" oninput="saveAll()">
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">求人文を生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <p class="result-card-title">
+      <span>生成された求人募集文</span>
+    </p>
+    <div class="result-text" id="resultText"></div>
+    <button class="btn-copy" id="copyBtn" onclick="copyText()">📋 コピーする</button>
+    <p class="copy-msg" id="copyMsg">✅ コピーしました！</p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var currentTemplate = 'standard';
+
+  function selectTemplate(name) {
+    currentTemplate = name;
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  function generate() {
+    var industry   = document.getElementById('industry').value;
+    var jobTitle   = document.getElementById('jobTitle').value.trim();
+    var shopName   = document.getElementById('shopName').value.trim();
+    var location   = document.getElementById('location').value.trim();
+    var wage       = document.getElementById('wage').value.trim();
+    var hours      = document.getElementById('hours').value.trim();
+    var workDays   = document.getElementById('workDays').value.trim();
+    var period     = document.getElementById('period').value.trim();
+    var jobDesc    = document.getElementById('jobDesc').value.trim();
+    var requirements = document.getElementById('requirements').value.trim();
+    var benefits   = document.getElementById('benefits').value.trim();
+    var appeal     = document.getElementById('appeal').value.trim();
+    var contact    = document.getElementById('contact').value.trim();
+
+    if (!jobTitle && !industry) {
+      alert('「業種」または「職種名」を入力してください。');
+      return;
+    }
+
+    var title = jobTitle || industry + 'スタッフ';
+    var org   = shopName ? '【' + shopName + '】' : '';
+    var text  = '';
+
+    if (currentTemplate === 'short') {
+      text = buildShort(org, title, industry, wage, workDays, location, requirements, appeal, contact);
+    } else if (currentTemplate === 'formal') {
+      text = buildFormal(org, title, industry, wage, hours, workDays, period, location, jobDesc, requirements, benefits, appeal, contact);
+    } else if (currentTemplate === 'casual') {
+      text = buildCasual(org, title, industry, wage, hours, workDays, location, jobDesc, requirements, benefits, appeal, contact);
+    } else {
+      text = buildStandard(org, title, industry, wage, hours, workDays, period, location, jobDesc, requirements, benefits, appeal, contact);
+    }
+
+    document.getElementById('resultText').textContent = text;
+    var rc = document.getElementById('resultCard');
+    rc.classList.add('show');
+    rc.style.display = 'block';
+    document.getElementById('copyBtn').classList.remove('copied');
+    document.getElementById('copyMsg').classList.remove('show');
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function buildStandard(org, title, industry, wage, hours, workDays, period, location, jobDesc, requirements, benefits, appeal, contact) {
+    var lines = [];
+    lines.push('▼ ' + (org || '') + (industry ? '【' + industry + '】' : '') + title + ' 募集');
+    lines.push('');
+    if (appeal) { lines.push(appeal); lines.push(''); }
+    lines.push('【仕事内容】');
+    lines.push(jobDesc || title + 'として活躍していただきます。詳しくはお問い合わせください。');
+    lines.push('');
+    lines.push('【給与】');
+    lines.push(wage || '応相談');
+    lines.push('');
+    lines.push('【勤務時間】');
+    var timeStr = [];
+    if (hours) timeStr.push(hours);
+    if (workDays) timeStr.push(workDays);
+    lines.push(timeStr.join('　') || '応相談');
+    lines.push('');
+    if (period) { lines.push('【雇用期間】'); lines.push(period); lines.push(''); }
+    lines.push('【勤務地】');
+    lines.push(location || '詳細はお問い合わせください');
+    lines.push('');
+    lines.push('【応募条件】');
+    lines.push(requirements || '未経験OK・やる気のある方歓迎！');
+    lines.push('');
+    if (benefits) { lines.push('【待遇・福利厚生】'); lines.push(benefits); lines.push(''); }
+    if (contact) { lines.push('【応募方法】'); lines.push(contact); }
+    return lines.join('\n');
+  }
+
+  function buildShort(org, title, industry, wage, workDays, location, requirements, appeal, contact) {
+    var lines = [];
+    lines.push((org || '') + title + ' 急募！');
+    if (wage) lines.push('💰 ' + wage);
+    if (workDays) lines.push('🗓 ' + workDays);
+    if (location) lines.push('📍 ' + location);
+    if (requirements) lines.push('✅ ' + requirements);
+    if (appeal) lines.push(appeal);
+    if (contact) lines.push('📩 ' + contact);
+    return lines.join('\n');
+  }
+
+  function buildFormal(org, title, industry, wage, hours, workDays, period, location, jobDesc, requirements, benefits, appeal, contact) {
+    var lines = [];
+    var orgStr = org ? org + 'では、' : 'このたび、';
+    lines.push(orgStr + (industry || '弊社') + ' ' + title + 'を募集いたします。');
+    lines.push('');
+    if (appeal) { lines.push(appeal); lines.push(''); }
+    lines.push('■ 仕事内容');
+    lines.push(jobDesc || title + 'として業務をお任せいたします。');
+    lines.push('');
+    lines.push('■ 給与');
+    lines.push(wage || '応相談');
+    lines.push('');
+    lines.push('■ 勤務時間・日数');
+    var timeStr = [];
+    if (hours) timeStr.push(hours);
+    if (workDays) timeStr.push(workDays);
+    lines.push(timeStr.join('／') || '応相談');
+    lines.push('');
+    if (period) { lines.push('■ 雇用期間'); lines.push(period); lines.push(''); }
+    lines.push('■ 勤務地');
+    lines.push(location || 'お問い合わせください');
+    lines.push('');
+    lines.push('■ 応募資格');
+    lines.push(requirements || '未経験の方も歓迎いたします。');
+    lines.push('');
+    if (benefits) { lines.push('■ 待遇・福利厚生'); lines.push(benefits); lines.push(''); }
+    if (contact) { lines.push('■ 応募方法'); lines.push(contact); }
+    lines.push('');
+    lines.push('皆様のご応募をお待ちしております。');
+    return lines.join('\n');
+  }
+
+  function buildCasual(org, title, industry, wage, hours, workDays, location, jobDesc, requirements, benefits, appeal, contact) {
+    var lines = [];
+    lines.push('🎉 一緒に働いてくれる' + title + 'さん、大募集！');
+    lines.push('');
+    if (appeal) { lines.push('✨ ' + appeal); lines.push(''); }
+    lines.push('📋 こんな仕事です');
+    lines.push(jobDesc || title + 'として、楽しく働いてくれる方を探しています！');
+    lines.push('');
+    if (wage) { lines.push('💰 給与：' + wage); }
+    var timeStr = [];
+    if (hours) timeStr.push(hours);
+    if (workDays) timeStr.push(workDays);
+    if (timeStr.length) lines.push('🕐 勤務時間：' + timeStr.join('・'));
+    if (location) lines.push('📍 場所：' + location);
+    lines.push('');
+    lines.push('👍 こんな方を求めています！');
+    lines.push(requirements || '未経験OK！やる気と笑顔があればOKです！');
+    lines.push('');
+    if (benefits) { lines.push('🎁 待遇：' + benefits); lines.push(''); }
+    lines.push('まずはお気軽にご連絡ください😊');
+    if (contact) { lines.push('👉 ' + contact); }
+    return lines.join('\n');
+  }
+
+  function copyText() {
+    var text = document.getElementById('resultText').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        showCopied();
+      }).catch(function() { fallbackCopy(text); });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showCopied(); } catch(e) { alert('コピーに失敗しました。手動でコピーしてください。'); }
+    document.body.removeChild(ta);
+  }
+
+  function showCopied() {
+    var btn = document.getElementById('copyBtn');
+    btn.classList.add('copied');
+    btn.textContent = '✅ コピーしました！';
+    document.getElementById('copyMsg').classList.add('show');
+    setTimeout(function() {
+      btn.classList.remove('copied');
+      btn.textContent = '📋 コピーする';
+      document.getElementById('copyMsg').classList.remove('show');
+    }, 2000);
+  }
+
+  /* localStorage 保存・復元 */
+  var FIELDS = ['industry','jobTitle','shopName','location','wage','hours','workDays','period','jobDesc','requirements','benefits','appeal','contact'];
+
+  function saveAll() {
+    var data = {};
+    FIELDS.forEach(function(id) { data[id] = document.getElementById(id).value; });
+    localStorage.setItem('kyujin_gen', JSON.stringify(data));
+  }
+
+  function loadAll() {
+    try {
+      var saved = JSON.parse(localStorage.getItem('kyujin_gen') || '{}');
+      FIELDS.forEach(function(id) {
+        if (saved[id] !== undefined) document.getElementById(id).value = saved[id];
+      });
+    } catch(e) {}
+  }
+
+  loadAll();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
