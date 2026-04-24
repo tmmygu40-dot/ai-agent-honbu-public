@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>体重記録アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── グラフ ── */
+    #graph-canvas {
+      display: block;
+      width: 100%;
+      height: 160px;
+      background: var(--bg);
+      border-radius: 9px;
+    }
+    .graph-empty {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--text-sub);
+      padding: 2rem 0;
+    }
+
+    /* ── 記録リスト ── */
+    .record-list { list-style: none; }
+    .record-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid var(--border);
+      gap: 0.5rem;
+    }
+    .record-item:last-child { border-bottom: none; }
+    .record-date { font-size: 0.82rem; color: var(--text-sub); min-width: 6em; }
+    .record-weight { font-size: 1.1rem; font-weight: 800; color: var(--text); flex: 1; }
+    .record-diff { font-size: 0.78rem; min-width: 4.5em; text-align: right; }
+    .record-diff.up   { color: var(--ng); }
+    .record-diff.down { color: var(--ok); }
+    .record-diff.same { color: var(--text-sub); }
+    .btn-del {
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 7px; padding: 0.25rem 0.55rem;
+      font-size: 0.8rem; color: var(--text-sub); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-del:hover { border-color: var(--ng); color: var(--ng); }
+    .list-empty {
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--text-sub);
+      padding: 1.5rem 0;
+    }
+
+    /* ── サマリー ── */
+    .summary-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .summary-item {
+      flex: 1;
+      min-width: 120px;
+      background: var(--accent-light);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 0.7rem 0.9rem;
+      text-align: center;
+    }
+    .summary-label { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.25rem; }
+    .summary-value { font-size: 1.15rem; font-weight: 800; color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⚖️ 体重記録アプリ</h1>
+    <p class="subtitle">毎日の体重を記録してグラフで推移を確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">記録を追加</p>
+    <div class="field">
+      <label for="inp-date">日付</label>
+      <input type="date" id="inp-date">
+    </div>
+    <div class="field">
+      <label for="inp-weight">体重（kg）</label>
+      <input type="number" id="inp-weight" step="0.1" min="0" max="500" placeholder="例: 65.3">
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="addRecord()">記録する</button>
+
+  <!-- サマリーカード -->
+  <div class="card" id="summary-card" style="display:none">
+    <p class="card-title">サマリー</p>
+    <div class="summary-row">
+      <div class="summary-item">
+        <p class="summary-label">最新</p>
+        <p class="summary-value" id="s-latest">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="summary-label">最小</p>
+        <p class="summary-value" id="s-min">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="summary-label">最大</p>
+        <p class="summary-value" id="s-max">—</p>
+      </div>
+      <div class="summary-item">
+        <p class="summary-label">平均</p>
+        <p class="summary-value" id="s-avg">—</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- グラフカード -->
+  <div class="card" id="graph-card" style="display:none">
+    <p class="card-title">体重推移グラフ</p>
+    <canvas id="graph-canvas"></canvas>
+  </div>
+
+  <!-- 記録一覧 -->
+  <div class="card">
+    <p class="card-title">記録一覧</p>
+    <ul class="record-list" id="record-list">
+      <li class="list-empty">まだ記録がありません</li>
+    </ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'weight-records-v2';
+
+  // 今日の日付をデフォルトにセット
+  (function() {
+    var today = new Date();
+    var y = today.getFullYear();
+    var m = String(today.getMonth() + 1).padStart(2, '0');
+    var d = String(today.getDate()).padStart(2, '0');
+    document.getElementById('inp-date').value = y + '-' + m + '-' + d;
+  })();
+
+  function loadRecords() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch(e) {
+      return [];
+    }
+  }
+
+  function saveRecords(records) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }
+
+  function addRecord() {
+    var dateVal   = document.getElementById('inp-date').value;
+    var weightVal = parseFloat(document.getElementById('inp-weight').value);
+
+    if (!dateVal) { alert('日付を入力してください'); return; }
+    if (isNaN(weightVal) || weightVal <= 0) { alert('体重を正しく入力してください'); return; }
+
+    var records = loadRecords();
+
+    // 同じ日付があれば上書き確認
+    var existing = records.findIndex(function(r) { return r.date === dateVal; });
+    if (existing >= 0) {
+      if (!confirm(dateVal + ' の記録を上書きしますか？')) return;
+      records[existing].weight = Math.round(weightVal * 10) / 10;
+    } else {
+      records.push({ date: dateVal, weight: Math.round(weightVal * 10) / 10 });
+    }
+
+    // 日付順にソート
+    records.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    saveRecords(records);
+    document.getElementById('inp-weight').value = '';
+    render();
+  }
+
+  function deleteRecord(date) {
+    if (!confirm(date + ' の記録を削除しますか？')) return;
+    var records = loadRecords().filter(function(r) { return r.date !== date; });
+    saveRecords(records);
+    render();
+  }
+
+  function render() {
+    var records = loadRecords();
+    renderList(records);
+    renderSummary(records);
+    renderGraph(records);
+  }
+
+  function renderList(records) {
+    var ul = document.getElementById('record-list');
+    if (records.length === 0) {
+      ul.innerHTML = '<li class="list-empty">まだ記録がありません</li>';
+      return;
+    }
+    // 新しい順に表示
+    var reversed = records.slice().reverse();
+    ul.innerHTML = reversed.map(function(r, i) {
+      var prev = reversed[i + 1];
+      var diffStr = '';
+      var diffClass = 'same';
+      if (prev) {
+        var d = Math.round((r.weight - prev.weight) * 10) / 10;
+        if (d > 0) { diffStr = '+' + d.toFixed(1) + 'kg'; diffClass = 'up'; }
+        else if (d < 0) { diffStr = d.toFixed(1) + 'kg'; diffClass = 'down'; }
+        else { diffStr = '±0.0kg'; diffClass = 'same'; }
+      }
+      return '<li class="record-item">'
+        + '<span class="record-date">' + r.date + '</span>'
+        + '<span class="record-weight">' + r.weight.toFixed(1) + ' kg</span>'
+        + '<span class="record-diff ' + diffClass + '">' + diffStr + '</span>'
+        + '<button class="btn-del" onclick="deleteRecord(\'' + r.date + '\')">削除</button>'
+        + '</li>';
+    }).join('');
+  }
+
+  function renderSummary(records) {
+    var card = document.getElementById('summary-card');
+    if (records.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+
+    var weights = records.map(function(r) { return r.weight; });
+    var latest = records[records.length - 1].weight;
+    var minW = Math.min.apply(null, weights);
+    var maxW = Math.max.apply(null, weights);
+    var avg = weights.reduce(function(s, w) { return s + w; }, 0) / weights.length;
+
+    document.getElementById('s-latest').textContent = latest.toFixed(1) + ' kg';
+    document.getElementById('s-min').textContent    = minW.toFixed(1) + ' kg';
+    document.getElementById('s-max').textContent    = maxW.toFixed(1) + ' kg';
+    document.getElementById('s-avg').textContent    = avg.toFixed(1) + ' kg';
+  }
+
+  function renderGraph(records) {
+    var card   = document.getElementById('graph-card');
+    var canvas = document.getElementById('graph-canvas');
+    if (records.length < 2) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+
+    // デバイスピクセル比対応
+    var dpr = window.devicePixelRatio || 1;
+    var cssW = canvas.parentElement.clientWidth - 40;
+    var cssH = 160;
+    canvas.width  = cssW * dpr;
+    canvas.height = cssH * dpr;
+    canvas.style.width  = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+
+    var ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    var pad = { top: 16, right: 12, bottom: 30, left: 44 };
+    var w   = cssW - pad.left - pad.right;
+    var h   = cssH - pad.top  - pad.bottom;
+
+    var weights = records.map(function(r) { return r.weight; });
+    var minW = Math.min.apply(null, weights);
+    var maxW = Math.max.apply(null, weights);
+    var range = maxW - minW || 1;
+    var yMin  = minW - range * 0.1;
+    var yMax  = maxW + range * 0.1;
+
+    function px(i, val) {
+      var x = pad.left + (i / (records.length - 1)) * w;
+      var y = pad.top  + (1 - (val - yMin) / (yMax - yMin)) * h;
+      return { x: x, y: y };
+    }
+
+    // 背景
+    ctx.fillStyle = '#f5f0e8';
+    ctx.fillRect(0, 0, cssW, cssH);
+
+    // グリッド線（3本）
+    ctx.strokeStyle = '#e8ddd0';
+    ctx.lineWidth = 1;
+    for (var g = 0; g <= 2; g++) {
+      var gy = pad.top + (g / 2) * h;
+      ctx.beginPath();
+      ctx.moveTo(pad.left, gy);
+      ctx.lineTo(pad.left + w, gy);
+      ctx.stroke();
+      var gVal = yMax - g * (yMax - yMin) / 2;
+      ctx.fillStyle = '#78716c';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(gVal.toFixed(1), pad.left - 4, gy + 4);
+    }
+
+    // 折れ線
+    ctx.strokeStyle = '#e07b00';
+    ctx.lineWidth   = 2.5;
+    ctx.lineJoin    = 'round';
+    ctx.beginPath();
+    records.forEach(function(r, i) {
+      var p = px(i, r.weight);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else         ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+
+    // ドット
+    records.forEach(function(r, i) {
+      var p = px(i, r.weight);
+      ctx.fillStyle = '#e07b00';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      // 最初と最後にラベル
+      if (i === 0 || i === records.length - 1) {
+        ctx.fillStyle = '#1c1917';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = i === 0 ? 'left' : 'right';
+        ctx.fillText(r.weight.toFixed(1), p.x + (i === 0 ? 6 : -6), p.y - 7);
+      }
+    });
+
+    // X軸 日付ラベル（最初・真ん中・最後）
+    ctx.fillStyle = '#78716c';
+    ctx.font = '9px sans-serif';
+    var labelIdxs = [0, Math.floor((records.length - 1) / 2), records.length - 1];
+    if (records.length <= 3) labelIdxs = records.map(function(_, i) { return i; });
+    labelIdxs.forEach(function(i) {
+      var p = px(i, records[i].weight);
+      ctx.textAlign = i === 0 ? 'left' : i === records.length - 1 ? 'right' : 'center';
+      ctx.fillText(records[i].date.slice(5), p.x, cssH - 4);
+    });
+  }
+
+  // 初期表示
+  render();
+  </script>
+</body>
+</html>
