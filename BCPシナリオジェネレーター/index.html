@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BCPシナリオジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 結果エリア */
+    #result-area { display: none; max-width: 600px; margin: 0 auto; }
+
+    .result-header {
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      margin-bottom: 1rem;
+      font-size: 1rem;
+      font-weight: 800;
+    }
+    .result-header .label { font-size: 0.75rem; opacity: 0.85; margin-bottom: 0.25rem; }
+
+    .phase-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1rem;
+    }
+    .phase-title {
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 0.9rem; font-weight: 800;
+      margin-bottom: 1rem; padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .phase-badge {
+      font-size: 0.7rem; font-weight: 700;
+      padding: 0.2rem 0.55rem; border-radius: 6px;
+      white-space: nowrap;
+    }
+    .phase-1 .phase-badge { background: var(--ng-bg); color: var(--ng); }
+    .phase-2 .phase-badge { background: var(--warn-bg); color: var(--warn); }
+    .phase-3 .phase-badge { background: var(--ok-bg); color: var(--ok); }
+
+    .step-list { list-style: none; }
+    .step-list li {
+      display: flex; align-items: flex-start; gap: 0.6rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; line-height: 1.5;
+    }
+    .step-list li:last-child { border-bottom: none; }
+    .step-num {
+      min-width: 1.4rem; height: 1.4rem;
+      background: var(--accent); color: #fff;
+      border-radius: 50%; font-size: 0.7rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 0.05rem;
+    }
+    .phase-1 .step-num { background: var(--ng); }
+    .phase-2 .step-num { background: var(--warn); }
+    .phase-3 .step-num { background: var(--ok); }
+
+    .btn-save {
+      display: block; width: 100%; margin-bottom: 0.7rem;
+      padding: 0.7rem 1rem; font-size: 0.88rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 10px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-save:hover { background: #ffe8c0; }
+
+    .btn-pdf {
+      display: block; width: 100%; margin-bottom: 0.7rem;
+      padding: 0.6rem 1rem; font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    .saved-notice {
+      display: none;
+      background: var(--ok-bg); color: var(--ok);
+      border: 1px solid var(--ok); border-radius: 8px;
+      padding: 0.5rem 0.8rem; font-size: 0.82rem; font-weight: 600;
+      margin-bottom: 0.7rem; text-align: center;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-save, .btn-pdf, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .phase-card, .result-header { box-shadow: none; }
+      .app-header { border-bottom: 2px solid #000; }
+      #result-area { display: block !important; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>BCPシナリオジェネレーター</h1>
+    <p class="subtitle">業種とリスクを選ぶだけで事業継続計画の対応手順を自動生成</p>
+  </header>
+
+  <div class="card">
+    <p class="card-title">業種・リスクを選択</p>
+    <div class="field">
+      <label for="industry">業種</label>
+      <select id="industry">
+        <option value="">業種を選択してください</option>
+        <option value="飲食業">飲食業</option>
+        <option value="製造業">製造業</option>
+        <option value="小売業">小売業</option>
+        <option value="建設業">建設業</option>
+        <option value="サービス業">サービス業</option>
+        <option value="医療・介護">医療・介護</option>
+        <option value="IT・通信">IT・通信</option>
+        <option value="物流・運輸">物流・運輸</option>
+        <option value="農業・食品">農業・食品</option>
+        <option value="宿泊・観光">宿泊・観光</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="risk">リスク種別</label>
+      <select id="risk">
+        <option value="">リスクを選択してください</option>
+        <option value="地震">地震</option>
+        <option value="火災">火災</option>
+        <option value="洪水・水害">洪水・水害</option>
+        <option value="停電">停電</option>
+        <option value="感染症">感染症</option>
+        <option value="サプライチェーン断絶">サプライチェーン断絶</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">対応手順を生成する</button>
+
+  <div id="result-area">
+    <div class="result-header">
+      <p class="label">BCP対応手順</p>
+      <p id="result-title">—</p>
+    </div>
+
+    <div class="phase-card phase-1">
+      <div class="phase-title">
+        <span class="phase-badge">緊急対応</span>
+        発生直後（0〜3時間以内）
+      </div>
+      <ul class="step-list" id="steps-immediate"></ul>
+    </div>
+
+    <div class="phase-card phase-2">
+      <div class="phase-title">
+        <span class="phase-badge">初動対応</span>
+        24時間以内
+      </div>
+      <ul class="step-list" id="steps-day1"></ul>
+    </div>
+
+    <div class="phase-card phase-3">
+      <div class="phase-title">
+        <span class="phase-badge">復旧対応</span>
+        1週間以内
+      </div>
+      <ul class="step-list" id="steps-week1"></ul>
+    </div>
+
+    <div id="saved-notice" class="saved-notice">保存しました！</div>
+    <button class="btn-save no-print" onclick="savePlan()">このプランを保存する（localStorage）</button>
+    <button class="btn-pdf no-print" onclick="window.print()">📄 印刷・PDF保存</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  /* ── 共通ベースデータ ── */
+  var BASE = {
+    '地震': {
+      immediate: [
+        '従業員・関係者全員の安否を確認する',
+        '安全な場所へ避難・誘導する',
+        'ガス・電気の安全を確認し必要に応じて遮断する',
+        '建物・設備の損傷状況を目視確認する',
+        '余震に備え危険箇所に近づかない'
+      ],
+      day1: [
+        '被害状況を写真で記録し保険会社に連絡する',
+        '取引先・顧客・仕入れ先に状況を連絡する',
+        'ライフライン（水道・電気・ガス）の復旧時期を確認する',
+        '従業員の勤務・休業方針を決定し通知する',
+        '営業再開の可否を判断する'
+      ],
+      week1: [
+        '修理・復旧業者の手配と日程を確認する',
+        '売上減少に備えた融資・補助制度を調査する',
+        '仕入れ先・協力会社の復旧状況を確認し代替先を探す',
+        '代替手段・縮小営業の計画を立案する',
+        '今回の経験をBCPに反映して見直す'
+      ]
+    },
+    '火災': {
+      immediate: [
+        '「火事だ！」と声を上げ全員に知らせ避難する',
+        '119番に通報し、消火器で初期消火を試みる（逃げ遅れる危険がある場合は即避難）',
+        '電気ブレーカーとガス栓を遮断する',
+        '従業員・関係者全員の安否を確認する',
+        '絶対に一人で消火しようとしない'
+      ],
+      day1: [
+        '被害状況を写真で記録し保険会社に連絡する',
+        '警察・消防の現場検証に立ち会う',
+        '取引先・顧客に状況を連絡する',
+        '従業員の勤務・休業方針を決定し通知する',
+        '代替拠点・間借り先の検討を開始する'
+      ],
+      week1: [
+        '修繕・建て直しの見積もりを複数業者から取得する',
+        '火災保険の申請手続きを進める',
+        '代替拠点での仮営業を開始する（可能であれば）',
+        '取引先・顧客への補償・謝罪対応を行う',
+        'BCP（防火計画を含む）を見直す'
+      ]
+    },
+    '洪水・水害': {
+      immediate: [
+        '気象情報・避難指示を確認し、危険な場合は直ちに避難する',
+        '重要書類・貴重品・機器を高所へ移動する',
+        '従業員・関係者全員の安否を確認する',
+        '電気・ガスのブレーカーを遮断する',
+        '浸水が始まった場合は絶対に戻らない'
+      ],
+      day1: [
+        '被害状況を写真で記録し保険会社に連絡する',
+        '水がひいた後、建物の安全を確認してから入る',
+        '泥・ゴミの片付けを開始し、消毒を行う',
+        '取引先・顧客に状況を連絡する',
+        '従業員の勤務・休業方針を決定する'
+      ],
+      week1: [
+        '修繕業者の手配と日程確認をする',
+        '水害保険・補助金の申請手続きを進める',
+        '仕入れ先・協力会社の復旧状況を確認する',
+        '代替拠点・縮小営業の計画を立てる',
+        '排水・防水対策を強化しBCPを見直す'
+      ]
+    },
+    '停電': {
+      immediate: [
+        '停電の範囲・原因を電力会社の情報で確認する',
+        '予備電源（UPS・発電機）に切り替える',
+        '従業員に状況を共有し、安全確認をする',
+        'データ損失を防ぐため重要データの手動保存を行う',
+        'ろうそく・懐中電灯など照明手段を確保する'
+      ],
+      day1: [
+        '電力会社に復旧見込みを確認する',
+        '停電が長引く場合の代替業務フローを決める',
+        '取引先・顧客に状況と対応を連絡する',
+        '冷蔵・冷凍品の品質確認と廃棄判断をする',
+        '従業員の勤務方法（在宅・休業等）を決定する'
+      ],
+      week1: [
+        '停電原因に応じた再発防止策を検討する',
+        '自家発電機・UPSの導入・強化を検討する',
+        '停電時の業務継続マニュアルを作成する',
+        '取引先と停電時の対応を事前取り決めする',
+        'BCPに停電対応フローを追加して見直す'
+      ]
+    },
+    '感染症': {
+      immediate: [
+        '感染が疑われる従業員を即時帰宅・受診させる',
+        '接触者を特定し、濃厚接触者に連絡する',
+        '事業所・店舗の消毒を実施する',
+        '当該エリアの営業を一時停止する',
+        '保健所に相談・報告する（必要に応じて）'
+      ],
+      day1: [
+        'テレワーク・時差出勤などの感染拡大防止策を実施する',
+        '取引先・顧客に状況と対応方針を連絡する',
+        '人員が減った場合の業務優先順位を整理する',
+        '感染者・濃厚接触者の休業補償を確認する',
+        '衛生用品（マスク・消毒液）の確保状況を確認する'
+      ],
+      week1: [
+        '感染拡大の収束状況を確認し、段階的に営業を再開する',
+        '感染防止の恒常的な対策（換気・仕切り等）を実施する',
+        '人員不足に対応した業務体制を見直す',
+        '感染症対応マニュアルを整備する',
+        'BCPに感染症対応フローを追加して見直す'
+      ]
+    },
+    'サプライチェーン断絶': {
+      immediate: [
+        '仕入れ先の状況を確認し、入荷できない品目と期間を把握する',
+        '現在の在庫数を緊急確認する',
+        '従業員・関係者に状況を共有し、対応方針を伝える',
+        '在庫の節約・優先配分を開始する',
+        '代替仕入れ先の候補を洗い出す'
+      ],
+      day1: [
+        '代替仕入れ先に見積もり・納期確認の連絡をする',
+        '顧客・取引先に状況と対応方針を連絡する',
+        '受注・生産の優先順位を変更する',
+        '在庫がなくなった場合の代替品・代替サービスを検討する',
+        '仕入れ先の復旧見込みを再確認する'
+      ],
+      week1: [
+        '複数の代替仕入れ先と取引条件を交渉・契約する',
+        '在庫の安全在庫量を見直す',
+        '国内調達・地産地消への切り替えを検討する',
+        '仕入れ先の多様化・分散化を進める',
+        'BCPにサプライチェーン断絶対応を追加して見直す'
+      ]
+    }
+  };
+
+  /* ── 業種別追加手順 ── */
+  var ADDITION = {
+    '飲食業': {
+      '地震':            { immediate: ['料理中の場合は直ちに火を止める', '食材の転落・飛散に注意する'], day1: ['食材の安全確認と廃棄基準に従い処分する', '厨房機器・調理設備の損傷確認をする'], week1: ['代替メニューや縮小営業の計画を立てる'] },
+      '火災':            { immediate: ['厨房設備のガス・電気を即時遮断する'], day1: ['保健所への被害報告をする', '代替調理場の手配を検討する'], week1: ['保健所への再開申請を行う'] },
+      '洪水・水害':      { immediate: ['食材・飲料在庫を高所に移動する', '厨房の排水溝にふたをする'], day1: ['浸水した食材は全て廃棄する（食中毒防止）'], week1: ['保健所の再開許可を取得する'] },
+      '停電':            { immediate: ['冷蔵庫・冷凍庫のドアを開けないようにする'], day1: ['食材の温度確認と廃棄判断をする（2時間以上は要注意）', '電気不要のメニューに切り替える'], week1: ['非常用発電機の導入を検討する'] },
+      '感染症':          { immediate: ['テイクアウト・デリバリーへの切り替えを検討する'], day1: ['厨房・客席の徹底消毒を実施する', '感染防止対策（パーテーション・換気強化）を設置する'], week1: ['テイクアウト・デリバリーの仕組みを整える'] },
+      'サプライチェーン断絶': { immediate: ['不足食材を使わないメニューに変更する', '代替食材の緊急仕入れを手配する'], day1: ['メニューの一時縮小・変更をお客様に告知する'], week1: ['地場野菜・国内食材への切り替えを検討する'] }
+    },
+    '製造業': {
+      '地震':            { immediate: ['製造ラインを緊急停止する', '工場内の危険物（薬品・原料）の流出を確認する'], day1: ['製造設備・機械の損傷状況を専門家に確認させる'], week1: ['製造能力の回復計画と顧客への納期調整を行う'] },
+      '火災':            { immediate: ['製造ライン・機械を即時停止する', '危険物・化学薬品の流出を防ぐ'], day1: ['顧客への納期遅延を連絡する'], week1: ['代替製造場所・外注先を確保する', '防火設備を強化する'] },
+      '洪水・水害':      { immediate: ['製造ラインを停止し電源を遮断する', '原材料・完成品を高所に移動する'], day1: ['機械・設備の浸水状況を確認し専門家に点検させる', '顧客への納期遅延を連絡する'], week1: ['防水対策（止水板・排水ポンプ）を強化する'] },
+      '停電':            { immediate: ['製造ラインを安全に停止する', '仕掛品・半製品の保護措置をとる'], day1: ['顧客への納期影響を連絡する'], week1: ['自家発電設備の導入・増強を検討する'] },
+      '感染症':          { immediate: ['感染者が作業した製造ラインを一時停止・消毒する'], day1: ['顧客への供給影響を連絡する'], week1: ['人員不足に備えた多能工化を進める'] },
+      'サプライチェーン断絶': { immediate: ['在庫の原材料で製造できる製品・数量を確認する'], day1: ['顧客への納期・供給変更を連絡する'], week1: ['安全在庫基準を引き上げる'] }
+    },
+    '小売業': {
+      '地震':            { immediate: ['商品棚の倒壊に注意しお客様を安全な場所へ誘導する', '現金・貴重品を保護する'], day1: ['損傷・破損商品の廃棄処理を行う'], week1: ['在庫の再発注・補充計画を立てる'] },
+      '火災':            { immediate: ['お客様を最優先で店外に誘導する', '現金・重要書類を安全な場所へ'], day1: ['在庫品の被害状況と保険申請を進める'], week1: ['仮店舗・ポップアップでの仮営業を検討する'] },
+      '洪水・水害':      { immediate: ['陳列商品を高所に移動する', 'レジ・POS端末を高所・袋で保護する'], day1: ['浸水した商品は廃棄する（衛生・安全）'], week1: ['損失商品の保険申請をする'] },
+      '停電':            { immediate: ['POSシステムを手書き対応に切り替える', '冷蔵・冷凍ショーケースのドアを開けないようにする'], day1: ['冷蔵・冷凍食品の温度確認と廃棄判断をする'], week1: ['手動対応マニュアルを整備する'] },
+      '感染症':          { immediate: ['感染者が接触した売り場・レジを閉鎖・消毒する'], day1: ['入店制限・換気強化を実施する', '消毒液・非接触決済の設置を優先する'], week1: ['ネット販売・配送サービスを強化する'] },
+      'サプライチェーン断絶': { immediate: ['不足商品の在庫を確認し1人あたり購入制限を設ける'], day1: ['品薄状況をお客様に案内する（店頭・SNS）'], week1: ['仕入れ先の多様化を進める'] }
+    },
+    '建設業': {
+      '地震':            { immediate: ['作業中の工事現場を緊急停止し、作業員を退避させる', '工事中建物・足場の倒壊リスクを確認する'], day1: ['工事現場の被害状況を確認し発注者に報告する'], week1: ['工程表を見直し、遅延分の発注者への調整をする'] },
+      '火災':            { immediate: ['工事現場の作業を停止し全員を退避させる', '火気使用作業を即時中断する'], day1: ['発注者に状況と被害を報告する'], week1: ['防火対策を強化し工事再開計画を立てる'] },
+      '洪水・水害':      { immediate: ['工事現場の作業を停止し、低地・地下作業員を退避させる', '重機・資材を高所へ移動する'], day1: ['現場の浸水状況を確認し発注者に報告する'], week1: ['水害対策を工事計画に組み込む'] },
+      '停電':            { immediate: ['電動工具・照明を停止する', '暗所での作業を中断する'], day1: ['発電機での作業継続が可能か判断する'], week1: ['非常用発電機の準備を検討する'] },
+      '感染症':          { immediate: ['感染者が作業した現場エリアを消毒・閉鎖する'], day1: ['発注者に状況を報告する'], week1: ['人員不足時の工程変更を発注者と協議する'] },
+      'サプライチェーン断絶': { immediate: ['不足資材の在庫状況を確認し代替品を探す'], day1: ['発注者に資材調達状況と工程への影響を報告する'], week1: ['複数の資材メーカーと取引を開始する'] }
+    },
+    'サービス業': {
+      '地震':            { immediate: ['お客様を安全な場所へ誘導する', '施設・設備の損傷確認をする'], day1: ['予約のキャンセル・変更対応をする'], week1: ['施設の修理・修繕を手配する'] },
+      '火災':            { immediate: ['お客様を最優先で施設外へ誘導する'], day1: ['予約のキャンセル・補償対応をする'], week1: ['代替場所・施設での仮営業を検討する'] },
+      '洪水・水害':      { immediate: ['施設内のお客様を高所・安全な場所へ誘導する'], day1: ['予約キャンセル・変更対応をする'], week1: ['防水対策を強化する'] },
+      '停電':            { immediate: ['施設内の照明を確保する（懐中電灯等）'], day1: ['予約のキャンセル・変更対応をする'], week1: ['非常用電源の整備を検討する'] },
+      '感染症':          { immediate: ['感染者が接触したエリアを閉鎖・消毒する'], day1: ['オンラインサービスへの切り替えを検討する'], week1: ['オンライン・非対面サービスを整備する'] },
+      'サプライチェーン断絶': { immediate: ['サービス提供に必要な物品の在庫状況を確認する'], day1: ['サービス内容・提供方法の変更を顧客に連絡する'], week1: ['サービス提供に必要な物品の調達先を多様化する'] }
+    },
+    '医療・介護': {
+      '地震':            { immediate: ['患者・利用者の安全確保を最優先にする', '医療機器・薬品の損傷状況を確認する'], day1: ['緊急対応が必要な患者を優先して処置する', '他施設と連携して患者受け入れを調整する'], week1: ['医薬品・医療材料の補充を進める'] },
+      '火災':            { immediate: ['患者・利用者を安全に避難させる（歩行困難者を優先）'], day1: ['患者家族・関係機関に状況を連絡する'], week1: ['代替施設での診療体制を整える'] },
+      '洪水・水害':      { immediate: ['患者・利用者を安全な高所へ移動する', '医療機器・薬品・記録を保護する'], day1: ['患者の状態を管理し必要に応じて転院を調整する'], week1: ['施設の復旧と感染症リスクの管理を行う'] },
+      '停電':            { immediate: ['自家発電装置・UPSを起動する', '人工呼吸器など生命維持装置の電源を最優先に確保する'], day1: ['電力会社に医療施設として優先復旧を要請する'], week1: ['非常用電源の容量・維持管理を見直す'] },
+      '感染症':          { immediate: ['感染者を隔離し、接触した患者・従業員を特定する', '院内感染防止の標準予防策（PPE着用等）を徹底する'], day1: ['保健所に届出を行い、指示に従う'], week1: ['感染症対応マニュアルを見直す'] },
+      'サプライチェーン断絶': { immediate: ['不足する医薬品・材料の在庫を緊急確認する', '代替品・代替薬の可能性を薬剤師と検討する'], day1: ['他医療機関・卸業者に代替調達を打診する'], week1: ['医薬品・材料の安全在庫基準を引き上げる'] }
+    },
+    'IT・通信': {
+      '地震':            { immediate: ['サーバー室・ラック設備の安全を確認する'], day1: ['サービス停止の影響を確認し顧客に状況を連絡する', 'データセンター・クラウドへの切り替えで復旧を図る'], week1: ['BCP（DR計画）を見直す'] },
+      '火災':            { immediate: ['サーバー室への消火（ガス系消火を優先）とデータ保護をする'], day1: ['バックアップデータからの復旧を開始する', '顧客にサービス停止と復旧見込みを連絡する'], week1: ['クラウド移行・DR構成を強化する'] },
+      '洪水・水害':      { immediate: ['サーバー・ネットワーク機器を高所・防水保護する', '重要機器の電源を遮断する'], day1: ['クラウド・バックアップからの復旧を開始する'], week1: ['データセンターの立地・耐水対策を見直す'] },
+      '停電':            { immediate: ['UPS・非常用電源でサーバー・ネットワーク機器を保護する'], day1: ['停電が長引く場合はクラウドへ切り替える'], week1: ['非常用電源の容量増強を検討する', '停電時の冗長構成を見直す'] },
+      '感染症':          { immediate: ['テレワーク体制を即時に全社で適用する'], day1: ['VPN・リモートアクセス環境の安定稼働を確認する'], week1: ['リモートワーク環境を恒常的に整備する'] },
+      'サプライチェーン断絶': { immediate: ['不足するハードウェア・部品の在庫状況を確認する', 'クラウドへの切り替えを検討する'], day1: ['在庫機器を優先度に応じて再配分する'], week1: ['クラウドファーストへの移行を加速する'] }
+    },
+    '物流・運輸': {
+      '地震':            { immediate: ['走行中の車両を安全な場所に停車させる', '車両・施設の損傷状況を確認する'], day1: ['道路状況・通行止め情報を確認し配送ルートを変更する', '荷主・顧客に配送遅延を連絡する'], week1: ['車両の修理・代替調達を進める'] },
+      '火災':            { immediate: ['車両・倉庫から従業員を退避させる', '積荷・燃料による二次災害を防ぐ'], day1: ['代替車両・外注による配送を手配する'], week1: ['防火設備を強化する'] },
+      '洪水・水害':      { immediate: ['洪水エリアへの車両進入を禁止する', '倉庫の荷物を高所に移動する'], day1: ['配送ルートの通行可否を確認し迂回ルートを設定する'], week1: ['浸水リスクのある倉庫の移転を検討する'] },
+      '停電':            { immediate: ['倉庫・ターミナルの冷凍・冷蔵設備の状況を確認する', '手動での仕分け・出庫対応に切り替える'], day1: ['冷凍・冷蔵品の温度確認と廃棄判断をする'], week1: ['停電時の物流継続マニュアルを作成する'] },
+      '感染症':          { immediate: ['感染ドライバーの乗務を停止し、接触者を特定する', '車内・施設の消毒を行う'], day1: ['人員不足に対応する配送計画の見直しをする'], week1: ['外部委託・人員確保の体制を強化する'] },
+      'サプライチェーン断絶': { immediate: ['輸送量の削減・優先度付けを行う', '代替輸送手段（他社委託・船舶・鉄道）を検討する'], day1: ['代替手段での輸送コストを試算する'], week1: ['複数の輸送手段・パートナーとの契約を整備する'] }
+    },
+    '農業・食品': {
+      '地震':            { immediate: ['農場・加工施設の被害状況を確認する', '温室・ビニールハウスの損傷を確認する'], day1: ['作物の被害状況を確認し、販路への影響を連絡する'], week1: ['農業共済・保険の申請をする', '代替・追加播種計画を立てる'] },
+      '火災':            { immediate: ['農場・倉庫から従業員を退避させる', '農薬・燃料による二次災害を防ぐ'], day1: ['取引先・販路に状況を連絡する'], week1: ['防火設備・管理体制を強化する'] },
+      '洪水・水害':      { immediate: ['農場・田畑の排水対応をする', '農業機械・資材を高所に移動する'], day1: ['作物の浸水被害を確認し農業共済に連絡する'], week1: ['農業共済・補助金の申請をする'] },
+      '停電':            { immediate: ['温室・育苗設備の温度管理を確認する', '冷蔵・冷凍保管の食品の状況を確認する'], day1: ['電力復旧が遅れる場合は作物の緊急出荷を検討する'], week1: ['非常用電源の整備を検討する'] },
+      '感染症':          { immediate: ['感染者が作業した農場・加工ラインを消毒・閉鎖する'], day1: ['食品安全に問題がないか確認する'], week1: ['農場・加工場の衛生管理を強化する'] },
+      'サプライチェーン断絶': { immediate: ['不足する農業資材・肥料・農薬の在庫を確認する', '代替品・代替農法を検討する'], day1: ['作物への影響と取引先への出荷変更を連絡する'], week1: ['国内調達・地場資材への切り替えを検討する'] }
+    },
+    '宿泊・観光': {
+      '地震':            { immediate: ['宿泊客・観光客を安全に誘導する', '建物・設備の安全確認をする'], day1: ['宿泊客に状況を説明し、帰宅支援または安全な滞在を提供する', '今後の予約のキャンセル・変更対応をする'], week1: ['旅行代理店・観光協会と連携する'] },
+      '火災':            { immediate: ['宿泊客を最優先で安全に誘導・退避させる'], day1: ['宿泊客の安否確認と補償対応をする'], week1: ['防火設備・避難訓練を強化する'] },
+      '洪水・水害':      { immediate: ['宿泊客を高所・安全なフロアへ誘導する'], day1: ['今後の予約のキャンセル・変更対応をする'], week1: ['防水対策を強化する'] },
+      '停電':            { immediate: ['非常用電源で廊下・緊急灯を確保する', '宿泊客に状況を説明し安全を確保する'], day1: ['長引く場合は宿泊客に補償・移送を提供する'], week1: ['停電時の宿泊サービス継続マニュアルを作成する'] },
+      '感染症':          { immediate: ['感染者を隔離し、接触した宿泊客・従業員を特定する', '客室・共用部を緊急消毒する'], day1: ['保健所の指示に従い必要な対応をする', '予約のキャンセル・変更対応をする'], week1: ['キャンセルポリシーと補償対応を見直す'] },
+      'サプライチェーン断絶': { immediate: ['不足する食材・消耗品の在庫を確認する'], day1: ['宿泊客に食事内容の変更を案内する', '代替食材・消耗品の緊急調達をする'], week1: ['調達先の多様化と安全在庫の見直しをする'] }
+    }
+  };
+
+  function generate() {
+    var industry = document.getElementById('industry').value;
+    var risk = document.getElementById('risk').value;
+    if (!industry || !risk) {
+      alert('業種とリスクを選択してください');
+      return;
+    }
+
+    var base = BASE[risk];
+    var add = ADDITION[industry][risk];
+
+    var steps = {
+      immediate: base.immediate.concat(add.immediate || []),
+      day1: base.day1.concat(add.day1 || []),
+      week1: base.week1.concat(add.week1 || [])
+    };
+
+    document.getElementById('result-title').textContent = industry + ' × ' + risk + ' 対応シナリオ';
+    renderSteps('steps-immediate', steps.immediate);
+    renderSteps('steps-day1', steps.day1);
+    renderSteps('steps-week1', steps.week1);
+
+    document.getElementById('result-area').style.display = 'block';
+    document.getElementById('saved-notice').style.display = 'none';
+
+    document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderSteps(elId, items) {
+    var el = document.getElementById(elId);
+    el.innerHTML = items.map(function(item, i) {
+      return '<li><span class="step-num">' + (i + 1) + '</span><span>' + item + '</span></li>';
+    }).join('');
+  }
+
+  function savePlan() {
+    var industry = document.getElementById('industry').value;
+    var risk = document.getElementById('risk').value;
+    if (!industry || !risk) return;
+    var data = { industry: industry, risk: risk, savedAt: new Date().toLocaleString('ja-JP') };
+    localStorage.setItem('bcp_last_plan', JSON.stringify(data));
+    var notice = document.getElementById('saved-notice');
+    notice.style.display = 'block';
+    setTimeout(function() { notice.style.display = 'none'; }, 2500);
+  }
+
+  /* 保存済みプランの復元 */
+  window.addEventListener('load', function() {
+    var saved = localStorage.getItem('bcp_last_plan');
+    if (!saved) return;
+    try {
+      var data = JSON.parse(saved);
+      var industryEl = document.getElementById('industry');
+      var riskEl = document.getElementById('risk');
+      for (var i = 0; i < industryEl.options.length; i++) {
+        if (industryEl.options[i].value === data.industry) { industryEl.selectedIndex = i; break; }
+      }
+      for (var j = 0; j < riskEl.options.length; j++) {
+        if (riskEl.options[j].value === data.risk) { riskEl.selectedIndex = j; break; }
+      }
+    } catch(e) {}
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
