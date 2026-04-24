@@ -46,3 +46,4 @@
 [2026-04-24_114040] SCAN apps=体重記録アプリ_v2 total=0 exit=0
 [2026-04-24_122946] SCAN apps=仕入れインフレ影響シミュレーター total=0 exit=0
 [2026-04-24_162852] SCAN apps=値上げ影響シミュレーター total=0 exit=0
+[2026-04-24_165504] SCAN apps=熱中症対策診断アプリ total=0 exit=0
