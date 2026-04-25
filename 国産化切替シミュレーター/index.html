@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>国産化切替シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── セクション区切り ── */
+    .section-label {
+      font-size: 0.82rem; font-weight: 700; color: var(--text);
+      background: var(--accent-light);
+      border-left: 4px solid var(--accent);
+      padding: 0.4rem 0.8rem;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 0.9rem;
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.5rem; padding: 0.65rem;
+      font-size: 0.88rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer;
+    }
+    .btn-copy:active { background: var(--bg); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>国産化切替シミュレーター</h1>
+    <p class="subtitle">輸入品→国産品への切替採算を即判断</p>
+  </header>
+
+  <!-- 共通設定 -->
+  <div class="card">
+    <p class="card-title">共通設定</p>
+    <div class="field">
+      <label for="qty">数量（個 / 口）</label>
+      <input type="number" id="qty" placeholder="例: 100" min="1">
+    </div>
+    <div class="field">
+      <label for="price">1個あたりの売価（円）</label>
+      <input type="number" id="price" placeholder="例: 500" min="0">
+      <p class="hint">売価を入れると利益まで計算します。不明なら0でOK</p>
+    </div>
+  </div>
+
+  <!-- 輸入品コスト -->
+  <div class="card">
+    <p class="card-title">輸入品コスト</p>
+    <p class="section-label">現在の仕入れ（輸入）</p>
+    <div class="field">
+      <label for="imp_unit">仕入単価（円 / 個）</label>
+      <input type="number" id="imp_unit" placeholder="例: 200" min="0">
+    </div>
+    <div class="field">
+      <label for="imp_other">その他コスト合計（関税・送料・手数料など、円）</label>
+      <input type="number" id="imp_other" placeholder="例: 3000" min="0">
+      <p class="hint">ロット全体でかかるコストを入力（1個あたりではなく合計額）</p>
+    </div>
+  </div>
+
+  <!-- 国産品コスト -->
+  <div class="card">
+    <p class="card-title">国産品コスト</p>
+    <p class="section-label">切替先（国産）</p>
+    <div class="field">
+      <label for="dom_unit">仕入単価（円 / 個）</label>
+      <input type="number" id="dom_unit" placeholder="例: 280" min="0">
+    </div>
+    <div class="field">
+      <label for="dom_other">その他コスト合計（送料・手数料など、円）</label>
+      <input type="number" id="dom_other" placeholder="例: 1500" min="0">
+      <p class="hint">ロット全体でかかるコストを入力</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算を診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">採算診断</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- コピーボタン -->
+  <button class="btn-copy" id="copyBtn" style="display:none" onclick="copyResult()">結果をコピー</button>
+
+  <p style="max-width:600px;margin:0.5rem auto 1rem;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは入力値をもとに概算を計算します。実際の仕入れ判断は取引先や市場動向も考慮してください。
+  </p>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'kokusanka_v1';
+
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      ['qty','price','imp_unit','imp_other','dom_unit','dom_other'].forEach(function(id) {
+        if (d[id] !== undefined) document.getElementById(id).value = d[id];
+      });
+    } catch(e) {}
+  }
+
+  function save() {
+    var d = {};
+    ['qty','price','imp_unit','imp_other','dom_unit','dom_other'].forEach(function(id) {
+      d[id] = document.getElementById(id).value;
+    });
+    try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch(e) {}
+  }
+
+  function calc() {
+    var qty       = parseFloat(document.getElementById('qty').value)       || 0;
+    var price     = parseFloat(document.getElementById('price').value)     || 0;
+    var imp_unit  = parseFloat(document.getElementById('imp_unit').value);
+    var imp_other = parseFloat(document.getElementById('imp_other').value) || 0;
+    var dom_unit  = parseFloat(document.getElementById('dom_unit').value);
+    var dom_other = parseFloat(document.getElementById('dom_other').value) || 0;
+
+    if (!qty || isNaN(imp_unit) || isNaN(dom_unit)) {
+      showErr('数量・輸入仕入単価・国産仕入単価は必須です');
+      return;
+    }
+
+    save();
+
+    var imp_total = imp_unit * qty + imp_other;
+    var dom_total = dom_unit * qty + dom_other;
+    var cost_diff = dom_total - imp_total;         // 正＝国産が高い
+    var cost_diff_per = qty > 0 ? cost_diff / qty : 0;
+
+    var sales       = price * qty;
+    var imp_profit  = sales > 0 ? sales - imp_total : null;
+    var dom_profit  = sales > 0 ? sales - dom_total : null;
+    var imp_margin  = (sales > 0 && imp_profit !== null) ? (imp_profit / sales * 100) : null;
+    var dom_margin  = (sales > 0 && dom_profit !== null) ? (dom_profit / sales * 100) : null;
+
+    // 判定
+    var level, label, eval_text, note;
+    if (dom_total <= imp_total) {
+      // 国産の方が安い
+      level = 'ok';
+      label = '国産の方が安い';
+      eval_text = '切替推奨 — コストが削減できます';
+      note = '国産切替でコストを ' + fmt(Math.abs(cost_diff)) + ' 円（1個あたり ' + fmt2(Math.abs(cost_diff_per)) + ' 円）削減できます。';
+    } else if (dom_profit !== null && dom_profit > 0) {
+      // 国産は高いが利益は出る
+      level = 'warn';
+      label = 'コスト増・利益は出る';
+      eval_text = '採算は取れますが、コストが ' + fmt(cost_diff) + ' 円増加します';
+      note = '国産切替後も利益は出ますが、利益率が下がります。値上げや販売増で補えるか確認してください。';
+    } else if (dom_profit === null) {
+      // 売価なし: コスト比較のみ
+      level = cost_diff > imp_total * 0.2 ? 'ng' : 'warn';
+      label = 'コスト ' + (cost_diff >= 0 ? '+' : '') + fmt(cost_diff) + ' 円';
+      eval_text = cost_diff > 0 ? '国産の方がコストが高くなります' : '国産の方がコストが低くなります';
+      note = '売価を入力すると利益・採算まで計算できます。';
+    } else {
+      // 赤字
+      level = 'ng';
+      label = '採算が取れない';
+      eval_text = '国産切替後は赤字になります';
+      note = '国産コストが売価を上回っています。値上げ or 別の仕入れ先を検討してください。';
+    }
+
+    showResult(level, label, eval_text, note);
+
+    var rows = [
+      ['輸入：仕入コスト合計', fmt(imp_total) + ' 円'],
+      ['国産：仕入コスト合計', fmt(dom_total) + ' 円'],
+      ['コスト差額（国産−輸入）', (cost_diff >= 0 ? '+' : '') + fmt(cost_diff) + ' 円', true],
+      ['1個あたり差額', (cost_diff_per >= 0 ? '+' : '') + fmt2(cost_diff_per) + ' 円'],
+    ];
+    if (sales > 0) {
+      rows.push(['売上（' + fmt(qty) + ' 個）', fmt(sales) + ' 円']);
+      rows.push(['輸入時 利益', fmt(imp_profit) + ' 円（' + fmt1(imp_margin) + '%）']);
+      rows.push(['国産時 利益', fmt(dom_profit) + ' 円（' + fmt1(dom_margin) + '%）']);
+    }
+    showDetail(rows);
+    document.getElementById('copyBtn').style.display = 'block';
+  }
+
+  function showResult(level, val, evalTxt, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalTxt;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('copyBtn').style.display = 'none';
+  }
+
+  function copyResult() {
+    var rc = document.getElementById('result');
+    var rv = document.getElementById('rv').textContent;
+    var re = document.getElementById('re').textContent;
+    var rows = document.querySelectorAll('#db tr');
+    var text = '【国産化切替シミュレーター結果】\n' + rv + '\n' + re + '\n\n';
+    rows.forEach(function(tr) {
+      var cells = tr.querySelectorAll('td');
+      if (cells.length >= 2) text += cells[0].textContent + '：' + cells[1].textContent + '\n';
+    });
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() { alert('コピーしました'); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta); alert('コピーしました');
+    }
+  }
+
+  function fmt(n)  { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmt1(n) { return n !== null ? n.toFixed(1) : '—'; }
+  function fmt2(n) { return n !== null ? n.toFixed(1) : '—'; }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

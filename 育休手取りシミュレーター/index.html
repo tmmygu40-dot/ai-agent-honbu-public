@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>育休手取りシミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2カラム入力 ── */
+    .field-row { display: flex; gap: 0.8rem; margin-bottom: 1rem; }
+    .field-row .field { flex: 1; margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 640px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.9rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; color: var(--ok); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 月別テーブル ── */
+    .month-table-wrap { overflow-x: auto; }
+    .month-table {
+      width: 100%; border-collapse: collapse; font-size: 0.84rem; min-width: 480px;
+    }
+    .month-table th {
+      background: var(--accent-light); color: var(--accent);
+      font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em;
+      padding: 0.55rem 0.5rem; text-align: center; border-bottom: 2px solid var(--border);
+    }
+    .month-table td {
+      padding: 0.55rem 0.5rem; text-align: right;
+      border-bottom: 1px solid var(--border); color: var(--text);
+    }
+    .month-table td:first-child { text-align: left; color: var(--text-sub); white-space: nowrap; }
+    .month-table tr:last-child td { border-bottom: none; }
+    .month-table .phase-badge {
+      display: inline-block; font-size: 0.65rem; font-weight: 700;
+      padding: 0.15rem 0.45rem; border-radius: 6px; margin-left: 0.4rem;
+      vertical-align: middle;
+    }
+    .badge-before  { background: #e0f2fe; color: #0369a1; }
+    .badge-sanzen  { background: #fef9c3; color: #854d0e; }
+    .badge-ikukyu  { background: #dcfce7; color: #15803d; }
+    .month-table .row-total td { font-weight: 700; color: var(--accent); background: var(--accent-light); }
+    .note-tax { font-size: 0.7rem; color: var(--text-sub); margin-top: 0.6rem; }
+
+    /* ── 内訳カード ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 640px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🤱 育休手取りシミュレーター</h1>
+    <p class="subtitle">産前産後・育休中の月別手取り収入を即試算 — 出産手当金・育休給付金・社保免除を自動計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="salary">月給（税込、交通費除く）</label>
+      <input type="number" id="salary" placeholder="例: 280000" min="0">
+      <p class="hint">社会保険の計算に使います。残業代は除いて入力してください</p>
+    </div>
+    <div class="field">
+      <label for="nenkin_rate">社保料率（健保＋厚年 合計 %）</label>
+      <select id="nenkin_rate">
+        <option value="28">約28%（目安：大企業・協会けんぽ標準）</option>
+        <option value="30" selected>約30%（目安：一般的な会社員）</option>
+        <option value="32">約32%（目安：組合健保・高率）</option>
+      </select>
+      <p class="hint">産休・育休中は全額免除されます。産休前の月給からの差額がプラス分になります</p>
+    </div>
+  </div>
+
+  <!-- 期間設定カード -->
+  <div class="card">
+    <p class="card-title">期間設定</p>
+    <div class="field">
+      <label for="sanzen_start">産前休業開始月</label>
+      <input type="month" id="sanzen_start">
+      <p class="hint">出産予定日の42日前（多胎98日前）から取得できます</p>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="ikukyu_months">育休取得期間（月数）</label>
+        <select id="ikukyu_months">
+          <option value="3">3ヶ月</option>
+          <option value="6">6ヶ月</option>
+          <option value="9">9ヶ月</option>
+          <option value="12" selected>12ヶ月（1年）</option>
+          <option value="15">15ヶ月</option>
+          <option value="18">18ヶ月</option>
+          <option value="24">24ヶ月（最長）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="birth_type">出産種別</label>
+        <select id="birth_type">
+          <option value="single" selected>単胎（1人）</option>
+          <option value="multi">多胎（双子以上）</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">月別手取りを試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card ok" id="result" style="display:none">
+    <p class="result-label">産休・育休中の合計受取額（概算）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 月別一覧カード -->
+  <div class="card" id="month-card" style="display:none">
+    <p class="card-title">月別 手取り一覧</p>
+    <div class="month-table-wrap">
+      <table class="month-table">
+        <thead>
+          <tr>
+            <th>月</th>
+            <th>フェーズ</th>
+            <th>給付金・手当</th>
+            <th>社保免除分</th>
+            <th>月手取り概算</th>
+          </tr>
+        </thead>
+        <tbody id="month-tbody"></tbody>
+      </table>
+    </div>
+    <p class="note-tax">※ 給付金は非課税（所得税0円）。住民税は翌年以降に前年所得をもとに課税されます（別途考慮を）。</p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算の内訳・根拠</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:640px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 出産手当金は健康保険法第102条、育児休業給付金は雇用保険法第61条の4〜7を参考に概算計算。実際の受給額は標準報酬月額・雇用保険の賃金日額・在籍状況等により異なります。詳細は年金事務所・ハローワークへ。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // ── localStorage キー ──
+  var LS_KEY = 'ikukyu_sim_v1';
+
+  // ── 起動時に復元 ──
+  (function() {
+    var saved = localStorage.getItem(LS_KEY);
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      if (d.salary)        document.getElementById('salary').value = d.salary;
+      if (d.nenkin_rate)   document.getElementById('nenkin_rate').value = d.nenkin_rate;
+      if (d.sanzen_start)  document.getElementById('sanzen_start').value = d.sanzen_start;
+      if (d.ikukyu_months) document.getElementById('ikukyu_months').value = d.ikukyu_months;
+      if (d.birth_type)    document.getElementById('birth_type').value = d.birth_type;
+    } catch(e) {}
+  })();
+
+  // ── 計算メイン ──
+  function calc() {
+    var salary    = parseFloat(document.getElementById('salary').value);
+    var rate      = parseFloat(document.getElementById('nenkin_rate').value) / 100;
+    var startYM   = document.getElementById('sanzen_start').value; // "2025-10"
+    var ikuMonths = parseInt(document.getElementById('ikukyu_months').value);
+    var birthType = document.getElementById('birth_type').value;
+
+    if (!salary || salary <= 0 || !startYM) {
+      showErr('月給と産前休業開始月を入力してください');
+      return;
+    }
+
+    // localStorage 保存
+    localStorage.setItem(LS_KEY, JSON.stringify({
+      salary: salary, nenkin_rate: document.getElementById('nenkin_rate').value,
+      sanzen_start: startYM, ikukyu_months: ikuMonths, birth_type: birthType
+    }));
+
+    // ── フェーズ計算 ──
+    // 産前休業：単胎6週（42日≒1.4ヶ月→2ヶ月）、多胎14週（98日≒3.3ヶ月→4ヶ月）
+    var sanzenMonths = birthType === 'multi' ? 4 : 2;
+    // 産後休業：8週（56日≒2ヶ月）
+    var sangoMonths  = 2;
+    var sankyuMonths = sanzenMonths + sangoMonths; // 産前後合計（通常4、多胎6）
+
+    // 出産手当金：月給×(2/3) ← 標準報酬月額 = 月給と同一視
+    var shussan_teate_month = salary * (2 / 3);
+    // 社保免除：産休・育休中は免除（月給×社保率 分が浮く）
+    var shakai_menjo = salary * rate;
+
+    // 育休給付金（月換算）
+    // 最初180日（≒6ヶ月）は67%、以降は50%
+    var ikuFirst6  = salary * 0.67;
+    var ikuAfter6  = salary * 0.50;
+
+    // ── 月別データ生成 ──
+    var rows   = [];
+    var totalRcv = 0;
+    var ymParts  = startYM.split('-');
+    var yr = parseInt(ymParts[0]);
+    var mo = parseInt(ymParts[1]);
+
+    function nextMonth(y, m) {
+      m++; if (m > 12) { m = 1; y++; } return {y: y, m: m};
+    }
+    function fmtYM(y, m) { return y + '年' + m + '月'; }
+
+    // 産前フェーズ
+    for (var i = 0; i < sanzenMonths; i++) {
+      var rcv = shussan_teate_month;
+      var menjo = shakai_menjo;
+      rows.push({ label: fmtYM(yr, mo), phase: '産前休業', rcv: rcv, menjo: menjo, total: rcv + menjo });
+      totalRcv += rcv + menjo;
+      var nm = nextMonth(yr, mo); yr = nm.y; mo = nm.m;
+    }
+    // 産後フェーズ
+    for (var j = 0; j < sangoMonths; j++) {
+      var rcv2 = shussan_teate_month;
+      var menjo2 = shakai_menjo;
+      rows.push({ label: fmtYM(yr, mo), phase: '産後休業', rcv: rcv2, menjo: menjo2, total: rcv2 + menjo2 });
+      totalRcv += rcv2 + menjo2;
+      var nm2 = nextMonth(yr, mo); yr = nm2.y; mo = nm2.m;
+    }
+    // 育休フェーズ
+    for (var k = 0; k < ikuMonths; k++) {
+      var iku = k < 6 ? ikuFirst6 : ikuAfter6;
+      var menjo3 = shakai_menjo;
+      rows.push({ label: fmtYM(yr, mo), phase: '育休', rcv: iku, menjo: menjo3, total: iku + menjo3 });
+      totalRcv += iku + menjo3;
+      var nm3 = nextMonth(yr, mo); yr = nm3.y; mo = nm3.m;
+    }
+
+    // ── 結論カード ──
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '約 ' + fmt(totalRcv) + ' 円';
+    document.getElementById('rn').textContent =
+      '産休' + sankyuMonths + 'ヶ月＋育休' + ikuMonths + 'ヶ月の合計。給付金は非課税・社保免除を含む概算です。';
+
+    // ── 月別テーブル ──
+    var tbody = document.getElementById('month-tbody');
+    tbody.innerHTML = '';
+    rows.forEach(function(r) {
+      var phaseClass = r.phase.indexOf('産前') >= 0 ? 'badge-sanzen'
+                     : r.phase.indexOf('産後') >= 0 ? 'badge-sanzen'
+                     : 'badge-ikukyu';
+      var tr = '<tr>'
+        + '<td>' + r.label + '</td>'
+        + '<td><span class="phase-badge ' + phaseClass + '">' + r.phase + '</span></td>'
+        + '<td>' + fmt(r.rcv) + ' 円</td>'
+        + '<td>+' + fmt(r.menjo) + ' 円</td>'
+        + '<td><strong>' + fmt(r.total) + ' 円</strong></td>'
+        + '</tr>';
+      tbody.innerHTML += tr;
+    });
+    document.getElementById('month-card').style.display = 'block';
+
+    // ── 内訳 ──
+    showDetail([
+      ['月給（税込）',              fmt(salary) + ' 円'],
+      ['産前産後休業 出産手当金/月', fmt(shussan_teate_month) + ' 円（月給×2/3）'],
+      ['育休給付金/月（前半6ヶ月）', fmt(ikuFirst6) + ' 円（月給×67%）'],
+      ['育休給付金/月（後半）',      fmt(ikuAfter6) + ' 円（月給×50%）'],
+      ['社保免除額/月',              fmt(shakai_menjo) + ' 円（月給×' + Math.round(rate*100) + '%）'],
+      ['産休期間',                   sankyuMonths + 'ヶ月（産前' + sanzenMonths + '+産後' + sangoMonths + '）'],
+      ['育休期間',                   ikuMonths + 'ヶ月'],
+      ['合計受取概算',               fmt(totalRcv) + ' 円', true],
+    ]);
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('month-card').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

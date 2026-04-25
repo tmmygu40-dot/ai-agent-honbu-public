@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>現場報告書ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 72px; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 種別バッジ */
+    .type-select-wrap { display: flex; gap: 0.7rem; }
+    .type-btn {
+      flex: 1; padding: 0.75rem 0.5rem;
+      font-size: 0.95rem; font-weight: 700;
+      border: 2px solid var(--border); border-radius: 10px;
+      background: var(--bg); color: var(--text-sub);
+      cursor: pointer; text-align: center; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .type-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card .card-title { color: var(--ok); border-color: var(--ok); }
+
+    /* 生成文テキスト */
+    .result-text {
+      width: 100%; min-height: 240px;
+      padding: 0.9rem; font-size: 0.88rem; line-height: 1.7;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      font-family: inherit; resize: vertical;
+      margin-bottom: 0.8rem;
+    }
+    .btn-copy {
+      display: block; width: 100%; padding: 0.72rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 2px solid var(--ok); border-radius: 10px;
+      cursor: pointer; transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:active { background: #dcfce7; }
+
+    /* ── 履歴カード ── */
+    .history-card {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 1.25rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .history-list { list-style: none; }
+    .history-list li {
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 0.84rem; color: var(--text-sub);
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 0.5rem;
+    }
+    .history-list li:last-child { border-bottom: none; }
+    .history-list li:hover { color: var(--accent); }
+    .history-list .h-type {
+      font-weight: 700; font-size: 0.78rem;
+      background: var(--accent-light); color: var(--accent);
+      border-radius: 6px; padding: 0.15rem 0.4rem; white-space: nowrap; flex-shrink: 0;
+    }
+    .history-list .h-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+    .history-list .h-date { font-size: 0.74rem; color: var(--text-sub); white-space: nowrap; flex-shrink: 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🗒️ 現場報告書ジェネレーター</h1>
+    <p class="subtitle">ヒヤリハット・作業トラブル報告書を選んで入力するだけで即生成</p>
+  </header>
+
+  <!-- 種別選択 -->
+  <div class="card">
+    <p class="card-title">報告書の種類</p>
+    <div class="field">
+      <div class="type-select-wrap">
+        <button class="type-btn active" id="btnHiyari" onclick="setType('hiyari')">⚠️ ヒヤリハット</button>
+        <button class="type-btn" id="btnTrouble" onclick="setType('trouble')">🔧 作業トラブル</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 入力フォーム -->
+  <div class="card">
+    <p class="card-title">報告内容の入力</p>
+    <div class="field">
+      <label for="fDate">発生日時</label>
+      <input type="datetime-local" id="fDate">
+    </div>
+    <div class="field">
+      <label for="fReporter">報告者名</label>
+      <input type="text" id="fReporter" placeholder="例: 山田 太郎">
+    </div>
+    <div class="field">
+      <label for="fLocation">発生場所</label>
+      <input type="text" id="fLocation" placeholder="例: 第2倉庫 搬入口付近">
+    </div>
+    <div class="field">
+      <label for="fSituation">発生状況・内容</label>
+      <textarea id="fSituation" placeholder="例: フォークリフト作業中に荷物が棚に接触しそうになった"></textarea>
+    </div>
+    <div class="field">
+      <label for="fCause">原因・背景</label>
+      <textarea id="fCause" placeholder="例: 通路幅が狭く、視界が遮られていた"></textarea>
+    </div>
+    <div class="field">
+      <label for="fMeasure">対策・再発防止策</label>
+      <textarea id="fMeasure" placeholder="例: 通路の整理整頓と誘導員の配置を実施する"></textarea>
+    </div>
+    <div class="field">
+      <label for="fInjury" id="lblInjury">けが・損害の有無</label>
+      <input type="text" id="fInjury" placeholder="例: 負傷者なし／設備損傷なし">
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">📝 報告書を生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <p class="card-title">生成された報告書</p>
+    <textarea class="result-text" id="resultText" readonly></textarea>
+    <button class="btn-copy" id="copyBtn" onclick="copyText()">📋 コピーする</button>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="history-card" id="historyCard">
+    <p class="card-title">生成履歴（最大5件）</p>
+    <ul class="history-list" id="historyList"></ul>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+    var currentType = 'hiyari';
+
+    function setType(type) {
+      currentType = type;
+      document.getElementById('btnHiyari').className = 'type-btn' + (type === 'hiyari' ? ' active' : '');
+      document.getElementById('btnTrouble').className = 'type-btn' + (type === 'trouble' ? ' active' : '');
+      var injuryLabel = document.getElementById('lblInjury');
+      injuryLabel.textContent = type === 'hiyari' ? 'けがの有無' : '損害・被害の有無';
+    }
+
+    function formatDateTime(val) {
+      if (!val) return '（日時未記入）';
+      var d = new Date(val);
+      var yy = d.getFullYear();
+      var mm = d.getMonth() + 1;
+      var dd = d.getDate();
+      var hh = ('0' + d.getHours()).slice(-2);
+      var mi = ('0' + d.getMinutes()).slice(-2);
+      return yy + '年' + mm + '月' + dd + '日 ' + hh + ':' + mi;
+    }
+
+    function generate() {
+      var dateVal = document.getElementById('fDate').value;
+      var reporter = document.getElementById('fReporter').value.trim();
+      var location = document.getElementById('fLocation').value.trim();
+      var situation = document.getElementById('fSituation').value.trim();
+      var cause = document.getElementById('fCause').value.trim();
+      var measure = document.getElementById('fMeasure').value.trim();
+      var injury = document.getElementById('fInjury').value.trim();
+
+      if (!situation) {
+        alert('「発生状況・内容」は必ず入力してください。');
+        return;
+      }
+
+      var typeName = currentType === 'hiyari' ? 'ヒヤリハット報告書' : '作業トラブル報告書';
+      var dateStr = formatDateTime(dateVal);
+      var reporterStr = reporter || '（記名なし）';
+      var locationStr = location || '（場所未記入）';
+      var situationStr = situation;
+      var causeStr = cause || '（原因未記入）';
+      var measureStr = measure || '（対策未記入）';
+      var injuryStr = injury || '（記入なし）';
+      var today = new Date();
+      var reportDate = today.getFullYear() + '年' + (today.getMonth()+1) + '月' + today.getDate() + '日';
+
+      var text = [
+        '【' + typeName + '】',
+        '',
+        '報告日　　：' + reportDate,
+        '報告者　　：' + reporterStr,
+        '発生日時　：' + dateStr,
+        '発生場所　：' + locationStr,
+        '',
+        '■ 発生状況・内容',
+        situationStr,
+        '',
+        '■ 原因・背景',
+        causeStr,
+        '',
+        '■ 対策・再発防止策',
+        measureStr,
+        '',
+        '■ ' + (currentType === 'hiyari' ? 'けがの有無' : '損害・被害の有無'),
+        injuryStr,
+        '',
+        '─────────────────────',
+        '以上、報告いたします。',
+      ].join('\n');
+
+      var resultCard = document.getElementById('resultCard');
+      resultCard.style.display = 'block';
+      document.getElementById('resultText').value = text;
+      document.getElementById('copyBtn').textContent = '📋 コピーする';
+      resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      saveHistory({ type: typeName, summary: situationStr, text: text, date: reportDate });
+    }
+
+    function copyText() {
+      var ta = document.getElementById('resultText');
+      ta.select();
+      ta.setSelectionRange(0, 99999);
+      try {
+        document.execCommand('copy');
+        document.getElementById('copyBtn').textContent = '✅ コピーしました！';
+        setTimeout(function() {
+          document.getElementById('copyBtn').textContent = '📋 コピーする';
+        }, 2000);
+      } catch (e) {
+        navigator.clipboard.writeText(ta.value).then(function() {
+          document.getElementById('copyBtn').textContent = '✅ コピーしました！';
+          setTimeout(function() {
+            document.getElementById('copyBtn').textContent = '📋 コピーする';
+          }, 2000);
+        });
+      }
+    }
+
+    /* ── 履歴 ── */
+    var STORAGE_KEY = 'genba-report-history';
+
+    function saveHistory(item) {
+      var list = loadHistoryData();
+      list.unshift(item);
+      if (list.length > 5) list = list.slice(0, 5);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      renderHistory(list);
+    }
+
+    function loadHistoryData() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) { return []; }
+    }
+
+    function renderHistory(list) {
+      var card = document.getElementById('historyCard');
+      var ul = document.getElementById('historyList');
+      if (!list || list.length === 0) {
+        card.style.display = 'none';
+        return;
+      }
+      card.style.display = 'block';
+      ul.innerHTML = list.map(function(item, idx) {
+        var summary = item.summary.length > 28 ? item.summary.slice(0, 28) + '…' : item.summary;
+        return '<li onclick="restoreHistory(' + idx + ')">'
+          + '<span class="h-type">' + escHtml(item.type) + '</span>'
+          + '<span class="h-summary">' + escHtml(summary) + '</span>'
+          + '<span class="h-date">' + escHtml(item.date) + '</span>'
+          + '</li>';
+      }).join('');
+    }
+
+    function restoreHistory(idx) {
+      var list = loadHistoryData();
+      if (!list[idx]) return;
+      var resultCard = document.getElementById('resultCard');
+      resultCard.style.display = 'block';
+      document.getElementById('resultText').value = list[idx].text;
+      document.getElementById('copyBtn').textContent = '📋 コピーする';
+      resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function escHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // 初期化
+    renderHistory(loadHistoryData());
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>交渉文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .stance-row { display: flex; gap: 0.5rem; }
+    .stance-btn {
+      flex: 1; padding: 0.55rem 0.4rem;
+      font-size: 0.82rem; font-weight: 700;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .stance-btn.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+
+    .btn-generate {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-generate:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .output-section { display: none; }
+    .output-block { margin-bottom: 1.2rem; }
+    .output-label {
+      font-size: 0.8rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; margin-bottom: 0.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .btn-copy {
+      font-size: 0.75rem; font-weight: 700;
+      padding: 0.3rem 0.8rem; border-radius: 7px;
+      border: 1.5px solid var(--accent); background: var(--accent-light);
+      color: var(--accent); cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:active { background: var(--accent); color: #fff; }
+    .btn-copy.copied { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+
+    .output-text {
+      white-space: pre-wrap; line-height: 1.8; font-size: 0.9rem;
+      background: #faf8f5; border: 1px solid var(--border);
+      border-radius: 9px; padding: 1rem; color: var(--text);
+      word-break: break-all;
+    }
+
+    .tab-row { display: flex; gap: 0.4rem; margin-bottom: 1.2rem; }
+    .tab-btn {
+      flex: 1; padding: 0.6rem; font-size: 0.82rem; font-weight: 700;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-generate, .back-link, #fav-widget, .btn-copy, .tab-row, .stance-row { display: none !important; }
+      .card { box-shadow: none; border: 1px solid #ccc; }
+      .app-header { border-bottom: 2px solid #000; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>交渉文ジェネレーター</h1>
+    <p class="subtitle">仕入れ先への値上げ交渉メール・トーク台本を即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">状況入力</p>
+
+    <div class="field">
+      <label for="scene">交渉シーン</label>
+      <select id="scene">
+        <option value="reject">値上げを断りたい（現状維持を求める）</option>
+        <option value="postpone">値上げを先延ばし・猶予を求めたい</option>
+        <option value="reduce">値上げ幅を抑えてほしい（一部受諾）</option>
+        <option value="condition">条件付きで受諾したい（増量・改善を要求）</option>
+        <option value="alternative">代替品・他社比較を理由に断りたい</option>
+        <option value="review">まず一度見直しを依頼したい</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>交渉スタンス</label>
+      <div class="stance-row">
+        <button class="stance-btn" data-stance="soft" onclick="setStance('soft')">穏やか</button>
+        <button class="stance-btn active" data-stance="normal" onclick="setStance('normal')">標準</button>
+        <button class="stance-btn" data-stance="firm" onclick="setStance('firm')">強気</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="supplier">仕入れ先名（会社名）</label>
+      <input type="text" id="supplier" placeholder="例：株式会社〇〇商事">
+    </div>
+
+    <div class="field">
+      <label for="item">品目・商品名</label>
+      <input type="text" id="item" placeholder="例：〇〇原材料、〇〇部品">
+    </div>
+
+    <div class="field">
+      <label for="rise_pct">値上げ幅（例：10%、または「未定」）</label>
+      <input type="text" id="rise_pct" placeholder="例：10%、約15%、未定">
+    </div>
+
+    <div class="field">
+      <label for="my_company">自社名（省略可）</label>
+      <input type="text" id="my_company" placeholder="例：〇〇株式会社（省略可）">
+    </div>
+
+    <div class="field">
+      <label for="free_note">状況の補足（省略可）</label>
+      <textarea id="free_note" rows="2" placeholder="例：長年のお付き合いを強調したい、先方の提示理由など"></textarea>
+    </div>
+  </div>
+
+  <button class="btn-generate" onclick="generate()">📝 交渉文を生成する</button>
+
+  <!-- 出力セクション -->
+  <div class="card output-section" id="outputSection">
+    <p class="card-title">生成結果</p>
+
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('mail')">✉️ メール文</button>
+      <button class="tab-btn" onclick="switchTab('talk')">💬 トーク台本</button>
+    </div>
+
+    <!-- メール文タブ -->
+    <div class="tab-panel active" id="tab-mail">
+      <div class="output-block">
+        <div class="output-label">
+          <span>✉️ 値上げ交渉メール</span>
+          <button class="btn-copy" onclick="copyText('mailText', this)">コピー</button>
+        </div>
+        <pre class="output-text" id="mailText"></pre>
+      </div>
+    </div>
+
+    <!-- トーク台本タブ -->
+    <div class="tab-panel" id="tab-talk">
+      <div class="output-block">
+        <div class="output-label">
+          <span>💬 電話・対面トーク台本</span>
+          <button class="btn-copy" onclick="copyText('talkText', this)">コピー</button>
+        </div>
+        <pre class="output-text" id="talkText"></pre>
+      </div>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var currentStance = 'normal';
+
+  function setStance(s) {
+    currentStance = s;
+    document.querySelectorAll('.stance-btn').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.stance === s);
+    });
+    saveInputs();
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(function(b, i) {
+      var names = ['mail', 'talk'];
+      b.classList.toggle('active', names[i] === name);
+    });
+    document.querySelectorAll('.tab-panel').forEach(function(p) {
+      p.classList.toggle('active', p.id === 'tab-' + name);
+    });
+  }
+
+  function saveInputs() {
+    var data = {
+      scene: document.getElementById('scene').value,
+      stance: currentStance,
+      supplier: document.getElementById('supplier').value,
+      item: document.getElementById('item').value,
+      rise_pct: document.getElementById('rise_pct').value,
+      my_company: document.getElementById('my_company').value,
+      free_note: document.getElementById('free_note').value
+    };
+    localStorage.setItem('交渉文ジェネレーター', JSON.stringify(data));
+  }
+
+  function loadInputs() {
+    var raw = localStorage.getItem('交渉文ジェネレーター');
+    if (!raw) return;
+    try {
+      var d = JSON.parse(raw);
+      if (d.scene) document.getElementById('scene').value = d.scene;
+      if (d.stance) setStance(d.stance);
+      if (d.supplier) document.getElementById('supplier').value = d.supplier;
+      if (d.item) document.getElementById('item').value = d.item;
+      if (d.rise_pct) document.getElementById('rise_pct').value = d.rise_pct;
+      if (d.my_company) document.getElementById('my_company').value = d.my_company;
+      if (d.free_note) document.getElementById('free_note').value = d.free_note;
+    } catch(e) {}
+  }
+
+  document.querySelectorAll('input, select, textarea').forEach(function(el) {
+    el.addEventListener('input', saveInputs);
+    el.addEventListener('change', saveInputs);
+  });
+
+  function generate() {
+    var scene     = document.getElementById('scene').value;
+    var supplier  = document.getElementById('supplier').value.trim() || '〇〇様';
+    var item      = document.getElementById('item').value.trim() || '〇〇';
+    var rise_pct  = document.getElementById('rise_pct').value.trim() || '〇〇%';
+    var my_company = document.getElementById('my_company').value.trim();
+    var free_note = document.getElementById('free_note').value.trim();
+    var stance    = currentStance;
+
+    var mail = buildMail(scene, stance, supplier, item, rise_pct, my_company, free_note);
+    var talk = buildTalk(scene, stance, supplier, item, rise_pct, free_note);
+
+    document.getElementById('mailText').textContent = mail;
+    document.getElementById('talkText').textContent = talk;
+    document.getElementById('outputSection').style.display = '';
+
+    // メールタブをデフォルト表示
+    switchTab('mail');
+
+    // スクロール
+    document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function buildMail(scene, stance, supplier, item, rise, myco, note) {
+    var subject = getSubject(scene, item);
+    var opening = myco ? myco + 'の担当者でございます。' : 'いつもお世話になっております。';
+    var body = '';
+
+    if (scene === 'reject') {
+      body = buildRejectMail(stance, supplier, item, rise, note);
+    } else if (scene === 'postpone') {
+      body = buildPostponeMail(stance, supplier, item, rise, note);
+    } else if (scene === 'reduce') {
+      body = buildReduceMail(stance, supplier, item, rise, note);
+    } else if (scene === 'condition') {
+      body = buildConditionMail(stance, supplier, item, rise, note);
+    } else if (scene === 'alternative') {
+      body = buildAlternativeMail(stance, supplier, item, rise, note);
+    } else {
+      body = buildReviewMail(stance, supplier, item, rise, note);
+    }
+
+    return '件名：' + subject + '\n\n' + supplier + '\n担当者様\n\n' + opening + '\n' + body;
+  }
+
+  function getSubject(scene, item) {
+    var subjects = {
+      reject:      item + 'の価格改定についてのご回答',
+      postpone:    item + 'の価格改定に関するご相談',
+      reduce:      item + 'の価格改定幅についてのお願い',
+      condition:   item + 'の価格改定条件についてのご提案',
+      alternative: item + 'の価格改定に関するご検討のお願い',
+      review:      item + 'の価格改定内容について再確認のお願い'
+    };
+    return subjects[scene] || item + 'の価格改定についてのご連絡';
+  }
+
+  function stanceAdj(stance, soft, normal, firm) {
+    if (stance === 'soft')  return soft;
+    if (stance === 'firm')  return firm;
+    return normal;
+  }
+
+  function buildRejectMail(stance, supplier, item, rise, note) {
+    var intro = stanceAdj(stance,
+      'このたびは' + item + 'の価格改定についてご連絡いただき、ありがとうございます。\n誠意をもってご検討いたしましたが、誠に恐れ入りますが現状では値上げのご対応が難しい状況です。',
+      'このたびは' + item + 'の価格改定についてご連絡いただきました。\n弊社といたしましては、現状の価格でのご継続をお願いしたく存じます。',
+      'このたびは' + item + 'の価格改定について承りました。\n率直に申し上げますと、' + rise + 'の値上げは現在の弊社の状況では受け入れがたい水準です。'
+    );
+    var reason = stanceAdj(stance,
+      '昨今の市場環境の厳しさは十分理解しておりますが、弊社も仕入れコストや運営費の増加に直面しており、価格転嫁が困難な状況にございます。',
+      '弊社においても昨今のコスト増は認識しておりますが、販売価格への転嫁が難しい状況が続いており、仕入れコストの現状維持が不可欠です。',
+      '弊社においても厳しい経営環境が続いており、これ以上の仕入れコスト増加は経営の根幹に関わります。'
+    );
+    var close = stanceAdj(stance,
+      'ご状況はよく理解しておりますが、現状価格での継続につきまして、何卒ご配慮をお願いできますでしょうか。\n引き続き長期的なお取り引きを大切にしてまいりたいと考えております。\nどうぞよろしくお願いいたします。',
+      '現状価格での継続につきまして、ご検討いただけますよう伏してお願い申し上げます。\n引き続きのお取引をよろしくお願いいたします。',
+      '現状価格での取引継続を強くご要望いたします。\nご検討のほど、よろしくお願いいたします。'
+    );
+    var noteStr = note ? '\nなお、' + note + '\n' : '';
+    return intro + '\n\n' + reason + noteStr + '\n\n' + close;
+  }
+
+  function buildPostponeMail(stance, supplier, item, rise, note) {
+    var intro = stanceAdj(stance,
+      'このたびは' + item + 'の価格改定についてご連絡いただきありがとうございます。\n誠意をもって検討いたしましたが、現時点での対応が難しい状況です。',
+      'このたびは' + item + 'の価格改定のご連絡をいただきました。\n値上げ幅（' + rise + '）について、実施時期の猶予をいただけますでしょうか。',
+      '貴社からの' + item + 'の価格改定（' + rise + '）について承りました。\n弊社として対応の時間が必要なため、実施猶予をお願いしたく存じます。'
+    );
+    var body = stanceAdj(stance,
+      '誠に恐れ入りますが、少なくとも今後3〜6か月程度の猶予期間をいただけますと大変助かります。\nその間に弊社内での対応策を検討し、最善の判断をしたいと考えております。',
+      '弊社内で価格転嫁の準備・顧客への周知等に時間を要しますため、実施までに少なくとも3か月のお時間をいただけますと幸いです。',
+      '弊社の事業計画上、少なくとも今後半期（6か月）の猶予をいただくことが必要です。その期間は現状価格でのご対応をお願いします。'
+    );
+    var noteStr = note ? '\n（' + note + '）\n' : '';
+    var close = '何卒ご配慮いただきますようお願い申し上げます。';
+    return intro + '\n\n' + body + noteStr + '\n\n' + close;
+  }
+
+  function buildReduceMail(stance, supplier, item, rise, note) {
+    var intro = '貴社より' + item + 'の価格改定（' + rise + '）についてご連絡いただきました。\n値上げ自体は一定程度やむを得ないとは認識しておりますが、値上げ幅の圧縮について、ご検討いただけますでしょうか。';
+    var body = stanceAdj(stance,
+      '弊社としましても、長期的なお取引を継続していきたいという思いは変わりません。\n恐れ入りますが、値上げ幅をできる限り抑えていただければ、今後もより安定した取引量の確保に努めてまいります。',
+      '弊社が吸収できる値上げ幅には限界があり、' + rise + 'の全額反映は困難な状況です。\n例えば、段階的な値上げや、取引量に応じたボリュームディスカウントなどご検討いただければ幸いです。',
+      '率直に申し上げますと、' + rise + 'の全額値上げは弊社の採算ライン上、受け入れ困難です。\n他社との比較も含め検討しておりますが、まずは貴社に最優先でご相談している次第です。値上げ幅の大幅な縮小をお願いします。'
+    );
+    var noteStr = note ? '\n（' + note + '）\n' : '';
+    var close = 'ご検討のほど、よろしくお願い申し上げます。';
+    return intro + '\n\n' + body + noteStr + '\n\n' + close;
+  }
+
+  function buildConditionMail(stance, supplier, item, rise, note) {
+    var intro = '貴社より' + item + 'の価格改定（' + rise + '）のご連絡をいただきました。\n一定の条件のもと受諾する方向で検討しておりますが、あわせて以下の点について改善をお願いできますでしょうか。';
+    var body = stanceAdj(stance,
+      '・品質の維持・向上のお約束\n・納期の安定（リードタイムの短縮）\n・数量に応じた価格調整（ボリュームディスカウント）\nの何れかご対応いただけますと、値上げを前向きに検討できます。',
+      '・品質水準の保証\n・安定した供給体制の確約\n・まとめ発注時の割引検討\nこれらをご提示いただけますでしょうか。',
+      '値上げを受諾する条件として、以下を要求します。\n・〇〇%のボリューム割引\n・品質保証書の定期提出\n・年1回の価格見直し機会の設定\nこれらが確保できれば、今回の値上げは受け入れる意向です。'
+    );
+    var noteStr = note ? '\n（補足：' + note + '）\n' : '';
+    var close = 'ご確認・ご検討のほど、よろしくお願いいたします。';
+    return intro + '\n\n' + body + noteStr + '\n\n' + close;
+  }
+
+  function buildAlternativeMail(stance, supplier, item, rise, note) {
+    var intro = '貴社より' + item + 'の価格改定（' + rise + '）のご連絡をいただきました。';
+    var body = stanceAdj(stance,
+      '弊社といたしましても長年のお付き合いを大切にしており、できれば貴社との取引を継続したいと考えております。\nしかしながら、他社様でも同等品の調達が可能であり、現状の価格感と大きな開きが生じてしまっています。\n現行価格でのご継続、またはそれに近い条件でのご対応をご検討いただけないでしょうか。',
+      '現在、他社様からも同等品の見積もりを取得しており、比較検討を進めております。\n弊社としては引き続き貴社との取引を希望しておりますが、今回の' + rise + 'の値上げでは競合水準との乖離が大きく、慎重にならざるを得ません。\nご再考いただけますようお願いします。',
+      '他社からの見積もりでは同等品を現状価格に近い水準で調達できる見通しです。\n今回の' + rise + 'という値上げ幅は受け入れ困難であり、対応いただけない場合は調達先の切り替えを検討せざるを得ません。\n価格の据え置きもしくは大幅な縮小をお願いします。'
+    );
+    var noteStr = note ? '\n（' + note + '）\n' : '';
+    var close = 'ご検討のほど、よろしくお願いいたします。';
+    return intro + '\n\n' + body + noteStr + '\n\n' + close;
+  }
+
+  function buildReviewMail(stance, supplier, item, rise, note) {
+    var intro = '貴社より' + item + 'の価格改定（' + rise + '）についてご連絡をいただきました。\nまずは値上げの根拠・内訳について確認させていただきたく、ご連絡いたします。';
+    var body = stanceAdj(stance,
+      'お手数をおかけして大変申し訳ありませんが、以下についてご教示いただけますと幸いです。\n・値上げの主な要因（原材料費・輸送費・人件費 など）\n・値上げ幅の計算根拠\n・実施予定時期\n弊社内での検討のため、ご回答いただけますと助かります。',
+      '弊社として適切な対応を検討するにあたり、以下の情報をご提供いただけますでしょうか。\n・値上げの主因と内訳\n・値上げ幅の算定方法\n・他の取引先への適用状況\nご回答をもとに早急に社内検討いたします。',
+      '今回の値上げについて詳細を確認したく存じます。\n根拠資料（コスト明細等）をご提示ください。内容を精査の上、弊社の対応を決定します。'
+    );
+    var noteStr = note ? '\n（' + note + '）\n' : '';
+    var close = 'ご対応のほど、よろしくお願いいたします。';
+    return intro + '\n\n' + body + noteStr + '\n\n' + close;
+  }
+
+  // ---- トーク台本生成 ----
+  function buildTalk(scene, stance, supplier, item, rise, note) {
+    var lines = [];
+    lines.push('【電話・対面トーク台本】');
+    lines.push('シーン：' + getSceneLabel(scene) + '　スタンス：' + getStanceLabel(stance));
+    lines.push('');
+    lines.push('■ 冒頭（挨拶）');
+    lines.push('「いつもお世話になっております。〇〇（自社名）の△△（担当者名）と申します。');
+    lines.push('先日ご連絡いただきました' + item + 'の価格改定の件でご連絡いたしました。」');
+    lines.push('');
+    lines.push('■ 本題（交渉）');
+
+    if (scene === 'reject') {
+      if (stance === 'soft') {
+        lines.push('「大変恐れ入りますが、現在弊社も厳しい状況にございまして、');
+        lines.push('' + rise + 'の値上げはすぐには対応が難しい状況です。');
+        lines.push('何卒、現状の価格でのご継続をご検討いただけないでしょうか。」');
+        lines.push('');
+        lines.push('（相手が難しいと言った場合）');
+        lines.push('「そうでしたか。もし少しでも余地がございましたら、');
+        lines.push('まずは今後〇か月間、現状価格でお願いできますでしょうか。」');
+      } else if (stance === 'firm') {
+        lines.push('「率直に申し上げますと、' + rise + 'の値上げは弊社として受け入れがたい水準です。');
+        lines.push('現状価格での継続を強くお願いしたいと思います。');
+        lines.push('もし対応いただけない場合は、他社への切り替えも含めて検討せざるを得ません。」');
+      } else {
+        lines.push('「今回の' + rise + 'という値上げ幅について、');
+        lines.push('弊社としては現状価格での継続をお願いしたく、ご連絡いたしました。');
+        lines.push('弊社も仕入れコスト増加には苦しんでおりまして、転嫁が難しい状況です。');
+        lines.push('何卒ご検討いただけますでしょうか。」');
+      }
+    } else if (scene === 'postpone') {
+      lines.push('「値上げ自体は理解しておりますが、対応する時間が必要です。');
+      lines.push('少なくとも' + (stance === 'firm' ? '6か月' : '3か月') + 'の猶予をいただけないでしょうか。');
+      lines.push('その間に弊社内で体制を整え、できる限りご要望に応えられるよう取り組みます。」');
+    } else if (scene === 'reduce') {
+      lines.push('「値上げ自体は一定程度理解できます。');
+      lines.push('ただ、' + rise + 'の全額は正直厳しい状況です。');
+      if (stance === 'firm') {
+        lines.push('半額程度に縮小していただくことはできますか？そうでないと取引継続の検討が必要です。」');
+      } else {
+        lines.push('例えば半額程度に段階的にしていただく、というご対応は可能でしょうか。」');
+      }
+    } else if (scene === 'condition') {
+      lines.push('「値上げを受け入れる方向で検討しています。');
+      lines.push('ただ、その場合は品質の保証と安定供給の確約をいただきたいです。');
+      lines.push('また、取引量が増えた場合の割引についてもご相談させてください。」');
+    } else if (scene === 'alternative') {
+      lines.push('「実は他社様からも同等品の見積もりをとっておりまして、');
+      lines.push('現状に近い価格感で調達できる可能性があります。');
+      lines.push('できれば貴社との取引を継続したいので、まずご相談いたしました。');
+      if (stance === 'firm') {
+        lines.push('対応いただけない場合は、切り替えを進める可能性もございます。」');
+      } else {
+        lines.push('何かご配慮いただけるとありがたいのですが、いかがでしょうか。」');
+      }
+    } else {
+      lines.push('「値上げの背景について詳しくお聞かせいただけますか。');
+      lines.push('主な要因は何でしょうか。原材料費でしょうか、それとも輸送費などでしょうか。」');
+      lines.push('');
+      lines.push('（相手の説明を聞いた後）');
+      lines.push('「なるほど、わかりました。社内で検討いたしますので、');
+      lines.push('書面でも詳細をお送りいただけますでしょうか。」');
+    }
+
+    lines.push('');
+    lines.push('■ 押し返し対応（相手が値上げを主張してきた場合）');
+    if (stance === 'soft') {
+      lines.push('「おっしゃることはよくわかります。ただ弊社の状況もご理解いただけますと幸いです。');
+      lines.push('お互いにとって良い着地点を見つけられればと思っております。」');
+    } else if (stance === 'firm') {
+      lines.push('「ご事情は理解しますが、弊社の経営にも影響するため妥協点を探る必要があります。');
+      lines.push('今週中に再度ご回答いただけますでしょうか。」');
+    } else {
+      lines.push('「そうですね。ただ現実的に弊社の許容範囲との差が大きいため、');
+      lines.push('何らかのご調整が可能か検討いただけますでしょうか。」');
+    }
+
+    lines.push('');
+    lines.push('■ クロージング');
+    lines.push('「本日はお時間いただきありがとうございました。');
+    lines.push('ご検討の結果を〇月〇日ごろまでにご連絡いただけますと大変ありがたいです。');
+    lines.push('引き続きよろしくお願いいたします。」');
+
+    if (note) {
+      lines.push('');
+      lines.push('■ 補足');
+      lines.push(note);
+    }
+
+    return lines.join('\n');
+  }
+
+  function getSceneLabel(scene) {
+    var m = {
+      reject: '値上げを断りたい', postpone: '猶予を求めたい', reduce: '値上げ幅を抑えたい',
+      condition: '条件付き受諾', alternative: '代替品を理由に断りたい', review: '内容の再確認を依頼'
+    };
+    return m[scene] || scene;
+  }
+  function getStanceLabel(s) {
+    return s === 'soft' ? '穏やか' : s === 'firm' ? '強気' : '標準';
+  }
+
+  function copyText(id, btn) {
+    var text = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = 'コピー済み';
+      btn.classList.add('copied');
+      setTimeout(function() { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 1800);
+    }).catch(function() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = 'コピー済み';
+      btn.classList.add('copied');
+      setTimeout(function() { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 1800);
+    });
+  }
+
+  window.addEventListener('load', loadInputs);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

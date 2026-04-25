@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>光熱費補助終了コスト診断ツール</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── プリセットボタン ── */
+    .preset-row {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    .preset-btn {
+      flex: 1; min-width: 70px;
+      padding: 0.5rem 0.3rem;
+      font-size: 0.78rem; font-weight: 600;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent);
+      border-radius: 9px; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .preset-btn:active, .preset-btn.active {
+      background: var(--accent); color: #fff;
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>光熱費補助終了コスト診断ツール</h1>
+    <p class="subtitle">政府の電気・ガス補助が終了したら家計負担がいくら増えるか即診断</p>
+  </header>
+
+  <!-- 世帯プリセット -->
+  <div class="card">
+    <p class="card-title">世帯人数プリセット</p>
+    <p class="hint" style="font-size:0.72rem;color:var(--text-sub);margin-bottom:0.8rem;">世帯人数を選ぶと平均使用量が自動入力されます</p>
+    <div class="preset-row">
+      <button class="preset-btn" onclick="applyPreset(1)">1人</button>
+      <button class="preset-btn" onclick="applyPreset(2)">2人</button>
+      <button class="preset-btn" onclick="applyPreset(3)">3人</button>
+      <button class="preset-btn" onclick="applyPreset(4)">4人以上</button>
+    </div>
+  </div>
+
+  <!-- 使用量入力カード -->
+  <div class="card">
+    <p class="card-title">月間使用量</p>
+    <div class="field">
+      <label for="elecKwh">電気使用量（kWh/月）</label>
+      <input type="number" id="elecKwh" placeholder="例: 300" min="0" step="1">
+      <p class="hint">電気料金の検針票に記載の月間使用量</p>
+    </div>
+    <div class="field">
+      <label for="gasM3">ガス使用量（m³/月）</label>
+      <input type="number" id="gasM3" placeholder="例: 20" min="0" step="0.1">
+      <p class="hint">ガス料金の検針票に記載の月間使用量</p>
+    </div>
+  </div>
+
+  <!-- 補助単価設定カード -->
+  <div class="card">
+    <p class="card-title">補助単価設定</p>
+    <div class="field">
+      <label for="elecSubsidy">電気の補助単価（円/kWh）</label>
+      <input type="number" id="elecSubsidy" placeholder="例: 3.5" min="0" step="0.1" value="3.5">
+      <p class="hint">政府の電気代補助額（2024年度：低圧3.5円/kWh相当）</p>
+    </div>
+    <div class="field">
+      <label for="gasSubsidy">ガスの補助単価（円/m³）</label>
+      <input type="number" id="gasSubsidy" placeholder="例: 15" min="0" step="0.1" value="15">
+      <p class="hint">政府のガス代補助額（2024年度：15円/m³相当）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">負担増を診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月額の負担増</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">&larr; トップへ戻る</a>
+
+  <script>
+  // 世帯プリセットデータ（平均使用量の目安）
+  var presets = {
+    1: { elec: 170, gas: 5 },
+    2: { elec: 320, gas: 20 },
+    3: { elec: 370, gas: 28 },
+    4: { elec: 430, gas: 35 }
+  };
+
+  function applyPreset(n) {
+    var p = presets[n];
+    document.getElementById('elecKwh').value = p.elec;
+    document.getElementById('gasM3').value = p.gas;
+    // ボタンのアクティブ表示
+    var btns = document.querySelectorAll('.preset-btn');
+    btns.forEach(function(b){ b.classList.remove('active'); });
+    btns[n - 1].classList.add('active');
+    saveToStorage();
+  }
+
+  function calc() {
+    var elecKwh = parseFloat(document.getElementById('elecKwh').value);
+    var gasM3 = parseFloat(document.getElementById('gasM3').value);
+    var elecSub = parseFloat(document.getElementById('elecSubsidy').value);
+    var gasSub = parseFloat(document.getElementById('gasSubsidy').value);
+
+    if (isNaN(elecKwh) || isNaN(gasM3)) {
+      showErr('電気・ガスの使用量を入力してください');
+      return;
+    }
+    if (isNaN(elecSub)) elecSub = 0;
+    if (isNaN(gasSub)) gasSub = 0;
+
+    // 計算
+    var elecIncrease = elecKwh * elecSub;
+    var gasIncrease = gasM3 * gasSub;
+    var monthTotal = elecIncrease + gasIncrease;
+    var yearTotal = monthTotal * 12;
+
+    // 判定レベル
+    var level, msg;
+    if (monthTotal < 500) {
+      level = 'ok';
+      msg = '影響は比較的小さめです。大きな家計見直しは不要でしょう';
+    } else if (monthTotal < 2000) {
+      level = 'warn';
+      msg = '月々の負担増が目立つ水準です。節電・節ガスや料金プラン見直しの検討を';
+    } else {
+      level = 'ng';
+      msg = '大きな家計圧迫です。電力プラン変更・省エネ対策を早めに進めましょう';
+    }
+
+    showResult(level, '+' + fmt(monthTotal) + ' 円/月', msg);
+    showDetail([
+      ['電気 負担増（月額）', '+' + fmt(elecIncrease) + ' 円'],
+      ['　使用量', fmt(elecKwh) + ' kWh × ' + elecSub + ' 円/kWh'],
+      ['ガス 負担増（月額）', '+' + fmt(gasIncrease) + ' 円'],
+      ['　使用量', fmt(gasM3) + ' m³ × ' + gasSub + ' 円/m³'],
+      ['月額 合計負担増', '+' + fmt(monthTotal) + ' 円', true],
+      ['年額 合計負担増', '+' + fmt(yearTotal) + ' 円', true]
+    ]);
+
+    saveToStorage();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '入力不足', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage 保存・復元
+  var STORAGE_KEY = 'utility_subsidy_end_checker';
+  function saveToStorage() {
+    var data = {
+      elecKwh: document.getElementById('elecKwh').value,
+      gasM3: document.getElementById('gasM3').value,
+      elecSubsidy: document.getElementById('elecSubsidy').value,
+      gasSubsidy: document.getElementById('gasSubsidy').value
+    };
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+  function loadFromStorage() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.elecKwh) document.getElementById('elecKwh').value = data.elecKwh;
+      if (data.gasM3) document.getElementById('gasM3').value = data.gasM3;
+      if (data.elecSubsidy) document.getElementById('elecSubsidy').value = data.elecSubsidy;
+      if (data.gasSubsidy) document.getElementById('gasSubsidy').value = data.gasSubsidy;
+    } catch(e) {}
+  }
+
+  // 入力変更時にも保存
+  document.querySelectorAll('input').forEach(function(el) {
+    el.addEventListener('change', saveToStorage);
+  });
+
+  // 初期読み込み
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

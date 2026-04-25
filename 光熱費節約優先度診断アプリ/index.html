@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>光熱費節約優先度診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --elec: #2563eb;   --elec-bg: #eff6ff;
+      --gas:  #dc2626;   --gas-bg:  #fef2f2;
+      --water:#0891b2;   --water-bg:#ecfeff;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力セクション ── */
+    .input-section { margin-bottom: 0.8rem; }
+    .input-section-title {
+      font-size: 0.85rem; font-weight: 700;
+      display: flex; align-items: center; gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .icon-badge {
+      width: 26px; height: 26px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; flex-shrink: 0;
+    }
+    .icon-elec  { background: var(--elec-bg);  color: var(--elec);  }
+    .icon-gas   { background: var(--gas-bg);   color: var(--gas);   }
+    .icon-water { background: var(--water-bg); color: var(--water); }
+
+    .fields-row { display: flex; gap: 0.6rem; }
+    .field { margin-bottom: 0.85rem; flex: 1; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.8rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.7rem; color: var(--text-sub); margin-top: 0.2rem; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0.9rem 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── ランキングカード ── */
+    .rank-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .rank-item {
+      border: 1.5px solid var(--border);
+      border-radius: 11px;
+      padding: 0.9rem 1rem;
+      background: var(--bg);
+    }
+    .rank-item-header {
+      display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.6rem;
+    }
+    .rank-no {
+      width: 30px; height: 30px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem; font-weight: 900; flex-shrink: 0;
+      background: #f3f4f6; color: var(--text-sub);
+    }
+    .rank-no.r1 { background: #fde68a; color: #92400e; }
+    .rank-no.r2 { background: #e5e7eb; color: #374151; }
+    .rank-no.r3 { background: #fed7aa; color: #9a3412; }
+    .rank-item-name {
+      font-size: 0.95rem; font-weight: 700; flex: 1;
+    }
+    .rank-savings-big {
+      font-size: 1.1rem; font-weight: 900; color: var(--ok);
+      white-space: nowrap;
+    }
+    .rank-annual {
+      font-size: 0.75rem; color: var(--text-sub); text-align: right;
+      margin-bottom: 0.5rem;
+    }
+    .measures-list {
+      display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.4rem;
+    }
+    .measure-tag {
+      font-size: 0.72rem; padding: 0.2rem 0.55rem;
+      border-radius: 20px; background: var(--accent-light);
+      color: var(--accent); font-weight: 600;
+    }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💡 光熱費節約優先度診断</h1>
+    <p class="subtitle">電気・ガス・水道の月額を入れると、節約インパクト順に対策を表示</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">月額を入力（円）</p>
+
+    <div class="input-section">
+      <p class="input-section-title">
+        <span class="icon-badge icon-elec">⚡</span>
+        電気代
+      </p>
+      <div class="fields-row">
+        <div class="field">
+          <label for="elec_cost">月額料金（円）</label>
+          <input type="number" id="elec_cost" placeholder="例: 12000" min="0">
+        </div>
+        <div class="field">
+          <label for="elec_kwh">使用量（kWh）<span style="font-weight:400;font-size:0.7rem">任意</span></label>
+          <input type="number" id="elec_kwh" placeholder="例: 350" min="0">
+          <p class="hint">省略可・参考表示に使用</p>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="input-section">
+      <p class="input-section-title">
+        <span class="icon-badge icon-gas">🔥</span>
+        ガス代
+      </p>
+      <div class="fields-row">
+        <div class="field">
+          <label for="gas_cost">月額料金（円）</label>
+          <input type="number" id="gas_cost" placeholder="例: 6000" min="0">
+        </div>
+        <div class="field">
+          <label for="gas_m3">使用量（m³）<span style="font-weight:400;font-size:0.7rem">任意</span></label>
+          <input type="number" id="gas_m3" placeholder="例: 20" min="0">
+          <p class="hint">省略可</p>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="input-section">
+      <p class="input-section-title">
+        <span class="icon-badge icon-water">💧</span>
+        水道代
+      </p>
+      <div class="fields-row">
+        <div class="field">
+          <label for="water_cost">月額料金（円）</label>
+          <input type="number" id="water_cost" placeholder="例: 3000" min="0">
+        </div>
+        <div class="field">
+          <label for="water_m3">使用量（m³）<span style="font-weight:400;font-size:0.7rem">任意</span></label>
+          <input type="number" id="water_m3" placeholder="例: 15" min="0">
+          <p class="hint">省略可</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">節約優先度を診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">年間 節約可能額（合計）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- ランキングカード -->
+  <div class="card" id="ranking-card" style="display:none">
+    <p class="card-title">節約インパクト ランキング</p>
+    <div class="rank-list" id="rank-list"></div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">月次 内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var MEASURES = {
+    elec: [
+      'LED照明に全交換',
+      '電力会社・プラン見直し',
+      'エアコン設定温度調整（±1℃）',
+      '待機電力カット（コンセント抜く）',
+      '冷蔵庫の設定温度を上げる',
+      '洗濯機・食洗機は夜間使用',
+    ],
+    gas: [
+      '給湯器の設定温度を下げる（42→40℃）',
+      'シャワー時間を2分短縮',
+      '節水型シャワーヘッドに交換',
+      '鍋蓋をして加熱時間を短縮',
+      'ガス会社・プラン見直し',
+    ],
+    water: [
+      '節水コマ・節水キャップを取付',
+      'トイレの節水ボタンを使う',
+      '食洗機の効率的な使い方',
+      '風呂の残り湯を洗濯に再利用',
+      '歯磨き・洗顔中は水を止める',
+    ],
+  };
+
+  var SAVE_RATE = { elec: 0.15, gas: 0.10, water: 0.08 };
+  var LABELS    = { elec: '電気代', gas: 'ガス代', water: '水道代' };
+  var ICONS     = { elec: '⚡', gas: '🔥', water: '💧' };
+
+  var LS_KEY = 'konetsu_yusen_v1';
+
+  function loadSaved() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+      if (!d) return;
+      ['elec_cost','elec_kwh','gas_cost','gas_m3','water_cost','water_m3'].forEach(function(id) {
+        if (d[id] != null) document.getElementById(id).value = d[id];
+      });
+    } catch(e) {}
+  }
+
+  function saveInputs() {
+    try {
+      var d = {};
+      ['elec_cost','elec_kwh','gas_cost','gas_m3','water_cost','water_m3'].forEach(function(id) {
+        d[id] = document.getElementById(id).value;
+      });
+      localStorage.setItem(LS_KEY, JSON.stringify(d));
+    } catch(e) {}
+  }
+
+  function calc() {
+    var elec  = parseFloat(document.getElementById('elec_cost').value)  || 0;
+    var gas   = parseFloat(document.getElementById('gas_cost').value)   || 0;
+    var water = parseFloat(document.getElementById('water_cost').value) || 0;
+
+    if (elec === 0 && gas === 0 && water === 0) {
+      showErr('電気・ガス・水道のいずれかを入力してください');
+      return;
+    }
+
+    saveInputs();
+
+    var items = [
+      { key: 'elec',  cost: elec,  save: Math.round(elec  * SAVE_RATE.elec) },
+      { key: 'gas',   cost: gas,   save: Math.round(gas   * SAVE_RATE.gas) },
+      { key: 'water', cost: water, save: Math.round(water * SAVE_RATE.water) },
+    ].filter(function(it) { return it.cost > 0; });
+
+    // 節約額降順ソート
+    items.sort(function(a, b) { return b.save - a.save; });
+
+    var totalMonthly = items.reduce(function(s, it) { return s + it.save; }, 0);
+    var totalAnnual  = totalMonthly * 12;
+    var totalCost    = items.reduce(function(s, it) { return s + it.cost; }, 0);
+
+    // 評価
+    var pct = totalCost > 0 ? totalAnnual / (totalCost * 12) * 100 : 0;
+    var level, eval_, note;
+    if (pct >= 12) {
+      level = 'ok';
+      eval_ = '節約余地が大きい！ぜひ今すぐ着手を';
+      note  = '上位の対策から順番に実践すれば大きな効果が期待できます。';
+    } else if (pct >= 6) {
+      level = 'warn';
+      eval_ = '一定の節約余地があります';
+      note  = '優先度の高い対策を1〜2つ実践するだけでも年間数千円の削減が見込めます。';
+    } else {
+      level = 'ng';
+      eval_ = 'すでに低水準です';
+      note  = '現状は比較的効率よく使えています。プラン見直しなど低コストな対策から試してみましょう。';
+    }
+
+    showResult(level, fmt(totalAnnual) + ' 円/年', eval_, note);
+
+    // ランキング表示
+    var rankHtml = '';
+    items.forEach(function(it, i) {
+      var rankClass = i === 0 ? 'r1' : i === 1 ? 'r2' : i === 2 ? 'r3' : '';
+      var rankNo    = i + 1;
+      var measures  = MEASURES[it.key];
+      var tagsHtml  = measures.map(function(m) {
+        return '<span class="measure-tag">' + m + '</span>';
+      }).join('');
+      rankHtml += '<div class="rank-item">'
+        + '<div class="rank-item-header">'
+        + '<div class="rank-no ' + rankClass + '">' + rankNo + '</div>'
+        + '<div class="rank-item-name">' + ICONS[it.key] + ' ' + LABELS[it.key] + '</div>'
+        + '<div class="rank-savings-big">−' + fmt(it.save) + '円/月</div>'
+        + '</div>'
+        + '<div class="rank-annual">年間 約 <strong>' + fmt(it.save * 12) + ' 円</strong> 節約可能</div>'
+        + '<div class="measures-list">' + tagsHtml + '</div>'
+        + '</div>';
+    });
+    var rc = document.getElementById('ranking-card');
+    document.getElementById('rank-list').innerHTML = rankHtml;
+    rc.style.display = 'block';
+
+    // 内訳テーブル
+    var rows = items.map(function(it) {
+      return [ICONS[it.key] + ' ' + LABELS[it.key], fmt(it.cost) + ' 円', fmt(it.save) + ' 円'];
+    });
+    rows.push(['合計節約（月）', '—', fmt(totalMonthly) + ' 円']);
+    var tbody = document.getElementById('db');
+    tbody.innerHTML = rows.map(function(r, i) {
+      var isLast = i === rows.length - 1;
+      return '<tr' + (isLast ? ' class="hl"' : '') + '>'
+        + '<td>' + r[0] + '</td>'
+        + '<td style="text-align:right">' + r[1] + '</td>'
+        + '<td>' + r[2] + '</td></tr>';
+    }).join('');
+    // ヘッダー行
+    tbody.innerHTML = '<tr style="font-size:0.75rem">'
+      + '<td style="color:var(--text-sub)">項目</td>'
+      + '<td style="text-align:right;color:var(--text-sub)">現在の月額</td>'
+      + '<td style="color:var(--text-sub)">節約可能額</td></tr>'
+      + tbody.innerHTML;
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showResult(level, val, eval_, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = eval_;
+    document.getElementById('rn').textContent = note;
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('ranking-card').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  loadSaved();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
