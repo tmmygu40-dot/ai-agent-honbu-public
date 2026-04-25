@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>住み替えシミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-icon { margin-right: 0.3rem; }
+
+    .field { margin-bottom: 0.9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field .suffix {
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .field .suffix input { flex: 1; }
+    .field .suffix span { font-size: 0.88rem; color: var(--text-sub); white-space: nowrap; }
+
+    .total-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.6rem 0; border-top: 1.5px solid var(--border); margin-top: 0.8rem;
+    }
+    .total-row span:first-child { font-size: 0.88rem; font-weight: 700; color: var(--text-sub); }
+    .total-row span:last-child { font-size: 1.1rem; font-weight: 900; color: var(--accent); }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.5rem; padding: 0.6rem;
+      font-size: 0.85rem; font-weight: 600;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.6; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-head td { font-weight: 700; color: var(--text); font-size: 0.82rem; background: var(--bg); padding-top: 0.8rem; }
+
+    .compare-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .compare-box {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem; text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .compare-box.winner { border-color: var(--ok); background: var(--ok-bg); }
+    .compare-box-label { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .compare-box-val { font-size: 1.4rem; font-weight: 900; color: var(--text); }
+    .compare-box.winner .compare-box-val { color: var(--ok); }
+    .compare-box-sub { font-size: 0.7rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .winner-badge {
+      display: inline-block; background: var(--ok); color: #fff;
+      font-size: 0.65rem; font-weight: 700; padding: 0.1rem 0.45rem;
+      border-radius: 99px; margin-bottom: 0.3rem;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>住み替えシミュレーター</h1>
+    <p class="subtitle">更新 vs 引っ越し ― どちらが得か即比較</p>
+  </header>
+
+  <!-- 更新コスト -->
+  <div class="card">
+    <p class="card-title"><span class="card-icon">🔄</span>更新する場合のコスト</p>
+    <div class="field">
+      <label for="renew_fee">更新料</label>
+      <div class="suffix">
+        <input type="number" id="renew_fee" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+      <p class="hint">例：家賃1ヶ月分 = 80,000 など</p>
+    </div>
+    <div class="field">
+      <label for="renew_admin">更新手数料（仲介会社への手数料など）</label>
+      <div class="suffix">
+        <input type="number" id="renew_admin" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="renew_insurance">火災保険料（更新時）</label>
+      <div class="suffix">
+        <input type="number" id="renew_insurance" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="renew_other">その他費用</label>
+      <div class="suffix">
+        <input type="number" id="renew_other" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="total-row">
+      <span>更新コスト合計</span>
+      <span id="renew_total">0 円</span>
+    </div>
+  </div>
+
+  <!-- 退去・引っ越しコスト -->
+  <div class="card">
+    <p class="card-title"><span class="card-icon">🚚</span>退去・引っ越しする場合のコスト</p>
+    <div class="field">
+      <label for="move_cost">引っ越し費用</label>
+      <div class="suffix">
+        <input type="number" id="move_cost" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="move_restore">旧居 原状回復費用（見込み）</label>
+      <div class="suffix">
+        <input type="number" id="move_restore" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+      <p class="hint">敷金で賄える場合は差引後の自己負担額を入力</p>
+    </div>
+    <div class="field">
+      <label for="move_shikikin">新居 敷金</label>
+      <div class="suffix">
+        <input type="number" id="move_shikikin" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="move_reikin">新居 礼金</label>
+      <div class="suffix">
+        <input type="number" id="move_reikin" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="move_agent">新居 仲介手数料</label>
+      <div class="suffix">
+        <input type="number" id="move_agent" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="move_insurance">新居 火災保険料</label>
+      <div class="suffix">
+        <input type="number" id="move_insurance" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="move_other">その他費用（カーテン・家具など）</label>
+      <div class="suffix">
+        <input type="number" id="move_other" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="total-row">
+      <span>引っ越しコスト合計</span>
+      <span id="move_total">0 円</span>
+    </div>
+  </div>
+
+  <!-- 家賃差額（任意） -->
+  <div class="card">
+    <p class="card-title"><span class="card-icon">📅</span>家賃差額（任意・元取り計算用）</p>
+    <div class="field">
+      <label for="rent_now">現在の家賃（月）</label>
+      <div class="suffix">
+        <input type="number" id="rent_now" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="rent_new">新居の家賃（月）</label>
+      <div class="suffix">
+        <input type="number" id="rent_new" placeholder="0" min="0" oninput="updateTotal()">
+        <span>円</span>
+      </div>
+      <p class="hint">現在より安い場合、引っ越しコストを何ヶ月で回収できるか計算します</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">比較する</button>
+  <button class="btn-reset" onclick="resetAll()">リセット</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 比較グリッド -->
+  <div class="compare-grid" id="compare-grid" style="display:none">
+    <div class="compare-box" id="box-renew">
+      <p class="compare-box-label">🔄 更新コスト</p>
+      <p class="compare-box-val" id="box-renew-val">—</p>
+      <p class="compare-box-sub">円</p>
+    </div>
+    <div class="compare-box" id="box-move">
+      <p class="compare-box-label">🚚 引っ越しコスト</p>
+      <p class="compare-box-val" id="box-move-val">—</p>
+      <p class="compare-box-sub">円</p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEYS = ['renew_fee','renew_admin','renew_insurance','renew_other',
+              'move_cost','move_restore','move_shikikin','move_reikin','move_agent','move_insurance','move_other',
+              'rent_now','rent_new'];
+
+  function load() {
+    var saved = localStorage.getItem('sumikae_v1');
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      KEYS.forEach(function(k) {
+        var el = document.getElementById(k);
+        if (el && d[k] !== undefined) el.value = d[k];
+      });
+    } catch(e) {}
+    updateTotal();
+  }
+
+  function save() {
+    var d = {};
+    KEYS.forEach(function(k) {
+      var el = document.getElementById(k);
+      d[k] = el ? el.value : '';
+    });
+    localStorage.setItem('sumikae_v1', JSON.stringify(d));
+  }
+
+  function val(id) {
+    var v = parseFloat(document.getElementById(id).value);
+    return isNaN(v) ? 0 : Math.max(0, v);
+  }
+
+  function renewTotal() {
+    return val('renew_fee') + val('renew_admin') + val('renew_insurance') + val('renew_other');
+  }
+
+  function moveTotal() {
+    return val('move_cost') + val('move_restore') + val('move_shikikin') + val('move_reikin')
+         + val('move_agent') + val('move_insurance') + val('move_other');
+  }
+
+  function updateTotal() {
+    document.getElementById('renew_total').textContent = fmt(renewTotal()) + ' 円';
+    document.getElementById('move_total').textContent  = fmt(moveTotal())  + ' 円';
+    save();
+  }
+
+  function calc() {
+    var r = renewTotal();
+    var m = moveTotal();
+    var rentNow = val('rent_now');
+    var rentNew = val('rent_new');
+    var diff = m - r; // 引っ越しの方が高い額
+
+    // 判定
+    var level, verdict, eval_msg, note;
+
+    if (r === 0 && m === 0) {
+      showErr('金額を入力してください');
+      return;
+    }
+
+    if (r <= m) {
+      level = 'ok';
+      verdict = '更新がお得';
+      eval_msg = '引っ越しより ' + fmt(diff) + ' 円 安い';
+      note = '初期コストは更新の方が低いです。';
+    } else {
+      level = 'warn';
+      verdict = '引っ越しがお得';
+      eval_msg = '更新より ' + fmt(-diff) + ' 円 安い';
+      note = '初期コストは引っ越しの方が低いです。';
+    }
+
+    // 家賃差額による回収計算
+    var breakEvenText = '';
+    if (rentNow > 0 && rentNew > 0) {
+      var rentSaving = rentNow - rentNew;
+      if (rentSaving > 0 && m > r) {
+        // 引っ越しは高いが家賃が安くなる
+        var breakEven = Math.ceil(m / rentSaving);
+        var breakEvenRvR = Math.ceil((m - r) / rentSaving);
+        breakEvenText = '月 ' + fmt(rentSaving) + ' 円の節約で、引っ越しコスト全額の回収は約 ' + breakEven + ' ヶ月後、更新との差額回収は約 ' + breakEvenRvR + ' ヶ月後です。';
+        if (breakEvenRvR <= 24) {
+          level = 'warn';
+          note += '\n2年以内に元が取れる見込みのため、長期入居なら引っ越しも有力な選択肢です。';
+        }
+      } else if (rentSaving > 0 && m <= r) {
+        var breakEvenM = Math.ceil(m / rentSaving);
+        breakEvenText = '月 ' + fmt(rentSaving) + ' 円の節約で、引っ越しコストの回収は約 ' + breakEvenM + ' ヶ月後です。初期コストも安く非常に有利です。';
+        level = 'ok';
+      } else if (rentSaving < 0) {
+        breakEvenText = '新居の家賃は現在より月 ' + fmt(-rentSaving) + ' 円 高くなります。コスト面では更新の方が長期的にも有利です。';
+        level = level === 'ok' ? 'ok' : 'ng';
+      } else if (rentSaving === 0) {
+        breakEvenText = '家賃は変わらないため、初期コストだけで判断できます。';
+      }
+      if (breakEvenText) note = (note + '\n' + breakEvenText).trim();
+    }
+
+    showResult(level, verdict, eval_msg, note);
+
+    // 比較グリッド表示
+    var cg = document.getElementById('compare-grid');
+    cg.style.display = '';
+    var boxR = document.getElementById('box-renew');
+    var boxM = document.getElementById('box-move');
+    document.getElementById('box-renew-val').textContent = fmt(r);
+    document.getElementById('box-move-val').textContent  = fmt(m);
+    boxR.className = 'compare-box' + (r <= m ? ' winner' : '');
+    boxM.className = 'compare-box' + (m < r  ? ' winner' : '');
+
+    var winner = r <= m ? '🔄 更新' : '🚚 引っ越し';
+    var boxRlabel = document.querySelector('#box-renew .compare-box-label');
+    var boxMlabel = document.querySelector('#box-move .compare-box-label');
+    boxRlabel.innerHTML = (r <= m ? '<span class="winner-badge">WIN</span><br>' : '') + '🔄 更新コスト';
+    boxMlabel.innerHTML = (m < r  ? '<span class="winner-badge">WIN</span><br>' : '') + '🚚 引っ越しコスト';
+
+    // 内訳
+    var rows = [
+      ['更新コスト内訳', '', true, 'section'],
+      ['更新料',         fmt(val('renew_fee'))       + ' 円'],
+      ['更新手数料',     fmt(val('renew_admin'))      + ' 円'],
+      ['火災保険料',     fmt(val('renew_insurance'))  + ' 円'],
+      ['その他',         fmt(val('renew_other'))      + ' 円'],
+      ['更新コスト 合計', fmt(r) + ' 円', true],
+      ['引っ越しコスト内訳', '', false, 'section'],
+      ['引っ越し費用',   fmt(val('move_cost'))        + ' 円'],
+      ['原状回復費用',   fmt(val('move_restore'))     + ' 円'],
+      ['敷金（新居）',   fmt(val('move_shikikin'))    + ' 円'],
+      ['礼金（新居）',   fmt(val('move_reikin'))      + ' 円'],
+      ['仲介手数料',     fmt(val('move_agent'))       + ' 円'],
+      ['火災保険料',     fmt(val('move_insurance'))   + ' 円'],
+      ['その他',         fmt(val('move_other'))       + ' 円'],
+      ['引っ越しコスト 合計', fmt(m) + ' 円', true],
+    ];
+    if (rentNow > 0 && rentNew > 0) {
+      rows.push(['家賃差額', '', false, 'section']);
+      rows.push(['現在の家賃', fmt(rentNow) + ' 円/月']);
+      rows.push(['新居の家賃', fmt(rentNew) + ' 円/月']);
+      var s = rentNow - rentNew;
+      rows.push(['月々の差額', (s >= 0 ? '-' : '+') + fmt(Math.abs(s)) + ' 円/月', true]);
+    }
+
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      if (r[3] === 'section') return '<tr class="section-head"><td colspan="2">' + r[0] + '</td></tr>';
+      if (!r[1]) return '';
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showResult(level, val, eval_text, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent   = val;
+    document.getElementById('re').textContent   = eval_text;
+    document.getElementById('rn').textContent   = note;
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('compare-grid').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function resetAll() {
+    KEYS.forEach(function(k) {
+      var el = document.getElementById(k);
+      if (el) el.value = '';
+    });
+    localStorage.removeItem('sumikae_v1');
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('compare-grid').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    updateTotal();
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

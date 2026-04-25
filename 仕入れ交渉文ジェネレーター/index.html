@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>仕入れ交渉文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 状況選択タブ */
+    .situation-tabs {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      max-width: 600px; margin: 0 auto 1rem; padding: 0 0;
+    }
+    .situation-tab {
+      padding: 0.55rem 0.9rem;
+      font-size: 0.82rem; font-weight: 600;
+      border: 1.5px solid var(--border);
+      border-radius: 20px; background: var(--card);
+      color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .situation-tab.active {
+      background: var(--accent); border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果カード（メール文） ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1rem; padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .result-card-label {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+    }
+    .btn-copy {
+      padding: 0.4rem 0.9rem;
+      font-size: 0.8rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 8px;
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:active { background: var(--accent); color: #fff; }
+    .mail-body {
+      font-size: 0.88rem; line-height: 1.9;
+      color: var(--text); white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .copy-ok {
+      font-size: 0.78rem; color: var(--ok);
+      text-align: center; margin-top: 0.6rem;
+      display: none;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .situation-tabs { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>仕入れ交渉文ジェネレーター</h1>
+    <p class="subtitle">状況を選んで入力するだけで、仕入先への交渉メールを即生成</p>
+  </header>
+
+  <!-- 状況選択 -->
+  <div style="max-width:600px;margin:0 auto 0.5rem;padding:0 0;"><p style="font-size:0.82rem;font-weight:600;color:var(--text-sub);margin-bottom:0.5rem;padding:0 0.2rem;">① 交渉の種類を選ぶ</p></div>
+  <div class="situation-tabs" id="tabs">
+    <button class="situation-tab active" data-type="nebiraki" onclick="selectTab(this)">値下げ要請</button>
+    <button class="situation-tab" data-type="kakaku-iji" onclick="selectTab(this)">価格維持要請</button>
+    <button class="situation-tab" data-type="neage-kyohi" onclick="selectTab(this)">値上げ拒否</button>
+    <button class="situation-tab" data-type="choki-kansha" onclick="selectTab(this)">長期取引感謝型</button>
+    <button class="situation-tab" data-type="cost-sakugen" onclick="selectTab(this)">コスト削減訴求型</button>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">② 情報を入力する</p>
+    <div class="field">
+      <label for="supplier">仕入先・会社名</label>
+      <input type="text" id="supplier" placeholder="例：○○商事株式会社">
+    </div>
+    <div class="field">
+      <label for="tantou">担当者名（任意）</label>
+      <input type="text" id="tantou" placeholder="例：山田様">
+      <p class="hint">空欄の場合は「ご担当者様」になります</p>
+    </div>
+    <div class="field">
+      <label for="item">商品・品目名</label>
+      <input type="text" id="item" placeholder="例：○○部材、△△食材">
+    </div>
+    <div class="field">
+      <label for="current-price">現在の仕入れ価格（任意）</label>
+      <input type="text" id="current-price" placeholder="例：1,200円/個">
+    </div>
+    <div class="field">
+      <label for="target">希望する条件・目標価格（任意）</label>
+      <input type="text" id="target" placeholder="例：1,000円/個、5%引き など">
+    </div>
+    <div class="field">
+      <label for="reason">自社の状況・理由（任意）</label>
+      <textarea id="reason" placeholder="例：競合他社からの見積もりが安い、売上が落ちて仕入れ量を増やせない など"></textarea>
+    </div>
+    <div class="field">
+      <label for="myname">自社名・差出人（任意）</label>
+      <input type="text" id="myname" placeholder="例：株式会社○○ 鈴木">
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">📝 交渉メールを生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <div class="result-card-header">
+      <span class="result-card-label">生成されたメール文</span>
+      <button class="btn-copy no-print" onclick="copyMail()">📋 コピー</button>
+    </div>
+    <div class="mail-body" id="mail-body"></div>
+    <p class="copy-ok" id="copy-ok">✅ コピーしました！</p>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var currentType = 'nebiraki';
+
+  function selectTab(btn) {
+    document.querySelectorAll('.situation-tab').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentType = btn.getAttribute('data-type');
+    saveState();
+  }
+
+  function g(id) { return document.getElementById(id).value.trim(); }
+
+  function generate() {
+    var supplier     = g('supplier')      || '○○会社';
+    var tantouRaw    = g('tantou');
+    var tantou       = tantouRaw ? tantouRaw : 'ご担当者様';
+    var item         = g('item')          || '貴社商品';
+    var currentPrice = g('current-price');
+    var target       = g('target');
+    var reason       = g('reason');
+    var myname       = g('myname')        || '（自社名）';
+
+    var priceNote = '';
+    if (currentPrice && target) {
+      priceNote = '現在の仕入れ価格は ' + currentPrice + ' ですが、' + target + ' でのご対応をお願いできれば幸いです。';
+    } else if (target) {
+      priceNote = target + ' でのご対応をお願いできれば幸いです。';
+    } else if (currentPrice) {
+      priceNote = '現在の仕入れ価格は ' + currentPrice + ' となっております。';
+    }
+
+    var reasonNote = reason ? '\n\n【背景・状況】\n' + reason : '';
+
+    var mail = buildMail(currentType, supplier, tantou, item, priceNote, reasonNote, myname);
+
+    var rc = document.getElementById('result');
+    document.getElementById('mail-body').textContent = mail;
+    rc.style.display = 'block';
+    document.getElementById('copy-ok').style.display = 'none';
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    saveState();
+  }
+
+  function buildMail(type, supplier, tantou, item, priceNote, reasonNote, myname) {
+    var subject, body;
+
+    if (type === 'nebiraki') {
+      subject = '件名：' + item + ' の仕入れ価格について（値下げのご相談）';
+      body = supplier + '\n' + tantou + '\n\nいつも大変お世話になっております。\n' + myname + ' でございます。\n\n平素より ' + item + ' のお取引をいただき、誠にありがとうございます。\n\n早速ではございますが、昨今の市況変化および自社の経営状況を踏まえ、\n恐れ入りますが ' + item + ' の仕入れ価格について、\nご見直しをご検討いただけますでしょうか。\n\n' + (priceNote ? priceNote + '\n' : '') + reasonNote + '\n\n長年にわたるお取引を継続させていただきたいという思いから、\n今回ご相談させていただく次第でございます。\nご検討のほど、何卒よろしくお願い申し上げます。\n\nご不明な点がございましたら、お気軽にお申しつけください。\n\n' + myname;
+
+    } else if (type === 'kakaku-iji') {
+      subject = '件名：' + item + ' の価格維持についてのお願い';
+      body = supplier + '\n' + tantou + '\n\nいつも大変お世話になっております。\n' + myname + ' でございます。\n\n平素より ' + item + ' のお取引をいただき、誠にありがとうございます。\n\n昨今の原材料費・物流費の上昇に伴い、各方面で価格改定の動きが見られる中、\n誠に勝手なお願いではございますが、' + item + ' の現行価格を\n引き続きご維持いただけますよう、お願い申し上げます。\n\n' + (priceNote ? priceNote + '\n' : '') + reasonNote + '\n\n貴社とのお取引を長く続けたいという強い思いがございます。\n何卒ご考慮いただけますよう、よろしくお願い申し上げます。\n\nご検討のほど、どうぞよろしくお願いいたします。\n\n' + myname;
+
+    } else if (type === 'neage-kyohi') {
+      subject = '件名：' + item + ' 価格改定のご通知について（ご相談）';
+      body = supplier + '\n' + tantou + '\n\nいつも大変お世話になっております。\n' + myname + ' でございます。\n\nこの度は ' + item + ' の価格改定についてご連絡をいただき、ありがとうございます。\n\n内容を拝見いたしましたが、弊社といたしましては現状において\n価格改定への対応が非常に難しい状況でございます。\n\n' + (priceNote ? priceNote + '\n' : '') + reasonNote + '\n\n誠に恐縮ではございますが、現行価格でのご継続、\nまたは段階的な移行など、何らかのご配慮をいただけますと幸いでございます。\n\n引き続き貴社とのお取引を継続させていただきたく、\nご検討のほどよろしくお願い申し上げます。\n\n' + myname;
+
+    } else if (type === 'choki-kansha') {
+      subject = '件名：長年のご愛顧に感謝を込めて・' + item + ' の価格についてのご相談';
+      body = supplier + '\n' + tantou + '\n\nいつも大変お世話になっております。\n' + myname + ' でございます。\n\n平素より ' + item + ' のお取引において、大変お世話になり、\n心より感謝申し上げます。\n\n長年にわたるお取引の中で、貴社の品質・対応に大変満足しており、\n今後もご縁を大切にしていきたいと考えております。\n\n今回、長年のパートナーシップを踏まえ、\n' + item + ' の価格条件について改めてご相談させていただけますでしょうか。\n\n' + (priceNote ? priceNote + '\n' : '') + reasonNote + '\n\n今後もより良い関係を築いていければと思っております。\nぜひ前向きにご検討いただけますと幸いです。\n\n' + myname;
+
+    } else if (type === 'cost-sakugen') {
+      subject = '件名：' + item + ' のコスト最適化に向けたご相談';
+      body = supplier + '\n' + tantou + '\n\nいつも大変お世話になっております。\n' + myname + ' でございます。\n\n平素より ' + item + ' のお取引をいただき、誠にありがとうございます。\n\n現在、弊社では経営の安定化・効率化を目的としたコスト見直しを進めております。\nその一環として、' + item + ' の仕入れ条件についても\n改善の余地がないかご相談させていただきたく、ご連絡いたしました。\n\n' + (priceNote ? priceNote + '\n' : '') + reasonNote + '\n\n例えば、発注ロット数の調整や支払い条件の変更など、\n双方にとってメリットのある形でご提案いただけますと幸いです。\n\nご多忙のところ大変恐縮ですが、ご検討のほどよろしくお願い申し上げます。\n\n' + myname;
+    }
+
+    return subject + '\n\n' + body;
+  }
+
+  function copyMail() {
+    var text = document.getElementById('mail-body').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() { showCopyOk(); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      showCopyOk();
+    }
+  }
+
+  function showCopyOk() {
+    var el = document.getElementById('copy-ok');
+    el.style.display = 'block';
+    setTimeout(function(){ el.style.display = 'none'; }, 2000);
+  }
+
+  // localStorage 保存・復元
+  var LS_KEY = 'shiirekosho_gen_v1';
+
+  function saveState() {
+    var state = {
+      type: currentType,
+      supplier: g('supplier'), tantou: g('tantou'), item: g('item'),
+      currentPrice: g('current-price'), target: g('target'),
+      reason: g('reason'), myname: g('myname')
+    };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e) {}
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      if (s.type) {
+        currentType = s.type;
+        document.querySelectorAll('.situation-tab').forEach(function(b){
+          b.classList.toggle('active', b.getAttribute('data-type') === s.type);
+        });
+      }
+      if (s.supplier)     document.getElementById('supplier').value      = s.supplier;
+      if (s.tantou)       document.getElementById('tantou').value         = s.tantou;
+      if (s.item)         document.getElementById('item').value           = s.item;
+      if (s.currentPrice) document.getElementById('current-price').value  = s.currentPrice;
+      if (s.target)       document.getElementById('target').value         = s.target;
+      if (s.reason)       document.getElementById('reason').value         = s.reason;
+      if (s.myname)       document.getElementById('myname').value         = s.myname;
+    } catch(e) {}
+  }
+
+  // 入力変化で保存
+  ['supplier','tantou','item','current-price','target','reason','myname'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('input', saveState);
+  });
+
+  loadState();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

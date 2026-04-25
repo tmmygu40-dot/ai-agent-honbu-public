@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>仕入れリスク診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── リスク指標行 ── */
+    .risk-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.65rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    .risk-row:last-child { border-bottom: none; }
+    .risk-label { color: var(--text-sub); font-weight: 600; }
+    .risk-badge {
+      padding: 0.28rem 0.9rem; border-radius: 99px;
+      font-size: 0.78rem; font-weight: 800; letter-spacing: 0.04em;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok);   }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng);   }
+
+    /* ── アクションリスト ── */
+    .action-list { list-style: none; padding: 0; margin: 0; }
+    .action-list li {
+      display: flex; align-items: flex-start; gap: 0.55rem;
+      padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; line-height: 1.5; color: var(--text);
+    }
+    .action-list li:last-child { border-bottom: none; }
+    .action-icon { font-size: 1rem; flex-shrink: 0; margin-top: 0.05rem; }
+
+    /* ── 優先度バー ── */
+    .priority-bar {
+      display: flex; gap: 0.3rem; margin-top: 0.6rem; justify-content: center;
+    }
+    .pbar {
+      height: 8px; border-radius: 4px; flex: 1; max-width: 60px;
+      background: var(--border); transition: background 0.3s;
+    }
+    .pbar.filled-ok   { background: var(--ok); }
+    .pbar.filled-warn { background: var(--warn); }
+    .pbar.filled-ng   { background: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🔍 仕入れリスク診断アプリ</h1>
+    <p class="subtitle">商品カテゴリを選ぶだけで輸入停止・関税リスクと代替調達アクションを即診断</p>
+  </header>
+
+  <!-- カテゴリ選択カード -->
+  <div class="card">
+    <p class="card-title">カテゴリ選択</p>
+    <div class="field">
+      <label for="category">商品カテゴリ</label>
+      <select id="category">
+        <option value="">── カテゴリを選んでください ──</option>
+        <option value="food">食品・食材</option>
+        <option value="electronics">電子部品・半導体</option>
+        <option value="apparel">衣類・繊維</option>
+        <option value="daily">日用品・雑貨</option>
+        <option value="chemical">原材料・化学品</option>
+        <option value="agri">農産物・青果</option>
+        <option value="machine">機械・設備</option>
+        <option value="metal">金属材料</option>
+        <option value="pharma">医薬品・医療機器</option>
+        <option value="homeappliance">家電・IT機器</option>
+        <option value="wood">木材・建材</option>
+        <option value="fuel">燃料・エネルギー資材</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" onclick="diagnose()">🔎 リスクを診断する</button>
+
+  <!-- 総合判定カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合リスク判定</p>
+    <p class="result-value" id="rv">—</p>
+    <div class="priority-bar" id="pbar"></div>
+    <p class="result-note" id="rn" style="margin-top:0.6rem;"></p>
+  </div>
+
+  <!-- リスク内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">リスク内訳</p>
+    <div id="risk-rows"></div>
+  </div>
+
+  <!-- 代替調達アクションカード -->
+  <div class="card" id="actions-card" style="display:none">
+    <p class="card-title">代替調達アクション</p>
+    <ul class="action-list" id="action-list"></ul>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、経済産業省・財務省・農林水産省などの公開情報と一般的な仕入れリスク管理の知見をもとに構成した目安診断ツールです。実際の判断は現在の市場状況を踏まえてご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var riskData = {
+    food: {
+      name: '食品・食材',
+      importRisk: 'ng',
+      tariffRisk: 'ng',
+      importReason: '産地国の気候変動・食品安全問題・輸出規制により輸入停止リスクが高い',
+      tariffReason: '農産物・食品は関税引き上げ対象になりやすく、貿易交渉の影響を直接受ける',
+      actions: [
+        { icon: '🏭', text: '国内メーカー・農家への直接仕入れルートをすぐに開拓する' },
+        { icon: '🌏', text: '輸入先を中国依存から東南アジア・南米など複数国に分散する' },
+        { icon: '📦', text: '安全在庫を現在の2〜3倍（60〜90日分）に積み増す' },
+        { icon: '🔄', text: '代替食材リストを作成し、メニュー・製品への代替品を事前検討する' },
+        { icon: '📝', text: '仕入れ先との長期契約・優先供給契約の締結を交渉する' }
+      ]
+    },
+    electronics: {
+      name: '電子部品・半導体',
+      importRisk: 'ng',
+      tariffRisk: 'ng',
+      importReason: '地政学リスク・半導体規制・特定国依存度が高く輸入停止リスクが極めて高い',
+      tariffReason: '半導体・電子部品は米中貿易摩擦・安保規制の影響で関税リスクが最も高い分野の一つ',
+      actions: [
+        { icon: '🔄', text: '代替メーカー・代替品番を今すぐリスト化し、規格互換を確認する' },
+        { icon: '🇯🇵', text: '国内サプライヤーや台湾・韓国・欧州系メーカーに調達先を分散する' },
+        { icon: '📦', text: '長納期部品は3〜6ヶ月分の安全在庫を確保する' },
+        { icon: '🤝', text: '複数の商社・代理店と取引関係を結び、一社依存を解消する' },
+        { icon: '🔍', text: '製品設計の段階から複数ソース対応の部品選定ルールを設ける' }
+      ]
+    },
+    apparel: {
+      name: '衣類・繊維',
+      importRisk: 'warn',
+      tariffRisk: 'warn',
+      importReason: '特定国集中は中程度のリスク。労働問題・品質問題による輸入規制の可能性あり',
+      tariffReason: '繊維・衣類への関税は過去にも引き上げ事例があり、貿易摩擦時に影響を受けやすい',
+      actions: [
+        { icon: '🌏', text: '中国依存が高い場合、ベトナム・バングラデシュ・インドへの分散を検討する' },
+        { icon: '🏭', text: '国内縫製工場・テキスタイルメーカーとの取引関係を確認・強化する' },
+        { icon: '📦', text: 'シーズン前の早期発注・在庫積み増しで調達リスクを軽減する' },
+        { icon: '📝', text: '仕入れ先のコンプライアンス・労働環境を確認し、リスク評価を実施する' }
+      ]
+    },
+    daily: {
+      name: '日用品・雑貨',
+      importRisk: 'warn',
+      tariffRisk: 'warn',
+      importReason: '代替品が比較的多いため輸入停止リスクは中程度だが、特定国依存には注意が必要',
+      tariffReason: '日用品への関税引き上げは消費者物価に直結するため、政治的に注目されやすい',
+      actions: [
+        { icon: '🔄', text: '国内メーカーの代替品を調査し、価格・品質を比較しておく' },
+        { icon: '🌏', text: '単一国依存の品目を洗い出し、調達先の多様化計画を立てる' },
+        { icon: '📦', text: '売れ筋商品は1〜2ヶ月分の安全在庫を維持する' },
+        { icon: '💡', text: '原産国表示を確認し、高リスク国依存商品の代替先を今から探す' }
+      ]
+    },
+    chemical: {
+      name: '原材料・化学品',
+      importRisk: 'ng',
+      tariffRisk: 'ng',
+      importReason: '特定国産の希少原料は輸出規制・禁輸リスクが高く、代替が困難な場合も多い',
+      tariffReason: '化学品・原材料への関税は製造コスト全体に波及するため、関税引き上げのインパクトが大きい',
+      actions: [
+        { icon: '🔬', text: '代替化学品・代替原料の技術評価を今すぐ開始する' },
+        { icon: '📦', text: '希少性の高い原材料は6ヶ月以上の安全在庫を確保する' },
+        { icon: '🌏', text: '輸入先を中国・ロシア等の高リスク国から多国分散に切り替える' },
+        { icon: '🤝', text: '国内化学品メーカーとの取引・共同開発を検討する' },
+        { icon: '📝', text: '輸出規制・危険物規制の最新情報を定期的にチェックする' }
+      ]
+    },
+    agri: {
+      name: '農産物・青果',
+      importRisk: 'ng',
+      tariffRisk: 'warn',
+      importReason: '気候変動・病害虫・産地国の政策変更により輸入停止リスクが高い',
+      tariffReason: '農産物への関税は国内農業保護の観点から変動しやすいが、交渉余地もある',
+      actions: [
+        { icon: '🇯🇵', text: '国産産地・JA・農業法人との直接取引ルートを開拓する' },
+        { icon: '🌏', text: '輸入産地を複数国・複数地域に分散し、一産地依存を解消する' },
+        { icon: '📦', text: '加工品・冷凍品での代替備蓄を検討する' },
+        { icon: '📝', text: '産地の気象・病害虫情報を定期的にモニタリングする' }
+      ]
+    },
+    machine: {
+      name: '機械・設備',
+      importRisk: 'ok',
+      tariffRisk: 'warn',
+      importReason: '機械・設備は代替先が比較的多く、輸入停止リスクは低め。ただし専用機器は要注意',
+      tariffReason: '産業機械への関税は見直しリスクがあり、価格上昇要因として注意が必要',
+      actions: [
+        { icon: '🔄', text: '国内メーカー・欧米系メーカーの代替機種を事前に調査しておく' },
+        { icon: '🔧', text: '保守部品・消耗品の在庫を多めに確保し、サプライヤー変更時のリスクを軽減する' },
+        { icon: '📝', text: '次回更新時は国内調達またはリース・レンタルも比較検討する' }
+      ]
+    },
+    metal: {
+      name: '金属材料',
+      importRisk: 'warn',
+      tariffRisk: 'ng',
+      importReason: '希少金属（レアメタル）は特定国依存が高く、輸入停止リスクは中〜高',
+      tariffReason: '鉄鋼・アルミなど主要金属は関税の対象になりやすく、貿易摩擦で大きく価格変動する',
+      actions: [
+        { icon: '🌏', text: '調達先を中国・ロシア依存から多国間分散に切り替える' },
+        { icon: '📦', text: '主要金属は2〜3ヶ月分の安全在庫を確保する' },
+        { icon: '♻️', text: '国内のリサイクル金属・スクラップ活用ルートを確認する' },
+        { icon: '🔄', text: 'レアメタル依存製品は代替材料・代替設計の可能性を設計部門と検討する' },
+        { icon: '📝', text: '先物・長期契約で価格ヘッジを検討する' }
+      ]
+    },
+    pharma: {
+      name: '医薬品・医療機器',
+      importRisk: 'ng',
+      tariffRisk: 'warn',
+      importReason: '特定国への原薬依存が高く、輸入規制・品質問題による供給停止リスクが極めて高い',
+      tariffReason: '医薬品への関税は人道的観点から政治的配慮があるが、原薬段階の関税は要注意',
+      actions: [
+        { icon: '🔄', text: '後発品・ジェネリックの代替品を今すぐ確認・登録する' },
+        { icon: '📦', text: '必要医薬品・原薬の安全在庫を6ヶ月以上確保する' },
+        { icon: '🌏', text: '原薬調達先をインド・欧州など複数拠点に分散する' },
+        { icon: '🤝', text: '国内製薬メーカーとの調達協定・優先供給契約を結ぶ' },
+        { icon: '📝', text: '薬事規制・輸出規制の動向を定期的にモニタリングする' }
+      ]
+    },
+    homeappliance: {
+      name: '家電・IT機器',
+      importRisk: 'ng',
+      tariffRisk: 'ng',
+      importReason: '中国への製造依存が高く、米中対立・規制強化による輸入停止リスクが高い',
+      tariffReason: '家電・IT機器への関税は米中貿易摩擦の直接対象であり、関税リスクが最も高い分野の一つ',
+      actions: [
+        { icon: '🌏', text: '調達先を中国からベトナム・インド・タイ等に分散する' },
+        { icon: '🔄', text: '代替メーカー（日本・韓国・欧州）の製品仕様・価格を今すぐ比較する' },
+        { icon: '📦', text: '主力商品は3ヶ月以上の在庫を先行確保する' },
+        { icon: '💡', text: '輸入規制対象の可能性がある商品をリストアップし、優先対応順位を決める' },
+        { icon: '📝', text: '価格転嫁のシミュレーションを行い、販売計画を見直す' }
+      ]
+    },
+    wood: {
+      name: '木材・建材',
+      importRisk: 'warn',
+      tariffRisk: 'warn',
+      importReason: 'ウッドショック等の前例あり。産地国の輸出規制・物流混乱リスクが中程度',
+      tariffReason: '木材・建材への関税は住宅産業全体に影響するため、政策的な引き上げ圧力が生じる可能性あり',
+      actions: [
+        { icon: '🇯🇵', text: '国産材・国内建材メーカーへの切り替えを検討する' },
+        { icon: '📦', text: '主要建材は余裕を持った早期発注・在庫積み増しを行う' },
+        { icon: '🌏', text: '輸入先をカナダ・北欧・東南アジアなど複数地域に分散する' },
+        { icon: '🔄', text: '代替工法・代替材料（鉄骨・RC・CLT等）の採用可否を設計段階で検討する' }
+      ]
+    },
+    fuel: {
+      name: '燃料・エネルギー資材',
+      importRisk: 'ng',
+      tariffRisk: 'warn',
+      importReason: '中東情勢・ロシア問題等により供給停止リスクが常に高い。地政学リスクに直結する',
+      tariffReason: 'エネルギー資材への関税は国際情勢次第で急変動。輸入コスト増加が事業コスト全体に波及する',
+      actions: [
+        { icon: '🌏', text: '調達先を中東・ロシア以外（米国・カナダ・豪州・東南アジア）に分散する' },
+        { icon: '📦', text: '法令範囲内で最大限の燃料備蓄（1〜3ヶ月分）を確保する' },
+        { icon: '♻️', text: '再生可能エネルギー・省エネ設備への切り替えを中期計画に組み込む' },
+        { icon: '💡', text: 'エネルギーコスト上昇分を価格転嫁するための交渉準備をしておく' },
+        { icon: '📝', text: '燃料先物・長期固定価格契約でコストヘッジを検討する' }
+      ]
+    }
+  };
+
+  var levelMap = {
+    ok: { label: '低', text: 'リスク低', badge: 'badge-ok' },
+    warn: { label: '中', text: 'リスク中', badge: 'badge-warn' },
+    ng: { label: '高', text: 'リスク高', badge: 'badge-ng' }
+  };
+
+  var totalMap = {
+    ok: { cls: 'ok', val: '低リスク', note: '現時点では大きなリスクは見当たりません。ただし定期的な調達先モニタリングを継続してください。' },
+    warn: { cls: 'warn', val: '中リスク', note: 'リスクが顕在化する前に代替調達先の確保と在庫積み増しを進めてください。' },
+    ng: { cls: 'ng', val: '高リスク', note: '早急に代替調達先の開拓と安全在庫の積み増しが必要です。今すぐアクションを取ってください。' }
+  };
+
+  function worstLevel(a, b) {
+    var order = { ok: 0, warn: 1, ng: 2 };
+    return order[a] >= order[b] ? a : b;
+  }
+
+  function diagnose() {
+    var cat = document.getElementById('category').value;
+    if (!cat) { alert('カテゴリを選んでください'); return; }
+
+    var d = riskData[cat];
+    var total = worstLevel(d.importRisk, d.tariffRisk);
+    var tm = totalMap[total];
+
+    // 結論カード
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + tm.cls;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = tm.val;
+    document.getElementById('rn').textContent = tm.note;
+
+    // 優先度バー
+    var barCount = total === 'ok' ? 1 : total === 'warn' ? 2 : 3;
+    var barHtml = '';
+    for (var i = 0; i < 3; i++) {
+      var filled = i < barCount ? ' filled-' + total : '';
+      barHtml += '<div class="pbar' + filled + '"></div>';
+    }
+    document.getElementById('pbar').innerHTML = barHtml;
+
+    // リスク内訳
+    var rowsHtml =
+      '<div class="risk-row">' +
+        '<span class="risk-label">輸入停止リスク</span>' +
+        '<span class="risk-badge ' + levelMap[d.importRisk].badge + '">' + levelMap[d.importRisk].label + '</span>' +
+      '</div>' +
+      '<div class="risk-row">' +
+        '<span class="risk-label">関税リスク</span>' +
+        '<span class="risk-badge ' + levelMap[d.tariffRisk].badge + '">' + levelMap[d.tariffRisk].label + '</span>' +
+      '</div>';
+
+    // 理由を追加
+    rowsHtml +=
+      '<div style="margin-top:0.8rem;font-size:0.8rem;color:var(--text-sub);line-height:1.6;">' +
+        '<p style="margin-bottom:0.35rem;">📌 <strong>輸入停止：</strong>' + d.importReason + '</p>' +
+        '<p>📌 <strong>関税：</strong>' + d.tariffReason + '</p>' +
+      '</div>';
+
+    document.getElementById('risk-rows').innerHTML = rowsHtml;
+    document.getElementById('detail').style.display = 'block';
+
+    // アクションリスト
+    var actHtml = d.actions.map(function(a) {
+      return '<li><span class="action-icon">' + a.icon + '</span><span>' + a.text + '</span></li>';
+    }).join('');
+    document.getElementById('action-list').innerHTML = actHtml;
+    document.getElementById('actions-card').style.display = 'block';
+
+    // localStorage保存
+    try {
+      localStorage.setItem('shiire_risk_last', JSON.stringify({ cat: cat, ts: Date.now() }));
+    } catch(e) {}
+
+    // スクロール
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // 前回の選択を復元
+  (function() {
+    try {
+      var saved = JSON.parse(localStorage.getItem('shiire_risk_last') || 'null');
+      if (saved && saved.cat && riskData[saved.cat]) {
+        document.getElementById('category').value = saved.cat;
+      }
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

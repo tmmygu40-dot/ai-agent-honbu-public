@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>値上がり家計負担チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力グリッド ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .input-grid .full { grid-column: 1 / -1; }
+    .field { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.warn { border-color: var(--warn); background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);   background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; color: var(--ng); }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 品目リスト ── */
+    .item-list { list-style: none; }
+    .item-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-info { flex: 1; min-width: 0; }
+    .item-name { font-size: 0.95rem; font-weight: 700; }
+    .item-detail { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .item-amount {
+      font-size: 1rem; font-weight: 800;
+      color: var(--ng); white-space: nowrap;
+    }
+    .btn-del {
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 7px; padding: 0.3rem 0.6rem;
+      font-size: 0.75rem; color: var(--text-sub);
+      cursor: pointer; white-space: nowrap;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-del:hover { border-color: var(--ng); color: var(--ng); }
+
+    .empty-msg { font-size: 0.88rem; color: var(--text-sub); text-align: center; padding: 1rem 0; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--ng); font-size: 1.05rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>値上がり家計負担チェッカー</h1>
+    <p class="subtitle">購入品目を登録して月間の家計負担増をすぐ試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="input-grid">
+      <div class="field full">
+        <label for="iName">品目名</label>
+        <input type="text" id="iName" placeholder="例: 食用油">
+      </div>
+      <div class="field">
+        <label for="iPrice">現在の単価（円）</label>
+        <input type="number" id="iPrice" placeholder="例: 300" min="0">
+      </div>
+      <div class="field">
+        <label for="iQty">月間購入量</label>
+        <input type="number" id="iQty" placeholder="例: 2" min="0">
+      </div>
+      <div class="field">
+        <label for="iRate">値上がり率（%）</label>
+        <input type="number" id="iRate" placeholder="例: 15" min="0">
+      </div>
+      <div class="field">
+        <label for="iUnit">単位（任意）</label>
+        <input type="text" id="iUnit" placeholder="例: 本、袋、kg">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addItem()">＋ 品目を追加する</button>
+
+  <!-- 登録済み品目 -->
+  <div class="card">
+    <p class="card-title">登録済み品目</p>
+    <ul class="item-list" id="itemList">
+      <li class="empty-msg" id="emptyMsg">まだ品目が登録されていません</li>
+    </ul>
+  </div>
+
+  <!-- 合計カード -->
+  <div class="result-card" id="totalCard">
+    <p class="result-label">月間 家計負担増 合計</p>
+    <p class="result-value" id="totalVal">＋0 円</p>
+    <p class="result-note" id="totalNote"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="detailBody"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORE_KEY = 'neagari-items';
+  var items = [];
+
+  function load() {
+    try {
+      var d = localStorage.getItem(STORE_KEY);
+      if (d) items = JSON.parse(d);
+    } catch(e) { items = []; }
+    render();
+  }
+
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(items)); } catch(e) {}
+  }
+
+  function addItem() {
+    var name  = document.getElementById('iName').value.trim();
+    var price = parseFloat(document.getElementById('iPrice').value);
+    var qty   = parseFloat(document.getElementById('iQty').value);
+    var rate  = parseFloat(document.getElementById('iRate').value);
+    var unit  = document.getElementById('iUnit').value.trim() || '個';
+
+    if (!name)            { alert('品目名を入力してください'); return; }
+    if (isNaN(price) || price < 0) { alert('単価を正しく入力してください'); return; }
+    if (isNaN(qty)   || qty < 0)   { alert('月間購入量を正しく入力してください'); return; }
+    if (isNaN(rate)  || rate < 0)  { alert('値上がり率を正しく入力してください'); return; }
+
+    items.push({ id: Date.now(), name: name, price: price, qty: qty, rate: rate, unit: unit });
+    save();
+    render();
+
+    document.getElementById('iName').value  = '';
+    document.getElementById('iPrice').value = '';
+    document.getElementById('iQty').value   = '';
+    document.getElementById('iRate').value  = '';
+    document.getElementById('iUnit').value  = '';
+    document.getElementById('iName').focus();
+  }
+
+  function deleteItem(id) {
+    items = items.filter(function(it){ return it.id !== id; });
+    save();
+    render();
+  }
+
+  function calcBurden(it) {
+    // 現在の月額 = 単価 × 月間量
+    // 値上げ後の月額 = 単価 × (1 + rate/100) × 月間量
+    // 負担増 = 単価 × rate/100 × 月間量
+    return it.price * (it.rate / 100) * it.qty;
+  }
+
+  function render() {
+    var list = document.getElementById('itemList');
+    var emptyMsg = document.getElementById('emptyMsg');
+
+    if (items.length === 0) {
+      list.innerHTML = '';
+      list.appendChild(emptyMsg);
+      emptyMsg.style.display = '';
+      document.getElementById('totalCard').style.display = 'none';
+      document.getElementById('detailCard').style.display = 'none';
+      return;
+    }
+
+    emptyMsg.style.display = 'none';
+    list.innerHTML = items.map(function(it) {
+      var burden = calcBurden(it);
+      return '<li class="item-row">'
+        + '<div class="item-info">'
+        + '<div class="item-name">' + esc(it.name) + '</div>'
+        + '<div class="item-detail">単価 ' + fmt(it.price) + '円 × '
+        + it.qty + it.unit + '/月 × 値上がり ' + it.rate + '%</div>'
+        + '</div>'
+        + '<div class="item-amount">＋' + fmt(burden) + '円</div>'
+        + '<button class="btn-del" onclick="deleteItem(' + it.id + ')">削除</button>'
+        + '</li>';
+    }).join('');
+
+    var total = items.reduce(function(s, it){ return s + calcBurden(it); }, 0);
+    var totalCard = document.getElementById('totalCard');
+    totalCard.style.display = '';
+    totalCard.className = 'result-card ' + (total >= 5000 ? 'ng' : 'warn');
+    document.getElementById('totalVal').textContent = '＋' + fmt(total) + ' 円/月';
+    document.getElementById('totalNote').textContent =
+      '年間では約 ' + fmt(total * 12) + ' 円の負担増（登録 ' + items.length + ' 品目合計）';
+
+    // 内訳
+    var rows = items.map(function(it){
+      return '<tr><td>' + esc(it.name) + '</td><td>＋' + fmt(calcBurden(it)) + '円</td></tr>';
+    }).join('');
+    rows += '<tr class="hl"><td>合計</td><td>＋' + fmt(total) + '円</td></tr>';
+    document.getElementById('detailBody').innerHTML = rows;
+    document.getElementById('detailCard').style.display = '';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

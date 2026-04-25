@@ -43,7 +43,8 @@
 
   function render(items){
     if(!items.length) return;
-    var anchor = document.querySelector('.back-link');
+    var anchors = document.querySelectorAll('.back-link');
+    var anchor = anchors[anchors.length - 1];
     if(!anchor) return;
 
     var box = document.createElement('div');

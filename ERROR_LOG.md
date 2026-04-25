@@ -167,3 +167,14 @@ commit: dea0c02
 [2026-04-26_034723] SCAN apps=人事評価コメントジェネレーター total=1 exit=0
 [2026-04-26_040518] SCAN apps=人件費シミュレーター total=2 exit=0
 [2026-04-26_042750] SCAN apps=退去費用診断アプリ total=0 exit=0
+[2026-04-26_042917] SCAN apps=仕入れリスク診断アプリ total=0 exit=0
+[2026-04-26_044601] SCAN apps=仕入れ交渉文ジェネレーター total=0 exit=0
+[2026-04-26_050504] SCAN apps=仕入れ値上げ対応メールジェネレーター total=1 exit=0
+[2026-04-26_052542] SCAN apps=仕入れ値上げ採算診断アプリ total=0 exit=0
+[2026-04-26_054412] SCAN apps=代替食材逆引きアプリ total=0 exit=0
+[2026-04-26_060439] SCAN apps=住み替えシミュレーター total=2 exit=0
+[2026-04-26_062423] SCAN apps=住宅ローン繰上返済シミュレーター total=0 exit=0
+[2026-04-26_064413] SCAN apps=作業手順書ジェネレーター total=0 exit=0
+[2026-04-26_070344] SCAN apps=値上がり家計負担チェッカー total=0 exit=0
+[2026-04-26_072417] SCAN apps=値上げ交渉スクリプトジェネレーター total=0 exit=0
+[2026-04-26_074419] SCAN apps=値上げ対応価格シミュレーター total=0 exit=0

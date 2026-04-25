@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>作業手順書ジェネレーター</title>
+  <meta name="description" content="作業名とステップ（内容・担当人数・担当者名）を入力するだけで、現場向けの作業手順書と役割分担表を自動生成できるWebアプリ。印刷・PDF保存にも対応。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 680px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 72px; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ステップ ── */
+    .step-block {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1rem 0.75rem;
+      margin-bottom: 0.8rem;
+      position: relative;
+    }
+    .step-num {
+      font-size: 0.72rem; font-weight: 800; color: var(--accent);
+      letter-spacing: 0.05em; margin-bottom: 0.6rem;
+    }
+    .step-row { display: flex; gap: 0.6rem; }
+    .step-row .field { flex: 1; margin-bottom: 0.6rem; }
+    .step-row .field-sm { flex: 0 0 100px; }
+    .btn-del-step {
+      position: absolute; top: 0.6rem; right: 0.7rem;
+      background: none; border: none; font-size: 1rem;
+      color: var(--text-sub); cursor: pointer; padding: 0.2rem;
+      line-height: 1;
+    }
+    .btn-del-step:hover { color: var(--ng); }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 680px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-add-step {
+      display: block; width: 100%; max-width: 680px;
+      margin: 0 auto 1rem; padding: 0.75rem;
+      font-size: 0.92rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px dashed var(--accent); border-radius: var(--radius);
+      cursor: pointer; transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add-step:hover { background: var(--accent-light); }
+
+    /* ── 結果エリア ── */
+    #result-area { display: none; }
+
+    /* ── 手順書テーブル ── */
+    .proc-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 0.5rem; }
+    .proc-table th { background: var(--accent); color: #fff; padding: 0.55rem 0.6rem; text-align: left; font-size: 0.78rem; font-weight: 700; }
+    .proc-table td { padding: 0.6rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+    .proc-table tr:last-child td { border-bottom: none; }
+    .proc-table .step-no { font-weight: 800; color: var(--accent); width: 2.5rem; white-space: nowrap; }
+    .proc-table .step-assignee { color: var(--text-sub); font-size: 0.82rem; }
+
+    /* ── 役割分担表 ── */
+    .role-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 0.5rem; }
+    .role-table th { background: var(--text); color: #fff; padding: 0.55rem 0.6rem; text-align: left; font-size: 0.78rem; font-weight: 700; }
+    .role-table td { padding: 0.6rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+    .role-table tr:last-child td { border-bottom: none; }
+    .role-table .person-name { font-weight: 700; white-space: nowrap; }
+    .role-table .step-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .step-tag {
+      background: var(--accent-light); color: var(--accent);
+      border: 1px solid var(--accent); border-radius: 5px;
+      padding: 0.15rem 0.45rem; font-size: 0.75rem; font-weight: 700;
+    }
+
+    /* ── 印刷タイトル ── */
+    .print-title { display: none; }
+    .section-title {
+      font-size: 1rem; font-weight: 800; margin-bottom: 0.8rem;
+      color: var(--text); border-left: 3px solid var(--accent); padding-left: 0.6rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 680px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-add-step, .btn-del-step, .back-link,
+      .no-print, #fav-widget, #input-area { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      #result-area { display: block !important; }
+      .print-title { display: block; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+
+    @media (max-width: 480px) {
+      .step-row { flex-direction: column; gap: 0; }
+      .step-row .field-sm { flex: unset; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📋 作業手順書ジェネレーター</h1>
+    <p class="subtitle">作業内容と人数を入力するだけで手順書・役割分担表を自動生成</p>
+  </header>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <!-- 入力エリア -->
+  <div id="input-area">
+    <div class="card">
+      <p class="card-title">基本情報</p>
+      <div class="field">
+        <label for="task-name">作業名</label>
+        <input type="text" id="task-name" placeholder="例: 倉庫棚卸し作業">
+      </div>
+      <div class="field">
+        <label for="task-date">実施日（任意）</label>
+        <input type="date" id="task-date">
+      </div>
+      <div class="field">
+        <label for="task-location">実施場所（任意）</label>
+        <input type="text" id="task-location" placeholder="例: 第1倉庫">
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">作業ステップ</p>
+      <div id="steps-container"></div>
+    </div>
+
+    <button class="btn-add-step no-print" onclick="addStep()">＋ ステップを追加</button>
+    <button class="btn-calc" onclick="generate()">📋 手順書・役割分担表を生成</button>
+  </div>
+
+  <!-- 結果エリア -->
+  <div id="result-area">
+    <div class="card">
+      <p class="print-title" id="print-title"></p>
+      <p class="card-title">作業手順書</p>
+      <div id="proc-output"></div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">役割分担表</p>
+      <div id="role-output"></div>
+    </div>
+
+    <button class="btn-add-step no-print" onclick="backToEdit()">✏️ 入力に戻って修正する</button>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <p class="source-note" style="max-width:680px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📌 入力内容はブラウザに自動保存されます。PDF保存ボタンで印刷・PDF出力できます。
+  </p>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+
+  <script>
+  var STORAGE_KEY = 'sakugyotejunsho_data';
+  var stepCount = 0;
+  var MAX_STEPS = 10;
+
+  // ── 初期化 ──
+  window.addEventListener('DOMContentLoaded', function() {
+    loadData();
+    if (document.getElementById('steps-container').children.length === 0) {
+      addStep(); addStep(); addStep();
+    }
+  });
+
+  // ── ステップ追加 ──
+  function addStep() {
+    var container = document.getElementById('steps-container');
+    if (container.children.length >= MAX_STEPS) {
+      alert('ステップは最大' + MAX_STEPS + '件まで追加できます。');
+      return;
+    }
+    stepCount++;
+    var idx = container.children.length + 1;
+    var div = document.createElement('div');
+    div.className = 'step-block';
+    div.dataset.stepId = stepCount;
+    div.innerHTML =
+      '<p class="step-num">STEP ' + idx + '</p>' +
+      '<button class="btn-del-step" onclick="deleteStep(this)" title="このステップを削除">✕</button>' +
+      '<div class="field">' +
+        '<label>作業内容</label>' +
+        '<textarea placeholder="例: 商品をスキャンして数量を記録する" rows="2"></textarea>' +
+      '</div>' +
+      '<div class="step-row">' +
+        '<div class="field field-sm">' +
+          '<label>担当人数</label>' +
+          '<input type="number" min="1" max="99" value="1" placeholder="1">' +
+        '</div>' +
+        '<div class="field">' +
+          '<label>担当者名（任意・カンマ区切り）</label>' +
+          '<input type="text" placeholder="例: 田中,佐藤">' +
+        '</div>' +
+      '</div>';
+    container.appendChild(div);
+    renumberSteps();
+    saveData();
+  }
+
+  // ── ステップ削除 ──
+  function deleteStep(btn) {
+    var block = btn.closest('.step-block');
+    var container = document.getElementById('steps-container');
+    if (container.children.length <= 1) {
+      alert('ステップは最低1件必要です。');
+      return;
+    }
+    block.remove();
+    renumberSteps();
+    saveData();
+  }
+
+  // ── ステップ番号振り直し ──
+  function renumberSteps() {
+    var blocks = document.querySelectorAll('.step-block');
+    blocks.forEach(function(b, i) {
+      b.querySelector('.step-num').textContent = 'STEP ' + (i + 1);
+    });
+  }
+
+  // ── 生成 ──
+  function generate() {
+    var taskName = document.getElementById('task-name').value.trim();
+    var taskDate = document.getElementById('task-date').value;
+    var taskLoc  = document.getElementById('task-location').value.trim();
+    if (!taskName) { alert('作業名を入力してください。'); return; }
+
+    var blocks = document.querySelectorAll('.step-block');
+    if (blocks.length === 0) { alert('ステップを1件以上追加してください。'); return; }
+
+    var steps = [];
+    var allValid = true;
+    blocks.forEach(function(b, i) {
+      var content  = b.querySelector('textarea').value.trim();
+      var numInput = b.querySelector('input[type=number]');
+      var nameInput = b.querySelector('input[type=text]');
+      var num = parseInt(numInput.value, 10) || 1;
+      if (num < 1) num = 1;
+      var namesRaw = nameInput.value.trim();
+      var names = namesRaw ? namesRaw.split(/[,、，\s]+/).filter(function(n){ return n; }) : [];
+
+      // 名前が人数より少ない場合は自動補完
+      var assignees = [];
+      for (var p = 0; p < num; p++) {
+        if (p < names.length) {
+          assignees.push(names[p]);
+        } else {
+          assignees.push('担当者' + toCircled(p + 1));
+        }
+      }
+
+      if (!content) {
+        allValid = false;
+        b.querySelector('textarea').style.borderColor = '#b91c1c';
+      } else {
+        b.querySelector('textarea').style.borderColor = '';
+      }
+
+      steps.push({ content: content, num: num, assignees: assignees });
+    });
+
+    if (!allValid) { alert('作業内容が空のステップがあります。'); return; }
+
+    saveData();
+
+    // 手順書 HTML
+    var procHTML = '';
+    var headerRow = '<tr>' +
+      '<th style="width:3rem">No.</th>' +
+      '<th>作業内容</th>' +
+      '<th style="width:8rem">担当者</th>' +
+    '</tr>';
+    var bodyRows = steps.map(function(s, i) {
+      return '<tr>' +
+        '<td class="step-no">' + (i + 1) + '</td>' +
+        '<td>' + escHtml(s.content) + '</td>' +
+        '<td class="step-assignee">' + s.assignees.map(escHtml).join('<br>') + '</td>' +
+      '</tr>';
+    }).join('');
+    procHTML = '<table class="proc-table"><thead>' + headerRow + '</thead><tbody>' + bodyRows + '</tbody></table>';
+
+    // 役割分担表 HTML
+    var personMap = {}; // name -> [stepNos]
+    steps.forEach(function(s, i) {
+      s.assignees.forEach(function(name) {
+        if (!personMap[name]) personMap[name] = [];
+        personMap[name].push(i + 1);
+      });
+    });
+    var roleRows = Object.keys(personMap).map(function(name) {
+      var tags = personMap[name].map(function(n) {
+        return '<span class="step-tag">STEP ' + n + '</span>';
+      }).join('');
+      return '<tr>' +
+        '<td class="person-name">' + escHtml(name) + '</td>' +
+        '<td><div class="step-tags">' + tags + '</div></td>' +
+      '</tr>';
+    }).join('');
+    var roleHTML = '<table class="role-table">' +
+      '<thead><tr><th style="width:8rem">担当者</th><th>担当ステップ</th></tr></thead>' +
+      '<tbody>' + roleRows + '</tbody></table>';
+
+    // 印刷タイトル
+    var titleParts = [taskName];
+    if (taskDate) titleParts.push(taskDate.replace(/-/g, '/'));
+    if (taskLoc) titleParts.push(taskLoc);
+    document.getElementById('print-title').textContent = titleParts.join('　');
+
+    document.getElementById('proc-output').innerHTML = procHTML;
+    document.getElementById('role-output').innerHTML = roleHTML;
+
+    // 表示切替
+    document.getElementById('input-area').style.display = 'none';
+    document.getElementById('result-area').style.display = 'block';
+    window.scrollTo(0, 0);
+  }
+
+  // ── 編集に戻る ──
+  function backToEdit() {
+    document.getElementById('input-area').style.display = 'block';
+    document.getElementById('result-area').style.display = 'none';
+    window.scrollTo(0, 0);
+  }
+
+  // ── 丸数字変換 ──
+  function toCircled(n) {
+    var chars = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩',
+                 '⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+    return (n >= 1 && n <= 20) ? chars[n - 1] : String(n);
+  }
+
+  // ── エスケープ ──
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── localStorage 保存 ──
+  function saveData() {
+    try {
+      var blocks = document.querySelectorAll('.step-block');
+      var stepsData = [];
+      blocks.forEach(function(b) {
+        stepsData.push({
+          content: b.querySelector('textarea').value,
+          num: b.querySelector('input[type=number]').value,
+          names: b.querySelector('input[type=text]').value
+        });
+      });
+      var data = {
+        taskName: document.getElementById('task-name').value,
+        taskDate: document.getElementById('task-date').value,
+        taskLocation: document.getElementById('task-location').value,
+        steps: stepsData
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch(e) {}
+  }
+
+  // ── localStorage 読み込み ──
+  function loadData() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.taskName) document.getElementById('task-name').value = data.taskName;
+      if (data.taskDate) document.getElementById('task-date').value = data.taskDate;
+      if (data.taskLocation) document.getElementById('task-location').value = data.taskLocation;
+      if (data.steps && data.steps.length > 0) {
+        var container = document.getElementById('steps-container');
+        container.innerHTML = '';
+        data.steps.forEach(function(s) {
+          addStep();
+          var blocks = container.querySelectorAll('.step-block');
+          var last = blocks[blocks.length - 1];
+          last.querySelector('textarea').value = s.content || '';
+          last.querySelector('input[type=number]').value = s.num || 1;
+          last.querySelector('input[type=text]').value = s.names || '';
+        });
+      }
+    } catch(e) {}
+  }
+
+  // 変更時に自動保存
+  document.addEventListener('input', function(e) {
+    if (e.target.closest('#input-area')) saveData();
+  });
+  </script>
+
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

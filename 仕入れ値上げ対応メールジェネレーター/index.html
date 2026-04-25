@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>仕入れ値上げ対応メールジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── シーン選択 ── */
+    .scene-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+    }
+    .scene-btn {
+      padding: 0.8rem 0.5rem;
+      font-size: 0.88rem; font-weight: 700;
+      border: 2px solid var(--border);
+      border-radius: 10px; background: var(--bg);
+      color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s; text-align: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .scene-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .scene-btn.active {
+      border-color: var(--accent); background: var(--accent-light);
+      color: var(--accent);
+    }
+    .scene-desc {
+      font-size: 0.76rem; color: var(--text-sub);
+      margin-top: 0.7rem; line-height: 1.5;
+      padding: 0.6rem 0.8rem;
+      background: var(--bg); border-radius: 8px;
+      min-height: 2.5rem;
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field-optional { display: none; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 生成メール ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card .result-label {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+      margin-bottom: 0.8rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .mail-body {
+      white-space: pre-wrap;
+      font-size: 0.9rem; line-height: 1.8;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 1rem;
+      min-height: 200px;
+      user-select: all;
+    }
+    .btn-copy {
+      margin-top: 0.9rem;
+      display: block; width: 100%;
+      padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 800;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.8; }
+    .copy-done {
+      font-size: 0.78rem; color: var(--ok);
+      text-align: center; margin-top: 0.5rem;
+      min-height: 1.2rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; }
+      .app-header { border-bottom: 2px solid #000; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>仕入れ値上げ対応メールジェネレーター</h1>
+    <p class="subtitle">シーンを選ぶだけ — 返信メール文を即生成</p>
+  </header>
+
+  <!-- シーン選択 -->
+  <div class="card">
+    <p class="card-title">STEP 1｜返信シーンを選ぶ</p>
+    <div class="scene-grid">
+      <button class="scene-btn" data-scene="accept" onclick="selectScene('accept')">✅ 値上げを受諾する</button>
+      <button class="scene-btn" data-scene="negotiate" onclick="selectScene('negotiate')">💬 値下げを交渉する</button>
+      <button class="scene-btn" data-scene="reconsider" onclick="selectScene('reconsider')">🔄 再検討を依頼する</button>
+      <button class="scene-btn" data-scene="decline" onclick="selectScene('decline')">❌ 値上げを断る</button>
+    </div>
+    <p class="scene-desc" id="sceneDesc">シーンを選んでください。</p>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">STEP 2｜基本情報を入力する</p>
+    <div class="field">
+      <label for="supplierName">仕入れ先会社名</label>
+      <input type="text" id="supplierName" placeholder="例：山田商事株式会社">
+    </div>
+    <div class="field">
+      <label for="supplierPerson">先方担当者名</label>
+      <input type="text" id="supplierPerson" placeholder="例：田中様">
+    </div>
+    <div class="field">
+      <label for="productName">品名・商品名</label>
+      <input type="text" id="productName" placeholder="例：○○部品、△△原料">
+    </div>
+    <div class="field">
+      <label for="increaseRate">値上げ率（%）</label>
+      <input type="number" id="increaseRate" placeholder="例：15" min="0" max="999" step="0.1">
+    </div>
+    <div class="field field-optional" id="negotiateTargetField">
+      <label for="negotiateTarget">希望する値上げ幅（%）</label>
+      <input type="number" id="negotiateTarget" placeholder="例：5" min="0" max="999" step="0.1">
+      <p class="hint">交渉シーンで使用。受諾できる上限の値上げ率を入力してください。</p>
+    </div>
+    <div class="field">
+      <label for="myCompany">自社名</label>
+      <input type="text" id="myCompany" placeholder="例：株式会社○○">
+    </div>
+    <div class="field">
+      <label for="myName">自社担当者名</label>
+      <input type="text" id="myName" placeholder="例：鈴木一郎">
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">✉️ メール文を生成する</button>
+
+  <!-- 生成結果 -->
+  <div class="result-card" id="result">
+    <p class="result-label">
+      <span id="resultSceneLabel">生成されたメール文</span>
+    </p>
+    <div class="mail-body" id="mailBody"></div>
+    <button class="btn-copy" onclick="copyMail()">📋 コピーする</button>
+    <p class="copy-done" id="copyDone"></p>
+  </div>
+
+  <p style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📌 生成されたメール文は状況に応じて加筆・調整してご利用ください。送付前に内容・宛名・金額をご確認ください。
+  </p>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var currentScene = '';
+
+  var sceneDescs = {
+    accept:     '値上げを受け入れ、今後の取引継続を丁寧に伝えます。',
+    negotiate:  '全額受諾ではなく、希望する値上げ幅を提示して交渉します。',
+    reconsider: '一旦の回答を保留し、価格の再検討をお願いします。',
+    decline:    '値上げを受け入れることが難しい旨を丁寧に断ります。'
+  };
+
+  var sceneLabels = {
+    accept:     '✅ 受諾メール',
+    negotiate:  '💬 交渉メール',
+    reconsider: '🔄 再検討依頼メール',
+    decline:    '❌ お断りメール'
+  };
+
+  function selectScene(scene) {
+    currentScene = scene;
+    document.querySelectorAll('.scene-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.dataset.scene === scene);
+    });
+    document.getElementById('sceneDesc').textContent = sceneDescs[scene] || '';
+    var neg = document.getElementById('negotiateTargetField');
+    if (scene === 'negotiate') {
+      neg.style.display = '';
+    } else {
+      neg.style.display = 'none';
+    }
+    saveState();
+  }
+
+  function generate() {
+    if (!currentScene) { alert('返信シーンを選んでください。'); return; }
+
+    var supplier     = document.getElementById('supplierName').value.trim() || '〇〇株式会社';
+    var supplierP    = document.getElementById('supplierPerson').value.trim() || '担当者';
+    var product      = document.getElementById('productName').value.trim() || '〇〇';
+    var rate         = document.getElementById('increaseRate').value.trim() || '〇〇';
+    var negotiateT   = document.getElementById('negotiateTarget').value.trim() || '〇〇';
+    var myCompany    = document.getElementById('myCompany').value.trim() || '〇〇株式会社';
+    var myName       = document.getElementById('myName').value.trim() || '〇〇';
+
+    var mail = buildMail(currentScene, supplier, supplierP, product, rate, negotiateT, myCompany, myName);
+
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    document.getElementById('mailBody').textContent = mail;
+    document.getElementById('resultSceneLabel').textContent = sceneLabels[currentScene];
+    document.getElementById('copyDone').textContent = '';
+    rc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    saveState();
+  }
+
+  function buildMail(scene, supplier, supplierP, product, rate, negotiateT, myCompany, myName) {
+    var today = formatDate(new Date());
+    var head = supplier + '\n' + supplierP + ' 様\n\nお世話になっております。\n' + myCompany + ' の ' + myName + ' でございます。\n\n';
+    var foot = '\n\nどうぞよろしくお願いいたします。\n\n' + myCompany + '\n' + myName;
+
+    if (scene === 'accept') {
+      return head
+        + 'このたびは、' + product + ' の価格改定についてご連絡いただき、\nありがとうございました。\n\n'
+        + 'ご説明いただきました通り、昨今の原材料・エネルギーコストの\n上昇状況を踏まえ、今回の値上げ（' + rate + '%）について\n了承させていただきます。\n\n'
+        + '引き続き、良好なお取引ができますよう、よろしくお願い申し上げます。'
+        + foot;
+    }
+
+    if (scene === 'negotiate') {
+      return head
+        + 'このたびは、' + product + ' の価格改定（' + rate + '%）について\nご連絡いただき、ありがとうございました。\n\n'
+        + '拝察いたしますに、コスト上昇の背景は十分理解しております。\nしかしながら、弊社の経営状況を踏まえますと、\n全額のご要望にお応えすることが現時点では困難な状況でございます。\n\n'
+        + 'つきましては、値上げ幅を ' + negotiateT + '% 程度でご検討いただくことは\n可能でしょうか。ご状況をご考慮のうえ、ご回答いただけますと幸いです。\n\n'
+        + '引き続き、お取引を大切にしていきたいと考えております。\nご検討のほど、よろしくお願い申し上げます。'
+        + foot;
+    }
+
+    if (scene === 'reconsider') {
+      return head
+        + 'このたびは、' + product + ' の価格改定（' + rate + '%）について\nご連絡いただき、ありがとうございました。\n\n'
+        + 'ご事情は理解しておりますが、現時点ではすぐに回答を申し上げることが\n難しい状況にございます。\n\n'
+        + '社内での検討・協議のため、今しばらくお時間をいただけますでしょうか。\nご迷惑をおかけしますが、何卒よろしくお願い申し上げます。\n\n'
+        + 'なお、代替案等のご提案がございましたら、ぜひお知らせください。'
+        + foot;
+    }
+
+    if (scene === 'decline') {
+      return head
+        + 'このたびは、' + product + ' の価格改定（' + rate + '%）について\nご連絡いただき、ありがとうございました。\n\n'
+        + '誠に恐縮ではございますが、弊社の経営状況を考慮した結果、\n今回の値上げについてはお受けすることが困難な状況でございます。\n\n'
+        + '貴社とのお取引を大変重要に考えておりますが、\n現状の価格水準での継続が難しい場合は、\n代替品のご提案や価格の再検討をご検討いただけますと幸いです。\n\n'
+        + 'ご不便をおかけして大変申し訳ございませんが、\nご理解いただけますよう、よろしくお願い申し上げます。'
+        + foot;
+    }
+
+    return '';
+  }
+
+  function formatDate(d) {
+    return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+  }
+
+  function copyMail() {
+    var text = document.getElementById('mailBody').textContent;
+    if (!text) return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        document.getElementById('copyDone').textContent = '✅ コピーしました！';
+        setTimeout(function(){ document.getElementById('copyDone').textContent = ''; }, 2500);
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      document.getElementById('copyDone').textContent = '✅ コピーしました！';
+      setTimeout(function(){ document.getElementById('copyDone').textContent = ''; }, 2500);
+    }
+  }
+
+  /* ── localStorage ── */
+  var LS_KEY = 'shiire_neage_mail_v1';
+
+  function saveState() {
+    try {
+      var data = {
+        scene:          currentScene,
+        supplierName:   document.getElementById('supplierName').value,
+        supplierPerson: document.getElementById('supplierPerson').value,
+        productName:    document.getElementById('productName').value,
+        increaseRate:   document.getElementById('increaseRate').value,
+        negotiateTarget:document.getElementById('negotiateTarget').value,
+        myCompany:      document.getElementById('myCompany').value,
+        myName:         document.getElementById('myName').value
+      };
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+    } catch(e) {}
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (d.scene) selectScene(d.scene);
+      if (d.supplierName)    document.getElementById('supplierName').value    = d.supplierName;
+      if (d.supplierPerson)  document.getElementById('supplierPerson').value  = d.supplierPerson;
+      if (d.productName)     document.getElementById('productName').value     = d.productName;
+      if (d.increaseRate)    document.getElementById('increaseRate').value    = d.increaseRate;
+      if (d.negotiateTarget) document.getElementById('negotiateTarget').value = d.negotiateTarget;
+      if (d.myCompany)       document.getElementById('myCompany').value       = d.myCompany;
+      if (d.myName)          document.getElementById('myName').value          = d.myName;
+    } catch(e) {}
+  }
+
+  /* 入力変更で自動保存 */
+  ['supplierName','supplierPerson','productName','increaseRate','negotiateTarget','myCompany','myName'].forEach(function(id){
+    document.getElementById(id).addEventListener('input', saveState);
+  });
+
+  loadState();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
