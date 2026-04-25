@@ -347,4 +347,3 @@ foreach ($s in @(
 }
 
 Write-Host ""
-Read-Host "Press Enter to close"
