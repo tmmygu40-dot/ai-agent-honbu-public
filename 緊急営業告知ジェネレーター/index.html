@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>緊急営業告知ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.6; font-family: inherit; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果エリア ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.show { display: block; }
+    .result-card .card-title { margin-bottom: 0.8rem; }
+    .result-text {
+      white-space: pre-wrap; line-height: 1.8;
+      font-size: 0.95rem; color: var(--text);
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 9px; padding: 1rem;
+      word-break: break-all;
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: block; width: 100%; margin-top: 1rem;
+      padding: 0.72rem 1rem; font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: 10px;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:hover { background: var(--accent); color: #fff; }
+    .btn-copy.copied { background: var(--ok); border-color: var(--ok); color: #fff; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🚨 緊急営業告知ジェネレーター</h1>
+    <p class="subtitle">停電・断水・災害時のお知らせ文を即生成・コピー</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+
+    <div class="field">
+      <label for="shopName">店舗名・会社名</label>
+      <input type="text" id="shopName" placeholder="例：○○食堂、△△株式会社">
+    </div>
+
+    <div class="field">
+      <label for="situation">発生した状況</label>
+      <select id="situation">
+        <option value="">--- 選択してください ---</option>
+        <option value="停電">停電</option>
+        <option value="断水">断水</option>
+        <option value="台風">台風・暴風雨</option>
+        <option value="地震">地震</option>
+        <option value="大雪">大雪・積雪</option>
+        <option value="豪雨">豪雨・洪水</option>
+        <option value="火災">火災・煙の発生</option>
+        <option value="設備故障">設備故障</option>
+        <option value="感染症">感染症対応</option>
+        <option value="その他">その他の緊急事態</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="status">営業状況</label>
+      <select id="status">
+        <option value="">--- 選択してください ---</option>
+        <option value="臨時休業">本日は臨時休業します</option>
+        <option value="時短営業">時間短縮して営業します</option>
+        <option value="通常営業">通常どおり営業します</option>
+        <option value="翌日以降休業">明日以降も休業予定です</option>
+        <option value="再開未定">再開時期は未定です</option>
+        <option value="順次再開">順次営業を再開しています</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="detail">追加情報（任意）</label>
+      <textarea id="detail" placeholder="例：〇月〇日〇時頃の再開を予定しています。ご注文はお電話にて承っております。"></textarea>
+      <p class="hint">日時・代替手段・問い合わせ先など</p>
+    </div>
+
+    <div class="field">
+      <label for="format">文体</label>
+      <select id="format">
+        <option value="丁寧">丁寧（お客様向け）</option>
+        <option value="簡潔">簡潔（SNS・LINE向け）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">📢 告知文を生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <p class="card-title">生成された告知文</p>
+    <div class="result-text" id="resultText"></div>
+    <button class="btn-copy" id="copyBtn" onclick="copyText()">📋 コピーする</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'kyukin_annai_v1';
+
+  // 起動時に保存データ復元
+  (function() {
+    try {
+      var s = localStorage.getItem(STORAGE_KEY);
+      if (!s) return;
+      var d = JSON.parse(s);
+      if (d.shopName) document.getElementById('shopName').value = d.shopName;
+      if (d.situation) document.getElementById('situation').value = d.situation;
+      if (d.status) document.getElementById('status').value = d.status;
+      if (d.detail) document.getElementById('detail').value = d.detail;
+      if (d.format) document.getElementById('format').value = d.format;
+    } catch(e) {}
+  })();
+
+  function saveData() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        shopName: document.getElementById('shopName').value,
+        situation: document.getElementById('situation').value,
+        status: document.getElementById('status').value,
+        detail: document.getElementById('detail').value,
+        format: document.getElementById('format').value
+      }));
+    } catch(e) {}
+  }
+
+  function generate() {
+    var shopName = document.getElementById('shopName').value.trim();
+    var situation = document.getElementById('situation').value;
+    var status = document.getElementById('status').value;
+    var detail = document.getElementById('detail').value.trim();
+    var format = document.getElementById('format').value;
+
+    if (!shopName || !situation || !status) {
+      alert('店舗名・状況・営業状況を入力してください');
+      return;
+    }
+
+    saveData();
+
+    var text = buildText(shopName, situation, status, detail, format);
+    document.getElementById('resultText').textContent = text;
+    var rc = document.getElementById('resultCard');
+    rc.style.display = 'block';
+    rc.className = 'result-card show';
+
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '📋 コピーする';
+    btn.className = 'btn-copy';
+
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function buildText(shop, sit, sts, detail, format) {
+    var today = getTodayStr();
+    var lines = [];
+
+    if (format === '丁寧') {
+      lines.push('【' + sit + 'に関するお知らせ】');
+      lines.push('');
+      lines.push('平素より' + shop + 'をご利用いただき、誠にありがとうございます。');
+      lines.push('');
+
+      // 状況説明
+      var sitMsg = getSituationMsg(sit);
+      lines.push(sitMsg);
+      lines.push('');
+
+      // 営業状況
+      var stsMsg = getStatusMsg(sts, shop);
+      lines.push(stsMsg);
+
+      if (detail) {
+        lines.push('');
+        lines.push(detail);
+      }
+
+      lines.push('');
+      lines.push('お客様にはご不便をおかけし、大変申し訳ございません。');
+      lines.push('何卒ご理解のほど、よろしくお願い申し上げます。');
+      lines.push('');
+      lines.push(today);
+      lines.push(shop);
+
+    } else {
+      // 簡潔（SNS・LINE向け）
+      lines.push('📢 ' + sit + 'のお知らせ｜' + shop);
+      lines.push('');
+      lines.push(getShortStatusMsg(sts));
+
+      if (detail) {
+        lines.push(detail);
+      }
+
+      lines.push('');
+      lines.push('ご迷惑をおかけして申し訳ありません。');
+      lines.push(today);
+    }
+
+    return lines.join('\n');
+  }
+
+  function getSituationMsg(sit) {
+    var msgs = {
+      '停電': '現在、停電が発生しており、通常の営業に支障をきたしております。',
+      '断水': '現在、断水が発生しており、営業に影響が生じております。',
+      '台風': '台風・暴風雨の影響により、安全確保を優先いたしております。',
+      '地震': '地震の影響により、施設・設備の安全確認を行っております。',
+      '大雪': '大雪・積雪により、交通および施設への影響が生じております。',
+      '豪雨': '豪雨・洪水の影響により、営業に支障をきたしております。',
+      '火災': '火災・煙の発生により、安全確保のため対応しております。',
+      '設備故障': '設備の故障により、通常の営業が困難な状況となっております。',
+      '感染症': '感染症拡大防止への対応として、営業形態を変更しております。',
+      'その他': '緊急事態が発生したため、下記のとおりご案内申し上げます。'
+    };
+    return msgs[sit] || '緊急事態が発生しております。';
+  }
+
+  function getStatusMsg(sts, shop) {
+    var msgs = {
+      '臨時休業': '誠に恐れ入りますが、本日は臨時休業とさせていただきます。',
+      '時短営業': '本日は営業時間を短縮して営業いたします。',
+      '通常営業': '通常どおり営業しております。',
+      '翌日以降休業': '本日および明日以降も、状況が回復するまで休業とさせていただく予定です。',
+      '再開未定': '再開の時期につきましては、現時点では未定となっております。状況が判明次第、改めてお知らせいたします。',
+      '順次再開': '現在、順次営業を再開しております。'
+    };
+    return msgs[sts] || sts;
+  }
+
+  function getShortStatusMsg(sts) {
+    var msgs = {
+      '臨時休業': '⚠️ 本日は臨時休業です。\n',
+      '時短営業': '⏰ 本日は時間短縮営業です。\n',
+      '通常営業': '✅ 通常どおり営業しています。\n',
+      '翌日以降休業': '⚠️ 本日以降、当分の間休業します。\n',
+      '再開未定': '⚠️ 再開時期は未定です。決まり次第お知らせします。\n',
+      '順次再開': '✅ 順次営業を再開しています。\n'
+    };
+    return msgs[sts] || sts + '\n';
+  }
+
+  function getTodayStr() {
+    var d = new Date();
+    return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+  }
+
+  function copyText() {
+    var text = document.getElementById('resultText').textContent;
+    var btn = document.getElementById('copyBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        btn.textContent = '✅ コピーしました！';
+        btn.className = 'btn-copy copied';
+        setTimeout(function() {
+          btn.textContent = '📋 コピーする';
+          btn.className = 'btn-copy';
+        }, 2000);
+      }).catch(function() { fallbackCopy(text, btn); });
+    } else {
+      fallbackCopy(text, btn);
+    }
+  }
+
+  function fallbackCopy(text, btn) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      btn.textContent = '✅ コピーしました！';
+      btn.className = 'btn-copy copied';
+      setTimeout(function() {
+        btn.textContent = '📋 コピーする';
+        btn.className = 'btn-copy';
+      }, 2000);
+    } catch(e) {
+      alert('コピーに失敗しました。手動でコピーしてください。');
+    }
+    document.body.removeChild(ta);
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
