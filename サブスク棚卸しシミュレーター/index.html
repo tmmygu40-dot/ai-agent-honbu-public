@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>サブスク棚卸しシミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力行 ── */
+    .input-row {
+      display: flex; gap: 0.6rem; align-items: flex-end;
+    }
+    .input-row .f-name { flex: 1; }
+    .input-row .f-price { width: 130px; flex-shrink: 0; }
+    .field { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── 追加ボタン ── */
+    .btn-add {
+      width: 100%; margin-top: 0.8rem; padding: 0.8rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.18);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.15);
+    }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.8rem; max-width: 600px; margin: 0 auto 1rem;
+    }
+    .sum-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem; box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .sum-card.saving { border-color: var(--ok); background: var(--ok-bg); }
+    .sum-label { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .sum-value { font-size: 1.5rem; font-weight: 900; color: var(--accent); letter-spacing: -0.02em; }
+    .sum-card.saving .sum-value { color: var(--ok); }
+    .sum-unit { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* ── リスト ── */
+    .sub-list { list-style: none; }
+    .sub-item {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .sub-item:last-child { border-bottom: none; }
+    .sub-check {
+      width: 20px; height: 20px; flex-shrink: 0;
+      accent-color: var(--ng); cursor: pointer;
+    }
+    .sub-name {
+      flex: 1; font-size: 0.95rem; font-weight: 600;
+    }
+    .sub-item.candidate .sub-name {
+      color: var(--ng); text-decoration: line-through;
+    }
+    .sub-price {
+      font-size: 0.9rem; color: var(--text-sub); white-space: nowrap;
+    }
+    .btn-del {
+      background: none; border: none; color: var(--ng); cursor: pointer;
+      font-size: 1.1rem; padding: 0.2rem 0.3rem; flex-shrink: 0;
+      line-height: 1;
+    }
+    .empty-msg {
+      text-align: center; color: var(--text-sub);
+      font-size: 0.88rem; padding: 1.5rem 0;
+    }
+
+    /* ── 節約結果カード ── */
+    .saving-card {
+      display: none;
+      background: var(--ok-bg);
+      border: 2px solid var(--ok);
+      border-radius: var(--radius);
+      padding: 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+      text-align: center;
+    }
+    .saving-card .sc-label { font-size: 0.75rem; font-weight: 700; color: var(--ok); letter-spacing: 0.06em; margin-bottom: 0.4rem; }
+    .saving-card .sc-value { font-size: 2rem; font-weight: 900; color: var(--ok); margin-bottom: 0.3rem; }
+    .saving-card .sc-note { font-size: 0.82rem; color: var(--text-sub); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .input-row { flex-direction: column; }
+      .input-row .f-price { width: 100%; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>サブスク棚卸しシミュレーター</h1>
+    <p class="subtitle">月額を登録して年間総額と節約効果を即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">サービスを追加</p>
+    <div class="input-row">
+      <div class="field f-name">
+        <label for="svcName">サービス名</label>
+        <input type="text" id="svcName" placeholder="例: Netflix">
+      </div>
+      <div class="field f-price">
+        <label for="svcPrice">月額（円）</label>
+        <input type="number" id="svcPrice" placeholder="例: 990" min="0">
+      </div>
+    </div>
+    <button class="btn-add" onclick="addService()">＋ 追加する</button>
+  </div>
+
+  <!-- サマリー -->
+  <div class="summary-grid" id="summaryGrid">
+    <div class="sum-card">
+      <p class="sum-label">月額合計</p>
+      <p class="sum-value" id="totalMonthly">0</p>
+      <p class="sum-unit">円 / 月</p>
+    </div>
+    <div class="sum-card">
+      <p class="sum-label">年間総額</p>
+      <p class="sum-value" id="totalYearly">0</p>
+      <p class="sum-unit">円 / 年</p>
+    </div>
+  </div>
+
+  <!-- 節約効果カード -->
+  <div class="saving-card" id="savingCard">
+    <p class="sc-label">解約候補を外した場合の節約額</p>
+    <p class="sc-value" id="savingValue">0 円/月</p>
+    <p class="sc-note" id="savingNote"></p>
+  </div>
+
+  <!-- 登録リスト -->
+  <div class="card">
+    <p class="card-title">登録済みサービス</p>
+    <p class="empty-msg" id="emptyMsg">まだ登録がありません</p>
+    <ul class="sub-list" id="subList"></ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'subscriptions_v1';
+  var services = [];
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      services = raw ? JSON.parse(raw) : [];
+    } catch(e) { services = []; }
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(services));
+  }
+
+  function addService() {
+    var name  = document.getElementById('svcName').value.trim();
+    var price = parseFloat(document.getElementById('svcPrice').value);
+    if (!name) { alert('サービス名を入力してください'); return; }
+    if (isNaN(price) || price < 0) { alert('月額を正しく入力してください'); return; }
+    services.push({ id: Date.now(), name: name, price: Math.round(price), candidate: false });
+    save();
+    document.getElementById('svcName').value  = '';
+    document.getElementById('svcPrice').value = '';
+    render();
+  }
+
+  function deleteService(id) {
+    services = services.filter(function(s){ return s.id !== id; });
+    save();
+    render();
+  }
+
+  function toggleCandidate(id) {
+    services = services.map(function(s){
+      if (s.id === id) s.candidate = !s.candidate;
+      return s;
+    });
+    save();
+    render();
+  }
+
+  function render() {
+    var list = document.getElementById('subList');
+    var emptyMsg = document.getElementById('emptyMsg');
+
+    if (services.length === 0) {
+      emptyMsg.style.display = '';
+      list.innerHTML = '';
+    } else {
+      emptyMsg.style.display = 'none';
+      list.innerHTML = services.map(function(s){
+        return '<li class="sub-item' + (s.candidate ? ' candidate' : '') + '" id="item-' + s.id + '">'
+          + '<input type="checkbox" class="sub-check" ' + (s.candidate ? 'checked' : '') + ' onchange="toggleCandidate(' + s.id + ')" title="解約候補にする">'
+          + '<span class="sub-name">' + escHtml(s.name) + '</span>'
+          + '<span class="sub-price">¥' + fmt(s.price) + ' / 月</span>'
+          + '<button class="btn-del" onclick="deleteService(' + s.id + ')" title="削除">✕</button>'
+          + '</li>';
+      }).join('');
+    }
+
+    var totalM = services.reduce(function(acc, s){ return acc + s.price; }, 0);
+    var totalY = totalM * 12;
+    document.getElementById('totalMonthly').textContent = fmt(totalM);
+    document.getElementById('totalYearly').textContent  = fmt(totalY);
+
+    var candM = services.filter(function(s){ return s.candidate; })
+                        .reduce(function(acc, s){ return acc + s.price; }, 0);
+    var sc = document.getElementById('savingCard');
+    if (candM > 0) {
+      sc.style.display = '';
+      document.getElementById('savingValue').textContent = '月 ' + fmt(candM) + ' 円 / 年 ' + fmt(candM * 12) + ' 円';
+      var cnt = services.filter(function(s){ return s.candidate; }).length;
+      document.getElementById('savingNote').textContent = '解約候補 ' + cnt + ' 件を外した場合の節約額';
+    } else {
+      sc.style.display = 'none';
+    }
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  load();
+  render();
+
+  document.getElementById('svcPrice').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') addService();
+  });
+  document.getElementById('svcName').addEventListener('keydown', function(e){
+    if (e.key === 'Enter') document.getElementById('svcPrice').focus();
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

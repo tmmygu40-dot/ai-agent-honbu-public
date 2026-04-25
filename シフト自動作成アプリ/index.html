@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シフト自動作成アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 660px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力行 ── */
+    .field { margin-bottom: 0.8rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── スタッフ追加行 ── */
+    .add-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .add-row input {
+      flex: 1; padding: 0.65rem 0.9rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .add-row input:focus { border-color: var(--accent); background: #fff; }
+    .btn-add {
+      padding: 0.65rem 1rem; font-size: 0.9rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-add:active { opacity: 0.8; }
+
+    /* ── スタッフリスト ── */
+    #staff-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .staff-row {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.7rem 0.9rem;
+    }
+    .staff-row-top {
+      display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;
+    }
+    .staff-name { font-size: 0.95rem; font-weight: 700; flex: 1; }
+    .btn-del {
+      font-size: 0.78rem; color: var(--ng); background: none;
+      border: 1px solid var(--ng); border-radius: 6px;
+      padding: 0.2rem 0.5rem; cursor: pointer;
+    }
+    .btn-del:active { opacity: 0.7; }
+    .day-checks { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .day-check-label {
+      display: flex; align-items: center; gap: 0.25rem;
+      font-size: 0.78rem; color: var(--text-sub);
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.2rem 0.5rem; cursor: pointer;
+      user-select: none;
+    }
+    .day-check-label input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; }
+    .day-check-label input[type="checkbox"]:checked ~ span {
+      text-decoration: line-through; opacity: 0.5;
+    }
+    .day-check-label:has(input:checked) {
+      background: var(--ng-bg); border-color: var(--ng);
+    }
+
+    /* ── 必要人員設定 ── */
+    .required-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 0.5rem;
+    }
+    .req-cell { text-align: center; }
+    .req-cell .day-label {
+      font-size: 0.78rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.3rem;
+    }
+    .req-cell input {
+      width: 100%; padding: 0.5rem 0.25rem;
+      font-size: 1rem; text-align: center;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text);
+      outline: none;
+    }
+    .req-cell input:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 660px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── シフト表カード ── */
+    #shift-result { display: none; }
+
+    .shift-table-wrap { overflow-x: auto; }
+    .shift-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.85rem; min-width: 420px;
+    }
+    .shift-table th {
+      background: var(--accent); color: #fff;
+      padding: 0.5rem 0.4rem; text-align: center;
+      font-size: 0.8rem; font-weight: 700;
+    }
+    .shift-table td {
+      padding: 0.5rem 0.4rem; text-align: center;
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+    }
+    .shift-table tr:nth-child(even) td { background: var(--bg); }
+    .shift-chip {
+      display: inline-block;
+      background: var(--accent-light); border: 1px solid var(--accent);
+      border-radius: 4px; padding: 0.15rem 0.4rem;
+      font-size: 0.75rem; font-weight: 600; color: var(--accent);
+      margin: 1px;
+    }
+    .off-chip {
+      display: inline-block;
+      color: var(--text-sub); font-size: 0.75rem; opacity: 0.5;
+    }
+    .short-warn {
+      font-size: 0.75rem; color: var(--ng); font-weight: 700;
+      text-align: center; margin-top: 0.6rem;
+    }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 660px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, #shift-result { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+
+    @media (max-width: 480px) {
+      .required-grid { grid-template-columns: repeat(4, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📅 シフト自動作成アプリ</h1>
+    <p class="subtitle">スタッフ・希望休・必要人員を入力して週シフトを自動生成</p>
+  </header>
+
+  <!-- スタッフ登録カード -->
+  <div class="card">
+    <p class="card-title">スタッフ登録</p>
+    <div class="add-row">
+      <input type="text" id="new-staff" placeholder="スタッフ名を入力" maxlength="20">
+      <button class="btn-add" onclick="addStaff()">追加</button>
+    </div>
+    <div id="staff-list">
+      <p id="no-staff" style="font-size:0.85rem;color:var(--text-sub);">スタッフを追加してください</p>
+    </div>
+  </div>
+
+  <!-- 必要人員設定カード -->
+  <div class="card">
+    <p class="card-title">必要人員（曜日ごと）</p>
+    <div class="required-grid" id="req-grid"></div>
+  </div>
+
+  <!-- シフト作成ボタン -->
+  <button class="btn-calc" onclick="generateShift()">シフト表を作成する</button>
+
+  <!-- シフト結果カード -->
+  <div class="card" id="shift-result">
+    <p class="card-title">週間シフト表</p>
+    <div class="shift-table-wrap">
+      <table class="shift-table" id="shift-table"></table>
+    </div>
+    <p class="short-warn" id="short-warn"></p>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var DAYS = ['月', '火', '水', '木', '金', '土', '日'];
+  var staff = []; // [{name, offDays:[0,1,...]}, ...]
+
+  function init() {
+    // 必要人員グリッド生成
+    var grid = document.getElementById('req-grid');
+    grid.innerHTML = DAYS.map(function(d, i) {
+      return '<div class="req-cell">'
+           + '<div class="day-label">' + d + '</div>'
+           + '<input type="number" id="req' + i + '" value="2" min="0" max="99">'
+           + '</div>';
+    }).join('');
+
+    loadStorage();
+    renderStaffList();
+  }
+
+  function addStaff() {
+    var input = document.getElementById('new-staff');
+    var name = input.value.trim();
+    if (!name) return;
+    if (staff.some(function(s){ return s.name === name; })) {
+      alert('同名のスタッフが既に登録されています');
+      return;
+    }
+    staff.push({ name: name, offDays: [] });
+    input.value = '';
+    renderStaffList();
+    saveStorage();
+  }
+
+  function deleteStaff(idx) {
+    staff.splice(idx, 1);
+    renderStaffList();
+    saveStorage();
+  }
+
+  function toggleOff(staffIdx, dayIdx) {
+    var s = staff[staffIdx];
+    var pos = s.offDays.indexOf(dayIdx);
+    if (pos === -1) s.offDays.push(dayIdx);
+    else s.offDays.splice(pos, 1);
+    saveStorage();
+  }
+
+  function renderStaffList() {
+    var list = document.getElementById('staff-list');
+    var noStaff = document.getElementById('no-staff');
+    if (staff.length === 0) {
+      noStaff.style.display = '';
+      list.innerHTML = '';
+      list.appendChild(noStaff);
+      return;
+    }
+    list.innerHTML = staff.map(function(s, si) {
+      var dayChks = DAYS.map(function(d, di) {
+        var checked = s.offDays.indexOf(di) !== -1 ? 'checked' : '';
+        return '<label class="day-check-label">'
+             + '<input type="checkbox" ' + checked
+             + ' onchange="toggleOff(' + si + ',' + di + ')">'
+             + '<span>' + d + '</span></label>';
+      }).join('');
+      return '<div class="staff-row">'
+           + '<div class="staff-row-top">'
+           + '<span class="staff-name">' + escHtml(s.name) + '</span>'
+           + '<button class="btn-del" onclick="deleteStaff(' + si + ')">削除</button>'
+           + '</div>'
+           + '<div class="day-checks">' + dayChks + '</div>'
+           + '</div>';
+    }).join('');
+  }
+
+  function generateShift() {
+    if (staff.length === 0) {
+      alert('スタッフを1名以上登録してください');
+      return;
+    }
+
+    // 必要人員を取得
+    var required = DAYS.map(function(_, i) {
+      var v = parseInt(document.getElementById('req' + i).value) || 0;
+      return Math.max(0, v);
+    });
+
+    // 曜日ごとに担当スタッフを割り当て
+    // 各スタッフに公平に割り当てるため、累積出勤数を管理
+    var workCount = staff.map(function() { return 0; });
+    var assigned = DAYS.map(function(_, di) {
+      var req = required[di];
+      // 出勤可能スタッフ（希望休でない人）
+      var available = [];
+      staff.forEach(function(s, si) {
+        if (s.offDays.indexOf(di) === -1) available.push(si);
+      });
+      // 出勤数が少ない順にソート（公平割り当て）
+      available.sort(function(a, b) {
+        return workCount[a] - workCount[b];
+      });
+      var chosen = available.slice(0, req);
+      chosen.forEach(function(si) { workCount[si]++; });
+      return { chosen: chosen, shortage: Math.max(0, req - available.length) };
+    });
+
+    // テーブル描画（行=曜日、列=スタッフ）
+    var table = document.getElementById('shift-table');
+    var headerRow = '<tr><th>曜日</th>'
+      + staff.map(function(s) { return '<th>' + escHtml(s.name) + '</th>'; }).join('')
+      + '</tr>';
+
+    var bodyRows = DAYS.map(function(d, di) {
+      var info = assigned[di];
+      var cells = staff.map(function(_, si) {
+        var isChosen = info.chosen.indexOf(si) !== -1;
+        var isOff = staff[si].offDays.indexOf(di) !== -1;
+        if (isChosen) return '<td><span class="shift-chip">出勤</span></td>';
+        if (isOff)    return '<td><span class="off-chip">希望休</span></td>';
+        return '<td style="color:var(--border)">—</td>';
+      }).join('');
+      return '<tr><td style="font-weight:700;background:var(--accent-light)">' + d + '</td>' + cells + '</tr>';
+    }).join('');
+
+    table.innerHTML = '<thead>' + headerRow + '</thead><tbody>' + bodyRows + '</tbody>';
+
+    // 人員不足警告
+    var shortDays = [];
+    assigned.forEach(function(info, di) {
+      if (info.shortage > 0) shortDays.push(DAYS[di] + '曜(' + info.shortage + '名不足)');
+    });
+    var warn = document.getElementById('short-warn');
+    warn.textContent = shortDays.length > 0
+      ? '⚠️ 人員不足: ' + shortDays.join(' / ')
+      : '';
+
+    document.getElementById('shift-result').style.display = 'block';
+    document.getElementById('shift-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    saveStorage();
+  }
+
+  function saveStorage() {
+    var reqVals = DAYS.map(function(_, i) {
+      var el = document.getElementById('req' + i);
+      return el ? (parseInt(el.value) || 2) : 2;
+    });
+    localStorage.setItem('shift-auto-staff', JSON.stringify(staff));
+    localStorage.setItem('shift-auto-req', JSON.stringify(reqVals));
+  }
+
+  function loadStorage() {
+    try {
+      var s = localStorage.getItem('shift-auto-staff');
+      if (s) staff = JSON.parse(s);
+    } catch(e) { staff = []; }
+    try {
+      var r = localStorage.getItem('shift-auto-req');
+      if (r) {
+        var vals = JSON.parse(r);
+        // グリッドが描画済みなら反映
+        setTimeout(function() {
+          vals.forEach(function(v, i) {
+            var el = document.getElementById('req' + i);
+            if (el) el.value = v;
+          });
+        }, 0);
+      }
+    } catch(e) {}
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Enter キーでスタッフ追加
+  document.addEventListener('DOMContentLoaded', function() {
+    var inp = document.getElementById('new-staff');
+    if (inp) {
+      inp.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') addStaff();
+      });
+    }
+  });
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

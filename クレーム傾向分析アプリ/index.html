@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>クレーム傾向分析アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── タブ ── */
+    .tab-bar {
+      display: flex; background: var(--card);
+      border-bottom: 1.5px solid var(--border);
+      margin-bottom: 1rem; position: sticky; top: 0; z-index: 10;
+    }
+    .tab-btn {
+      flex: 1; padding: 0.75rem 0.5rem; font-size: 0.88rem; font-weight: 700;
+      border: none; background: none; color: var(--text-sub); cursor: pointer;
+      border-bottom: 3px solid transparent; transition: all 0.15s;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── タブコンテンツ ── */
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 72px; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-main {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-main:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 集計 ── */
+    .summary-stat {
+      display: flex; gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .stat-box {
+      flex: 1; background: var(--accent-light); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.75rem; text-align: center;
+    }
+    .stat-box .sv { font-size: 1.6rem; font-weight: 900; color: var(--accent); }
+    .stat-box .sl { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* ── バーチャート ── */
+    .bar-section { margin-bottom: 1.2rem; }
+    .bar-section-title { font-size: 0.8rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.6rem; }
+    .bar-row { margin-bottom: 0.55rem; }
+    .bar-row-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem; }
+    .bar-label { font-size: 0.82rem; font-weight: 600; }
+    .bar-count { font-size: 0.82rem; font-weight: 700; color: var(--accent); }
+    .bar-track { background: var(--border); border-radius: 4px; height: 10px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.4s; }
+    .bar-row.top1 .bar-fill { background: var(--ng); }
+    .bar-row.top2 .bar-fill { background: var(--warn); }
+    .bar-row.top3 .bar-fill { background: #ca8a04; }
+    .bar-row.top1 .bar-label { color: var(--ng); }
+    .bar-row.top2 .bar-label { color: var(--warn); }
+    .bar-row.top3 .bar-label { color: #ca8a04; }
+
+    /* ── 優先度ハイライト ── */
+    .priority-card {
+      border-radius: 10px; padding: 0.8rem 1rem; margin-bottom: 0.6rem;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .priority-card.rank1 { background: var(--ng-bg); border: 1.5px solid var(--ng); }
+    .priority-card.rank2 { background: var(--warn-bg); border: 1.5px solid var(--warn); }
+    .priority-card.rank3 { background: #fefce8; border: 1.5px solid #ca8a04; }
+    .priority-card .pname { font-size: 0.9rem; font-weight: 700; }
+    .priority-card.rank1 .pname { color: var(--ng); }
+    .priority-card.rank2 .pname { color: var(--warn); }
+    .priority-card.rank3 .pname { color: #ca8a04; }
+    .priority-card .pbadge { font-size: 0.78rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 99px; }
+    .rank1 .pbadge { background: var(--ng); color: #fff; }
+    .rank2 .pbadge { background: var(--warn); color: #fff; }
+    .rank3 .pbadge { background: #ca8a04; color: #fff; }
+    .priority-card .psub { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.15rem; }
+
+    /* ── 一覧 ── */
+    .complaint-item {
+      border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 0.85rem 1rem; margin-bottom: 0.6rem;
+      background: var(--card);
+    }
+    .complaint-item .ci-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+    .complaint-item .ci-cat { font-size: 0.72rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 99px; background: var(--accent-light); color: var(--accent); }
+    .complaint-item .ci-sev { font-size: 0.72rem; font-weight: 700; padding: 0.18rem 0.55rem; border-radius: 99px; }
+    .ci-sev.sev-高 { background: var(--ng-bg); color: var(--ng); }
+    .ci-sev.sev-中 { background: var(--warn-bg); color: var(--warn); }
+    .ci-sev.sev-低 { background: var(--ok-bg); color: var(--ok); }
+    .complaint-item .ci-content { font-size: 0.88rem; margin: 0.45rem 0 0.35rem; line-height: 1.5; }
+    .complaint-item .ci-bottom { display: flex; justify-content: space-between; align-items: center; }
+    .complaint-item .ci-date { font-size: 0.72rem; color: var(--text-sub); }
+    .btn-del { background: none; border: none; color: var(--text-sub); font-size: 0.8rem; cursor: pointer; padding: 0.2rem 0.4rem; border-radius: 5px; }
+    .btn-del:hover { color: var(--ng); background: var(--ng-bg); }
+
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.88rem; padding: 2rem 1rem; }
+
+    /* ── フィルター ── */
+    .filter-row { display: flex; gap: 0.5rem; margin: 0 auto 0.75rem; max-width: 600px; }
+    .filter-row select { flex: 1; padding: 0.55rem 0.7rem; font-size: 0.85rem; border: 1.5px solid var(--border); border-radius: 9px; background: var(--card); color: var(--text); outline: none; -webkit-appearance: none; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>クレーム傾向分析</h1>
+    <p class="subtitle">クレームを記録して改善優先度を即可視化</p>
+  </header>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab('input')">入力</button>
+    <button class="tab-btn" onclick="switchTab('analysis')">集計・分析</button>
+    <button class="tab-btn" onclick="switchTab('list')">一覧</button>
+  </div>
+
+  <!-- ── 入力タブ ── -->
+  <div class="tab-panel active" id="tab-input">
+    <div class="card">
+      <p class="card-title">クレーム入力</p>
+      <div class="field">
+        <label for="f-date">日付</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="field">
+        <label for="f-cat">カテゴリ</label>
+        <select id="f-cat">
+          <option value="商品品質">商品品質</option>
+          <option value="接客">接客</option>
+          <option value="配送">配送</option>
+          <option value="価格">価格</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-sev">重要度</label>
+        <select id="f-sev">
+          <option value="高">高（すぐ対応が必要）</option>
+          <option value="中" selected>中（次回対応）</option>
+          <option value="低">低（様子見）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-content">内容</label>
+        <textarea id="f-content" placeholder="クレームの内容を入力してください"></textarea>
+      </div>
+    </div>
+    <button class="btn-main" onclick="addComplaint()">登録する</button>
+  </div>
+
+  <!-- ── 集計タブ ── -->
+  <div class="tab-panel" id="tab-analysis">
+    <div class="card" id="analysis-card">
+      <p class="card-title">概要</p>
+      <div class="summary-stat" id="stat-boxes"></div>
+
+      <div class="bar-section">
+        <p class="bar-section-title">カテゴリ別件数（改善優先度：多い順）</p>
+        <div id="cat-bars"></div>
+      </div>
+
+      <div class="bar-section">
+        <p class="bar-section-title">重要度別件数</p>
+        <div id="sev-bars"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="card-title">改善優先度 TOP3</p>
+      <div id="top3-list"></div>
+    </div>
+  </div>
+
+  <!-- ── 一覧タブ ── -->
+  <div class="tab-panel" id="tab-list">
+    <div class="filter-row">
+      <select id="filter-cat" onchange="renderList()">
+        <option value="">全カテゴリ</option>
+        <option value="商品品質">商品品質</option>
+        <option value="接客">接客</option>
+        <option value="配送">配送</option>
+        <option value="価格">価格</option>
+        <option value="その他">その他</option>
+      </select>
+      <select id="filter-sev" onchange="renderList()">
+        <option value="">全重要度</option>
+        <option value="高">高</option>
+        <option value="中">中</option>
+        <option value="低">低</option>
+      </select>
+    </div>
+    <div id="list-wrap" style="max-width:600px;margin:0 auto;"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'complaint-analysis-data';
+  var complaints = [];
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      complaints = raw ? JSON.parse(raw) : [];
+    } catch(e) { complaints = []; }
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(complaints));
+  }
+
+  function todayStr() {
+    var d = new Date();
+    var mm = ('0' + (d.getMonth()+1)).slice(-2);
+    var dd = ('0' + d.getDate()).slice(-2);
+    return d.getFullYear() + '-' + mm + '-' + dd;
+  }
+
+  function init() {
+    load();
+    document.getElementById('f-date').value = todayStr();
+    renderAnalysis();
+    renderList();
+  }
+
+  function switchTab(name) {
+    ['input','analysis','list'].forEach(function(t) {
+      document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    });
+    document.querySelectorAll('.tab-btn').forEach(function(b, i) {
+      b.classList.toggle('active', ['input','analysis','list'][i] === name);
+    });
+    if (name === 'analysis') renderAnalysis();
+    if (name === 'list') renderList();
+  }
+
+  function addComplaint() {
+    var date = document.getElementById('f-date').value;
+    var cat = document.getElementById('f-cat').value;
+    var sev = document.getElementById('f-sev').value;
+    var content = document.getElementById('f-content').value.trim();
+    if (!date || !content) { alert('日付と内容を入力してください'); return; }
+    complaints.push({ id: Date.now(), date: date, cat: cat, sev: sev, content: content });
+    save();
+    document.getElementById('f-content').value = '';
+    document.getElementById('f-date').value = todayStr();
+    alert('登録しました');
+    renderAnalysis();
+    renderList();
+  }
+
+  function deleteComplaint(id) {
+    if (!confirm('このクレームを削除しますか？')) return;
+    complaints = complaints.filter(function(c) { return c.id !== id; });
+    save();
+    renderAnalysis();
+    renderList();
+  }
+
+  function countBy(key) {
+    var counts = {};
+    complaints.forEach(function(c) {
+      counts[c[key]] = (counts[c[key]] || 0) + 1;
+    });
+    return counts;
+  }
+
+  function sortedEntries(obj) {
+    return Object.entries(obj).sort(function(a, b) { return b[1] - a[1]; });
+  }
+
+  function renderBars(containerId, entries, maxVal, topRanks) {
+    var wrap = document.getElementById(containerId);
+    if (!entries.length) { wrap.innerHTML = '<p class="empty-msg">データなし</p>'; return; }
+    wrap.innerHTML = entries.map(function(e, i) {
+      var pct = maxVal > 0 ? Math.round(e[1] / maxVal * 100) : 0;
+      var rankClass = topRanks && i < topRanks ? 'top' + (i+1) : '';
+      return '<div class="bar-row ' + rankClass + '">'
+        + '<div class="bar-row-top"><span class="bar-label">' + e[0] + '</span><span class="bar-count">' + e[1] + '件</span></div>'
+        + '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function renderAnalysis() {
+    var total = complaints.length;
+    var highCount = complaints.filter(function(c) { return c.sev === '高'; }).length;
+    var catCounts = countBy('cat');
+    var sevCounts = countBy('sev');
+
+    // 概要
+    document.getElementById('stat-boxes').innerHTML =
+      '<div class="stat-box"><div class="sv">' + total + '</div><div class="sl">総件数</div></div>'
+      + '<div class="stat-box"><div class="sv" style="color:var(--ng)">' + highCount + '</div><div class="sl">重要度「高」</div></div>'
+      + '<div class="stat-box"><div class="sv">' + Object.keys(catCounts).length + '</div><div class="sl">カテゴリ数</div></div>';
+
+    // カテゴリバー
+    var catEntries = sortedEntries(catCounts);
+    var catMax = catEntries.length > 0 ? catEntries[0][1] : 1;
+    renderBars('cat-bars', catEntries, catMax, 3);
+
+    // 重要度バー
+    var sevOrder = ['高','中','低'];
+    var sevEntries = sevOrder.filter(function(k) { return sevCounts[k]; }).map(function(k) { return [k, sevCounts[k]]; });
+    var sevMax = sevEntries.length > 0 ? Math.max.apply(null, sevEntries.map(function(e) { return e[1]; })) : 1;
+    renderBars('sev-bars', sevEntries, sevMax, 0);
+
+    // TOP3
+    var top3 = catEntries.slice(0, 3);
+    var top3Wrap = document.getElementById('top3-list');
+    if (!top3.length) {
+      top3Wrap.innerHTML = '<p class="empty-msg">データがありません</p>';
+    } else {
+      top3Wrap.innerHTML = top3.map(function(e, i) {
+        var rankLabels = ['最優先','要対応','要注意'];
+        var rankClass = 'rank' + (i+1);
+        var highInCat = complaints.filter(function(c) { return c.cat === e[0] && c.sev === '高'; }).length;
+        var sub = e[1] + '件（重要度「高」' + highInCat + '件）';
+        return '<div class="priority-card ' + rankClass + '">'
+          + '<div><div class="pname">' + e[0] + '</div><div class="psub">' + sub + '</div></div>'
+          + '<span class="pbadge">' + rankLabels[i] + '</span>'
+          + '</div>';
+      }).join('');
+    }
+  }
+
+  function renderList() {
+    var catF = document.getElementById('filter-cat').value;
+    var sevF = document.getElementById('filter-sev').value;
+    var filtered = complaints.filter(function(c) {
+      return (!catF || c.cat === catF) && (!sevF || c.sev === sevF);
+    }).sort(function(a, b) {
+      var sevOrd = { '高': 0, '中': 1, '低': 2 };
+      if (sevOrd[a.sev] !== sevOrd[b.sev]) return sevOrd[a.sev] - sevOrd[b.sev];
+      return b.date.localeCompare(a.date);
+    });
+
+    var wrap = document.getElementById('list-wrap');
+    if (!filtered.length) {
+      wrap.innerHTML = '<p class="empty-msg">クレームがありません</p>';
+      return;
+    }
+    wrap.innerHTML = filtered.map(function(c) {
+      return '<div class="complaint-item">'
+        + '<div class="ci-top">'
+        + '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">'
+        + '<span class="ci-cat">' + c.cat + '</span>'
+        + '<span class="ci-sev sev-' + c.sev + '">' + c.sev + '</span>'
+        + '</div>'
+        + '<button class="btn-del" onclick="deleteComplaint(' + c.id + ')">削除</button>'
+        + '</div>'
+        + '<p class="ci-content">' + escHtml(c.content) + '</p>'
+        + '<div class="ci-bottom"><span class="ci-date">' + c.date + '</span></div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

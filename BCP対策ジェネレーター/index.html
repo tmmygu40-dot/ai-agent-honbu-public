@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BCP対策ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-print {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.7rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: #fff; color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── 結果エリア ── */
+    .result-area { display: none; max-width: 600px; margin: 0 auto; }
+    .result-header {
+      background: var(--accent); color: #fff;
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 1rem 1.2rem;
+    }
+    .result-header h2 { font-size: 1rem; font-weight: 900; }
+    .result-header p { font-size: 0.78rem; opacity: 0.85; margin-top: 0.2rem; }
+
+    /* ── フェーズブロック ── */
+    .phase-block {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-top: none;
+      padding: 1rem 1.2rem;
+    }
+    .phase-block:last-child { border-radius: 0 0 var(--radius) var(--radius); margin-bottom: 1rem; }
+    .phase-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+      color: #fff; background: var(--warn); border-radius: 20px;
+      display: inline-block; padding: 0.2rem 0.7rem; margin-bottom: 0.8rem;
+    }
+    .phase-label.phase0 { background: var(--ng); }
+    .phase-label.phase1 { background: var(--warn); }
+    .phase-label.phase2 { background: #4b6cb7; }
+    .phase-label.phase3 { background: var(--ok); }
+
+    .steps-list { list-style: none; padding: 0; }
+    .steps-list li {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+    }
+    .steps-list li:last-child { border-bottom: none; }
+    .step-num {
+      flex-shrink: 0; width: 1.6rem; height: 1.6rem;
+      background: var(--accent); color: #fff;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 800; margin-top: 0.1rem;
+    }
+    .step-text { font-size: 0.9rem; line-height: 1.55; flex: 1; }
+    .step-sub { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.15rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      .btn-calc, .btn-print, .back-link, .app-header .subtitle { display: none; }
+      body { background: #fff; }
+      .card { box-shadow: none; border: 1px solid #ccc; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>BCP対策ジェネレーター</h1>
+    <p class="subtitle">業種と想定災害を選ぶだけで初動手順を即生成</p>
+  </header>
+
+  <div class="card">
+    <p class="card-title">条件を選ぶ</p>
+    <div class="field">
+      <label for="industry">業種</label>
+      <select id="industry">
+        <option value="">-- 選択してください --</option>
+        <option value="food">飲食店・飲食業</option>
+        <option value="retail">小売・販売業</option>
+        <option value="mfg">製造業</option>
+        <option value="const">建設・工事業</option>
+        <option value="medical">医療・介護・福祉</option>
+        <option value="logistics">物流・運送業</option>
+        <option value="office">オフィス・事務・IT系</option>
+        <option value="other">その他（汎用）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="disaster">想定災害・リスク</label>
+      <select id="disaster">
+        <option value="">-- 選択してください --</option>
+        <option value="quake">地震</option>
+        <option value="flood">台風・大雨・水害</option>
+        <option value="fire">火災</option>
+        <option value="power">停電・電力不足</option>
+        <option value="pandemic">感染症・パンデミック</option>
+        <option value="system">システム障害・サイバー攻撃</option>
+        <option value="supply">仕入れ停止・供給断絶</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">初動手順を生成する</button>
+
+  <div class="result-area" id="resultArea">
+    <div class="result-header">
+      <h2 id="resultTitle">初動手順</h2>
+      <p id="resultSub"></p>
+    </div>
+
+    <div class="phase-block" id="phase0Block">
+      <span class="phase-label phase0">発生直後（0〜15分）</span>
+      <ul class="steps-list" id="phase0List"></ul>
+    </div>
+    <div class="phase-block" id="phase1Block">
+      <span class="phase-label phase1">1時間以内</span>
+      <ul class="steps-list" id="phase1List"></ul>
+    </div>
+    <div class="phase-block" id="phase2Block">
+      <span class="phase-label phase2">当日中</span>
+      <ul class="steps-list" id="phase2List"></ul>
+    </div>
+    <div class="phase-block" id="phase3Block">
+      <span class="phase-label phase3">翌日〜1週間</span>
+      <ul class="steps-list" id="phase3List"></ul>
+    </div>
+  </div>
+
+  <button class="btn-print" id="printBtn" style="display:none" onclick="window.print()">印刷する</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // ── 手順データ ──
+  // 構造: steps[industry][disaster] = { p0:[], p1:[], p2:[], p3:[] }
+  // 省略のため共通ベース + 上書き方式
+
+  var BASE = {
+    p0: [
+      {t:'人の安全確認', s:'全スタッフ・顧客の安否を確認。けが人がいれば119番通報'},
+      {t:'危険区域から離れる', s:'建物の倒壊・浸水・煙など二次被害リスクのある場所から避難'},
+      {t:'責任者への第一報', s:'経営者・店長・拠点責任者に状況を第一報（電話・メッセージ）'}
+    ],
+    p1: [
+      {t:'被害状況の把握', s:'設備・在庫・システム・建物の被害を目視確認して記録'},
+      {t:'事業継続可否の判断', s:'責任者が「営業継続・縮小・休業」を判断してスタッフへ周知'},
+      {t:'顧客・予約への対応', s:'来店予定客・予約者への連絡（電話・SNS・掲示）'},
+      {t:'取引先・仕入先への連絡', s:'納品・発注への影響を確認して優先度の高い先から連絡'}
+    ],
+    p2: [
+      {t:'行政・保険への連絡', s:'必要に応じて市区町村窓口・損害保険会社へ連絡・申請'},
+      {t:'復旧優先順位の決定', s:'売上・顧客への影響度が高い設備・業務から順に復旧計画を立てる'},
+      {t:'スタッフのシフト調整', s:'被災状況に応じて出勤者・在宅・休業の調整を行う'}
+    ],
+    p3: [
+      {t:'BCPの見直し・記録', s:'今回の対応を記録して、不足していた準備を洗い出す'},
+      {t:'再開後の周知・広報', s:'SNS・チラシ・HP等で営業再開の告知を行う'},
+      {t:'スタッフのメンタルケア', s:'被災ストレスを抱えるスタッフへのフォローアップ面談を実施'}
+    ]
+  };
+
+  // 業種別追加手順
+  var INDUSTRY_EXTRA = {
+    food: {
+      p0: [{t:'厨房の火・ガスを停止', s:'ガス栓・コンロを即時停止。火災リスクを最優先で排除'}],
+      p1: [{t:'食材の安全確認', s:'冷蔵・冷凍庫の温度確認。停電時は冷凍食材の廃棄基準を判断'}],
+      p2: [{t:'調理設備の点検', s:'フライヤー・冷蔵庫・食洗機などの動作確認と修理手配'}]
+    },
+    retail: {
+      p0: [{t:'レジ・金庫の安全確保', s:'現金・クレジット端末を安全な場所に移動または施錠'}],
+      p1: [{t:'在庫・商品の被害確認', s:'棚崩れ・水濡れ・破損品を仕分けして損害額を記録'}],
+      p2: [{t:'POSシステムの復旧確認', s:'レジ・受発注システムが使えるか確認し、手書き対応の準備'}]
+    },
+    mfg: {
+      p0: [{t:'機械設備の緊急停止', s:'稼働中の機械を安全手順に従い緊急停止。ロックアウト実施'}],
+      p1: [{t:'原材料・仕掛品の保全', s:'水濡れ・汚染リスクのある材料を安全な場所に移動'}],
+      p2: [{t:'ラインの復旧判断', s:'設備点検後に生産再開の判断。修理が必要な設備の手配'}]
+    },
+    const: {
+      p0: [{t:'現場作業員の安全確認', s:'各工区の責任者が作業員の人数・安否を即確認して報告'}],
+      p1: [{t:'重機・資材の安全確認', s:'クレーン・掘削機などの固定確認。燃料漏れがないか点検'}],
+      p2: [{t:'工事再開の判断と施主連絡', s:'被害状況を施主・元請に報告して工期の変更協議を実施'}]
+    },
+    medical: {
+      p0: [{t:'患者・利用者の安否確認', s:'全患者・入居者の安全を最優先で確認。重篤者を優先搬送'}],
+      p1: [{t:'医薬品・医療機器の確認', s:'薬品庫・医療機器の被害確認。非常用電源で機器が動くか確認'}],
+      p2: [{t:'診療継続可否の判断', s:'診療科ごとに継続・縮小・中断を判断して患者・家族へ連絡'}]
+    },
+    logistics: {
+      p0: [{t:'輸送中ドライバーの安全確認', s:'全ドライバーへ安否確認の連絡。事故・立ち往生の有無を把握'}],
+      p1: [{t:'積み荷・車両の被害確認', s:'配送物の損傷・紛失確認。車両の走行可否を判断'}],
+      p2: [{t:'配送ルートの見直し', s:'通行止め・浸水エリアを避けた代替ルートを確認して顧客に連絡'}]
+    },
+    office: {
+      p0: [{t:'PCデータの安全確認', s:'サーバー・PCの電源を安全に落とす。クラウド同期の確認'}],
+      p1: [{t:'リモートワーク切り替え', s:'出社不可の場合はVPN・クラウドツールでの在宅業務に即切り替え'}],
+      p2: [{t:'顧客対応の継続体制', s:'電話・メール対応窓口を確保して業務が止まらない体制を整える'}]
+    },
+    other: { p0:[], p1:[], p2:[] }
+  };
+
+  // 災害別追加手順
+  var DISASTER_EXTRA = {
+    quake: {
+      p0: [{t:'余震への備え', s:'机の下など安全な場所で揺れが収まるまで待機。ドアを開けて出口確保'}],
+      p1: [{t:'建物の構造確認', s:'ひび割れ・傾きがあれば建物内立入禁止。建築士・消防に確認依頼'}],
+      p2: [{t:'ライフライン確認', s:'ガス・水道・電気が使えるか確認。ガス漏れの場合は換気して緊急停止'}],
+      p3: [{t:'罹災証明の申請', s:'被害が大きい場合は市区町村に罹災証明書を申請して保険・補助金に活用'}]
+    },
+    flood: {
+      p0: [{t:'浸水前の移動・養生', s:'重要書類・機器を高い場所へ移動。ドア・窓の隙間を塞ぐ'}],
+      p1: [{t:'水没品の確認', s:'電気系統が水に浸かった場合はブレーカーを落とす。感電注意'}],
+      p2: [{t:'泥・汚水の清掃', s:'消毒・清掃を行い、廃棄物は指定の方法で処理（自治体に確認）'}],
+      p3: [{t:'排水・乾燥・カビ対策', s:'送風機・除湿機で乾燥を促進。カビ発生前に壁・床を確認'}]
+    },
+    fire: {
+      p0: [{t:'避難誘導・119番通報', s:'全員を屋外に誘導。119番通報して消防の指示に従う'},
+           {t:'初期消火の判断', s:'小火であれば消火器で対応。煙が多い場合は即避難を優先'}],
+      p1: [{t:'消防・警察への対応', s:'現場の立入制限に従い、消防・警察の調査に協力する'}],
+      p2: [{t:'損害保険会社への連絡', s:'火災保険の申請手続きを開始。写真・動画で被害を記録'}],
+      p3: [{t:'仮設・移転営業の検討', s:'別拠点・テナントでの仮営業、または同業者への業務委託を検討'}]
+    },
+    power: {
+      p0: [{t:'非常用電源の起動', s:'UPS・発電機を起動。優先して動かす機器（サーバー・冷蔵庫・医療機器）を決める'}],
+      p1: [{t:'電気使用量の削減', s:'不要な照明・空調・機器の電源を切り、非常用電源を節約する'}],
+      p2: [{t:'電力会社への確認', s:'停電の原因・復旧見通しを東京電力等に問い合わせて対応方針を決める'}],
+      p3: [{t:'冷蔵品の廃棄基準の見直し', s:'長時間停電時の食材・医薬品廃棄基準をマニュアルに追記'}]
+    },
+    pandemic: {
+      p0: [{t:'感染者の隔離・帰宅', s:'発熱・症状のあるスタッフを即隔離して帰宅させる。保健所に相談'}],
+      p1: [{t:'濃厚接触者の特定', s:'感染者の行動記録をもとに接触があったスタッフを特定して連絡'}],
+      p2: [{t:'施設の消毒', s:'感染者が触れた場所を中心に施設全体を消毒。換気を強化'}],
+      p3: [{t:'最低人員での事業継続', s:'出勤可能なスタッフで継続できる業務範囲を決め、残りはリモートまたは休業'}]
+    },
+    system: {
+      p0: [{t:'システムの切り離し', s:'感染・障害が疑われるPCをネットワークから即切断して二次被害を防ぐ'}],
+      p1: [{t:'バックアップからの復旧', s:'最新バックアップの場所と復旧手順を確認して復旧作業を開始'}],
+      p2: [{t:'手動・紙での業務継続', s:'システム停止中は手書き・Excelなどで最低限の業務を継続する'}],
+      p3: [{t:'セキュリティ診断・再発防止', s:'専門業者によるセキュリティ診断を依頼して脆弱性を特定・修正'}]
+    },
+    supply: {
+      p0: [{t:'在庫の現状把握', s:'現在の手持ち在庫量を確認して、何日分の営業が継続できるか計算'}],
+      p1: [{t:'代替仕入先の確認', s:'事前に登録しておいた代替仕入先に連絡して調達の可否・単価を確認'}],
+      p2: [{t:'顧客への提供内容の調整', s:'品切れ商品・サービスを顧客に周知。代替品の提案を行う'}],
+      p3: [{t:'複数調達先の確保', s:'今回の経験をもとに仕入先の多様化・在庫基準の見直しを実施'}]
+    }
+  };
+
+  function generate() {
+    var ind = document.getElementById('industry').value;
+    var dis = document.getElementById('disaster').value;
+    if (!ind || !dis) { alert('業種と想定災害を両方選んでください'); return; }
+
+    // localStorage 保存
+    localStorage.setItem('bcp_industry', ind);
+    localStorage.setItem('bcp_disaster', dis);
+
+    var indLabel = document.getElementById('industry').options[document.getElementById('industry').selectedIndex].text;
+    var disLabel = document.getElementById('disaster').options[document.getElementById('disaster').selectedIndex].text;
+
+    // 手順を合成
+    var extra_i = INDUSTRY_EXTRA[ind] || {p0:[],p1:[],p2:[]};
+    var extra_d = DISASTER_EXTRA[dis] || {p0:[],p1:[],p2:[],p3:[]};
+
+    var phases = {
+      p0: [].concat(extra_d.p0 || [], BASE.p0, extra_i.p0 || []),
+      p1: [].concat(BASE.p1, extra_i.p1 || [], extra_d.p1 || []),
+      p2: [].concat(BASE.p2, extra_i.p2 || [], extra_d.p2 || []),
+      p3: [].concat(BASE.p3, extra_d.p3 || [])
+    };
+
+    // 重複除去（テキストベース）
+    function dedup(arr) {
+      var seen = {};
+      return arr.filter(function(s) {
+        if (seen[s.t]) return false;
+        seen[s.t] = true;
+        return true;
+      });
+    }
+    Object.keys(phases).forEach(function(k){ phases[k] = dedup(phases[k]); });
+
+    // 結果表示
+    document.getElementById('resultTitle').textContent = '初動手順：' + disLabel;
+    document.getElementById('resultSub').textContent = '業種：' + indLabel;
+
+    renderPhase('phase0List', phases.p0);
+    renderPhase('phase1List', phases.p1);
+    renderPhase('phase2List', phases.p2);
+    renderPhase('phase3List', phases.p3);
+
+    document.getElementById('resultArea').style.display = '';
+    document.getElementById('printBtn').style.display = '';
+    document.getElementById('resultArea').scrollIntoView({behavior:'smooth'});
+  }
+
+  function renderPhase(listId, steps) {
+    var ul = document.getElementById(listId);
+    ul.innerHTML = steps.map(function(s, i) {
+      return '<li>'
+        + '<span class="step-num">' + (i+1) + '</span>'
+        + '<div class="step-text">' + s.t
+        + (s.s ? '<div class="step-sub">' + s.s + '</div>' : '')
+        + '</div></li>';
+    }).join('');
+  }
+
+  // 前回の選択を復元
+  window.addEventListener('DOMContentLoaded', function() {
+    var ind = localStorage.getItem('bcp_industry');
+    var dis = localStorage.getItem('bcp_disaster');
+    if (ind) document.getElementById('industry').value = ind;
+    if (dis) document.getElementById('disaster').value = dis;
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

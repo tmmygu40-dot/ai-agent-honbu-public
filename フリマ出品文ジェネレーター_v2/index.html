@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>フリマ出品文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果エリア ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--accent); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .result-header .result-label {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em;
+    }
+    .btn-copy {
+      padding: 0.4rem 1rem; font-size: 0.82rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 8px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: var(--accent); color: #fff; }
+    .btn-copy.copied { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+    .result-text {
+      font-size: 0.9rem; line-height: 1.8; white-space: pre-wrap;
+      color: var(--text); background: var(--bg);
+      border-radius: 8px; padding: 0.9rem; border: 1px solid var(--border);
+      word-break: break-all;
+    }
+
+    /* ── 追加オプション ── */
+    .option-row {
+      display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem;
+    }
+    .option-tag {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.3rem 0.75rem; border-radius: 20px;
+      font-size: 0.82rem; cursor: pointer;
+      border: 1.5px solid var(--border); background: var(--bg); color: var(--text-sub);
+      transition: all 0.12s; user-select: none;
+    }
+    .option-tag input { display: none; }
+    .option-tag.selected, .option-tag input:checked + span {
+      background: var(--accent-light); color: var(--accent); border-color: var(--accent); font-weight: 700;
+    }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📦 フリマ出品文ジェネレーター</h1>
+    <p class="subtitle">カテゴリ・状態・特徴を入れるだけで、メルカリ・フリマ用の出品文を即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品情報を入力</p>
+
+    <div class="field">
+      <label for="productName">商品名 <span style="color:var(--ng)">*</span></label>
+      <input type="text" id="productName" placeholder="例：ユニクロ フリースジャケット Mサイズ ネイビー">
+    </div>
+
+    <div class="field">
+      <label for="category">カテゴリ <span style="color:var(--ng)">*</span></label>
+      <select id="category">
+        <option value="">選択してください</option>
+        <option value="clothes">👕 衣類・ファッション</option>
+        <option value="electronics">📱 家電・スマホ・PC</option>
+        <option value="book">📚 本・漫画・雑誌</option>
+        <option value="game">🎮 ゲーム・ホビー</option>
+        <option value="toy">🧸 おもちゃ・キッズ</option>
+        <option value="furniture">🛋️ インテリア・家具</option>
+        <option value="sports">⚽ スポーツ・アウトドア</option>
+        <option value="cosmetic">💄 コスメ・美容</option>
+        <option value="food">🍱 食品・飲料</option>
+        <option value="other">📦 その他</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="condition">商品の状態 <span style="color:var(--ng)">*</span></label>
+      <select id="condition">
+        <option value="">選択してください</option>
+        <option value="new">新品・未使用</option>
+        <option value="almostNew">未使用に近い（ほぼ未使用）</option>
+        <option value="good">目立った傷や汚れなし</option>
+        <option value="fair">やや傷や汚れあり</option>
+        <option value="poor">傷や汚れあり</option>
+        <option value="bad">全体的に状態が悪い</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="appeal">アピールポイント・特徴</label>
+      <textarea id="appeal" placeholder="例：1回着用のみ・汚れなし・付属品完備・購入時の値札あり・希少サイズ"></textarea>
+      <p class="hint">複数ある場合はそのまま書いてください。箇条書きに自動変換します</p>
+    </div>
+
+    <div class="field">
+      <label>追加オプション（当てはまるものを選択）</label>
+      <div class="option-row" id="options">
+        <label class="option-tag" onclick="toggleOption(this)"><input type="checkbox" value="nego">値下げ交渉OK</label>
+        <label class="option-tag" onclick="toggleOption(this)"><input type="checkbox" value="nonego">値下げ不可</label>
+        <label class="option-tag" onclick="toggleOption(this)"><input type="checkbox" value="fast">即購入OK</label>
+        <label class="option-tag" onclick="toggleOption(this)"><input type="checkbox" value="careful">丁寧に梱包</label>
+        <label class="option-tag" onclick="toggleOption(this)"><input type="checkbox" value="delivery">送料込み</label>
+        <label class="option-tag" onclick="toggleOption(this)"><input type="checkbox" value="inspect">動作確認済み</label>
+        <label class="option-tag" onclick="toggleOption(this)"><input type="checkbox" value="pet">ペットなし</label>
+        <label class="option-tag" onclick="toggleOption(this)"><input type="checkbox" value="smoke">非喫煙</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="tone">文体トーン</label>
+      <select id="tone">
+        <option value="polite">丁寧・かしこまった</option>
+        <option value="casual">やわらかい・親しみやすい</option>
+        <option value="simple">シンプル・簡潔</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">✨ 出品文を生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <div class="result-header">
+      <span class="result-label">生成された出品文</span>
+      <button class="btn-copy no-print" id="copyBtn" onclick="copyText()">📋 コピー</button>
+    </div>
+    <div class="result-text" id="resultText"></div>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // ── カテゴリ別オープニング文 ──
+  var categoryOpener = {
+    clothes:     "ご覧いただきありがとうございます。素敵な衣類を出品します。",
+    electronics: "ご覧いただきありがとうございます。家電・電子機器を出品します。",
+    book:        "ご覧いただきありがとうございます。読み終えた本を出品します。",
+    game:        "ご覧いただきありがとうございます。ゲームソフト・ホビーを出品します。",
+    toy:         "ご覧いただきありがとうございます。おもちゃ・キッズ用品を出品します。",
+    furniture:   "ご覧いただきありがとうございます。インテリア・家具を出品します。",
+    sports:      "ご覧いただきありがとうございます。スポーツ・アウトドア用品を出品します。",
+    cosmetic:    "ご覧いただきありがとうございます。コスメ・美容グッズを出品します。",
+    food:        "ご覧いただきありがとうございます。食品・飲料を出品します。",
+    other:       "ご覧いただきありがとうございます。自宅で使わなくなったものを出品します。"
+  };
+  var categoryCasual = {
+    clothes:     "こちら、素敵な衣類のご出品です✨",
+    electronics: "こちら、家電・電子機器のご出品です📱",
+    book:        "こちら、本・漫画のご出品です📚",
+    game:        "こちら、ゲーム・ホビーのご出品です🎮",
+    toy:         "こちら、おもちゃのご出品です🧸",
+    furniture:   "こちら、インテリア・家具のご出品です🛋️",
+    sports:      "こちら、スポーツ用品のご出品です⚽",
+    cosmetic:    "こちら、コスメのご出品です💄",
+    food:        "こちら、食品のご出品です🍱",
+    other:       "こちら、不用品のご出品です📦"
+  };
+  var categorySimple = {
+    clothes: "衣類の出品です。", electronics: "家電の出品です。", book: "本の出品です。",
+    game: "ゲームの出品です。", toy: "おもちゃの出品です。", furniture: "家具の出品です。",
+    sports: "スポーツ用品の出品です。", cosmetic: "コスメの出品です。", food: "食品の出品です。",
+    other: "不用品の出品です。"
+  };
+
+  // ── 状態文 ──
+  var conditionText = {
+    new:       "【商品の状態】新品・未使用",
+    almostNew: "【商品の状態】未使用に近い（ほぼ未使用）",
+    good:      "【商品の状態】目立った傷や汚れなし",
+    fair:      "【商品の状態】やや傷や汚れあり",
+    poor:      "【商品の状態】傷や汚れあり",
+    bad:       "【商品の状態】全体的に状態が悪い"
+  };
+  var conditionDesc = {
+    new:       "新品・未使用の商品です。",
+    almostNew: "ほぼ未使用の美品です。",
+    good:      "目立った傷や汚れはなく、きれいな状態です。",
+    fair:      "使用による若干の傷がございますが、使用に問題はありません。",
+    poor:      "傷や汚れがございます。写真をご確認の上ご検討ください。",
+    bad:       "全体的に使用感があります。状態をよくご確認いただき、ご納得の上でご購入ください。"
+  };
+
+  // ── オプションラベル → テキスト ──
+  var optionText = {
+    nego:     "お値下げ交渉はお気軽にどうぞ。",
+    nonego:   "お値下げはご遠慮ください。",
+    fast:     "即購入歓迎です。",
+    careful:  "丁寧に梱包してお届けします。",
+    delivery: "送料は出品価格に含まれています。",
+    inspect:  "動作確認済みです。",
+    pet:      "ペットのいない環境での保管品です。",
+    smoke:    "非喫煙者宅での保管品です。"
+  };
+
+  function toggleOption(el) {
+    var cb = el.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    // チェック状態はclickイベント前なのでそのままの値を使う
+    if (el.classList.contains('selected')) {
+      el.classList.remove('selected');
+    } else {
+      el.classList.add('selected');
+    }
+  }
+
+  function generate() {
+    var name      = document.getElementById('productName').value.trim();
+    var cat       = document.getElementById('category').value;
+    var cond      = document.getElementById('condition').value;
+    var appealRaw = document.getElementById('appeal').value.trim();
+    var tone      = document.getElementById('tone').value;
+
+    if (!name) { alert('商品名を入力してください'); return; }
+    if (!cat)  { alert('カテゴリを選択してください'); return; }
+    if (!cond) { alert('商品の状態を選択してください'); return; }
+
+    // アピールポイントを箇条書きに
+    var appeals = [];
+    if (appealRaw) {
+      appeals = appealRaw.split(/[、。,・\n]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+    }
+
+    // 選択済みオプションを取得
+    var selectedOptions = [];
+    document.querySelectorAll('.option-tag.selected').forEach(function(el) {
+      var cb = el.querySelector('input[type="checkbox"]');
+      if (cb && optionText[cb.value]) selectedOptions.push(optionText[cb.value]);
+    });
+
+    var text = '';
+
+    if (tone === 'polite') {
+      text += (categoryOpener[cat] || categoryOpener['other']) + '\n\n';
+      text += '【商品名】' + name + '\n';
+      text += conditionText[cond] + '\n\n';
+      text += '【商品説明】\n';
+      text += conditionDesc[cond] + '\n';
+      if (appeals.length > 0) {
+        text += '\n【アピールポイント】\n';
+        appeals.forEach(function(a){ text += '・' + a + '\n'; });
+      }
+      if (selectedOptions.length > 0) {
+        text += '\n【取引について】\n';
+        selectedOptions.forEach(function(o){ text += '・' + o + '\n'; });
+      }
+      text += '\nご不明な点はお気軽にコメントください。\nよろしくお願いいたします。';
+
+    } else if (tone === 'casual') {
+      text += (categoryCasual[cat] || categoryCasual['other']) + '\n\n';
+      text += '▼ 商品名\n' + name + '\n\n';
+      text += '▼ 状態\n' + conditionDesc[cond] + '\n';
+      if (appeals.length > 0) {
+        text += '\n▼ ここがポイント！\n';
+        appeals.forEach(function(a){ text += '✅ ' + a + '\n'; });
+      }
+      if (selectedOptions.length > 0) {
+        text += '\n▼ その他\n';
+        selectedOptions.forEach(function(o){ text += '・' + o + '\n'; });
+      }
+      text += '\nご質問はお気軽にどうぞ😊\nよろしくお願いします！';
+
+    } else {
+      // simple
+      text += (categorySimple[cat] || categorySimple['other']) + '\n\n';
+      text += '【' + name + '】\n';
+      text += conditionDesc[cond] + '\n';
+      if (appeals.length > 0) {
+        text += '\n特徴：\n';
+        appeals.forEach(function(a){ text += '・' + a + '\n'; });
+      }
+      if (selectedOptions.length > 0) {
+        selectedOptions.forEach(function(o){ text += '・' + o + '\n'; });
+      }
+      text += '\nよろしくお願いします。';
+    }
+
+    document.getElementById('resultText').textContent = text;
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // コピーボタンをリセット
+    var cb = document.getElementById('copyBtn');
+    cb.textContent = '📋 コピー';
+    cb.classList.remove('copied');
+
+    saveState();
+  }
+
+  function copyText() {
+    var text = document.getElementById('resultText').textContent;
+    if (!text) return;
+    var btn = document.getElementById('copyBtn');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        btn.textContent = '✅ コピーしました';
+        btn.classList.add('copied');
+        setTimeout(function(){ btn.textContent = '📋 コピー'; btn.classList.remove('copied'); }, 2000);
+      });
+    } else {
+      // fallback
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = '✅ コピーしました';
+      btn.classList.add('copied');
+      setTimeout(function(){ btn.textContent = '📋 コピー'; btn.classList.remove('copied'); }, 2000);
+    }
+  }
+
+  // ── localStorage 保存・復元 ──
+  function saveState() {
+    var data = {
+      productName: document.getElementById('productName').value,
+      category:    document.getElementById('category').value,
+      condition:   document.getElementById('condition').value,
+      appeal:      document.getElementById('appeal').value,
+      tone:        document.getElementById('tone').value,
+      options:     []
+    };
+    document.querySelectorAll('.option-tag.selected input[type="checkbox"]').forEach(function(el){
+      data.options.push(el.value);
+    });
+    localStorage.setItem('frimagen_v2', JSON.stringify(data));
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem('frimagen_v2');
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (d.productName) document.getElementById('productName').value = d.productName;
+      if (d.category)    document.getElementById('category').value    = d.category;
+      if (d.condition)   document.getElementById('condition').value   = d.condition;
+      if (d.appeal)      document.getElementById('appeal').value      = d.appeal;
+      if (d.tone)        document.getElementById('tone').value        = d.tone;
+      if (d.options && d.options.length) {
+        d.options.forEach(function(v) {
+          var el = document.querySelector('.option-tag input[value="' + v + '"]');
+          if (el) el.closest('.option-tag').classList.add('selected');
+        });
+      }
+    } catch(e) {}
+  }
+
+  loadState();
+  </script>
+
+</body>
+</html>
