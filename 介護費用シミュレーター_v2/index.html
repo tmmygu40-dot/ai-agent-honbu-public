@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>介護費用シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card); border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem; margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem; font-size: 1rem;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+    /* チェックボックスサービス選択 */
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.7rem;
+      padding: 0.65rem 0.6rem; border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; margin-top: 2px; }
+    .check-item .check-text { font-size: 0.88rem; color: var(--text); line-height: 1.5; }
+    .check-item .check-sub { font-size: 0.72rem; color: var(--text-sub); display: block; }
+    .check-item input[type="checkbox"]:checked ~ .check-text { color: var(--accent); font-weight: 600; }
+    /* ボタン */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+    /* 結果カード */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.3rem; }
+    .result-card.ok   .result-value { color: var(--ok); }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-eval { font-size: 0.92rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-note { font-size: 0.78rem; color: var(--text-sub); line-height: 1.5; }
+    /* 内訳テーブル */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.5rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1rem; }
+    /* その他 */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>介護費用シミュレーター</h1>
+    <p class="subtitle">要介護度・サービスを選ぶだけで月間費用と自己負担額を即試算</p>
+  </header>
+
+  <!-- 要介護度・負担割合 -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="careLevel">要介護度</label>
+      <select id="careLevel">
+        <option value="s1">要支援1（支給限度額 50,320円）</option>
+        <option value="s2">要支援2（支給限度額 105,310円）</option>
+        <option value="1">要介護1（支給限度額 167,650円）</option>
+        <option value="2" selected>要介護2（支給限度額 197,050円）</option>
+        <option value="3">要介護3（支給限度額 270,480円）</option>
+        <option value="4">要介護4（支給限度額 309,380円）</option>
+        <option value="5">要介護5（支給限度額 362,170円）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="ratio">自己負担割合</label>
+      <select id="ratio">
+        <option value="0.1">1割負担（一般的な方）</option>
+        <option value="0.2">2割負担（一定以上所得の方）</option>
+        <option value="0.3">3割負担（現役並み所得の方）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- サービス選択 -->
+  <div class="card">
+    <p class="card-title">利用サービスを選択（複数可）</p>
+    <label class="check-item">
+      <input type="checkbox" value="16800" id="s1">
+      <span class="check-text">訪問介護（生活援助）<span class="check-sub">週2回 / 約168,000円相当/月</span></span>
+    </label>
+    <label class="check-item">
+      <input type="checkbox" value="24000" id="s2">
+      <span class="check-text">訪問介護（身体介護）<span class="check-sub">週3回 / 約240,000円相当/月</span></span>
+    </label>
+    <label class="check-item">
+      <input type="checkbox" value="33000" id="s3">
+      <span class="check-text">訪問看護<span class="check-sub">週2回 / 約330,000円相当/月</span></span>
+    </label>
+    <label class="check-item">
+      <input type="checkbox" value="40000" id="s4">
+      <span class="check-text">通所介護（デイサービス）<span class="check-sub">週3回 / 約400,000円相当/月</span></span>
+    </label>
+    <label class="check-item">
+      <input type="checkbox" value="30000" id="s5">
+      <span class="check-text">通所リハビリ（デイケア）<span class="check-sub">週3回 / 約300,000円相当/月</span></span>
+    </label>
+    <label class="check-item">
+      <input type="checkbox" value="80000" id="s6">
+      <span class="check-text">短期入所（ショートステイ）<span class="check-sub">月7日 / 約800,000円相当/月</span></span>
+    </label>
+    <label class="check-item">
+      <input type="checkbox" value="18000" id="s7">
+      <span class="check-text">福祉用具貸与（車いす等）<span class="check-sub">約180,000円相当/月</span></span>
+    </label>
+    <label class="check-item">
+      <input type="checkbox" value="10000" id="s8">
+      <span class="check-text">居宅療養管理指導<span class="check-sub">月2回 / 約100,000円相当/月</span></span>
+    </label>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">自己負担額を試算する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月間自己負担額（目安）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳 -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p style="max-width:600px;margin:0 auto 1rem;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.74rem;color:var(--text-sub);line-height:1.6;">
+    📚 介護報酬は2024年度の概算値（1単位10円）を使用しています。実際の費用は事業所・地域・ケアプランにより異なります。正確な金額はケアマネジャーにご相談ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'careSimV2_v1';
+
+  // 支給限度額（円）
+  var LIMITS = { s1: 50320, s2: 105310, '1': 167650, '2': 197050, '3': 270480, '4': 309380, '5': 362170 };
+  // 高額介護サービス費 一般世帯上限（円/月）
+  var HIGH_CAP = 44400;
+
+  (function() {
+    try {
+      var s = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!s) return;
+      if (s.careLevel) document.getElementById('careLevel').value = s.careLevel;
+      if (s.ratio)     document.getElementById('ratio').value     = s.ratio;
+      var svcs = s.svcs || [];
+      svcs.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.checked = true;
+      });
+    } catch(e) {}
+  })();
+
+  function calc() {
+    var careLevel = document.getElementById('careLevel').value;
+    var ratio     = parseFloat(document.getElementById('ratio').value);
+    var limit     = LIMITS[careLevel];
+
+    var selectedSvcs = [];
+    var totalCost = 0;
+    for (var i = 1; i <= 8; i++) {
+      var el = document.getElementById('s' + i);
+      if (el && el.checked) {
+        selectedSvcs.push('s' + i);
+        totalCost += parseInt(el.value);
+      }
+    }
+
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ careLevel: careLevel, ratio: ratio, svcs: selectedSvcs })); } catch(e) {}
+
+    if (selectedSvcs.length === 0) {
+      var rc = document.getElementById('result');
+      rc.className = 'result-card warn';
+      rc.style.display = 'block';
+      document.getElementById('rv').textContent = '—';
+      document.getElementById('re').textContent = 'サービスを1つ以上選択してください';
+      document.getElementById('rn').textContent = '';
+      document.getElementById('detail').style.display = 'none';
+      return;
+    }
+
+    // 支給限度額を超えた分は全額自己負担
+    var coveredCost = Math.min(totalCost, limit);
+    var overLimit   = Math.max(0, totalCost - limit);
+    var selfPay     = Math.round(coveredCost * ratio) + overLimit;
+
+    // 高額介護サービス費適用後
+    var afterCap = Math.max(0, selfPay - HIGH_CAP);
+    var cappedSelfPay = Math.min(selfPay, HIGH_CAP);
+
+    var level, evalText, noteText;
+    if (selfPay > HIGH_CAP) {
+      level    = 'warn';
+      evalText = '高額介護サービス費の申請で負担が軽減できます';
+      noteText = '月間自己負担が上限額（44,400円）を超えています。高額介護サービス費の支給申請を市区町村へ行うと払い戻しが受けられます。';
+    } else {
+      level    = 'ok';
+      evalText = '高額介護サービス費の上限内です';
+      noteText = '月間自己負担額が上限（44,400円）の範囲内です。';
+    }
+
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = fmt(selfPay) + ' 円';
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = noteText;
+
+    var rows = [
+      ['選択サービス合計費用', fmt(totalCost) + ' 円'],
+      ['支給限度額', fmt(limit) + ' 円'],
+      ['限度額内の介護費用', fmt(coveredCost) + ' 円'],
+      ['限度額超の自己負担', fmt(overLimit) + ' 円'],
+      ['自己負担割合', Math.round(ratio * 100) + ' 割'],
+      ['高額介護サービス費上限', fmt(HIGH_CAP) + ' 円/月'],
+    ];
+
+    if (selfPay > HIGH_CAP) {
+      rows.push(['自己負担額（上限前）', fmt(selfPay) + ' 円', true]);
+      rows.push(['払い戻し見込み額', fmt(afterCap) + ' 円']);
+      rows.push(['実質自己負担額', fmt(cappedSelfPay) + ' 円', true]);
+    } else {
+      rows.push(['月間自己負担額', fmt(selfPay) + ' 円', true]);
+    }
+
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

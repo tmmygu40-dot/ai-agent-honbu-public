@@ -65,3 +65,4 @@
 [2026-04-25_140300] SCAN apps=店頭POP文言ジェネレーター total=0 exit=0
 [2026-04-25_184349] SCAN apps=週次発注量シミュレーター total=0 exit=0
 [2026-04-25_185335] SCAN apps=中小企業資金繰りシミュレーター total=0 exit=0
+[2026-04-25_190212] SCAN apps=介護費用シミュレーター_v2 total=0 exit=0
