@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教育費シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 学校段階セレクター ── */
+    .stage-grid {
+      display: grid;
+      gap: 0.75rem;
+    }
+    .stage-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .stage-label {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .stage-label .years {
+      font-size: 0.72rem;
+      font-weight: 400;
+      color: var(--text-sub);
+      margin-left: 0.3rem;
+    }
+    .toggle-group {
+      display: flex;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .toggle-group input[type="radio"] { display: none; }
+    .toggle-group label {
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--bg);
+      color: var(--text-sub);
+      transition: background 0.15s, color 0.15s;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .toggle-group input[type="radio"]:checked + label {
+      background: var(--accent);
+      color: #fff;
+    }
+    .toggle-group label:not(:last-child) {
+      border-right: 1.5px solid var(--border);
+    }
+
+    /* ── 子どもの人数 ── */
+    .field { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-head td {
+      background: var(--bg);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      padding: 0.35rem 0.3rem;
+    }
+
+    /* ── 注記 ── */
+    .note-text {
+      font-size: 0.72rem;
+      color: var(--text-sub);
+      line-height: 1.6;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--border);
+      margin-top: 0.75rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>教育費シミュレーター</h1>
+    <p class="subtitle">幼稚園〜大学まで公立・私立を選んで教育費の総額を試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">学校の種別を選んでください</p>
+    <div class="stage-grid" id="stageGrid">
+      <!-- JS で生成 -->
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">教育費を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">幼稚園〜大学の教育費総額（1人あたり）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+    <p class="note-text">
+      ※金額は文部科学省「子供の学習費調査」および「国立大学等の授業料等の推移」を参考にした概算値です。<br>
+      ※大学は国立・公立・私立（文系）の区分で試算しています。<br>
+      ※塾・習い事・受験費用・交通費等は含まれません。
+    </p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // ── 教育費データ（年間平均・万円）※文科省データ参考 ──
+  // 幼稚園：3年、小学校：6年、中学校：3年、高校：3年、大学：4年
+  var STAGES = [
+    {
+      id: 'kindergarten',
+      label: '幼稚園',
+      years: 3,
+      options: [
+        { val: 'public',  text: '公立', annual: 16.2 },
+        { val: 'private', text: '私立', annual: 31.0 }
+      ]
+    },
+    {
+      id: 'elementary',
+      label: '小学校',
+      years: 6,
+      options: [
+        { val: 'public',  text: '公立', annual: 35.3 },
+        { val: 'private', text: '私立', annual: 166.9 }
+      ]
+    },
+    {
+      id: 'juniorhigh',
+      label: '中学校',
+      years: 3,
+      options: [
+        { val: 'public',  text: '公立', annual: 53.9 },
+        { val: 'private', text: '私立', annual: 143.6 }
+      ]
+    },
+    {
+      id: 'highschool',
+      label: '高校',
+      years: 3,
+      options: [
+        { val: 'public',  text: '公立', annual: 51.3 },
+        { val: 'private', text: '私立', annual: 105.4 }
+      ]
+    },
+    {
+      id: 'university',
+      label: '大学',
+      years: 4,
+      options: [
+        { val: 'national', text: '国立', annual: 82.0 },
+        { val: 'public',   text: '公立', annual: 93.0 },
+        { val: 'private',  text: '私立', annual: 152.0 }
+      ]
+    }
+  ];
+
+  // ── UI 生成 ──
+  var grid = document.getElementById('stageGrid');
+  STAGES.forEach(function(stage) {
+    var row = document.createElement('div');
+    row.className = 'stage-row';
+
+    var labelEl = document.createElement('div');
+    labelEl.className = 'stage-label';
+    labelEl.innerHTML = stage.label + '<span class="years">（' + stage.years + '年間）</span>';
+
+    var toggleGroup = document.createElement('div');
+    toggleGroup.className = 'toggle-group';
+
+    stage.options.forEach(function(opt, idx) {
+      var radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = stage.id;
+      radio.id = stage.id + '_' + opt.val;
+      radio.value = opt.val;
+      if (idx === 0) radio.checked = true;
+      radio.addEventListener('change', saveState);
+
+      var label = document.createElement('label');
+      label.htmlFor = stage.id + '_' + opt.val;
+      label.textContent = opt.text;
+
+      toggleGroup.appendChild(radio);
+      toggleGroup.appendChild(label);
+    });
+
+    row.appendChild(labelEl);
+    row.appendChild(toggleGroup);
+    grid.appendChild(row);
+  });
+
+  // ── localStorage ──
+  function saveState() {
+    var state = {};
+    STAGES.forEach(function(s) {
+      var checked = document.querySelector('input[name="' + s.id + '"]:checked');
+      if (checked) state[s.id] = checked.value;
+    });
+    localStorage.setItem('eduSim_v1', JSON.stringify(state));
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem('eduSim_v1');
+      if (!raw) return;
+      var state = JSON.parse(raw);
+      STAGES.forEach(function(s) {
+        if (state[s.id]) {
+          var el = document.getElementById(s.id + '_' + state[s.id]);
+          if (el) el.checked = true;
+        }
+      });
+    } catch(e) {}
+  }
+
+  loadState();
+
+  // ── 計算 ──
+  function calc() {
+    var rows = [];
+    var total = 0;
+
+    STAGES.forEach(function(stage) {
+      var checked = document.querySelector('input[name="' + stage.id + '"]:checked');
+      var val = checked ? checked.value : stage.options[0].val;
+      var opt = stage.options.find(function(o) { return o.val === val; });
+      var subtotal = opt.annual * stage.years;
+      total += subtotal;
+
+      rows.push({ stage: stage, opt: opt, subtotal: subtotal });
+    });
+
+    saveState();
+
+    // 結論カード
+    var level = total < 1000 ? 'ok' : 'warn';
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = fmt(Math.round(total)) + ' 万円';
+    document.getElementById('rn').textContent =
+      '幼稚園から大学卒業まで、概算で約 ' + fmt(Math.round(total)) + ' 万円（' + fmt(Math.round(total * 10000)) + ' 円）かかる見込みです。';
+
+    // 内訳テーブル
+    var html = '';
+    rows.forEach(function(r) {
+      html += '<tr class="section-head"><td colspan="2">' +
+        r.stage.label + '（' + r.opt.text + '・' + r.stage.years + '年間）</td></tr>';
+      html += '<tr><td>年間平均</td><td>' + r.opt.annual.toFixed(1) + ' 万円</td></tr>';
+      html += '<tr><td>' + r.stage.years + '年間計</td><td>' + fmt(r.subtotal.toFixed(1)) + ' 万円</td></tr>';
+    });
+    html += '<tr class="hl"><td>合計（幼〜大）</td><td>' + fmt(Math.round(total)) + ' 万円</td></tr>';
+
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+
+    // スクロール
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function fmt(n) {
+    return Number(n).toLocaleString('ja-JP');
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

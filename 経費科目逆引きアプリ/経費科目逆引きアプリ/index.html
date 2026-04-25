@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>経費科目逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .search-wrap {
+      display: flex; gap: 0.5rem;
+      max-width: 600px; margin: 0 auto 1rem;
+      padding: 0 0;
+    }
+    .search-input {
+      flex: 1; padding: 0.85rem 1rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: var(--radius); background: var(--card); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .search-input:focus { border-color: var(--accent); }
+    .btn-search {
+      padding: 0.85rem 1.2rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00;
+      transition: transform 0.1s, box-shadow 0.1s;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-search:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+
+    .result-count {
+      max-width: 600px; margin: 0 auto 0.75rem;
+      font-size: 0.82rem; color: var(--text-sub);
+      padding: 0 0.2rem;
+    }
+
+    .result-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 0.75rem;
+      max-width: 600px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .result-item:hover { border-color: var(--accent); box-shadow: 0 4px 16px rgba(224,123,0,0.15); }
+    .result-item .kmoku {
+      font-size: 1.15rem; font-weight: 900; color: var(--accent);
+      margin-bottom: 0.35rem;
+    }
+    .result-item .category-tag {
+      display: inline-block;
+      font-size: 0.7rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 999px; padding: 0.1rem 0.55rem;
+      margin-bottom: 0.55rem;
+    }
+    .result-item .desc {
+      font-size: 0.88rem; color: var(--text-sub); line-height: 1.55;
+      margin-bottom: 0.55rem;
+    }
+    .result-item .examples {
+      font-size: 0.82rem; color: var(--text);
+    }
+    .result-item .examples strong {
+      font-size: 0.75rem; color: var(--text-sub); margin-right: 0.3rem;
+    }
+    .example-chip {
+      display: inline-block;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.15rem 0.5rem;
+      margin: 0.15rem 0.2rem 0.15rem 0;
+      font-size: 0.78rem; color: var(--text);
+    }
+
+    .no-result {
+      max-width: 600px; margin: 0 auto 1rem;
+      text-align: center; padding: 2rem 1rem;
+      color: var(--text-sub); font-size: 0.9rem;
+    }
+
+    .history-section {
+      max-width: 600px; margin: 0 auto 0.5rem;
+    }
+    .history-label {
+      font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.4rem;
+      padding: 0 0.2rem;
+    }
+    .history-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; padding: 0 0.2rem; }
+    .history-chip {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 999px; padding: 0.3rem 0.75rem;
+      font-size: 0.8rem; cursor: pointer; color: var(--text);
+      transition: border-color 0.15s;
+    }
+    .history-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>経費科目 逆引きアプリ</h1>
+    <p class="subtitle">出費の内容を入力するだけで正しい勘定科目を即チェック</p>
+  </header>
+
+  <div style="max-width:600px;margin:0 auto 1rem;padding:0 0.2rem;">
+    <div class="search-wrap">
+      <input type="text" id="searchInput" class="search-input"
+             placeholder="例：コーヒー代、ガソリン代、PC購入…"
+             oninput="onInput()" onkeydown="onKey(event)">
+      <button class="btn-search" onclick="doSearch()">検索</button>
+    </div>
+  </div>
+
+  <div class="history-section" id="historySection" style="display:none">
+    <p class="history-label">最近の検索</p>
+    <div class="history-chips" id="historyChips"></div>
+  </div>
+
+  <div id="resultCount" class="result-count"></div>
+  <div id="results"></div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // ── 勘定科目データ ──────────────────────────────────
+  var DATA = [
+    {
+      kmoku: '旅費交通費',
+      cat: '販管費',
+      desc: '業務に関連する移動にかかった費用。通勤費・出張旅費・交通費など。',
+      keywords: ['交通費','電車','バス','タクシー','新幹線','飛行機','高速','駐車場','出張','宿泊','ホテル','通勤','定期','バス代','電車代','タクシー代','ガソリン代','高速代','カーシェア','移動'],
+      examples: ['電車代','タクシー代','飛行機代','ホテル代','高速代','駐車場代']
+    },
+    {
+      kmoku: '車両費',
+      cat: '販管費',
+      desc: '業務用車両の燃料・修理・車検・保険などに関する費用。',
+      keywords: ['ガソリン','燃料','車検','修理','車両','オイル交換','タイヤ','自動車保険','駐車場','ETC','カーリース'],
+      examples: ['ガソリン代','オイル交換','車検費用','タイヤ交換','自動車保険料']
+    },
+    {
+      kmoku: '接待交際費',
+      cat: '販管費',
+      desc: '取引先との会食・贈答・接待ゴルフなど、事業上の関係維持のための費用。',
+      keywords: ['接待','会食','飲み会','お土産','ギフト','贈り物','ゴルフ','クライアント','得意先','食事','飲食','祝い金','香典','中元','歳暮'],
+      examples: ['取引先との会食','お中元・お歳暮','接待ゴルフ','取引先へのギフト']
+    },
+    {
+      kmoku: '会議費',
+      cat: '販管費',
+      desc: '社内外の会議・打ち合わせで発生した飲食・会場費など（5,000円/人以下目安）。',
+      keywords: ['会議','打ち合わせ','ミーティング','コーヒー','お茶','弁当','会議室','レンタルスペース','打合せ'],
+      examples: ['会議室レンタル代','打ち合わせ時のコーヒー代','社内会議の弁当代']
+    },
+    {
+      kmoku: '通信費',
+      cat: '販管費',
+      desc: '業務に使う電話・インターネット・切手・宅配便などの通信関連費用。',
+      keywords: ['電話','スマホ','携帯','インターネット','WiFi','切手','郵便','宅配','送料','メール','ファックス','プロバイダ','通信'],
+      examples: ['スマホ月額料金','インターネット回線費','郵送・宅配便代','切手代']
+    },
+    {
+      kmoku: '消耗品費',
+      cat: '販管費',
+      desc: '10万円未満（または使用可能期間1年未満）の事務用品・備品類。',
+      keywords: ['文具','ボールペン','ノート','コピー用紙','インク','トナー','洗剤','掃除','消耗品','USB','マウス','キーボード','モニター','プリンタ','電池','筆記用具','事務用品'],
+      examples: ['コピー用紙','ボールペン','掃除用品','USBメモリ','マウス']
+    },
+    {
+      kmoku: '新聞図書費',
+      cat: '販管費',
+      desc: '業務に必要な書籍・雑誌・新聞・電子書籍・オンライン記事購読など。',
+      keywords: ['本','書籍','雑誌','新聞','電子書籍','Kindle','専門書','参考書','業界紙','サブスク','読書','図書'],
+      examples: ['専門書購入','業界雑誌の定期購読','電子書籍','新聞購読料']
+    },
+    {
+      kmoku: '研修費（教育訓練費）',
+      cat: '販管費',
+      desc: '従業員の能力向上のための研修・セミナー・資格取得費用。',
+      keywords: ['セミナー','研修','勉強会','資格','講座','スクール','Udemy','eラーニング','受験料','受講料','スキルアップ','教育'],
+      examples: ['外部セミナー参加費','資格試験受験料','オンライン講座受講料','社内研修費']
+    },
+    {
+      kmoku: '広告宣伝費',
+      cat: '販管費',
+      desc: '商品・サービスの宣伝・広告に使った費用。ネット広告・チラシなど。',
+      keywords: ['広告','チラシ','ポスター','SNS広告','Google広告','Web広告','宣伝','看板','CM','リスティング','Facebook広告','Instagram広告','PR'],
+      examples: ['Google広告費','チラシ印刷・配布費','SNS広告費','看板制作費']
+    },
+    {
+      kmoku: '地代家賃',
+      cat: '販管費',
+      desc: '事務所・店舗・倉庫などの賃借料。駐車場代も含む場合あり。',
+      keywords: ['家賃','賃料','事務所','店舗','倉庫','レンタルオフィス','シェアオフィス','駐車場','テナント','月額賃料','土地'],
+      examples: ['事務所賃料','店舗家賃','倉庫賃借料','駐車場月額料金']
+    },
+    {
+      kmoku: '水道光熱費',
+      cat: '販管費',
+      desc: '業務に使う電気・ガス・水道代。在宅勤務は按分が必要。',
+      keywords: ['電気代','ガス代','水道代','光熱費','電力','電気料金','ガス料金','水道料金'],
+      examples: ['事務所の電気代','店舗のガス代','水道料金']
+    },
+    {
+      kmoku: '保険料',
+      cat: '販管費',
+      desc: '事業用の損害保険・火災保険・賠償保険など。生命保険は原則不可。',
+      keywords: ['保険','火災保険','損害保険','賠償保険','傷害保険','事業保険','損保'],
+      examples: ['店舗の火災保険料','業務用車両の保険料','賠償責任保険料']
+    },
+    {
+      kmoku: '修繕費',
+      cat: '販管費',
+      desc: '業務用の建物・機械・設備などの修理・補修費用（原状回復）。',
+      keywords: ['修理','修繕','補修','メンテナンス','原状回復','直す','壊れた'],
+      examples: ['事務所の壁修繕','機械修理代','店舗の設備修繕費']
+    },
+    {
+      kmoku: '外注費（業務委託費）',
+      cat: '販管費',
+      desc: '外部業者や個人への業務委託・下請け・制作依頼に支払った費用。',
+      keywords: ['外注','業務委託','フリーランス','下請け','制作費','デザイン費','システム開発','コーディング','ライティング','翻訳','委託'],
+      examples: ['Webデザイン外注費','システム開発委託費','翻訳・ライティング費','清掃業務委託費']
+    },
+    {
+      kmoku: '給料賃金',
+      cat: '販管費',
+      desc: '従業員・アルバイト・パートへの給料・残業代・賞与など。',
+      keywords: ['給料','給与','賃金','残業代','アルバイト','パート','賞与','ボーナス','日給','時給'],
+      examples: ['従業員の月給','アルバイト時給','残業代','ボーナス']
+    },
+    {
+      kmoku: '法定福利費',
+      cat: '販管費',
+      desc: '会社が負担する社会保険料（健康保険・厚生年金・雇用保険など）の事業主負担分。',
+      keywords: ['社会保険','健康保険','厚生年金','雇用保険','労災','社保','法定福利'],
+      examples: ['健康保険料（事業主負担）','厚生年金料（事業主負担）','雇用保険料（事業主負担）']
+    },
+    {
+      kmoku: '福利厚生費',
+      cat: '販管費',
+      desc: '従業員の慰安・健康管理・福利のための費用。全員が対象であること。',
+      keywords: ['社員旅行','忘年会','新年会','健康診断','懇親会','レクリエーション','慰安','社食','社員食堂','食事補助','団体保険','スポーツジム'],
+      examples: ['全社忘年会費用','健康診断費','社員旅行費','スポーツジム補助']
+    },
+    {
+      kmoku: '租税公課',
+      cat: '販管費',
+      desc: '事業に関連する税金・公的な費用。固定資産税・印紙代・登録免許税など。',
+      keywords: ['印紙','収入印紙','固定資産税','自動車税','登録免許税','税金','公課','事業税','許可','証紙'],
+      examples: ['収入印紙代','固定資産税','自動車税','登録免許税','許可証の証紙代']
+    },
+    {
+      kmoku: '荷造運賃',
+      cat: '販管費',
+      desc: '商品の発送・梱包にかかる費用。送料・梱包材など。',
+      keywords: ['送料','配送料','梱包','ダンボール','配達','荷造り','宅急便','発送費','宅配'],
+      examples: ['商品の送料','梱包資材（ダンボール等）','配達委託費']
+    },
+    {
+      kmoku: '販売促進費',
+      cat: '販管費',
+      desc: '商品の販売促進のためのサンプル・試供品・ノベルティ・イベント費用など。',
+      keywords: ['サンプル','試供品','ノベルティ','展示会','イベント','キャンペーン','クーポン','ポイント','販促'],
+      examples: ['サンプル品提供費','展示会出展費','ノベルティ作成費','販促キャンペーン費']
+    },
+    {
+      kmoku: '支払手数料',
+      cat: '販管費',
+      desc: '銀行振込手数料・クレカ決済手数料・代行手数料など。',
+      keywords: ['振込手数料','銀行手数料','決済手数料','クレジット手数料','代行手数料','システム手数料','仲介手数料','手数料'],
+      examples: ['銀行振込手数料','クレジット決済手数料','ECサイト出店手数料']
+    },
+    {
+      kmoku: 'ソフトウェア費（ライセンス費）',
+      cat: '販管費',
+      desc: '業務用ソフトウェアの購入・月額サブスク費用。',
+      keywords: ['ソフト','アプリ','サブスク','SaaS','ライセンス','Adobe','Microsoft','Slack','Zoom','ChatGPT','クラウド','サービス料','月額','年額'],
+      examples: ['AdobeCC月額料金','Microsoft 365','Slack有料プラン','ChatGPT Plus','クラウド会計ソフト']
+    },
+    {
+      kmoku: '減価償却費',
+      cat: '販管費',
+      desc: '10万円以上の固定資産（PCなど）を耐用年数で按分した費用。',
+      keywords: ['減価償却','パソコン','PC','サーバー','機械','設備','10万','固定資産'],
+      examples: ['業務用PC（10万円以上）','コピー機','機械装置','車両（減価償却）']
+    },
+    {
+      kmoku: '雑費',
+      cat: '販管費',
+      desc: '他の科目に当てはまらない少額の雑多な業務費用。頻繁に使わない。',
+      keywords: ['その他','雑費','小口','細かい','少額','分類不明'],
+      examples: ['少額の雑費（他科目に当てはまらないもの）']
+    },
+    {
+      kmoku: '仕入（売上原価）',
+      cat: '売上原価',
+      desc: '販売する商品の仕入れ代金。製造業では材料費・製造費用が該当。',
+      keywords: ['仕入','商品代','原材料','材料費','製造','在庫','買付','輸入'],
+      examples: ['商品仕入代金','原材料購入費','輸入商品代金']
+    },
+    {
+      kmoku: '貸倒損失',
+      cat: '特別損失',
+      desc: '回収不能となった売掛金・貸付金の損失。',
+      keywords: ['貸倒','回収不能','売掛金','未収','焦げ付き'],
+      examples: ['取引先の倒産による売掛金回収不能額']
+    }
+  ];
+
+  // ── 検索ロジック ──────────────────────────────────
+  function doSearch() {
+    var q = document.getElementById('searchInput').value.trim();
+    if (!q) { renderResults([]); document.getElementById('resultCount').textContent = ''; return; }
+    saveHistory(q);
+    var results = search(q);
+    renderResults(results, q);
+  }
+
+  function search(q) {
+    var lower = q.toLowerCase();
+    var scored = DATA.map(function(d) {
+      var score = 0;
+      // 科目名完全一致
+      if (d.kmoku === q) score += 100;
+      // 科目名部分一致
+      if (d.kmoku.indexOf(q) >= 0) score += 50;
+      // キーワード一致
+      d.keywords.forEach(function(k) {
+        if (k.indexOf(q) >= 0 || q.indexOf(k) >= 0) score += 30;
+        if (k.toLowerCase().indexOf(lower) >= 0) score += 10;
+      });
+      // 説明文一致
+      if (d.desc.indexOf(q) >= 0) score += 20;
+      // 使用例一致
+      d.examples.forEach(function(e) {
+        if (e.indexOf(q) >= 0) score += 15;
+      });
+      return { data: d, score: score };
+    });
+    return scored.filter(function(s) { return s.score > 0; })
+      .sort(function(a, b) { return b.score - a.score; })
+      .map(function(s) { return s.data; });
+  }
+
+  function renderResults(results, q) {
+    var countEl = document.getElementById('resultCount');
+    var container = document.getElementById('results');
+    if (!results || results.length === 0) {
+      if (q) {
+        countEl.textContent = '「' + q + '」に一致する科目は見つかりませんでした';
+        container.innerHTML = '<div class="no-result">キーワードを変えて試してみてください。<br>例：電車代→旅費交通費、ソフト→ソフトウェア費</div>';
+      } else {
+        countEl.textContent = '';
+        container.innerHTML = '';
+      }
+      return;
+    }
+    countEl.textContent = results.length + '件の科目が見つかりました';
+    container.innerHTML = results.map(function(d) {
+      return '<div class="result-item">'
+        + '<div class="kmoku">' + esc(d.kmoku) + '</div>'
+        + '<span class="category-tag">' + esc(d.cat) + '</span>'
+        + '<p class="desc">' + esc(d.desc) + '</p>'
+        + '<div class="examples"><strong>使用例：</strong>'
+        + d.examples.map(function(e) { return '<span class="example-chip">' + esc(e) + '</span>'; }).join('')
+        + '</div></div>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function onInput() {
+    var q = document.getElementById('searchInput').value.trim();
+    if (q.length >= 1) {
+      var results = search(q);
+      renderResults(results, q);
+      if (results.length > 0) document.getElementById('resultCount').textContent = results.length + '件の科目が見つかりました';
+    } else {
+      document.getElementById('resultCount').textContent = '';
+      document.getElementById('results').innerHTML = '';
+    }
+  }
+
+  function onKey(e) {
+    if (e.key === 'Enter') doSearch();
+  }
+
+  // ── 検索履歴 ──────────────────────────────────────
+  var HIST_KEY = 'kmoku_search_history';
+
+  function saveHistory(q) {
+    var hist = loadHistory();
+    hist = hist.filter(function(h) { return h !== q; });
+    hist.unshift(q);
+    if (hist.length > 10) hist = hist.slice(0, 10);
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(hist)); } catch(e) {}
+    renderHistory();
+  }
+
+  function loadHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+    } catch(e) { return []; }
+  }
+
+  function renderHistory() {
+    var hist = loadHistory();
+    var sec = document.getElementById('historySection');
+    var chips = document.getElementById('historyChips');
+    if (hist.length === 0) { sec.style.display = 'none'; return; }
+    sec.style.display = '';
+    chips.innerHTML = hist.map(function(h) {
+      return '<span class="history-chip" onclick="selectHistory(\'' + esc(h) + '\')">' + esc(h) + '</span>';
+    }).join('');
+  }
+
+  function selectHistory(q) {
+    document.getElementById('searchInput').value = q;
+    doSearch();
+  }
+
+  // 初期表示
+  renderHistory();
+  </script>
+</body>
+</html>

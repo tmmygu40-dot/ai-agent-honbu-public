@@ -1,0 +1,1163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>献立レシピ逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ヘッダー */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* カード共通 */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* 食材カテゴリ */
+    .cat-section { margin-bottom: 1.2rem; }
+    .cat-label {
+      font-size: 0.78rem; font-weight: 700; color: var(--text-sub);
+      margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .cat-label::before {
+      content: ''; display: inline-block;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* 食材タグ */
+    .tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .tag {
+      padding: 0.32rem 0.75rem;
+      font-size: 0.85rem; border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--bg); color: var(--text);
+      cursor: pointer; transition: all 0.12s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    .tag:hover { border-color: var(--accent); background: var(--accent-light); }
+    .tag.selected {
+      background: var(--accent); color: #fff;
+      border-color: var(--accent); font-weight: 700;
+    }
+
+    /* 選択済み表示 */
+    .selected-bar {
+      max-width: 640px; margin: 0 auto 0.8rem;
+      font-size: 0.8rem; color: var(--text-sub);
+      min-height: 1.2rem;
+    }
+    .selected-bar span { color: var(--accent); font-weight: 700; }
+
+    /* ボタン類 */
+    .btn-row {
+      max-width: 640px; margin: 0 auto 1.2rem;
+      display: flex; gap: 0.6rem;
+    }
+    .btn-search {
+      flex: 1; padding: 0.9rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-search:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+    .btn-reset {
+      padding: 0.9rem 1.2rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      cursor: pointer; transition: border-color 0.12s;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* 結果ヘッダー */
+    .result-header {
+      display: none; max-width: 640px; margin: 0 auto 0.8rem;
+    }
+    .result-count {
+      font-size: 0.85rem; color: var(--text-sub);
+    }
+    .result-count span { color: var(--accent); font-weight: 800; font-size: 1.1rem; }
+
+    /* レシピカード */
+    .recipe-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 0.8rem;
+      max-width: 640px;
+    }
+    .recipe-header { display: flex; align-items: flex-start; gap: 0.7rem; margin-bottom: 0.8rem; }
+    .recipe-match {
+      background: var(--accent); color: #fff;
+      font-size: 0.72rem; font-weight: 800;
+      padding: 0.18rem 0.55rem; border-radius: 20px;
+      white-space: nowrap; flex-shrink: 0; margin-top: 0.15rem;
+    }
+    .recipe-name { font-size: 1.05rem; font-weight: 800; line-height: 1.3; }
+    .recipe-category {
+      font-size: 0.72rem; color: var(--text-sub); margin-top: 0.15rem;
+    }
+    .recipe-section { margin-bottom: 0.7rem; }
+    .recipe-section:last-child { margin-bottom: 0; }
+    .recipe-section-title {
+      font-size: 0.74rem; font-weight: 700; color: var(--accent);
+      margin-bottom: 0.3rem; letter-spacing: 0.05em;
+    }
+    .recipe-ingredients {
+      font-size: 0.84rem; color: var(--text-sub); line-height: 1.6;
+    }
+    .recipe-ingredients .hit { color: var(--accent); font-weight: 700; }
+    .recipe-steps {
+      list-style: none; font-size: 0.84rem; line-height: 1.6;
+    }
+    .recipe-steps li {
+      padding: 0.25rem 0;
+      display: flex; gap: 0.6rem;
+    }
+    .recipe-steps li::before {
+      content: attr(data-n); display: inline-flex;
+      align-items: center; justify-content: center;
+      min-width: 1.4rem; height: 1.4rem;
+      background: var(--accent-light); color: var(--accent);
+      border-radius: 50%; font-size: 0.7rem; font-weight: 800;
+      flex-shrink: 0; margin-top: 0.08rem;
+    }
+
+    /* no-result */
+    .no-result {
+      display: none; max-width: 640px; margin: 0 auto;
+      text-align: center; padding: 2.5rem 1rem;
+      background: var(--card); border-radius: var(--radius);
+      border: 1.5px solid var(--border);
+      color: var(--text-sub); font-size: 0.9rem; line-height: 1.7;
+    }
+
+    /* 戻るリンク */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🥦 献立レシピ逆引きアプリ</h1>
+    <p class="subtitle">今ある食材を選ぶだけで作れる料理を即提案</p>
+  </header>
+
+  <div class="card" id="ingredient-card">
+    <p class="card-title">今ある食材を選んでください</p>
+
+    <div class="cat-section">
+      <p class="cat-label">野菜</p>
+      <div class="tags" id="cat-veggie"></div>
+    </div>
+    <div class="cat-section">
+      <p class="cat-label">肉類</p>
+      <div class="tags" id="cat-meat"></div>
+    </div>
+    <div class="cat-section">
+      <p class="cat-label">魚介・加工品</p>
+      <div class="tags" id="cat-fish"></div>
+    </div>
+    <div class="cat-section">
+      <p class="cat-label">卵・乳製品</p>
+      <div class="tags" id="cat-egg"></div>
+    </div>
+    <div class="cat-section">
+      <p class="cat-label">豆腐・豆類</p>
+      <div class="tags" id="cat-tofu"></div>
+    </div>
+    <div class="cat-section">
+      <p class="cat-label">きのこ類</p>
+      <div class="tags" id="cat-mush"></div>
+    </div>
+    <div class="cat-section">
+      <p class="cat-label">その他</p>
+      <div class="tags" id="cat-other"></div>
+    </div>
+  </div>
+
+  <div class="selected-bar" id="selected-bar">食材を選んでください</div>
+
+  <div class="btn-row">
+    <button class="btn-search" onclick="search()">この食材でレシピを探す</button>
+    <button class="btn-reset" onclick="resetAll()">リセット</button>
+  </div>
+
+  <div class="result-header" id="result-header">
+    <p class="result-count" id="result-count"></p>
+  </div>
+
+  <div id="results"></div>
+
+  <div class="no-result" id="no-result">
+    選んだ食材に合うレシピが見つかりませんでした。<br>
+    別の食材を追加して再度お試しください。
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // ── 食材マスター ──
+  var CATEGORIES = {
+    'cat-veggie': ['玉ねぎ','じゃがいも','にんじん','キャベツ','白菜','もやし',
+                   'トマト','なす','ピーマン','ほうれん草','小松菜','ブロッコリー',
+                   'きゅうり','大根','ねぎ','ごぼう','れんこん','かぼちゃ','豆苗',
+                   'アスパラ','レタス','セロリ','パプリカ'],
+    'cat-meat':   ['鶏もも肉','鶏むね肉','鶏ひき肉','豚バラ','豚こま','牛肉',
+                   '合いびき肉','ウインナー','ベーコン','ハム'],
+    'cat-fish':   ['鮭','サバ','ツナ缶','たら','アジ','イワシ','えび','いか',
+                   'ちくわ','はんぺん','カニカマ'],
+    'cat-egg':    ['卵','牛乳','チーズ','バター','生クリーム'],
+    'cat-tofu':   ['豆腐','油揚げ','厚揚げ','納豆','大豆水煮'],
+    'cat-mush':   ['しいたけ','えのき','しめじ','エリンギ','なめこ'],
+    'cat-other':  ['ご飯','うどん','そば','パスタ','食パン','餃子の皮','春雨']
+  };
+
+  // ── レシピDB ──
+  var RECIPES = [
+    {
+      name: '肉じゃが',
+      category: '煮物',
+      req: ['じゃがいも','玉ねぎ','にんじん'],
+      opt: ['豚こま','牛肉','牛肉'],
+      all: 'じゃがいも・玉ねぎ・にんじん・牛肉（または豚こま）・醤油・みりん・砂糖・酒',
+      steps: ['じゃがいも・玉ねぎ・にんじんを食べやすく切る',
+              '鍋で肉を炒め、野菜を加えてさらに炒める',
+              '水・醤油・みりん・砂糖・酒を加えて落とし蓋をして15分煮る',
+              'じゃがいもが柔らかくなったら完成']
+    },
+    {
+      name: '野菜炒め',
+      category: '炒め物',
+      req: ['もやし','キャベツ'],
+      opt: ['豚こま','ウインナー','ピーマン','にんじん'],
+      all: 'もやし・キャベツ・にんじん・豚こまなど好みの具・塩コショウ・醤油',
+      steps: ['野菜を食べやすく切る',
+              'フライパンに油を熱し、肉類を先に炒める',
+              '野菜を加えて強火でさっと炒める',
+              '塩コショウ・醤油で味を整えて完成']
+    },
+    {
+      name: '親子丼',
+      category: '丼もの',
+      req: ['鶏もも肉','卵','玉ねぎ','ご飯'],
+      opt: ['ねぎ'],
+      all: '鶏もも肉・卵・玉ねぎ・ご飯・醤油・みりん・砂糖・だし',
+      steps: ['鶏肉をひと口大に切り、玉ねぎを薄切りにする',
+              'だし・醤油・みりん・砂糖を合わせて小鍋に入れ、玉ねぎと鶏肉を煮る',
+              '鶏肉に火が通ったら溶き卵を回しかけ、半熟で蓋をして蒸らす',
+              'ご飯の上にのせて完成']
+    },
+    {
+      name: 'カレー',
+      category: '煮込み',
+      req: ['じゃがいも','玉ねぎ','にんじん'],
+      opt: ['鶏もも肉','豚こま','牛肉'],
+      all: 'じゃがいも・玉ねぎ・にんじん・肉・カレールー・水',
+      steps: ['野菜と肉を切る。玉ねぎはくし切り、じゃがいも・にんじんは乱切り',
+              '鍋に油を熱し玉ねぎをよく炒め、肉を加えてさらに炒める',
+              'にんじん・じゃがいもを加え水を入れて20分煮る',
+              '火を止めてカレールーを溶かし、再加熱して5分煮て完成']
+    },
+    {
+      name: '豚汁',
+      category: '汁物',
+      req: ['豚こま','大根','にんじん'],
+      opt: ['じゃがいも','玉ねぎ','ごぼう','豆腐','油揚げ','ねぎ'],
+      all: '豚こま・大根・にんじん・ごぼうなど根菜・味噌・だし',
+      steps: ['大根・にんじん・ごぼうをいちょう切りにする',
+              '豚肉をひと口大に切る',
+              '鍋でごま油を熱し豚肉と野菜を炒め、だし汁を加えて煮る',
+              '野菜が柔らかくなったら味噌を溶かして完成']
+    },
+    {
+      name: 'ポテトサラダ',
+      category: 'サラダ',
+      req: ['じゃがいも','玉ねぎ'],
+      opt: ['にんじん','きゅうり','卵','ハム'],
+      all: 'じゃがいも・玉ねぎ・きゅうり・にんじん・マヨネーズ・塩コショウ',
+      steps: ['じゃがいもをゆでて熱いうちに潰す',
+              'きゅうりと玉ねぎを薄切りにして塩もみし、水気を絞る',
+              'にんじんを薄切りにしてゆでる',
+              '全てを混ぜてマヨネーズ・塩コショウで和えて完成']
+    },
+    {
+      name: '鮭のムニエル',
+      category: '焼き物',
+      req: ['鮭','バター'],
+      opt: ['レタス','アスパラ','ブロッコリー'],
+      all: '鮭の切り身・バター・塩コショウ・小麦粉・レモン',
+      steps: ['鮭に塩コショウをして小麦粉を薄くまぶす',
+              'フライパンにバターを溶かし、鮭を皮面から焼く',
+              '皮がカリッとしたら返して中火で焼く',
+              '仕上げにバターを加えてソースをかけて完成']
+    },
+    {
+      name: 'だし巻き卵',
+      category: '卵料理',
+      req: ['卵'],
+      opt: ['ねぎ'],
+      all: '卵・だし・醤油・みりん・砂糖',
+      steps: ['卵3個にだし・醤油・みりん・砂糖を加えてよく混ぜる',
+              '卵焼き器を熱して油を薄く引く',
+              '卵液を1/3注ぎ、半熟のうちに手前に巻く',
+              '同じ工程を3回繰り返し形を整えて完成']
+    },
+    {
+      name: 'オムレツ',
+      category: '卵料理',
+      req: ['卵','バター'],
+      opt: ['チーズ','ウインナー','玉ねぎ'],
+      all: '卵・バター・塩コショウ・好みの具材',
+      steps: ['卵に塩コショウを加えてよく溶く',
+              'フライパンにバターを溶かし、卵液を流し込む',
+              '大きくかき混ぜながら半熟にする',
+              'フライパンの端で形を整えて皿に滑らせて完成']
+    },
+    {
+      name: 'スクランブルエッグ',
+      category: '卵料理',
+      req: ['卵','バター'],
+      opt: ['チーズ','食パン'],
+      all: '卵・バター・牛乳・塩コショウ',
+      steps: ['卵に牛乳・塩コショウを加えてよく混ぜる',
+              'フライパンにバターを溶かし弱火にする',
+              '卵液を流し込み、ゴムベラで大きくゆっくりかき混ぜる',
+              'とろとろの半熟状態で火を止めて完成']
+    },
+    {
+      name: 'ナポリタン',
+      category: 'パスタ',
+      req: ['パスタ','玉ねぎ','ウインナー'],
+      opt: ['ピーマン','マッシュルーム','ベーコン'],
+      all: 'パスタ・ウインナー・玉ねぎ・ピーマン・ケチャップ・バター・塩コショウ',
+      steps: ['パスタを指定時間よりやや長めに茹でる',
+              'フライパンにバターを溶かし、玉ねぎ・ウインナー・ピーマンを炒める',
+              'ケチャップを加えてさらに炒め、茹でたパスタを加えて絡める',
+              '塩コショウで味を整えて完成']
+    },
+    {
+      name: 'ペペロンチーノ',
+      category: 'パスタ',
+      req: ['パスタ'],
+      opt: ['ベーコン','アスパラ','ブロッコリー'],
+      all: 'パスタ・にんにく・唐辛子・オリーブオイル・塩・ベーコン',
+      steps: ['パスタを規定時間より1分短めに茹でる（茹で汁を取っておく）',
+              'フライパンにオリーブオイルとにんにく・唐辛子を入れて弱火で香りを出す',
+              'ベーコンを加えて炒め、茹で汁を加えてソースを作る',
+              'パスタを加えて絡めて完成']
+    },
+    {
+      name: 'チャーハン',
+      category: '米料理',
+      req: ['ご飯','卵'],
+      opt: ['ねぎ','ハム','ウインナー','ベーコン'],
+      all: 'ご飯・卵・ねぎ・ハムなど・塩コショウ・醤油',
+      steps: ['ご飯を冷蔵庫で冷ましておくか前日のものを使う',
+              '卵をご飯に混ぜておく（パラパラにするため）',
+              '強火に熱したフライパンに油を多めに入れ、卵まみれのご飯を炒める',
+              '具材を加えて炒め、塩コショウ・醤油で味を整えて完成']
+    },
+    {
+      name: 'お好み焼き',
+      category: '粉もの',
+      req: ['キャベツ','卵'],
+      opt: ['豚バラ','ベーコン','天かす','ねぎ'],
+      all: 'キャベツ・卵・小麦粉・だし・豚バラ・お好みソース・マヨネーズ',
+      steps: ['キャベツを千切りにする',
+              '小麦粉・卵・だし・キャベツを混ぜて生地を作る',
+              'フライパンに油を熱し、生地を丸く広げて豚肉をのせる',
+              '両面を焼いてソース・マヨネーズをかけて完成']
+    },
+    {
+      name: 'みそ汁（豆腐・ねぎ）',
+      category: '汁物',
+      req: ['豆腐','ねぎ'],
+      opt: ['油揚げ','なめこ','わかめ'],
+      all: '豆腐・ねぎ・味噌・だし',
+      steps: ['だし汁を沸かし、豆腐を賽の目に切って入れる',
+              '弱火にして味噌を溶かす',
+              'ねぎの小口切りを加えて完成'],
+    },
+    {
+      name: '麻婆豆腐',
+      category: '中華',
+      req: ['豆腐','鶏ひき肉'],
+      opt: ['ねぎ','にんにく','豆板醤'],
+      all: '豆腐・ひき肉・ねぎ・にんにく・生姜・豆板醤・醤油・鶏がらスープ・片栗粉',
+      steps: ['豆腐を賽の目に切り熱湯でさっと下茹でする',
+              'フライパンにごま油を熱し、にんにく・生姜・豆板醤を炒める',
+              'ひき肉を加えて炒め、スープ・醤油を加えて煮立てる',
+              '豆腐を加えて煮て、水溶き片栗粉でとろみをつけて完成']
+    },
+    {
+      name: '餃子',
+      category: '中華',
+      req: ['餃子の皮','鶏ひき肉'],
+      opt: ['キャベツ','ねぎ','にんにく'],
+      all: '餃子の皮・ひき肉・キャベツ・ねぎ・にんにく・生姜・ごま油・醤油・塩コショウ',
+      steps: ['キャベツ・ねぎをみじん切りにして塩もみし水気を絞る',
+              'ひき肉と野菜・調味料をよく混ぜてタネを作る',
+              '餃子の皮にタネをのせてひだを作って包む',
+              'フライパンで焼いて水を入れて蒸し焼きにして完成']
+    },
+    {
+      name: '春雨サラダ',
+      category: 'サラダ',
+      req: ['春雨','きゅうり'],
+      opt: ['ハム','にんじん','カニカマ'],
+      all: '春雨・きゅうり・ハム・にんじん・ごま・醤油・酢・ごま油・砂糖',
+      steps: ['春雨を熱湯で戻して食べやすく切る',
+              'きゅうり・にんじんを千切りにして塩もみする',
+              'ハムを千切りにする',
+              '全て和えて醤油・酢・ごま油・砂糖で味付けして完成']
+    },
+    {
+      name: 'かぼちゃの煮物',
+      category: '煮物',
+      req: ['かぼちゃ'],
+      opt: ['油揚げ'],
+      all: 'かぼちゃ・醤油・みりん・砂糖・だし',
+      steps: ['かぼちゃを3〜4cm角に切り、面取りする',
+              'だし・醤油・みりん・砂糖を鍋に入れて煮立てる',
+              'かぼちゃを皮面を下に入れ、落とし蓋をして中火で15分煮る',
+              '煮汁が少なくなったら完成']
+    },
+    {
+      name: 'ひじきの煮物',
+      category: '煮物',
+      req: ['油揚げ'],
+      opt: ['にんじん','大豆水煮'],
+      all: 'ひじき・油揚げ・にんじん・大豆水煮・醤油・みりん・砂糖・ごま油',
+      steps: ['ひじきを水で戻して水気を切る',
+              '油揚げ・にんじんを細切りにする',
+              'ごま油で炒めて、水・醤油・みりん・砂糖を加えて煮る',
+              '汁気が少なくなったら完成']
+    },
+    {
+      name: '大根のみそ汁',
+      category: '汁物',
+      req: ['大根'],
+      opt: ['油揚げ','豆腐','なめこ'],
+      all: '大根・味噌・だし・好みの具材',
+      steps: ['大根をいちょう切りにする',
+              'だし汁で大根が柔らかくなるまで煮る',
+              '好みの具材を加えて味噌を溶いて完成']
+    },
+    {
+      name: 'ほうれん草のお浸し',
+      category: '副菜',
+      req: ['ほうれん草'],
+      opt: [],
+      all: 'ほうれん草・醤油・めんつゆ・かつお節',
+      steps: ['ほうれん草を塩を入れた熱湯でさっとゆでる',
+              '冷水にとって水気をよく絞る',
+              '食べやすい長さに切って醤油・めんつゆで和える',
+              'かつお節をのせて完成']
+    },
+    {
+      name: '小松菜の炒め物',
+      category: '炒め物',
+      req: ['小松菜'],
+      opt: ['油揚げ','ベーコン','しいたけ'],
+      all: '小松菜・ごま油・にんにく・醤油・塩コショウ',
+      steps: ['小松菜を4cm幅に切る',
+              'フライパンにごま油とにんにくを熱して香りを出す',
+              '小松菜を加えて強火で炒める',
+              '醤油・塩コショウで味を整えて完成']
+    },
+    {
+      name: 'ブロッコリーとベーコンの炒め物',
+      category: '炒め物',
+      req: ['ブロッコリー','ベーコン'],
+      opt: ['卵'],
+      all: 'ブロッコリー・ベーコン・にんにく・オリーブオイル・塩コショウ',
+      steps: ['ブロッコリーを小房に分け茹でる',
+              'フライパンにオリーブオイルとにんにくを熱する',
+              'ベーコンを加えて炒め、ブロッコリーを加える',
+              '塩コショウで味を整えて完成']
+    },
+    {
+      name: 'サバの味噌煮',
+      category: '煮物',
+      req: ['サバ'],
+      opt: ['ねぎ','生姜'],
+      all: 'サバ・味噌・醤油・みりん・砂糖・酒・生姜',
+      steps: ['サバを切り目を入れて熱湯をかけ臭みを取る',
+              '酒・みりん・醤油・砂糖・水を煮立て、サバを入れる',
+              '落とし蓋をして10分煮る',
+              '味噌を溶かしてさらに3分煮て完成']
+    },
+    {
+      name: 'ツナマヨのっけ飯',
+      category: '米料理',
+      req: ['ツナ缶','ご飯'],
+      opt: ['卵','ねぎ','レタス'],
+      all: 'ツナ缶・マヨネーズ・醤油・ご飯',
+      steps: ['ツナ缶の油を切る',
+              'マヨネーズ・醤油と和える',
+              'ご飯の上にのせて完成']
+    },
+    {
+      name: 'キャベツとツナの和え物',
+      category: '副菜',
+      req: ['キャベツ','ツナ缶'],
+      opt: ['きゅうり'],
+      all: 'キャベツ・ツナ缶・マヨネーズ・塩コショウ',
+      steps: ['キャベツを千切りにして塩もみし水気を絞る',
+              'ツナ缶の油を切る',
+              'キャベツとツナをマヨネーズ・塩コショウで和えて完成']
+    },
+    {
+      name: '豆腐ステーキ',
+      category: '豆腐料理',
+      req: ['豆腐'],
+      opt: ['ねぎ','きのこ類','しいたけ','えのき'],
+      all: '木綿豆腐・バター・醤油・みりん・片栗粉',
+      steps: ['豆腐をキッチンペーパーで包み重しをして30分水切りする',
+              '片栗粉をまぶす',
+              'フライパンにバターを溶かし両面をこんがり焼く',
+              '醤油・みりんで味付けして完成']
+    },
+    {
+      name: '冷奴',
+      category: '豆腐料理',
+      req: ['豆腐'],
+      opt: ['ねぎ','納豆'],
+      all: '絹ごし豆腐・醤油・かつお節・ねぎ・生姜',
+      steps: ['豆腐を食べやすく切る',
+              'ねぎ・生姜をのせて醤油をかける',
+              'かつお節をかけて完成']
+    },
+    {
+      name: 'なす炒め',
+      category: '炒め物',
+      req: ['なす'],
+      opt: ['ピーマン','豚こま','ひき肉'],
+      all: 'なす・ごま油・にんにく・醤油・みりん・砂糖',
+      steps: ['なすを乱切りにして水にさらす',
+              'フライパンにごま油を熱し、なすを炒める',
+              '醤油・みりん・砂糖・にんにくを加えて絡める',
+              '仕上げにごま油をたらして完成']
+    },
+    {
+      name: 'ピーマンの肉詰め',
+      category: '洋食',
+      req: ['ピーマン','合いびき肉'],
+      opt: ['玉ねぎ','卵'],
+      all: 'ピーマン・合いびき肉・玉ねぎ・卵・パン粉・塩コショウ',
+      steps: ['ピーマンを半分に切り種を取る',
+              'ひき肉・みじん切り玉ねぎ・卵・パン粉・塩コショウを混ぜる',
+              'ピーマンの内側に片栗粉をまぶしてタネを詰める',
+              '油を熱したフライパンで両面を蓋をして焼いて完成']
+    },
+    {
+      name: 'きんぴらごぼう',
+      category: '副菜',
+      req: ['ごぼう','にんじん'],
+      opt: [],
+      all: 'ごぼう・にんじん・ごま油・醤油・みりん・砂糖・唐辛子',
+      steps: ['ごぼうとにんじんを千切りにする',
+              'ごぼうを水にさらしてアクを抜く',
+              'フライパンにごま油を熱し、ごぼう・にんじんを炒める',
+              '醤油・みりん・砂糖を加えて汁気がなくなるまで炒めて完成']
+    },
+    {
+      name: 'レンコンのきんぴら',
+      category: '副菜',
+      req: ['れんこん'],
+      opt: ['にんじん'],
+      all: 'れんこん・ごま油・醤油・みりん・砂糖・白ごま',
+      steps: ['れんこんを薄い輪切りか半月切りにして水にさらす',
+              'フライパンにごま油を熱して炒める',
+              '醤油・みりん・砂糖で味付けして炒め合わせる',
+              '白ごまをふって完成']
+    },
+    {
+      name: 'ポトフ',
+      category: '煮込み',
+      req: ['玉ねぎ','にんじん','じゃがいも'],
+      opt: ['ウインナー','キャベツ','セロリ'],
+      all: '玉ねぎ・にんじん・じゃがいも・キャベツ・ウインナー・コンソメ・塩コショウ',
+      steps: ['野菜を大きめに切る。玉ねぎはくし切り',
+              '鍋に野菜・ウインナーを入れ水とコンソメを加える',
+              '20〜30分煮て野菜が柔らかくなったら塩コショウで味を整える',
+              '完成']
+    },
+    {
+      name: 'トマト卵炒め',
+      category: '炒め物',
+      req: ['トマト','卵'],
+      opt: ['ねぎ'],
+      all: 'トマト・卵・ねぎ・塩コショウ・ごま油',
+      steps: ['トマトをくし切りにする',
+              '卵を溶いて塩コショウを加える',
+              'フライパンに油を熱し卵を炒めてふわっとなったら取り出す',
+              '同じフライパンでトマトを炒め、卵を戻して絡めて完成']
+    },
+    {
+      name: '野菜スープ',
+      category: '汁物',
+      req: ['玉ねぎ','にんじん'],
+      opt: ['セロリ','キャベツ','じゃがいも','ベーコン'],
+      all: '玉ねぎ・にんじん・好みの野菜・コンソメ・塩コショウ',
+      steps: ['野菜を食べやすく切る',
+              '鍋に野菜とコンソメ・水を入れて煮る',
+              '20分ほど煮て野菜が柔らかくなったら塩コショウで味を整える',
+              '完成']
+    },
+    {
+      name: '照り焼き鶏',
+      category: '焼き物',
+      req: ['鶏もも肉'],
+      opt: ['玉ねぎ'],
+      all: '鶏もも肉・醤油・みりん・砂糖・酒',
+      steps: ['鶏もも肉を食べやすく切って塩コショウを振る',
+              'フライパンで皮面から焼く',
+              'こんがり焼けたら返して蓋をして蒸し焼きにする',
+              '合わせた照り焼きたれを加えて絡めて完成']
+    },
+    {
+      name: '鶏むね肉のソテー',
+      category: '焼き物',
+      req: ['鶏むね肉'],
+      opt: ['レタス','アスパラ'],
+      all: '鶏むね肉・塩コショウ・小麦粉・バター・醤油',
+      steps: ['鶏むね肉を薄く開いて塩コショウ・小麦粉をまぶす',
+              'フライパンにバターを溶かして両面を焼く',
+              '醤油で香りをつけて完成']
+    },
+    {
+      name: 'えびチリ',
+      category: '中華',
+      req: ['えび'],
+      opt: ['ねぎ','にんにく'],
+      all: 'えび・ケチャップ・豆板醤・にんにく・生姜・ねぎ・鶏がらスープ',
+      steps: ['えびの背ワタを取り塩コショウ・片栗粉をまぶす',
+              'フライパンに油を熱してえびを炒め取り出す',
+              'にんにく・生姜・豆板醤を炒め、ケチャップ・スープを加える',
+              'えびを戻して絡めてねぎを加えて完成']
+    },
+    {
+      name: 'サバ缶とトマトのパスタ',
+      category: 'パスタ',
+      req: ['パスタ','サバ','トマト'],
+      opt: ['玉ねぎ','にんにく'],
+      all: 'パスタ・サバ缶・トマト・玉ねぎ・にんにく・オリーブオイル・塩コショウ',
+      steps: ['パスタを茹でる',
+              'フライパンにオリーブオイルとにんにくを熱し、玉ねぎを炒める',
+              'トマト・サバ缶を加えて5分煮込む',
+              'パスタと絡めて塩コショウで味を整えて完成']
+    },
+    {
+      name: '豚バラ大根',
+      category: '煮物',
+      req: ['豚バラ','大根'],
+      opt: ['ねぎ'],
+      all: '豚バラ・大根・醤油・みりん・砂糖・酒・だし',
+      steps: ['大根を2cm厚の輪切りにして面取りし下茹でする',
+              '豚バラをひと口大に切る',
+              '鍋で豚肉を炒め、大根を加えてだし・調味料で20分煮る',
+              '汁が少なくなったら完成']
+    },
+    {
+      name: '生姜焼き',
+      category: '炒め物',
+      req: ['豚こま'],
+      opt: ['玉ねぎ','キャベツ'],
+      all: '豚こま切れ・玉ねぎ・醤油・みりん・砂糖・生姜',
+      steps: ['玉ねぎを薄切りにする',
+              '醤油・みりん・砂糖・おろし生姜を合わせてたれを作る',
+              'フライパンに油を熱し豚肉・玉ねぎを炒める',
+              'たれを加えて絡めて完成']
+    },
+    {
+      name: 'ハムエッグ',
+      category: '卵料理',
+      req: ['卵','ハム'],
+      opt: ['食パン'],
+      all: '卵・ハム・バター・塩コショウ',
+      steps: ['フライパンにバターを溶かす',
+              'ハムを入れて軽く焼く',
+              '卵を割り入れて好みの固さになるまで焼く',
+              '塩コショウで味を整えて完成']
+    },
+    {
+      name: 'フレンチトースト',
+      category: 'パン料理',
+      req: ['食パン','卵','牛乳'],
+      opt: ['バター'],
+      all: '食パン・卵・牛乳・砂糖・バター',
+      steps: ['卵・牛乳・砂糖を混ぜて卵液を作る',
+              '食パンを卵液に15〜30分浸す',
+              'バターを溶かしたフライパンで両面を弱火でこんがり焼く',
+              '完成']
+    },
+    {
+      name: 'チーズトースト',
+      category: 'パン料理',
+      req: ['食パン','チーズ'],
+      opt: ['ハム','トマト'],
+      all: '食パン・スライスチーズ・好みのトッピング',
+      steps: ['食パンにチーズをのせる',
+              'トースターで3〜5分焼いてチーズが溶けたら完成']
+    },
+    {
+      name: 'ちくわとキュウリの和え物',
+      category: '副菜',
+      req: ['ちくわ','きゅうり'],
+      opt: [],
+      all: 'ちくわ・きゅうり・マヨネーズ・醤油',
+      steps: ['ちくわを斜め薄切りにする',
+              'きゅうりを薄切りにして塩もみし水気を絞る',
+              'マヨネーズ・醤油で和えて完成']
+    },
+    {
+      name: 'はんぺんの磯辺焼き',
+      category: '焼き物',
+      req: ['はんぺん'],
+      opt: [],
+      all: 'はんぺん・醤油・みりん・青のり',
+      steps: ['はんぺんを食べやすく切る',
+              'フライパンで両面を焼く',
+              '醤油・みりんを加えて絡め、青のりをかけて完成']
+    },
+    {
+      name: '白菜と豚肉の重ね煮',
+      category: '煮物',
+      req: ['白菜','豚バラ'],
+      opt: ['えのき','しめじ'],
+      all: '白菜・豚バラ・だし・塩・ポン酢',
+      steps: ['白菜と豚バラを交互に鍋に重ねる',
+              'だしまたは水・塩を加えて蓋をして蒸し煮にする',
+              '10〜15分で完成。ポン酢をかけて食べる']
+    },
+    {
+      name: 'キャベツの浅漬け',
+      category: '副菜',
+      req: ['キャベツ'],
+      opt: ['きゅうり'],
+      all: 'キャベツ・塩・酢・砂糖・昆布',
+      steps: ['キャベツをざく切りにする',
+              '塩・酢・砂糖を加えてよく揉む',
+              '昆布を加えて30分おいて味をなじませて完成']
+    },
+    {
+      name: '豆苗の炒め物',
+      category: '炒め物',
+      req: ['豆苗'],
+      opt: ['ウインナー','ベーコン','えび'],
+      all: '豆苗・ごま油・にんにく・塩コショウ',
+      steps: ['豆苗の根元を切る',
+              'フライパンにごま油とにんにくを熱する',
+              '豆苗を加えて強火でさっと炒める',
+              '塩コショウで味を整えて完成']
+    },
+    {
+      name: '卵スープ',
+      category: '汁物',
+      req: ['卵'],
+      opt: ['ねぎ','豆腐','えのき'],
+      all: '卵・鶏がらスープ・塩コショウ・片栗粉・ごま油',
+      steps: ['鶏がらスープを沸かす',
+              '水溶き片栗粉を加えてとろみをつける',
+              '溶き卵を細く回しかけてゆっくり混ぜる',
+              'ごま油・塩コショウで味を整えて完成']
+    },
+    {
+      name: 'アスパラベーコン',
+      category: '炒め物',
+      req: ['アスパラ','ベーコン'],
+      opt: [],
+      all: 'アスパラ・ベーコン・塩コショウ・オリーブオイル',
+      steps: ['アスパラを斜め切りにする',
+              'ベーコンを1cm幅に切る',
+              'フライパンにオリーブオイルを熱しベーコンを炒める',
+              'アスパラを加えて炒め塩コショウで味を整えて完成']
+    },
+    {
+      name: 'パプリカのマリネ',
+      category: 'サラダ',
+      req: ['パプリカ'],
+      opt: ['玉ねぎ'],
+      all: 'パプリカ・玉ねぎ・酢・オリーブオイル・砂糖・塩コショウ',
+      steps: ['パプリカを薄切りにして軽く焼くか電子レンジで加熱する',
+              '玉ねぎを薄切りにして塩もみする',
+              '酢・オリーブオイル・砂糖・塩コショウで和える',
+              '冷蔵庫で30分冷やして完成']
+    },
+    {
+      name: 'えのきのバター醤油炒め',
+      category: '炒め物',
+      req: ['えのき'],
+      opt: ['ベーコン'],
+      all: 'えのき・バター・醤油・塩コショウ',
+      steps: ['えのきを根元から切り、ほぐす',
+              'フライパンにバターを溶かしえのきを炒める',
+              '醤油を加えて香りを出して完成']
+    },
+    {
+      name: 'しめじと鶏肉のポン酢炒め',
+      category: '炒め物',
+      req: ['しめじ','鶏もも肉'],
+      opt: ['ねぎ'],
+      all: '鶏もも肉・しめじ・ポン酢・醤油・みりん',
+      steps: ['鶏もも肉をひと口大に切る',
+              'しめじをほぐす',
+              'フライパンで鶏肉を焼き、しめじを加えて炒める',
+              'ポン酢を加えて絡めて完成']
+    },
+    {
+      name: '納豆ご飯',
+      category: '米料理',
+      req: ['納豆','ご飯'],
+      opt: ['卵','ねぎ'],
+      all: '納豆・ご飯・醤油・からし・ねぎ',
+      steps: ['納豆をよく混ぜて付属のたれ・からしを加える',
+              'ご飯の上にのせる',
+              '好みでねぎ・卵をのせて完成']
+    },
+    {
+      name: 'ツナ缶と大根のサラダ',
+      category: 'サラダ',
+      req: ['ツナ缶','大根'],
+      opt: ['きゅうり'],
+      all: '大根・ツナ缶・ポン酢またはドレッシング・かつお節',
+      steps: ['大根を千切りにする',
+              'ツナ缶の油を切る',
+              '大根・ツナをポン酢・かつお節で和えて完成']
+    },
+    {
+      name: '玉ねぎのスープ',
+      category: '汁物',
+      req: ['玉ねぎ'],
+      opt: ['ベーコン','チーズ'],
+      all: '玉ねぎ・コンソメ・バター・塩コショウ',
+      steps: ['玉ねぎを薄切りにしてバターで飴色になるまで炒める',
+              '水・コンソメを加えて5分煮る',
+              '塩コショウで味を整えて完成']
+    },
+    {
+      name: 'エリンギとベーコンのソテー',
+      category: '炒め物',
+      req: ['エリンギ','ベーコン'],
+      opt: ['バター'],
+      all: 'エリンギ・ベーコン・バター・醤油・塩コショウ',
+      steps: ['エリンギを縦に薄切りにする',
+              'フライパンでベーコンを炒め、エリンギを加える',
+              'バター・醤油で味付けして完成']
+    },
+    {
+      name: '冷やし中華風うどん',
+      category: '麺料理',
+      req: ['うどん','きゅうり'],
+      opt: ['ハム','卵','トマト'],
+      all: 'うどん・きゅうり・ハム・卵・醤油・酢・ごま油・砂糖',
+      steps: ['うどんを茹でて冷水で締める',
+              'きゅうり・ハムを千切り、卵は薄焼きにして千切り',
+              '醤油・酢・ごま油・砂糖でたれを作る',
+              'うどんに具材をのせてたれをかけて完成']
+    },
+    {
+      name: 'うどんのかけ汁',
+      category: '麺料理',
+      req: ['うどん'],
+      opt: ['ねぎ','天かす','油揚げ'],
+      all: 'うどん・だし・醤油・みりん・塩',
+      steps: ['うどんを茹でて器に入れる',
+              'だし・醤油・みりん・塩でかけ汁を作る',
+              'うどんにかけてねぎ・天かすをのせて完成']
+    },
+    {
+      name: 'かけそば',
+      category: '麺料理',
+      req: ['そば'],
+      opt: ['ねぎ','天かす'],
+      all: 'そば・だし・醤油・みりん・塩・ねぎ',
+      steps: ['そばを茹でて冷水で締め、器に盛る',
+              'だし・醤油・みりん・塩でつゆを作る',
+              'そばにつゆをかけてねぎをのせて完成']
+    },
+    {
+      name: '豆腐とわかめのみそ汁',
+      category: '汁物',
+      req: ['豆腐'],
+      opt: ['ねぎ'],
+      all: '豆腐・わかめ・だし・味噌',
+      steps: ['だし汁を沸かして豆腐を角切りにして入れる',
+              'わかめを加えて弱火にする',
+              '味噌を溶き入れてねぎをちらして完成']
+    },
+    {
+      name: 'いかの炒め物',
+      category: '炒め物',
+      req: ['いか'],
+      opt: ['ピーマン','玉ねぎ','セロリ'],
+      all: 'いか・ピーマン・玉ねぎ・醤油・みりん・砂糖',
+      steps: ['いかを食べやすく切り、ピーマン・玉ねぎも切る',
+              'フライパンに油を熱していかを炒める',
+              '野菜を加えてさらに炒め、醤油・みりん・砂糖で味付けして完成']
+    },
+    {
+      name: 'カブとハムのサラダ',
+      category: 'サラダ',
+      req: ['ハム'],
+      opt: ['レタス','きゅうり'],
+      all: 'ハム・レタス・きゅうり・ドレッシング',
+      steps: ['ハムを半分に切る',
+              'レタスをちぎり、きゅうりを薄切りにする',
+              '全て合わせてドレッシングで和えて完成']
+    },
+    {
+      name: 'グラタン',
+      category: '洋食',
+      req: ['牛乳','バター','チーズ'],
+      opt: ['玉ねぎ','じゃがいも','鶏むね肉'],
+      all: '牛乳・バター・小麦粉・チーズ・好みの具材・塩コショウ',
+      steps: ['バターで小麦粉を炒めてホワイトソースを作る',
+              '牛乳を少しずつ加えてとろみをつけ塩コショウで味を整える',
+              '炒めた具材と混ぜて耐熱皿に入れチーズをかける',
+              'オーブンまたはトースターで15分焼いて完成']
+    },
+    {
+      name: 'ゴーヤチャンプルー風炒め',
+      category: '炒め物',
+      req: ['豆腐','卵'],
+      opt: ['ベーコン','ウインナー'],
+      all: '豆腐・卵・ベーコン・醤油・ごま油・塩コショウ',
+      steps: ['豆腐をキッチンペーパーで水切りして大きくくずす',
+              'フライパンにごま油を熱し豆腐を炒めて焼き色をつける',
+              'ベーコンを加えて炒め、溶き卵を加えてさっと炒める',
+              '醤油・塩コショウで味を整えて完成']
+    },
+    {
+      name: '厚揚げの煮物',
+      category: '煮物',
+      req: ['厚揚げ'],
+      opt: ['大根','ねぎ','しいたけ'],
+      all: '厚揚げ・醤油・みりん・砂糖・だし',
+      steps: ['厚揚げを食べやすく切る',
+              'だし・醤油・みりん・砂糖を合わせて煮立てる',
+              '厚揚げを加えて5〜10分煮て味をしみ込ませる',
+              '完成']
+    },
+    {
+      name: '春雨スープ',
+      category: '汁物',
+      req: ['春雨'],
+      opt: ['えのき','小松菜','にんじん','ねぎ'],
+      all: '春雨・鶏がらスープ・醤油・塩コショウ・ごま油',
+      steps: ['春雨をハサミで短く切る',
+              'スープに野菜を入れて煮る',
+              '春雨を加えて柔らかくなるまで煮る',
+              '醤油・塩コショウ・ごま油で味を整えて完成']
+    }
+  ];
+
+  // ── 選択食材の管理 ──
+  var selected = new Set();
+
+  function init() {
+    // localStorage から復元
+    try {
+      var saved = JSON.parse(localStorage.getItem('recipe-ingredients') || '[]');
+      saved.forEach(function(i) { selected.add(i); });
+    } catch(e) {}
+
+    // タグ生成
+    Object.keys(CATEGORIES).forEach(function(catId) {
+      var el = document.getElementById(catId);
+      if (!el) return;
+      CATEGORIES[catId].forEach(function(item) {
+        var tag = document.createElement('span');
+        tag.className = 'tag' + (selected.has(item) ? ' selected' : '');
+        tag.textContent = item;
+        tag.onclick = function() { toggleTag(item, tag); };
+        el.appendChild(tag);
+      });
+    });
+
+    updateBar();
+  }
+
+  function toggleTag(item, el) {
+    if (selected.has(item)) {
+      selected.delete(item);
+      el.classList.remove('selected');
+    } else {
+      selected.add(item);
+      el.classList.add('selected');
+    }
+    updateBar();
+    saveSelected();
+  }
+
+  function updateBar() {
+    var bar = document.getElementById('selected-bar');
+    if (selected.size === 0) {
+      bar.textContent = '食材を選んでください';
+      return;
+    }
+    var list = Array.from(selected);
+    bar.innerHTML = '選択中：<span>' + list.join('・') + '</span>（' + list.length + '品）';
+  }
+
+  function saveSelected() {
+    try {
+      localStorage.setItem('recipe-ingredients', JSON.stringify(Array.from(selected)));
+    } catch(e) {}
+  }
+
+  function resetAll() {
+    selected.clear();
+    document.querySelectorAll('.tag.selected').forEach(function(t) {
+      t.classList.remove('selected');
+    });
+    updateBar();
+    saveSelected();
+    document.getElementById('results').innerHTML = '';
+    document.getElementById('result-header').style.display = 'none';
+    document.getElementById('no-result').style.display = 'none';
+  }
+
+  function search() {
+    if (selected.size === 0) {
+      alert('食材を1つ以上選んでください');
+      return;
+    }
+
+    var sel = Array.from(selected);
+
+    // 各レシピのマッチ数を計算
+    var scored = RECIPES.map(function(r) {
+      var allRequired = r.req.concat(r.opt || []);
+      var matchCount = 0;
+      var reqMatch = 0;
+      allRequired.forEach(function(ing) {
+        if (sel.includes(ing)) matchCount++;
+      });
+      r.req.forEach(function(ing) {
+        if (sel.includes(ing)) reqMatch++;
+      });
+      return { recipe: r, match: matchCount, reqMatch: reqMatch };
+    });
+
+    // reqMatch >= 1（必須食材を1つ以上持っている）のものだけ表示
+    var filtered = scored.filter(function(s) { return s.reqMatch >= 1; });
+
+    // マッチ数の多い順にソート
+    filtered.sort(function(a, b) { return b.match - a.match; });
+
+    var resultsEl = document.getElementById('results');
+    var headerEl = document.getElementById('result-header');
+    var noResultEl = document.getElementById('no-result');
+
+    if (filtered.length === 0) {
+      resultsEl.innerHTML = '';
+      headerEl.style.display = 'none';
+      noResultEl.style.display = '';
+      noResultEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    noResultEl.style.display = 'none';
+    headerEl.style.display = '';
+    document.getElementById('result-count').innerHTML =
+      '<span>' + filtered.length + '件</span>のレシピが見つかりました';
+
+    resultsEl.innerHTML = filtered.map(function(s) {
+      var r = s.recipe;
+      // 食材テキストのハイライト
+      var allIng = r.all;
+      sel.forEach(function(i) {
+        allIng = allIng.split(i).join('<span class="hit">' + i + '</span>');
+      });
+
+      var stepsHtml = r.steps.map(function(step, idx) {
+        return '<li data-n="' + (idx + 1) + '">' + esc(step) + '</li>';
+      }).join('');
+
+      return '<div class="recipe-card">'
+        + '<div class="recipe-header">'
+        + '<span class="recipe-match">食材 ' + s.match + '品一致</span>'
+        + '<div><p class="recipe-name">' + esc(r.name) + '</p>'
+        + '<p class="recipe-category">' + esc(r.category) + '</p></div>'
+        + '</div>'
+        + '<div class="recipe-section">'
+        + '<p class="recipe-section-title">材料</p>'
+        + '<p class="recipe-ingredients">' + allIng + '</p>'
+        + '</div>'
+        + '<div class="recipe-section">'
+        + '<p class="recipe-section-title">作り方</p>'
+        + '<ol class="recipe-steps">' + stepsHtml + '</ol>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+
+    headerEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  init();
+  </script>
+
+</body>
+</html>

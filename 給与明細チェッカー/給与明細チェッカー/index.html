@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>給与明細チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .field-row { display: flex; gap: 0.75rem; }
+    .field-row .field { flex: 1; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.7rem;
+      font-size: 0.88rem; font-weight: 700;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    .detail-table th { padding: 0.45rem 0.3rem; color: var(--text-sub); font-size: 0.72rem; font-weight: 600; text-align: right; border-bottom: 2px solid var(--border); }
+    .detail-table th:first-child { text-align: left; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); border-bottom: 1px solid var(--border); }
+    .detail-table td:not(:first-child) { text-align: right; }
+    .detail-table tr:last-child td { border-bottom: none; }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); }
+    .diff-ok  { color: var(--ok) !important; font-weight: 700 !important; }
+    .diff-ng  { color: var(--ng) !important; font-weight: 700 !important; }
+    .diff-warn{ color: var(--warn) !important; font-weight: 700 !important; }
+
+    /* ── 注意書き ── */
+    .note-box {
+      max-width: 600px; margin: 0 auto 1rem;
+      padding: 0.8rem 1rem;
+      background: var(--accent-light); border: 1px solid #fcd9a4;
+      border-radius: 10px; font-size: 0.75rem; color: var(--text-sub); line-height: 1.6;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>給与明細チェッカー</h1>
+    <p class="subtitle">社会保険料・税金の控除が正しいか即確認</p>
+  </header>
+
+  <!-- 支給項目 -->
+  <div class="card">
+    <p class="card-title">支給項目（月額）</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="basicSalary">基本給</label>
+        <input type="number" id="basicSalary" placeholder="例: 250000" min="0">
+      </div>
+      <div class="field">
+        <label for="overtime">残業代</label>
+        <input type="number" id="overtime" placeholder="例: 30000" min="0" value="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="allowance">その他手当（通勤・住宅・役職等の合計）</label>
+      <input type="number" id="allowance" placeholder="例: 20000" min="0" value="0">
+    </div>
+    <div class="field">
+      <label for="healthRate">健康保険料率（本人負担 %）</label>
+      <select id="healthRate">
+        <option value="4.99">東京都 4.99%（協会けんぽ R6）</option>
+        <option value="5.01">神奈川県 5.01%</option>
+        <option value="5.17">大阪府 5.17%</option>
+        <option value="5.00">愛知県 5.00%</option>
+        <option value="5.00">全国平均 5.00%</option>
+        <option value="custom">手動入力</option>
+      </select>
+      <p class="hint">組合健保の場合は「手動入力」を選択してください</p>
+    </div>
+    <div class="field" id="customRateField" style="display:none">
+      <label for="customRate">本人負担料率（%）</label>
+      <input type="number" id="customRate" placeholder="例: 5.0" min="0" max="20" step="0.01">
+    </div>
+    <div class="field">
+      <label for="dependents">扶養親族の数（所得税計算用）</label>
+      <select id="dependents">
+        <option value="0">0人（扶養なし）</option>
+        <option value="1">1人</option>
+        <option value="2">2人</option>
+        <option value="3">3人</option>
+        <option value="4">4人以上</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 実際の控除額 -->
+  <div class="card">
+    <p class="card-title">実際の控除額（給与明細から転記）</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="actualHealth">健康保険料</label>
+        <input type="number" id="actualHealth" placeholder="例: 12475" min="0">
+      </div>
+      <div class="field">
+        <label for="actualPension">厚生年金保険料</label>
+        <input type="number" id="actualPension" placeholder="例: 22,950" min="0">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="actualEmploy">雇用保険料</label>
+        <input type="number" id="actualEmploy" placeholder="例: 1500" min="0">
+      </div>
+      <div class="field">
+        <label for="actualIncomeTax">所得税</label>
+        <input type="number" id="actualIncomeTax" placeholder="例: 8000" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="actualResidentTax">住民税</label>
+      <input type="number" id="actualResidentTax" placeholder="例: 15000" min="0" value="0">
+      <p class="hint">住民税は前年所得で決まるため法定目安との比較はしません</p>
+    </div>
+  </div>
+
+  <!-- チェックボタン -->
+  <button class="btn-calc" onclick="checkPayslip()">給与明細をチェックする</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="resultCard">
+    <p class="result-label">総合判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 総支給・手取り -->
+  <div class="card" id="summaryCard" style="display:none">
+    <p class="card-title">支給・控除サマリー</p>
+    <table class="detail-table">
+      <tbody id="summaryBody"></tbody>
+    </table>
+  </div>
+
+  <!-- 控除項目チェック表 -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">控除項目チェック表</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th>法定目安</th>
+          <th>明細の金額</th>
+          <th>差額</th>
+        </tr>
+      </thead>
+      <tbody id="detailBody"></tbody>
+    </table>
+  </div>
+
+  <div class="note-box" id="noteBox" style="display:none">
+    <strong>📋 計算の注意点</strong><br>
+    ・法定目安は概算値です。正確な金額は標準報酬月額の等級や適用される保険料率により変わります。<br>
+    ・所得税は源泉徴収税額表（甲欄）の概算計算です。年末調整で精算されます。<br>
+    ・住民税は前年所得ベースのため比較対象外です。<br>
+    ・差額が1,000円以内であれば端数処理の範囲内です。
+  </div>
+
+  <button class="btn-reset" onclick="resetAll()">入力をリセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // 厚生年金 標準報酬月額テーブル（32等級）
+  // [下限, 標準報酬月額]
+  var pensionTable = [
+    [0,      88000],
+    [93000,  98000],
+    [101000, 104000],
+    [107000, 110000],
+    [114000, 118000],
+    [122000, 126000],
+    [130000, 134000],
+    [138000, 142000],
+    [146000, 150000],
+    [155000, 160000],
+    [165000, 170000],
+    [175000, 180000],
+    [185000, 190000],
+    [195000, 200000],
+    [210000, 220000],
+    [230000, 240000],
+    [250000, 260000],
+    [270000, 280000],
+    [290000, 300000],
+    [310000, 320000],
+    [330000, 340000],
+    [350000, 360000],
+    [370000, 380000],
+    [395000, 410000],
+    [425000, 440000],
+    [455000, 470000],
+    [485000, 500000],
+    [515000, 530000],
+    [545000, 560000],
+    [575000, 590000],
+    [605000, 620000],
+    [635000, 650000]
+  ];
+
+  // 健康保険 標準報酬月額テーブル（50等級）- 下位は厚生年金と同じ、上限は1,390,000
+  var healthTable = pensionTable.concat([
+    [665000, 680000],
+    [695000, 710000],
+    [730000, 750000],
+    [770000, 790000],
+    [810000, 830000],
+    [855000, 880000],
+    [905000, 930000],
+    [955000, 980000],
+    [1005000, 1030000],
+    [1055000, 1090000],
+    [1115000, 1150000],
+    [1175000, 1210000],
+    [1235000, 1270000],
+    [1295000, 1330000],
+    [1355000, 1390000],
+    [1415000, 1390000]
+  ]);
+
+  function getStandardRemuneration(amount, table) {
+    var std = table[0][1];
+    for (var i = 0; i < table.length; i++) {
+      if (amount >= table[i][0]) {
+        std = table[i][1];
+      }
+    }
+    return std;
+  }
+
+  // 所得税概算（源泉徴収税額表 甲欄 近似）
+  // 課税月額 = 総支給 - 社保合計 - (給与所得控除概算 + 基礎控除) / 12
+  function calcIncomeTax(gross, socialInsTotal, dependents) {
+    // 給与所得控除（年収換算）
+    var annualGross = gross * 12;
+    var deduction;
+    if (annualGross <= 1625000) {
+      deduction = 550000;
+    } else if (annualGross <= 1800000) {
+      deduction = annualGross * 0.4 - 100000;
+    } else if (annualGross <= 3600000) {
+      deduction = annualGross * 0.3 + 80000;
+    } else if (annualGross <= 6600000) {
+      deduction = annualGross * 0.2 + 440000;
+    } else if (annualGross <= 8500000) {
+      deduction = annualGross * 0.1 + 1100000;
+    } else {
+      deduction = 1950000;
+    }
+
+    // 課税所得（年間）
+    var annualSocial = socialInsTotal * 12;
+    var basicExemption = 480000; // 基礎控除（令和2年以降）
+    var dependentExemption = dependents * 380000;
+    var taxableIncome = annualGross - annualSocial - deduction - basicExemption - dependentExemption;
+    if (taxableIncome <= 0) return 0;
+
+    // 所得税率（超過累進）
+    var tax;
+    if (taxableIncome <= 1950000) {
+      tax = taxableIncome * 0.05;
+    } else if (taxableIncome <= 3300000) {
+      tax = taxableIncome * 0.10 - 97500;
+    } else if (taxableIncome <= 6950000) {
+      tax = taxableIncome * 0.20 - 427500;
+    } else if (taxableIncome <= 9000000) {
+      tax = taxableIncome * 0.23 - 636000;
+    } else if (taxableIncome <= 18000000) {
+      tax = taxableIncome * 0.33 - 1536000;
+    } else if (taxableIncome <= 40000000) {
+      tax = taxableIncome * 0.40 - 2796000;
+    } else {
+      tax = taxableIncome * 0.45 - 4796000;
+    }
+    // 復興特別所得税（2.1%上乗せ）
+    tax = tax * 1.021;
+    // 月割り
+    return Math.max(0, Math.round(tax / 12));
+  }
+
+  function getHealthRate() {
+    var sel = document.getElementById('healthRate').value;
+    if (sel === 'custom') {
+      var v = parseFloat(document.getElementById('customRate').value);
+      return isNaN(v) ? 0.0499 : v / 100;
+    }
+    return parseFloat(sel) / 100;
+  }
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+
+  function diffClass(diff) {
+    var abs = Math.abs(diff);
+    if (abs <= 1000) return 'diff-ok';
+    if (abs <= 3000) return 'diff-warn';
+    return 'diff-ng';
+  }
+
+  function diffText(diff) {
+    if (diff === null) return '—';
+    if (Math.abs(diff) <= 1000) return '±' + fmt(Math.abs(diff)) + '円（誤差範囲）';
+    if (diff > 0) return '+' + fmt(diff) + '円（過大）';
+    return fmt(diff) + '円（過小）';
+  }
+
+  function checkPayslip() {
+    var basicSalary     = parseFloat(document.getElementById('basicSalary').value)     || 0;
+    var overtime        = parseFloat(document.getElementById('overtime').value)         || 0;
+    var allowance       = parseFloat(document.getElementById('allowance').value)        || 0;
+    var actualHealth    = parseFloat(document.getElementById('actualHealth').value)     || 0;
+    var actualPension   = parseFloat(document.getElementById('actualPension').value)    || 0;
+    var actualEmploy    = parseFloat(document.getElementById('actualEmploy').value)     || 0;
+    var actualIncomeTax = parseFloat(document.getElementById('actualIncomeTax').value)  || 0;
+    var actualResidentTax = parseFloat(document.getElementById('actualResidentTax').value) || 0;
+    var dependents      = parseInt(document.getElementById('dependents').value) || 0;
+
+    if (basicSalary <= 0) {
+      showResult('ng', '⚠️ 入力エラー', '基本給を入力してください');
+      return;
+    }
+
+    var gross = basicSalary + overtime + allowance;
+
+    // 標準報酬月額
+    var stdRemPension = getStandardRemuneration(gross, pensionTable);
+    var stdRemHealth  = getStandardRemuneration(gross, healthTable);
+
+    // 法定目安
+    var healthRate    = getHealthRate();
+    var legalHealth   = Math.round(stdRemHealth * healthRate);
+    var legalPension  = Math.round(stdRemPension * 0.0915);
+    var legalEmploy   = Math.round(gross * 0.006);
+
+    var socialTotal   = legalHealth + legalPension + legalEmploy;
+    var legalIncomeTax = calcIncomeTax(gross, socialTotal, dependents);
+
+    // 差額（実際 - 法定目安）
+    var diffHealth    = actualHealth > 0    ? Math.round(actualHealth    - legalHealth)    : null;
+    var diffPension   = actualPension > 0   ? Math.round(actualPension   - legalPension)   : null;
+    var diffEmploy    = actualEmploy > 0    ? Math.round(actualEmploy    - legalEmploy)    : null;
+    var diffIncomeTax = actualIncomeTax > 0 ? Math.round(actualIncomeTax - legalIncomeTax) : null;
+
+    // 問題のある差額数
+    var ngCount = 0;
+    var warnCount = 0;
+    [diffHealth, diffPension, diffEmploy, diffIncomeTax].forEach(function(d) {
+      if (d === null) return;
+      var abs = Math.abs(d);
+      if (abs > 3000) ngCount++;
+      else if (abs > 1000) warnCount++;
+    });
+
+    // 総合判定
+    var level, label, note;
+    if (ngCount > 0) {
+      level = 'ng';
+      label = '要確認あり';
+      note  = ngCount + '項目に大きな差異があります。給与担当へ確認することをおすすめします。';
+    } else if (warnCount > 0) {
+      level = 'warn';
+      label = 'やや差異あり';
+      note  = '誤差が気になる項目があります。端数処理の違い・保険料率の改定時期などが原因の場合があります。';
+    } else {
+      level = 'ok';
+      label = '概ね正常です';
+      note  = '法定目安との差額は誤差範囲内です。';
+    }
+
+    // 結論カード
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = label;
+    document.getElementById('rn').textContent = note;
+
+    // サマリー
+    var totalDeduction = actualHealth + actualPension + actualEmploy + actualIncomeTax + actualResidentTax;
+    var takeHome = gross - totalDeduction;
+    var summaryRows = [
+      ['総支給額', fmt(gross) + ' 円'],
+      ['社会保険料合計（明細）', fmt(actualHealth + actualPension + actualEmploy) + ' 円'],
+      ['税金合計（明細）', fmt(actualIncomeTax + actualResidentTax) + ' 円'],
+      ['控除合計', fmt(totalDeduction) + ' 円'],
+      ['差引支給（概算手取り）', fmt(takeHome) + ' 円', true],
+      ['標準報酬月額（厚年/健保）', fmt(stdRemPension) + ' / ' + fmt(stdRemHealth) + ' 円'],
+    ];
+    var sb = document.getElementById('summaryBody');
+    sb.innerHTML = summaryRows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td style="text-align:right;font-weight:600;color:var(--text)">' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('summaryCard').style.display = '';
+
+    // チェック表
+    var items = [
+      { name: '健康保険料', legal: legalHealth, actual: actualHealth, diff: diffHealth },
+      { name: '厚生年金保険料', legal: legalPension, actual: actualPension, diff: diffPension },
+      { name: '雇用保険料', legal: legalEmploy, actual: actualEmploy, diff: diffEmploy },
+      { name: '所得税（概算）', legal: legalIncomeTax, actual: actualIncomeTax, diff: diffIncomeTax },
+      { name: '住民税', legal: null, actual: actualResidentTax > 0 ? actualResidentTax : null, diff: null, note: '前年所得依存のため目安なし' },
+    ];
+
+    var db = document.getElementById('detailBody');
+    db.innerHTML = items.map(function(item) {
+      var legalStr  = item.legal !== null ? fmt(item.legal) + '円' : '—';
+      var actualStr = item.actual !== null && item.actual > 0 ? fmt(item.actual) + '円' : '（未入力）';
+      var dClass    = item.diff !== null ? diffClass(item.diff) : '';
+      var dText     = item.diff !== null ? diffText(item.diff) : (item.note || '—');
+      return '<tr>'
+           + '<td>' + item.name + '</td>'
+           + '<td>' + legalStr + '</td>'
+           + '<td>' + actualStr + '</td>'
+           + '<td class="' + dClass + '">' + dText + '</td>'
+           + '</tr>';
+    }).join('');
+    document.getElementById('detailCard').style.display = '';
+    document.getElementById('noteBox').style.display = '';
+
+    // 結果にスクロール
+    document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // localStorage 保存
+    saveToStorage();
+  }
+
+  function resetAll() {
+    ['basicSalary','overtime','allowance','actualHealth','actualPension',
+     'actualEmploy','actualIncomeTax','actualResidentTax','customRate'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.value = (id === 'overtime' || id === 'allowance') ? '0' : '';
+      }
+    });
+    document.getElementById('healthRate').value = '4.99';
+    document.getElementById('dependents').value = '0';
+    document.getElementById('customRateField').style.display = 'none';
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('summaryCard').style.display = 'none';
+    document.getElementById('detailCard').style.display = 'none';
+    document.getElementById('noteBox').style.display = 'none';
+    localStorage.removeItem('payslipChecker');
+  }
+
+  function saveToStorage() {
+    var data = {};
+    ['basicSalary','overtime','allowance','actualHealth','actualPension',
+     'actualEmploy','actualIncomeTax','actualResidentTax'].forEach(function(id) {
+      data[id] = document.getElementById(id).value;
+    });
+    data.healthRate  = document.getElementById('healthRate').value;
+    data.dependents  = document.getElementById('dependents').value;
+    data.customRate  = document.getElementById('customRate').value;
+    localStorage.setItem('payslipChecker', JSON.stringify(data));
+  }
+
+  function loadFromStorage() {
+    var raw = localStorage.getItem('payslipChecker');
+    if (!raw) return;
+    try {
+      var data = JSON.parse(raw);
+      ['basicSalary','overtime','allowance','actualHealth','actualPension',
+       'actualEmploy','actualIncomeTax','actualResidentTax'].forEach(function(id) {
+        if (data[id] !== undefined) document.getElementById(id).value = data[id];
+      });
+      if (data.healthRate) document.getElementById('healthRate').value = data.healthRate;
+      if (data.dependents) document.getElementById('dependents').value = data.dependents;
+      if (data.customRate) document.getElementById('customRate').value = data.customRate;
+      if (data.healthRate === 'custom') document.getElementById('customRateField').style.display = '';
+    } catch(e) {}
+  }
+
+  document.getElementById('healthRate').addEventListener('change', function() {
+    document.getElementById('customRateField').style.display =
+      this.value === 'custom' ? '' : 'none';
+  });
+
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
