@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>業務引き継ぎ書ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+    @media (max-width: 480px) { .row2 { grid-template-columns: 1fr; } }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 出力カード ── */
+    .output-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .output-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .btn-copy {
+      padding: 0.3rem 0.8rem;
+      font-size: 0.78rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 8px;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-copy:hover { background: var(--accent); color: #fff; }
+    .btn-copy.copied { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+
+    /* ── 引き継ぎ書本文表示 ── */
+    .doc-body {
+      font-size: 0.9rem;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #fafaf8;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    /* ── セクション区切り（引き継ぎ書内） ── */
+    .section-head {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--accent);
+      margin-top: 1rem;
+      padding-bottom: 0.2rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 業務追加リスト ── */
+    .task-list { margin-top: 0.5rem; }
+    .task-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+    }
+    .task-item:last-child { border-bottom: none; }
+    .task-item .task-name { flex: 1; font-weight: 600; }
+    .task-item .task-del {
+      padding: 0.2rem 0.6rem; font-size: 0.75rem; font-weight: 700;
+      background: var(--ng-bg); color: var(--ng);
+      border: 1px solid var(--ng); border-radius: 6px; cursor: pointer;
+    }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print, .btn-copy { display: none !important; }
+      .output-card { display: block !important; border: 1px solid #ccc; box-shadow: none; }
+      .card, .output-card { page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      .doc-body { background: #fff; border: 1px solid #ccc; }
+      .output-title { color: #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📋 業務引き継ぎ書ジェネレーター</h1>
+    <p class="subtitle">退職・転職時の引き継ぎ書を自動生成。入力するだけで即完成。</p>
+  </header>
+
+  <!-- 基本情報カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="row2">
+      <div class="field">
+        <label for="fromName">現在の担当者名</label>
+        <input type="text" id="fromName" placeholder="例：田中 太郎">
+      </div>
+      <div class="field">
+        <label for="toName">引き継ぎ先担当者名</label>
+        <input type="text" id="toName" placeholder="例：鈴木 花子">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="handoverDate">引き継ぎ完了予定日</label>
+        <input type="date" id="handoverDate">
+      </div>
+      <div class="field">
+        <label for="dept">所属部署・チーム</label>
+        <input type="text" id="dept" placeholder="例：営業部 東京チーム">
+      </div>
+    </div>
+  </div>
+
+  <!-- 業務追加カード -->
+  <div class="card">
+    <p class="card-title">引き継ぎ業務を追加</p>
+    <div class="field">
+      <label for="taskName">業務名</label>
+      <input type="text" id="taskName" placeholder="例：月次売上レポート作成">
+    </div>
+    <div class="field">
+      <label for="taskSummary">業務概要</label>
+      <textarea id="taskSummary" placeholder="例：毎月末に各拠点から集計したデータをExcelでまとめ、部長に提出する。"></textarea>
+    </div>
+    <div class="field">
+      <label for="taskSteps">作業手順（番号付きで書くと読みやすい）</label>
+      <textarea id="taskSteps" placeholder="例：&#10;1. Xフォルダからデータを取得&#10;2. 集計シートに貼り付け&#10;3. グラフを更新して保存&#10;4. メールで部長に送付"></textarea>
+    </div>
+    <div class="field">
+      <label for="taskTools">使用ツール・ファイル・場所</label>
+      <input type="text" id="taskTools" placeholder="例：共有フォルダ > 売上管理 > 月次集計.xlsx">
+    </div>
+    <div class="field">
+      <label for="taskNotes">注意事項・コツ</label>
+      <textarea id="taskNotes" placeholder="例：データ集計は月末営業日の17時以降に行うこと。Xシートは保護がかかっているため、パスワードは〇〇課長に確認。" style="min-height:70px;"></textarea>
+    </div>
+    <div class="field">
+      <label for="taskContact">困ったときの連絡先</label>
+      <input type="text" id="taskContact" placeholder="例：田中（内線123）または tanaka@example.com">
+    </div>
+    <button class="btn-calc" onclick="addTask()" style="margin-top:0.5rem;">＋ この業務を追加</button>
+
+    <div class="task-list" id="taskList"></div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">📄 引き継ぎ書を生成する</button>
+
+  <!-- 出力カード -->
+  <div class="output-card" id="outputCard">
+    <div class="output-title">
+      <span>生成された引き継ぎ書</span>
+      <button class="btn-copy no-print" onclick="copyText()" id="copyBtn">コピー</button>
+    </div>
+    <div class="doc-body" id="docBody"></div>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var tasks = [];
+
+  // localStorage から復元
+  (function() {
+    try {
+      var saved = localStorage.getItem('hikiつぎ_v1');
+      if (saved) {
+        var d = JSON.parse(saved);
+        if (d.tasks) tasks = d.tasks;
+        if (d.fromName) document.getElementById('fromName').value = d.fromName;
+        if (d.toName) document.getElementById('toName').value = d.toName;
+        if (d.handoverDate) document.getElementById('handoverDate').value = d.handoverDate;
+        if (d.dept) document.getElementById('dept').value = d.dept;
+        renderTaskList();
+      }
+    } catch(e) {}
+  })();
+
+  function saveLocal() {
+    try {
+      localStorage.setItem('hikiつぎ_v1', JSON.stringify({
+        fromName: document.getElementById('fromName').value,
+        toName: document.getElementById('toName').value,
+        handoverDate: document.getElementById('handoverDate').value,
+        dept: document.getElementById('dept').value,
+        tasks: tasks
+      }));
+    } catch(e) {}
+  }
+
+  function addTask() {
+    var name    = document.getElementById('taskName').value.trim();
+    var summary = document.getElementById('taskSummary').value.trim();
+    var steps   = document.getElementById('taskSteps').value.trim();
+    var tools   = document.getElementById('taskTools').value.trim();
+    var notes   = document.getElementById('taskNotes').value.trim();
+    var contact = document.getElementById('taskContact').value.trim();
+
+    if (!name) { alert('業務名を入力してください'); return; }
+    tasks.push({ name: name, summary: summary, steps: steps, tools: tools, notes: notes, contact: contact });
+    saveLocal();
+    renderTaskList();
+
+    // フォームをリセット
+    ['taskName','taskSummary','taskSteps','taskTools','taskNotes','taskContact'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+  }
+
+  function removeTask(idx) {
+    tasks.splice(idx, 1);
+    saveLocal();
+    renderTaskList();
+  }
+
+  function renderTaskList() {
+    var list = document.getElementById('taskList');
+    if (tasks.length === 0) { list.innerHTML = ''; return; }
+    list.innerHTML = '<div style="font-size:0.78rem;color:var(--text-sub);margin-bottom:0.5rem;">追加済み業務（' + tasks.length + '件）</div>'
+      + tasks.map(function(t, i) {
+        return '<div class="task-item"><span class="task-name">' + esc(t.name) + '</span>'
+             + '<button class="task-del" onclick="removeTask(' + i + ')">削除</button></div>';
+      }).join('');
+  }
+
+  function generate() {
+    var fromName     = document.getElementById('fromName').value.trim();
+    var toName       = document.getElementById('toName').value.trim();
+    var handoverDate = document.getElementById('handoverDate').value;
+    var dept         = document.getElementById('dept').value.trim();
+
+    if (tasks.length === 0) {
+      alert('業務を1件以上追加してから生成してください');
+      return;
+    }
+
+    var today = new Date();
+    var todayStr = today.getFullYear() + '年' + (today.getMonth()+1) + '月' + today.getDate() + '日';
+    var hdStr = handoverDate ? formatDate(handoverDate) : '未定';
+
+    var lines = [];
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('　　　業 務 引 き 継 ぎ 書');
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('');
+    lines.push('作成日　　：' + todayStr);
+    lines.push('引き継ぎ元：' + (fromName || '（未入力）'));
+    lines.push('引き継ぎ先：' + (toName   || '（未入力）'));
+    if (dept) lines.push('所属　　　：' + dept);
+    lines.push('完了予定日：' + hdStr);
+    lines.push('');
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('');
+
+    tasks.forEach(function(t, i) {
+      lines.push('【業務 ' + (i + 1) + '】' + t.name);
+      lines.push('─────────────────────────────');
+      if (t.summary) {
+        lines.push('■ 業務概要');
+        lines.push(t.summary);
+        lines.push('');
+      }
+      if (t.steps) {
+        lines.push('■ 作業手順');
+        lines.push(t.steps);
+        lines.push('');
+      }
+      if (t.tools) {
+        lines.push('■ 使用ツール・ファイル');
+        lines.push(t.tools);
+        lines.push('');
+      }
+      if (t.notes) {
+        lines.push('■ 注意事項・引き継ぎのポイント');
+        lines.push(t.notes);
+        lines.push('');
+      }
+      if (t.contact) {
+        lines.push('■ 困ったときの連絡先');
+        lines.push(t.contact);
+        lines.push('');
+      }
+      if (i < tasks.length - 1) {
+        lines.push('');
+      }
+    });
+
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('以上');
+
+    var text = lines.join('\n');
+
+    var docBody = document.getElementById('docBody');
+    docBody.textContent = text;
+
+    var card = document.getElementById('outputCard');
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    saveLocal();
+  }
+
+  function copyText() {
+    var text = document.getElementById('docBody').textContent;
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() { showCopied(); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showCopied();
+    }
+  }
+
+  function showCopied() {
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = 'コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'コピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+
+  function formatDate(str) {
+    var d = new Date(str);
+    if (isNaN(d)) return str;
+    return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

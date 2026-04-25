@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>業務引き継ぎチェックリストジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 4rem; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 進捗バー ── */
+    .progress-wrap {
+      display: none;
+      max-width: 600px; margin: 0 auto 1rem;
+    }
+    .progress-header {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.82rem; font-weight: 700; color: var(--text-sub);
+      margin-bottom: 0.4rem;
+    }
+    .progress-bar-bg {
+      width: 100%; height: 10px; background: var(--border);
+      border-radius: 99px; overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%; background: var(--accent);
+      border-radius: 99px; transition: width 0.3s;
+      width: 0%;
+    }
+
+    /* ── チェックリストカテゴリ ── */
+    .cat-title {
+      font-size: 0.82rem; font-weight: 800;
+      color: var(--accent); letter-spacing: 0.04em;
+      margin: 1rem 0 0.5rem; padding: 0.3rem 0.6rem;
+      background: var(--accent-light); border-left: 3px solid var(--accent);
+      border-radius: 4px;
+    }
+
+    /* ── チェックボックス行 ── */
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.7rem;
+      padding: 0.65rem 0.4rem; border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; margin-top: 0.1rem; }
+    .check-item .check-text { font-size: 0.9rem; color: var(--text); line-height: 1.5; }
+    .check-item input[type="checkbox"]:checked ~ .check-text {
+      text-decoration: line-through; color: var(--text-sub); opacity: 0.6;
+    }
+
+    /* ── カスタム項目追加 ── */
+    .add-row {
+      display: flex; gap: 0.5rem; margin-top: 0.8rem;
+    }
+    .add-row input {
+      flex: 1; padding: 0.5rem 0.7rem; font-size: 0.88rem;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text); outline: none;
+      font-family: inherit;
+    }
+    .add-row input:focus { border-color: var(--accent); background: #fff; }
+    .btn-add {
+      padding: 0.5rem 0.9rem; font-size: 0.88rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; white-space: nowrap;
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 0.6rem; padding: 0.75rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 0 auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 引き継ぎ情報ヘッダー ── */
+    .handover-info {
+      display: none; max-width: 600px; margin: 0 auto 1rem;
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.2rem;
+      box-shadow: var(--shadow);
+    }
+    .handover-info .hi-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; margin-bottom: 0.6rem;
+      padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    .handover-info .hi-row {
+      display: flex; gap: 0.5rem; font-size: 0.85rem;
+      margin-bottom: 0.3rem; flex-wrap: wrap;
+    }
+    .handover-info .hi-label { color: var(--text-sub); min-width: 80px; flex-shrink: 0; }
+    .handover-info .hi-val { font-weight: 600; color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print, .add-row { display: none !important; }
+      .card, .handover-info, .progress-wrap { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📋 業務引き継ぎチェックリストジェネレーター</h1>
+    <p class="subtitle">退職・異動前に漏れなく引き継ぐためのチェックリストを即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">引き継ぎ情報</p>
+    <div class="field">
+      <label for="myName">あなたの名前</label>
+      <input type="text" id="myName" placeholder="例：山田 太郎">
+    </div>
+    <div class="field">
+      <label for="dept">部署名</label>
+      <input type="text" id="dept" placeholder="例：営業部 第1グループ">
+    </div>
+    <div class="field">
+      <label for="reason">退職・異動の区分</label>
+      <select id="reason">
+        <option value="退職">退職</option>
+        <option value="異動">異動</option>
+        <option value="産休・育休">産休・育休</option>
+        <option value="長期休暇">長期休暇</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="lastDay">最終出勤日</label>
+      <input type="date" id="lastDay">
+    </div>
+    <div class="field">
+      <label for="successor">引き継ぎ先の名前</label>
+      <input type="text" id="successor" placeholder="例：鈴木 花子（未定の場合は空欄でOK）">
+    </div>
+    <div class="field">
+      <label for="overview">主な担当業務の概要（任意）</label>
+      <textarea id="overview" placeholder="例：法人顧客向け営業・見積作成・契約管理"></textarea>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">✅ チェックリストを生成する</button>
+
+  <!-- 引き継ぎ情報ヘッダー（生成後表示） -->
+  <div class="handover-info" id="handoverInfo">
+    <p class="hi-title">引き継ぎ概要</p>
+    <div class="hi-row"><span class="hi-label">担当者</span><span class="hi-val" id="hiName">—</span></div>
+    <div class="hi-row"><span class="hi-label">部署</span><span class="hi-val" id="hiDept">—</span></div>
+    <div class="hi-row"><span class="hi-label">区分</span><span class="hi-val" id="hiReason">—</span></div>
+    <div class="hi-row"><span class="hi-label">最終出勤日</span><span class="hi-val" id="hiLastDay">—</span></div>
+    <div class="hi-row"><span class="hi-label">引き継ぎ先</span><span class="hi-val" id="hiSuccessor">—</span></div>
+    <div class="hi-row"><span class="hi-label">業務概要</span><span class="hi-val" id="hiOverview" style="white-space:pre-wrap;"></span></div>
+  </div>
+
+  <!-- 進捗バー -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-header">
+      <span>チェック進捗</span>
+      <span id="progressText">0 / 0 完了</span>
+    </div>
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+  </div>
+
+  <!-- チェックリスト -->
+  <div class="card" id="checklistCard" style="display:none">
+    <p class="card-title">引き継ぎチェックリスト</p>
+    <div id="checklistBody"></div>
+  </div>
+
+  <!-- カスタム項目追加 -->
+  <div class="card no-print" id="addCard" style="display:none">
+    <p class="card-title">独自項目を追加</p>
+    <div class="add-row">
+      <input type="text" id="customInput" placeholder="引き継ぎ項目を入力..." onkeydown="if(event.key==='Enter')addCustom()">
+      <button class="btn-add" onclick="addCustom()">追加</button>
+    </div>
+  </div>
+
+  <!-- コピー・PDF -->
+  <button class="btn-copy no-print" id="btnCopy" style="display:none" onclick="copyText()">📋 テキストをコピーする</button>
+  <button class="btn-pdf no-print" id="btnPdf" style="display:none" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'handover_checklist_v1';
+
+  var CATEGORIES = [
+    {
+      name: '日常業務',
+      items: [
+        '日次の定型業務（開始・終了作業）の手順を引き継ぎ先に説明・共有した',
+        '現在進行中の案件・プロジェクトの状況を一覧で引き継いだ',
+        '急ぎ対応が必要な未完了タスクを整理して引き継いだ',
+        '申し送り事項（継続中の課題・懸念点・注意点）を伝えた',
+        '担当顧客・取引先への挨拶・担当者変更の連絡を済ませた'
+      ]
+    },
+    {
+      name: '定期業務',
+      items: [
+        '月次・週次・年次の定期業務をカレンダー付きで一覧化して共有した',
+        '締め切り・提出期限がある業務を全て引き継ぎ先に伝えた',
+        '繰り返しタスクのスケジュール（会議・報告書等）を引き継いだ',
+        '定期契約・保守・更新の時期と担当者を引き継いだ'
+      ]
+    },
+    {
+      name: '関係先連絡',
+      items: [
+        '主要な顧客・取引先への担当者変更の連絡を済ませた',
+        '社内の関係部署（経理・総務・他チーム等）への連絡を済ませた',
+        '外部委託先・協力会社・仕入れ先への連絡を済ませた',
+        '名刺リスト・連絡先一覧を引き継ぎ先に渡した',
+        '重要連絡先のエスカレーションルートを共有した'
+      ]
+    },
+    {
+      name: 'システム・アカウント',
+      items: [
+        '業務で使用するシステム・ツールの一覧を引き継いだ',
+        '各システムのアカウント権限の移譲または削除申請をした',
+        '共有フォルダ・ファイルサーバーのアクセス権限を移譲した',
+        '業務メールの引き継ぎ・転送設定または削除申請をした',
+        'クラウドサービス・SaaS のログイン情報の引き継ぎ・変更をした'
+      ]
+    },
+    {
+      name: '書類・データ',
+      items: [
+        '担当業務に関連するファイルの保存場所・フォルダ構成を共有した',
+        '重要書類（契約書・議事録・稟議書等）の場所を引き継ぎ先に伝えた',
+        '未決裁・未処理の書類の状況と対応方法を引き継いだ',
+        'デスク・引き出しの整理と残置物の処理を完了した',
+        '作成・管理しているデータのバックアップ・整理を完了した'
+      ]
+    },
+    {
+      name: 'その他・総務',
+      items: [
+        '会社支給品（PC・携帯・社員証・鍵等）の返却または引き継ぎをした',
+        '立替金・経費精算・未処理の請求を全て処理した',
+        '社内委員会・プロジェクト・担当業務の後任を調整した',
+        '有給休暇の残日数を確認し、取得または処理を済ませた',
+        '上長・人事との最終確認・面談を済ませた'
+      ]
+    }
+  ];
+
+  var customItems = [];
+  var checkState = {};
+
+  function generate() {
+    var myName = document.getElementById('myName').value.trim() || '（未入力）';
+    var dept = document.getElementById('dept').value.trim() || '（未入力）';
+    var reason = document.getElementById('reason').value;
+    var lastDay = document.getElementById('lastDay').value;
+    var successor = document.getElementById('successor').value.trim() || '（未定）';
+    var overview = document.getElementById('overview').value.trim() || '（未入力）';
+
+    // ヘッダー表示
+    document.getElementById('hiName').textContent = myName;
+    document.getElementById('hiDept').textContent = dept;
+    document.getElementById('hiReason').textContent = reason;
+    document.getElementById('hiLastDay').textContent = lastDay ? formatDate(lastDay) : '（未入力）';
+    document.getElementById('hiSuccessor').textContent = successor;
+    document.getElementById('hiOverview').textContent = overview;
+    document.getElementById('handoverInfo').style.display = '';
+
+    // チェックリスト生成
+    renderChecklist();
+
+    // ボタン表示
+    document.getElementById('progressWrap').style.display = '';
+    document.getElementById('checklistCard').style.display = '';
+    document.getElementById('addCard').style.display = '';
+    document.getElementById('btnCopy').style.display = '';
+    document.getElementById('btnPdf').style.display = '';
+
+    updateProgress();
+    saveState();
+
+    document.getElementById('checklistCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderChecklist() {
+    var body = document.getElementById('checklistBody');
+    body.innerHTML = '';
+
+    CATEGORIES.forEach(function(cat, ci) {
+      var title = document.createElement('div');
+      title.className = 'cat-title';
+      title.textContent = '■ ' + cat.name;
+      body.appendChild(title);
+
+      cat.items.forEach(function(item, ii) {
+        var key = 'cat' + ci + '_' + ii;
+        body.appendChild(makeCheckItem(key, item));
+      });
+    });
+
+    // カスタム項目
+    if (customItems.length > 0) {
+      var title = document.createElement('div');
+      title.className = 'cat-title';
+      title.textContent = '■ 独自項目';
+      body.appendChild(title);
+      customItems.forEach(function(item, i) {
+        var key = 'custom_' + i;
+        body.appendChild(makeCheckItem(key, item));
+      });
+    }
+  }
+
+  function makeCheckItem(key, text) {
+    var lbl = document.createElement('label');
+    lbl.className = 'check-item';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!checkState[key];
+    cb.addEventListener('change', function() {
+      checkState[key] = cb.checked;
+      updateProgress();
+      saveState();
+    });
+    var span = document.createElement('span');
+    span.className = 'check-text';
+    span.textContent = text;
+    lbl.appendChild(cb);
+    lbl.appendChild(span);
+    return lbl;
+  }
+
+  function addCustom() {
+    var input = document.getElementById('customInput');
+    var val = input.value.trim();
+    if (!val) return;
+    customItems.push(val);
+    input.value = '';
+    renderChecklist();
+    updateProgress();
+    saveState();
+  }
+
+  function updateProgress() {
+    var allItems = document.querySelectorAll('#checklistBody input[type="checkbox"]');
+    var total = allItems.length;
+    var done = 0;
+    allItems.forEach(function(cb) { if (cb.checked) done++; });
+    document.getElementById('progressText').textContent = done + ' / ' + total + ' 完了';
+    document.getElementById('progressFill').style.width = (total > 0 ? (done / total * 100).toFixed(0) : 0) + '%';
+  }
+
+  function copyText() {
+    var myName = document.getElementById('hiName').textContent;
+    var dept = document.getElementById('hiDept').textContent;
+    var reason = document.getElementById('hiReason').textContent;
+    var lastDay = document.getElementById('hiLastDay').textContent;
+    var successor = document.getElementById('hiSuccessor').textContent;
+    var overview = document.getElementById('hiOverview').textContent;
+
+    var lines = ['【業務引き継ぎチェックリスト】', ''];
+    lines.push('担当者：' + myName);
+    lines.push('部署：' + dept);
+    lines.push('区分：' + reason);
+    lines.push('最終出勤日：' + lastDay);
+    lines.push('引き継ぎ先：' + successor);
+    lines.push('業務概要：' + overview);
+    lines.push('');
+
+    CATEGORIES.forEach(function(cat, ci) {
+      lines.push('■ ' + cat.name);
+      cat.items.forEach(function(item, ii) {
+        var key = 'cat' + ci + '_' + ii;
+        lines.push((checkState[key] ? '☑ ' : '☐ ') + item);
+      });
+      lines.push('');
+    });
+
+    if (customItems.length > 0) {
+      lines.push('■ 独自項目');
+      customItems.forEach(function(item, i) {
+        var key = 'custom_' + i;
+        lines.push((checkState[key] ? '☑ ' : '☐ ') + item);
+      });
+      lines.push('');
+    }
+
+    navigator.clipboard.writeText(lines.join('\n')).then(function() {
+      var btn = document.getElementById('btnCopy');
+      var orig = btn.textContent;
+      btn.textContent = '✅ コピーしました！';
+      setTimeout(function() { btn.textContent = orig; }, 2000);
+    });
+  }
+
+  function formatDate(dateStr) {
+    var d = new Date(dateStr);
+    return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+
+  function saveState() {
+    var data = {
+      myName: document.getElementById('myName').value,
+      dept: document.getElementById('dept').value,
+      reason: document.getElementById('reason').value,
+      lastDay: document.getElementById('lastDay').value,
+      successor: document.getElementById('successor').value,
+      overview: document.getElementById('overview').value,
+      customItems: customItems,
+      checkState: checkState
+    };
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.myName !== undefined) document.getElementById('myName').value = data.myName;
+      if (data.dept !== undefined) document.getElementById('dept').value = data.dept;
+      if (data.reason !== undefined) document.getElementById('reason').value = data.reason;
+      if (data.lastDay !== undefined) document.getElementById('lastDay').value = data.lastDay;
+      if (data.successor !== undefined) document.getElementById('successor').value = data.successor;
+      if (data.overview !== undefined) document.getElementById('overview').value = data.overview;
+      if (data.customItems) customItems = data.customItems;
+      if (data.checkState) checkState = data.checkState;
+      // 入力済みなら自動復元
+      if (data.myName || data.dept || data.lastDay) generate();
+    } catch(e) {}
+  }
+
+  loadState();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
