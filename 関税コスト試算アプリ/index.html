@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>関税コスト試算アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2カラム ── */
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+    .row2 .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.7rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .sep td { border-top: 2px solid var(--border); padding-top: 0.75rem; font-weight: 700; }
+
+    /* ── 比較カード ── */
+    .compare-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .compare-cell {
+      text-align: center; padding: 0.85rem 0.5rem;
+      border: 1.5px solid var(--border); border-radius: 10px;
+      background: var(--bg);
+    }
+    .compare-cell.current { border-color: var(--border); }
+    .compare-cell.changed { border-color: var(--warn); background: var(--warn-bg); }
+    .compare-cell.profit-ok { border-color: var(--ok); background: var(--ok-bg); }
+    .compare-cell.profit-ng { border-color: var(--ng); background: var(--ng-bg); }
+    .compare-label { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+    .compare-val { font-size: 1.3rem; font-weight: 900; color: var(--text); }
+    .compare-sub { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>関税コスト試算アプリ</h1>
+    <p class="subtitle">関税変動が仕入れコストと利益に与える影響を即試算</p>
+  </header>
+
+  <!-- 入力カード：基本情報 -->
+  <div class="card">
+    <p class="card-title">商品・仕入れ情報</p>
+    <div class="field">
+      <label for="name">商品名（任意）</label>
+      <input type="text" id="name" placeholder="例：輸入部品A">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="cost">仕入れ値（円）</label>
+        <input type="number" id="cost" placeholder="例：10000" min="0">
+      </div>
+      <div class="field">
+        <label for="rate">為替レート（円/ドル）</label>
+        <input type="number" id="rate" placeholder="例：150（任意）" min="0" step="0.01">
+        <p class="hint">ドル建てなら入力（空欄＝円建て計算）</p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="price">売価（円）</label>
+      <input type="number" id="price" placeholder="例：15000" min="0">
+    </div>
+  </div>
+
+  <!-- 入力カード：関税率 -->
+  <div class="card">
+    <p class="card-title">関税率の変動</p>
+    <div class="row2">
+      <div class="field">
+        <label for="tariff1">現行の関税率（%）</label>
+        <input type="number" id="tariff1" placeholder="例：5" min="0" max="999" step="0.1">
+      </div>
+      <div class="field">
+        <label for="tariff2">変動後の関税率（%）</label>
+        <input type="number" id="tariff2" placeholder="例：25" min="0" max="999" step="0.1">
+      </div>
+    </div>
+    <p class="hint" style="margin-top:0">関税率の変化による仕入れコスト増・利益変化を試算します</p>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">影響を試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">利益への影響</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 比較カード -->
+  <div class="card" id="compare-card" style="display:none">
+    <p class="card-title">現行 vs 変動後 比較</p>
+    <div class="compare-grid" id="compare-grid"></div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <button class="btn-reset" onclick="resetAll()" style="display:none" id="resetBtn">リセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'kanzeikosutan_v1';
+
+  function loadSaved() {
+    try {
+      var s = localStorage.getItem(STORAGE_KEY);
+      if (!s) return;
+      var d = JSON.parse(s);
+      var ids = ['name','cost','rate','price','tariff1','tariff2'];
+      ids.forEach(function(id) {
+        if (d[id] !== undefined && d[id] !== null) {
+          document.getElementById(id).value = d[id];
+        }
+      });
+    } catch(e) {}
+  }
+
+  function saveValues() {
+    try {
+      var d = {};
+      ['name','cost','rate','price','tariff1','tariff2'].forEach(function(id) {
+        d[id] = document.getElementById(id).value;
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+    } catch(e) {}
+  }
+
+  function calc() {
+    var name    = document.getElementById('name').value.trim() || '商品';
+    var costRaw = parseFloat(document.getElementById('cost').value);
+    var rateRaw = parseFloat(document.getElementById('rate').value);
+    var price   = parseFloat(document.getElementById('price').value);
+    var t1      = parseFloat(document.getElementById('tariff1').value);
+    var t2      = parseFloat(document.getElementById('tariff2').value);
+
+    if (isNaN(costRaw) || isNaN(price) || isNaN(t1) || isNaN(t2)) {
+      showErr('仕入れ値・売価・現行・変動後の関税率を入力してください');
+      return;
+    }
+    if (price <= 0) { showErr('売価は0より大きい値を入力してください'); return; }
+
+    // 為替換算（ドル建ての場合）
+    var baseCost;
+    if (!isNaN(rateRaw) && rateRaw > 0) {
+      baseCost = costRaw * rateRaw; // ドル→円
+    } else {
+      baseCost = costRaw; // 円建てそのまま
+    }
+
+    // 関税込みコスト計算
+    var tariffCost1 = baseCost * (t1 / 100);
+    var tariffCost2 = baseCost * (t2 / 100);
+    var effectiveCost1 = baseCost + tariffCost1; // 現行の実効仕入れ値
+    var effectiveCost2 = baseCost + tariffCost2; // 変動後の実効仕入れ値
+
+    // 利益計算
+    var profit1 = price - effectiveCost1;
+    var profit2 = price - effectiveCost2;
+    var margin1 = (profit1 / price * 100);
+    var margin2 = (profit2 / price * 100);
+
+    // コスト増加額
+    var costIncrease = effectiveCost2 - effectiveCost1;
+    var profitDelta  = profit2 - profit1; // マイナス＝利益減少
+
+    // 結論判定
+    var level, msg;
+    if (profit2 < 0) {
+      level = 'ng';
+      msg = '変動後は赤字です。値上げまたは仕入れ先見直しを検討してください。';
+    } else if (margin2 < 10) {
+      level = 'warn';
+      msg = '利益率が薄くなっています。価格転嫁を検討してください。';
+    } else {
+      level = 'ok';
+      msg = '変動後も黒字を維持できます。';
+    }
+
+    // 結論カード
+    showResult(level,
+      (profitDelta <= 0 ? '▼ ' : '▲ ') + fmt(Math.abs(profitDelta)) + ' 円',
+      '利益の変化（現行→変動後）　' + msg
+    );
+
+    // 比較グリッド
+    var cg = document.getElementById('compare-grid');
+    cg.innerHTML =
+      '<div class="compare-cell current">' +
+        '<div class="compare-label">現行（関税' + t1 + '%）</div>' +
+        '<div class="compare-val">' + fmt(effectiveCost1) + '円</div>' +
+        '<div class="compare-sub">実効仕入れ値</div>' +
+      '</div>' +
+      '<div class="compare-cell changed">' +
+        '<div class="compare-label">変動後（関税' + t2 + '%）</div>' +
+        '<div class="compare-val">' + fmt(effectiveCost2) + '円</div>' +
+        '<div class="compare-sub">実効仕入れ値</div>' +
+      '</div>' +
+      '<div class="compare-cell ' + (profit1 >= 0 ? 'profit-ok' : 'profit-ng') + '">' +
+        '<div class="compare-label">現行の利益</div>' +
+        '<div class="compare-val">' + fmt(profit1) + '円</div>' +
+        '<div class="compare-sub">利益率 ' + margin1.toFixed(1) + '%</div>' +
+      '</div>' +
+      '<div class="compare-cell ' + (profit2 >= 0 ? 'profit-ok' : 'profit-ng') + '">' +
+        '<div class="compare-label">変動後の利益</div>' +
+        '<div class="compare-val">' + fmt(profit2) + '円</div>' +
+        '<div class="compare-sub">利益率 ' + margin2.toFixed(1) + '%</div>' +
+      '</div>';
+    document.getElementById('compare-card').style.display = '';
+
+    // 内訳テーブル
+    var rows = [
+      ['商品名', name],
+      ['仕入れ値（関税前）', fmt(baseCost) + ' 円'],
+    ];
+    if (!isNaN(rateRaw) && rateRaw > 0) {
+      rows.push(['為替レート', rateRaw + ' 円/USD']);
+      rows.push(['円建て仕入れ値', fmt(baseCost) + ' 円']);
+    }
+    rows = rows.concat([
+      ['売価', fmt(price) + ' 円'],
+      ['── 現行（関税' + t1 + '%） ──', ''],
+      ['関税コスト', fmt(tariffCost1) + ' 円'],
+      ['実効仕入れ値', fmt(effectiveCost1) + ' 円'],
+      ['利益', fmt(profit1) + ' 円'],
+      ['利益率', margin1.toFixed(1) + ' %'],
+      ['── 変動後（関税' + t2 + '%） ──', ''],
+      ['関税コスト', fmt(tariffCost2) + ' 円'],
+      ['実効仕入れ値', fmt(effectiveCost2) + ' 円'],
+      ['利益', fmt(profit2) + ' 円'],
+      ['利益率', margin2.toFixed(1) + ' %'],
+      ['── 変化 ──', ''],
+      ['コスト増加額', fmt(costIncrease) + ' 円', true],
+      ['利益変化', (profitDelta <= 0 ? '▼ ' : '▲ ') + fmt(Math.abs(profitDelta)) + ' 円', true],
+    ]);
+
+    // 黒字維持に必要な売価（変動後コストで利益率を現行と同水準に保つ場合）
+    if (margin1 > 0) {
+      var neededPrice = effectiveCost2 / (1 - margin1 / 100);
+      rows.push(['現行利益率維持に必要な売価', fmt(neededPrice) + ' 円', true]);
+    }
+
+    showDetail(rows);
+    saveValues();
+    document.getElementById('resetBtn').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      if (r[1] === '') {
+        return '<tr class="sep"><td colspan="2">' + r[0] + '</td></tr>';
+      }
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('compare-card').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function resetAll() {
+    ['name','cost','rate','price','tariff1','tariff2'].forEach(function(id) {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('compare-card').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('resetBtn').style.display = 'none';
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  }
+
+  window.addEventListener('load', loadSaved);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

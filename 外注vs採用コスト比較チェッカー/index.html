@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>外注vs採用コスト比較チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-head td {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em;
+      color: var(--accent); padding-top: 0.9rem; padding-bottom: 0.3rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>外注 vs 採用コスト比較チェッカー</h1>
+    <p class="subtitle">人手不足の解消手段をコストで即判断</p>
+  </header>
+
+  <!-- 外注コスト入力 -->
+  <div class="card">
+    <p class="card-title">外注コスト</p>
+    <div class="row2">
+      <div class="field">
+        <label for="outsource_rate">外注単価（円/時間）</label>
+        <input type="number" id="outsource_rate" placeholder="例: 3000" min="0">
+      </div>
+      <div class="field">
+        <label for="outsource_hours">必要時間（時間/月）</label>
+        <input type="number" id="outsource_hours" placeholder="例: 80" min="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- 採用コスト入力 -->
+  <div class="card">
+    <p class="card-title">採用・育成コスト</p>
+    <div class="field">
+      <label for="hire_cost">採用コスト（円）</label>
+      <input type="number" id="hire_cost" placeholder="例: 500000" min="0">
+      <p class="hint">求人広告費・紹介料など一時費用の合計</p>
+    </div>
+    <div class="field">
+      <label for="salary">月給（円）</label>
+      <input type="number" id="salary" placeholder="例: 250000" min="0">
+      <p class="hint">基本給（額面）</p>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="social_ins">社会保険料（会社負担 %）</label>
+        <input type="number" id="social_ins" value="15" min="0" max="30">
+        <p class="hint">目安：約15%</p>
+      </div>
+      <div class="field">
+        <label for="training_months">育成期間（ヶ月）</label>
+        <input type="number" id="training_months" value="3" min="0" max="36">
+      </div>
+    </div>
+    <div class="field">
+      <label for="productivity">育成中の生産性（%）</label>
+      <input type="number" id="productivity" value="60" min="0" max="100">
+      <p class="hint">即戦力を100%とした場合の生産力。育成中はこの分のロスが発生</p>
+    </div>
+  </div>
+
+  <!-- 比較設定 -->
+  <div class="card">
+    <p class="card-title">比較設定</p>
+    <div class="field">
+      <label for="compare_months">比較期間（ヶ月）</label>
+      <input type="number" id="compare_months" value="24" min="1" max="120">
+      <p class="hint">何ヶ月後のトータルコストで比較するか</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">判定する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判定結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">コスト内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var IDS = ['outsource_rate','outsource_hours','hire_cost','salary','social_ins','training_months','productivity','compare_months'];
+
+  // localStorage 読み込み
+  (function(){
+    var saved = localStorage.getItem('outsource_hire_checker');
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      IDS.forEach(function(id){ if (d[id] !== undefined) document.getElementById(id).value = d[id]; });
+    } catch(e) {}
+  })();
+
+  function save() {
+    var d = {};
+    IDS.forEach(function(id){ d[id] = document.getElementById(id).value; });
+    localStorage.setItem('outsource_hire_checker', JSON.stringify(d));
+  }
+
+  function v(id) { return parseFloat(document.getElementById(id).value); }
+
+  function calc() {
+    var rate      = v('outsource_rate');
+    var hours     = v('outsource_hours');
+    var hireCost  = v('hire_cost');
+    var salary    = v('salary');
+    var insRate   = v('social_ins');
+    var trainMo   = v('training_months');
+    var prod      = v('productivity');
+    var months    = v('compare_months');
+
+    if ([rate, hours, hireCost, salary, insRate, trainMo, prod, months].some(isNaN)) {
+      showResult('ng', '⚠️ 入力エラー', 'すべての項目を入力してください');
+      document.getElementById('detail').style.display = 'none';
+      return;
+    }
+
+    save();
+
+    // 外注月間コスト
+    var outsourceMo = rate * hours;
+
+    // 採用月間コスト（人件費）
+    var hireMo = salary * (1 + insRate / 100);
+
+    // 育成期間中の生産性ロス（月給ベース）
+    var trainLoss = salary * ((100 - prod) / 100) * trainMo;
+
+    // N ヶ月後のトータルコスト
+    var outsourceTotal = outsourceMo * months;
+    var hireTotal = hireCost + hireMo * months + trainLoss;
+
+    // 損益分岐点（採用が外注より安くなる月数）
+    var breakEven = null;
+    var diff = outsourceMo - hireMo; // 外注が毎月この分高い
+    if (diff > 0) {
+      breakEven = (hireCost + trainLoss) / diff; // months
+    }
+
+    // 判定
+    var level, verdict, note;
+    if (diff <= 0) {
+      // 採用のほうが月コストも高い → 外注推奨
+      level = 'ng';
+      verdict = '外注推奨';
+      note = '月間コストは採用(' + fmt(hireMo) + '円)が外注(' + fmt(outsourceMo) + '円)より高く、損益分岐点は訪れません。外注のほうがコスト面で有利です。';
+    } else if (breakEven !== null && breakEven <= months) {
+      // 比較期間内に採用がお得になる
+      level = 'ok';
+      verdict = '採用推奨';
+      note = '約' + Math.ceil(breakEven) + 'ヶ月後に採用がお得になります。' + months + 'ヶ月後の差額は ' + fmt(outsourceTotal - hireTotal) + ' 円（採用が安い）。';
+    } else {
+      // 比較期間内には採用コスト回収できない
+      level = 'warn';
+      verdict = '要検討（外注が有利）';
+      var beText = breakEven !== null ? '損益分岐点は約' + Math.ceil(breakEven) + 'ヶ月後。' : '';
+      note = months + 'ヶ月の比較期間内では外注のほうが' + fmt(hireTotal - outsourceTotal) + '円安い。' + beText + '長期視点での判断を検討してください。';
+    }
+
+    showResult(level, verdict, note);
+
+    var rows = [
+      { head: '外注コスト' },
+      ['外注単価', fmt(rate) + ' 円/時間'],
+      ['月間外注費', fmt(outsourceMo) + ' 円/月'],
+      [months + 'ヶ月合計（外注）', fmt(outsourceTotal) + ' 円', true],
+      { head: '採用・育成コスト' },
+      ['採用費（一時）', fmt(hireCost) + ' 円'],
+      ['月間人件費（月給+社保）', fmt(hireMo) + ' 円/月'],
+      ['育成中生産性ロス', fmt(trainLoss) + ' 円'],
+      [months + 'ヶ月合計（採用）', fmt(hireTotal) + ' 円', true],
+      { head: '比較' },
+      ['差額（外注−採用）', fmt(outsourceTotal - hireTotal) + ' 円'],
+      ['損益分岐点', breakEven !== null ? '約' + Math.ceil(breakEven) + ' ヶ月後' : '比較期間内なし'],
+    ];
+
+    var html = '';
+    rows.forEach(function(r) {
+      if (r.head) {
+        html += '<tr class="section-head"><td colspan="2">' + r.head + '</td></tr>';
+      } else {
+        html += '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+              + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+      }
+    });
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+    rc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

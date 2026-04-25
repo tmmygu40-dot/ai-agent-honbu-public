@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>勘定科目逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.2rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 検索カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 0.8rem; padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* 検索バー */
+    .search-wrap { position: relative; margin-bottom: 0.8rem; }
+    .search-wrap input {
+      width: 100%; padding: 0.75rem 2.5rem 0.75rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .search-wrap input:focus { border-color: var(--accent); background: #fff; }
+    .search-wrap .clear-btn {
+      position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      font-size: 1.1rem; color: var(--text-sub); padding: 0.2rem;
+      display: none;
+    }
+
+    /* カテゴリボタン */
+    .cat-wrap { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .cat-btn {
+      padding: 0.35rem 0.75rem; font-size: 0.78rem; font-weight: 700;
+      border: 1.5px solid var(--border); border-radius: 20px;
+      background: var(--bg); color: var(--text-sub);
+      cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .cat-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+
+    /* タブ */
+    .tab-wrap { display: flex; max-width: 640px; margin: 0 auto 1rem; }
+    .tab-btn {
+      flex: 1; padding: 0.65rem; font-size: 0.88rem; font-weight: 700;
+      border: 1.5px solid var(--border); background: var(--bg); color: var(--text-sub);
+      cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); border-right: none; }
+    .tab-btn:last-child  { border-radius: 0 var(--radius) var(--radius) 0; }
+    .tab-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* 件数表示 */
+    .result-count { max-width: 640px; margin: 0 auto 0.6rem; font-size: 0.8rem; color: var(--text-sub); padding: 0 0.2rem; }
+
+    /* 結果リスト */
+    .result-list { max-width: 640px; margin: 0 auto; }
+
+    /* 逆引きカード */
+    .item-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 0.8rem;
+      position: relative;
+    }
+    .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
+    .item-expense { font-size: 1rem; font-weight: 800; color: var(--text); }
+    .item-cat-tag {
+      font-size: 0.7rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1px solid #f4c07040; border-radius: 10px;
+      padding: 0.2rem 0.55rem; white-space: nowrap; margin-left: 0.5rem;
+    }
+    .item-account {
+      font-size: 1.05rem; font-weight: 900; color: var(--accent);
+      margin-bottom: 0.6rem;
+    }
+    .item-account-label { font-size: 0.72rem; font-weight: 600; color: var(--text-sub); margin-right: 0.4rem; }
+    .jiwake-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 0.5rem; }
+    .jiwake-table th {
+      background: #f7f4f0; color: var(--text-sub); font-weight: 700;
+      padding: 0.3rem 0.4rem; border: 1px solid var(--border); text-align: center; font-size: 0.72rem;
+    }
+    .jiwake-table td {
+      padding: 0.35rem 0.5rem; border: 1px solid var(--border); color: var(--text);
+    }
+    .jiwake-table .dr { background: #fff8ee; font-weight: 700; }
+    .jiwake-table .cr { background: #f0f9ff; }
+    .item-note { font-size: 0.75rem; color: var(--text-sub); line-height: 1.5; }
+    .fav-btn {
+      position: absolute; top: 0.8rem; right: 0.8rem;
+      background: none; border: none; cursor: pointer; font-size: 1.4rem;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* 空メッセージ */
+    .empty-msg { text-align: center; padding: 3rem 1rem; color: var(--text-sub); font-size: 0.88rem; }
+
+    /* 戻るリンク */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 480px) {
+      .cat-btn { font-size: 0.72rem; padding: 0.3rem 0.6rem; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>勘定科目 逆引きアプリ</h1>
+    <p class="subtitle">支出内容を選ぶ・検索するだけで正しい勘定科目と仕訳例を即確認</p>
+  </header>
+
+  <!-- タブ -->
+  <div class="tab-wrap">
+    <button class="tab-btn active" id="tab-all" onclick="switchTab('all')">逆引き検索</button>
+    <button class="tab-btn" id="tab-fav" onclick="switchTab('fav')">★ お気に入り</button>
+  </div>
+
+  <!-- 検索・フィルター -->
+  <div class="card" id="search-area">
+    <p class="card-title">キーワード検索 ＋ カテゴリ絞り込み</p>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="例：電車代、接待、インターネット…" oninput="onSearch()" autocomplete="off">
+      <button class="clear-btn" id="clearBtn" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="cat-wrap" id="catWrap"></div>
+  </div>
+
+  <!-- 件数 -->
+  <p class="result-count" id="resultCount"></p>
+
+  <!-- 結果 -->
+  <div class="result-list" id="resultList"></div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+<script>
+// ─── データ ───
+const ITEMS = [
+  // 旅費交通費
+  { cat:'旅費交通費', expense:'電車・バス代（業務用）', account:'旅費交通費', dr:'旅費交通費', cr:'現金 / 未払金', desc:'(摘要) ○○訪問 電車代', note:'ICカード（Suica等）の交通費は利用日に計上。領収書不要だが記録を保持する。' },
+  { cat:'旅費交通費', expense:'タクシー代（業務用）', account:'旅費交通費', dr:'旅費交通費', cr:'現金 / 未払金', desc:'(摘要) ○○打合せ タクシー代', note:'深夜や急ぎの業務移動も対象。領収書を必ず保管すること。' },
+  { cat:'旅費交通費', expense:'高速道路・有料道路料金', account:'旅費交通費', dr:'旅費交通費', cr:'現金 / 未払金', desc:'(摘要) ○○方面 高速代', note:'ETC明細・領収書を保管。プライベート利用分は除く。' },
+  { cat:'旅費交通費', expense:'出張宿泊費', account:'旅費交通費', dr:'旅費交通費', cr:'現金 / 未払金', desc:'(摘要) ○○出張 ホテル宿泊費', note:'出張日当を別途支給する場合は旅費規程を整備しておく。' },
+  { cat:'旅費交通費', expense:'ガソリン代（業務用）', account:'旅費交通費', dr:'旅費交通費', cr:'現金 / 未払金', desc:'(摘要) 業務用車両 ガソリン代', note:'自家用車の場合は業務使用割合で按分が必要。' },
+  { cat:'旅費交通費', expense:'駐車場代（外出時）', account:'旅費交通費', dr:'旅費交通費', cr:'現金', desc:'(摘要) ○○訪問 駐車場代', note:'事務所の月極駐車場は「地代家賃」で計上。' },
+
+  // 通信費
+  { cat:'通信費', expense:'携帯電話料金（業務用）', account:'通信費', dr:'通信費', cr:'普通預金 / 未払金', desc:'(摘要) 業務用携帯 ○月分', note:'プライベートと兼用の場合は業務使用割合で按分する。' },
+  { cat:'通信費', expense:'インターネット回線料金', account:'通信費', dr:'通信費', cr:'普通預金 / 未払金', desc:'(摘要) インターネット接続料 ○月分', note:'自宅兼事務所の場合は使用割合で按分。' },
+  { cat:'通信費', expense:'切手・郵送料・宅配便', account:'通信費', dr:'通信費', cr:'現金', desc:'(摘要) 書類郵送 切手代', note:'大量郵便は「荷造運賃」で計上する場合もある。' },
+  { cat:'通信費', expense:'FAX送信料', account:'通信費', dr:'通信費', cr:'現金', desc:'(摘要) FAX送信料', note:'' },
+  { cat:'通信費', expense:'電話代（固定電話）', account:'通信費', dr:'通信費', cr:'普通預金 / 未払金', desc:'(摘要) 固定電話料金 ○月分', note:'' },
+  { cat:'通信費', expense:'クラウドサービス利用料（通信系）', account:'通信費', dr:'通信費', cr:'普通預金 / 未払金', desc:'(摘要) ○○クラウドサービス ○月分', note:'業務効率化ツールのSaaSは通信費で計上することが多い。' },
+
+  // 消耗品費
+  { cat:'消耗品費', expense:'ボールペン・文具類', account:'消耗品費', dr:'消耗品費', cr:'現金', desc:'(摘要) 文具購入', note:'1点1万円未満かつ耐用年数1年未満のものが対象。' },
+  { cat:'消耗品費', expense:'コピー用紙・印刷用紙', account:'消耗品費', dr:'消耗品費', cr:'現金', desc:'(摘要) コピー用紙購入', note:'' },
+  { cat:'消耗品費', expense:'プリンターインク・トナー', account:'消耗品費', dr:'消耗品費', cr:'現金 / 未払金', desc:'(摘要) プリンターインク購入', note:'' },
+  { cat:'消耗品費', expense:'パソコン・タブレット（10万円未満）', account:'消耗品費', dr:'消耗品費', cr:'現金 / 普通預金', desc:'(摘要) 業務用PC購入', note:'取得価額10万円以上は固定資産（器具備品）として減価償却が必要。' },
+  { cat:'消耗品費', expense:'ソフトウェア（10万円未満）', account:'消耗品費', dr:'消耗品費', cr:'現金 / 普通預金', desc:'(摘要) 業務用ソフト購入', note:'サブスク型は「支払手数料」や「通信費」で計上する場合も。' },
+  { cat:'消耗品費', expense:'清掃用品・衛生用品', account:'消耗品費', dr:'消耗品費', cr:'現金', desc:'(摘要) 清掃用品購入', note:'' },
+
+  // 接待交際費
+  { cat:'接待交際費', expense:'取引先との飲食代', account:'接待交際費', dr:'接待交際費', cr:'現金 / 未払金', desc:'(摘要) ○○社接待 食事代', note:'5,000円以下の場合は「会議費」として計上可能な場合あり（要確認）。レシートに参加者・目的を記載。' },
+  { cat:'接待交際費', expense:'お中元・お歳暮', account:'接待交際費', dr:'接待交際費', cr:'現金 / 未払金', desc:'(摘要) お中元 ○○社向け', note:'一人当たり上限はないが、不相当に高額なものは損金不算入になる場合がある。' },
+  { cat:'接待交際費', expense:'慶弔費（お祝い・香典）', account:'接待交際費', dr:'接待交際費', cr:'現金', desc:'(摘要) ○○社 香典', note:'業務関係者への慶弔費は接待交際費。社員への慶弔費は福利厚生費。' },
+  { cat:'接待交際費', expense:'ゴルフ接待費用', account:'接待交際費', dr:'接待交際費', cr:'現金 / 未払金', desc:'(摘要) ○○社接待 ゴルフ費用', note:'ゴルフ会員権の年会費は「諸会費」。接待ゴルフのプレー費は接待交際費。' },
+  { cat:'接待交際費', expense:'取引先へのギフト・手土産', account:'接待交際費', dr:'接待交際費', cr:'現金', desc:'(摘要) ○○社 手土産代', note:'' },
+
+  // 広告宣伝費
+  { cat:'広告宣伝費', expense:'チラシ・パンフレット印刷', account:'広告宣伝費', dr:'広告宣伝費', cr:'現金 / 未払金', desc:'(摘要) 販促チラシ印刷代', note:'不特定多数向けの宣伝物が対象。特定顧客向けは接待交際費になる場合も。' },
+  { cat:'広告宣伝費', expense:'Web広告費（Google・SNS）', account:'広告宣伝費', dr:'広告宣伝費', cr:'普通預金 / 未払金', desc:'(摘要) Web広告費 ○月分', note:'' },
+  { cat:'広告宣伝費', expense:'ホームページ制作費', account:'広告宣伝費', dr:'広告宣伝費', cr:'普通預金 / 未払金', desc:'(摘要) 自社HP制作費', note:'高額な場合は無形固定資産（ソフトウェア）として処理する場合もある。' },
+  { cat:'広告宣伝費', expense:'名刺印刷', account:'広告宣伝費', dr:'広告宣伝費', cr:'現金 / 未払金', desc:'(摘要) 名刺印刷代', note:'消耗品費で計上する会社もある。自社ルールに従う。' },
+  { cat:'広告宣伝費', expense:'看板・のぼり制作', account:'広告宣伝費', dr:'広告宣伝費', cr:'現金 / 未払金', desc:'(摘要) 店舗看板制作費', note:'耐用年数が長い看板は固定資産（器具備品）になる場合あり。' },
+
+  // 給与・福利厚生
+  { cat:'給与・福利厚生', expense:'従業員給与', account:'給料手当', dr:'給料手当', cr:'普通預金 / 預り金', desc:'(摘要) ○月分給与', note:'源泉所得税・社会保険料は「預り金」として天引き計上。' },
+  { cat:'給与・福利厚生', expense:'パート・アルバイト給与', account:'雑給', dr:'雑給', cr:'現金 / 普通預金', desc:'(摘要) ○月分パート給与', note:'給料手当と区分して計上する場合が多い。' },
+  { cat:'給与・福利厚生', expense:'社会保険料（会社負担分）', account:'法定福利費', dr:'法定福利費', cr:'普通預金 / 未払費用', desc:'(摘要) 社会保険料 会社負担分 ○月', note:'健康保険・厚生年金の会社負担は法定福利費。雇用保険も同様。' },
+  { cat:'給与・福利厚生', expense:'社員研修・セミナー参加費', account:'研修費（教育訓練費）', dr:'研修費', cr:'現金 / 普通預金', desc:'(摘要) 社員研修費 ○○セミナー', note:'' },
+  { cat:'給与・福利厚生', expense:'社員旅行費用', account:'福利厚生費', dr:'福利厚生費', cr:'現金 / 未払金', desc:'(摘要) 社員旅行費用', note:'全員参加・一定額以内であれば福利厚生費。特定の人だけなら給与扱いになる場合あり。' },
+  { cat:'給与・福利厚生', expense:'社内のお茶・コーヒー代', account:'福利厚生費', dr:'福利厚生費', cr:'現金', desc:'(摘要) 社内飲料 コーヒー代', note:'' },
+  { cat:'給与・福利厚生', expense:'制服・ユニフォーム代', account:'福利厚生費', dr:'福利厚生費', cr:'現金 / 未払金', desc:'(摘要) 従業員制服購入', note:'業務専用の作業着は福利厚生費。私服として使えるものは給与扱いになる場合あり。' },
+
+  // 地代家賃・光熱費
+  { cat:'地代家賃・光熱費', expense:'事務所・店舗の家賃', account:'地代家賃', dr:'地代家賃', cr:'普通預金 / 未払金', desc:'(摘要) 事務所家賃 ○月分', note:'自宅兼事務所の場合は使用割合で按分する。' },
+  { cat:'地代家賃・光熱費', expense:'月極駐車場代', account:'地代家賃', dr:'地代家賃', cr:'普通預金 / 未払金', desc:'(摘要) 事務所駐車場 ○月分', note:'業務用車両の駐車場に限る。プライベート分は除く。' },
+  { cat:'地代家賃・光熱費', expense:'電気代', account:'水道光熱費', dr:'水道光熱費', cr:'普通預金 / 未払金', desc:'(摘要) 電気代 ○月分', note:'自宅兼事務所は按分が必要。' },
+  { cat:'地代家賃・光熱費', expense:'ガス代', account:'水道光熱費', dr:'水道光熱費', cr:'普通預金 / 未払金', desc:'(摘要) ガス代 ○月分', note:'' },
+  { cat:'地代家賃・光熱費', expense:'水道代', account:'水道光熱費', dr:'水道光熱費', cr:'普通預金 / 未払金', desc:'(摘要) 水道代 ○月分', note:'' },
+
+  // 修繕・保険
+  { cat:'修繕・保険', expense:'事務機器の修理代', account:'修繕費', dr:'修繕費', cr:'現金 / 未払金', desc:'(摘要) PC修理費', note:'修理費が資産価値を高める場合は「資本的支出」として固定資産処理が必要。' },
+  { cat:'修繕・保険', expense:'店舗・事務所の修繕代', account:'修繕費', dr:'修繕費', cr:'現金 / 未払金', desc:'(摘要) 事務所修繕費', note:'' },
+  { cat:'修繕・保険', expense:'自動車保険料', account:'保険料', dr:'保険料', cr:'普通預金 / 前払費用', desc:'(摘要) 業務用車両保険料', note:'長期一括払いは前払費用で計上し期間按分する。' },
+  { cat:'修繕・保険', expense:'火災保険料', account:'保険料', dr:'保険料', cr:'普通預金 / 前払費用', desc:'(摘要) 事務所火災保険料', note:'' },
+  { cat:'修繕・保険', expense:'賠償責任保険料', account:'保険料', dr:'保険料', cr:'普通預金 / 未払金', desc:'(摘要) 賠償責任保険料', note:'' },
+
+  // 手数料・その他
+  { cat:'手数料・その他', expense:'銀行振込手数料', account:'支払手数料', dr:'支払手数料', cr:'普通預金', desc:'(摘要) 振込手数料', note:'取引ごとに発生する手数料は支払手数料で計上。' },
+  { cat:'手数料・その他', expense:'税理士・社労士への報酬', account:'支払手数料', dr:'支払手数料', cr:'普通預金 / 未払金', desc:'(摘要) 税理士顧問料 ○月分', note:'源泉徴収が必要（報酬の10.21%）。' },
+  { cat:'手数料・その他', expense:'会計ソフト・クラウド経費精算システム', account:'支払手数料', dr:'支払手数料', cr:'普通預金 / 未払金', desc:'(摘要) 会計ソフト利用料 ○月分', note:'' },
+  { cat:'手数料・その他', expense:'業界団体・商工会の会費', account:'諸会費', dr:'諸会費', cr:'現金 / 普通預金', desc:'(摘要) ○○協会 年会費', note:'入会金は原則損金算入できない場合があるため要確認。' },
+  { cat:'手数料・その他', expense:'書籍・専門誌購入', account:'新聞図書費', dr:'新聞図書費', cr:'現金', desc:'(摘要) 業務関連書籍購入', note:'業務に直接関連する書籍に限る。' },
+  { cat:'手数料・その他', expense:'新聞・業界誌購読料', account:'新聞図書費', dr:'新聞図書費', cr:'普通預金 / 未払金', desc:'(摘要) 業界誌購読料 ○月分', note:'' },
+  { cat:'手数料・その他', expense:'消耗品費（雑費的なもの）', account:'雑費', dr:'雑費', cr:'現金', desc:'(摘要) 雑費', note:'金額が少なく他に適当な科目がない場合に使う。頻繁に使いすぎないよう注意。' },
+  { cat:'手数料・その他', expense:'融資の利息', account:'支払利息', dr:'支払利息', cr:'普通預金', desc:'(摘要) 借入金利息 ○月分', note:'元本返済は「借入金」の減少で処理。利息のみが費用。' },
+];
+
+// カテゴリ一覧（重複排除・順序固定）
+const CATS = ['すべて', '旅費交通費', '通信費', '消耗品費', '接待交際費', '広告宣伝費', '給与・福利厚生', '地代家賃・光熱費', '修繕・保険', '手数料・その他'];
+
+// ─── 状態 ───
+let currentTab = 'all';
+let currentCat = 'すべて';
+let currentQuery = '';
+let favorites = loadFavs();
+
+function loadFavs() {
+  try { return JSON.parse(localStorage.getItem('kanjyo_favs') || '[]'); }
+  catch(e) { return []; }
+}
+function saveFavs() {
+  localStorage.setItem('kanjyo_favs', JSON.stringify(favorites));
+}
+function isFav(expense) { return favorites.indexOf(expense) !== -1; }
+function toggleFav(expense) {
+  var idx = favorites.indexOf(expense);
+  if (idx === -1) favorites.push(expense);
+  else favorites.splice(idx, 1);
+  saveFavs();
+  render();
+}
+
+// ─── カテゴリボタン生成 ───
+function buildCatButtons() {
+  var wrap = document.getElementById('catWrap');
+  wrap.innerHTML = CATS.map(function(c) {
+    return '<button class="cat-btn' + (c === currentCat ? ' active' : '') + '" onclick="selectCat(\'' + c + '\')">' + c + '</button>';
+  }).join('');
+}
+
+function selectCat(cat) {
+  currentCat = cat;
+  buildCatButtons();
+  render();
+}
+
+function onSearch() {
+  var input = document.getElementById('searchInput');
+  currentQuery = input.value.trim();
+  document.getElementById('clearBtn').style.display = currentQuery ? '' : 'none';
+  render();
+}
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  currentQuery = '';
+  document.getElementById('clearBtn').style.display = 'none';
+  render();
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-all').className = 'tab-btn' + (tab === 'all' ? ' active' : '');
+  document.getElementById('tab-fav').className = 'tab-btn' + (tab === 'fav' ? ' active' : '');
+  document.getElementById('search-area').style.display = tab === 'all' ? '' : 'none';
+  render();
+}
+
+// ─── 描画 ───
+function render() {
+  var list = document.getElementById('resultList');
+  var count = document.getElementById('resultCount');
+
+  var items;
+  if (currentTab === 'fav') {
+    items = ITEMS.filter(function(it) { return isFav(it.expense); });
+  } else {
+    items = ITEMS.filter(function(it) {
+      var catOk = currentCat === 'すべて' || it.cat === currentCat;
+      var q = currentQuery.toLowerCase();
+      var queryOk = !q || it.expense.toLowerCase().indexOf(q) !== -1
+                       || it.account.toLowerCase().indexOf(q) !== -1
+                       || it.cat.toLowerCase().indexOf(q) !== -1
+                       || it.note.toLowerCase().indexOf(q) !== -1
+                       || it.desc.toLowerCase().indexOf(q) !== -1;
+      return catOk && queryOk;
+    });
+  }
+
+  count.textContent = currentTab === 'fav' ? 'お気に入り ' + items.length + '件' : '該当 ' + items.length + '件';
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty-msg">' + (currentTab === 'fav' ? '★ お気に入りはまだありません' : '該当する勘定科目が見つかりませんでした') + '</div>';
+    return;
+  }
+
+  list.innerHTML = items.map(function(it) {
+    var fav = isFav(it.expense);
+    return '<div class="item-card">'
+      + '<button class="fav-btn" onclick="toggleFav(\'' + esc(it.expense) + '\')" title="お気に入り">' + (fav ? '★' : '☆') + '</button>'
+      + '<div class="item-header">'
+      + '<span class="item-expense">' + esc2(it.expense) + '</span>'
+      + '<span class="item-cat-tag">' + esc2(it.cat) + '</span>'
+      + '</div>'
+      + '<div class="item-account"><span class="item-account-label">勘定科目</span>' + esc2(it.account) + '</div>'
+      + '<table class="jiwake-table">'
+      + '<thead><tr><th>借方（Dr）</th><th>貸方（Cr）</th><th>摘要例</th></tr></thead>'
+      + '<tbody><tr><td class="dr">' + esc2(it.dr) + '</td><td class="cr">' + esc2(it.cr) + '</td><td>' + esc2(it.desc) + '</td></tr></tbody>'
+      + '</table>'
+      + (it.note ? '<p class="item-note">📝 ' + esc2(it.note) + '</p>' : '')
+      + '</div>';
+  }).join('');
+}
+
+function esc(s) { return s.replace(/'/g, "\\'"); }
+function esc2(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── 初期化 ───
+buildCatButtons();
+render();
+</script>
+</body>
+</html>

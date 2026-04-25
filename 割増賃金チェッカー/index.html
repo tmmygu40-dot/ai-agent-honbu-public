@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>割増賃金チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── ラジオ切替 ── */
+    .radio-group { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+    .radio-group label {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      gap: 0.4rem; padding: 0.6rem; border: 1.5px solid var(--border);
+      border-radius: 9px; cursor: pointer; font-size: 0.9rem; font-weight: 600;
+      background: var(--bg); transition: all 0.15s;
+    }
+    .radio-group input[type="radio"] { display: none; }
+    .radio-group input[type="radio"]:checked + span {
+      /* handled by label style change via JS */
+    }
+    .radio-group label.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field-row { display: flex; gap: 0.75rem; }
+    .field-row .field { flex: 1; margin-bottom: 0; }
+
+    /* 法定割増率バッジ */
+    .rate-badge {
+      display: inline-block; font-size: 0.7rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border-radius: 6px; padding: 0.15rem 0.5rem; margin-left: 0.4rem;
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.7rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      cursor: pointer; transition: border-color 0.15s;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .sep td { border-top: 2px solid var(--border); padding-top: 0.75rem; }
+
+    /* ── 法律メモ ── */
+    .law-note {
+      max-width: 600px; margin: 0 auto 1rem;
+      background: var(--accent-light); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 0.9rem 1.1rem;
+      font-size: 0.78rem; color: var(--text-sub); line-height: 1.7;
+    }
+    .law-note strong { color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>割増賃金チェッカー</h1>
+    <p class="subtitle">残業代の正確な計算と未払いリスクをすぐ確認</p>
+  </header>
+
+  <!-- 賃金形態 -->
+  <div class="card">
+    <p class="card-title">賃金形態を選ぶ</p>
+    <div class="radio-group">
+      <label id="lbl-hourly" class="active" onclick="setMode('hourly')">
+        <input type="radio" name="mode" value="hourly" checked>
+        <span>時給制</span>
+      </label>
+      <label id="lbl-monthly" onclick="setMode('monthly')">
+        <input type="radio" name="mode" value="monthly">
+        <span>月給制</span>
+      </label>
+    </div>
+
+    <!-- 時給制 -->
+    <div id="sec-hourly">
+      <div class="field">
+        <label for="hourly">基本時給（円）</label>
+        <input type="number" id="hourly" placeholder="例: 1200" min="0" inputmode="numeric">
+        <p class="hint">法定最低賃金以上で入力してください</p>
+      </div>
+    </div>
+
+    <!-- 月給制 -->
+    <div id="sec-monthly" style="display:none">
+      <div class="field-row">
+        <div class="field">
+          <label for="monthly">月給（円）</label>
+          <input type="number" id="monthly" placeholder="例: 250000" min="0" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="fixed-hours">月間所定労働時間（h）</label>
+          <input type="number" id="fixed-hours" placeholder="例: 160" min="1" inputmode="numeric">
+          <p class="hint">所定労働時間（例：8h×20日=160h）</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 残業時間入力 -->
+  <div class="card">
+    <p class="card-title">今月の残業時間を入力</p>
+
+    <div class="field">
+      <label for="ot-normal">法定時間外残業（60時間以内）<span class="rate-badge">×1.25</span></label>
+      <input type="number" id="ot-normal" placeholder="0" min="0" step="0.5" inputmode="decimal">
+      <p class="hint">所定外・法定外の残業時間のうち月60時間以内の合計</p>
+    </div>
+
+    <div class="field">
+      <label for="ot-over60">法定時間外残業（60時間超の分）<span class="rate-badge">×1.50</span></label>
+      <input type="number" id="ot-over60" placeholder="0" min="0" step="0.5" inputmode="decimal">
+      <p class="hint">月60時間を超えた残業時間分（中小企業も2023年4月〜適用）</p>
+    </div>
+
+    <div class="field">
+      <label for="ot-midnight">深夜残業（時間外かつ深夜22〜5時）<span class="rate-badge">×1.50</span></label>
+      <input type="number" id="ot-midnight" placeholder="0" min="0" step="0.5" inputmode="decimal">
+      <p class="hint">時間外労働が深夜（22時〜翌5時）に及んだ時間（時間外1.25＋深夜0.25）</p>
+    </div>
+
+    <div class="field">
+      <label for="ot-midnight-only">深夜労働のみ（法定内・深夜22〜5時）<span class="rate-badge">×1.25</span></label>
+      <input type="number" id="ot-midnight-only" placeholder="0" min="0" step="0.5" inputmode="decimal">
+      <p class="hint">所定内の労働が深夜に及んだ時間（深夜割増0.25分のみ加算）</p>
+    </div>
+
+    <div class="field">
+      <label for="ot-holiday">法定休日労働<span class="rate-badge">×1.35</span></label>
+      <input type="number" id="ot-holiday" placeholder="0" min="0" step="0.5" inputmode="decimal">
+      <p class="hint">法定休日（週1日）に働いた時間</p>
+    </div>
+  </div>
+
+  <!-- 実際の支払い -->
+  <div class="card">
+    <p class="card-title">実際に支払われた残業代</p>
+    <div class="field">
+      <label for="paid">今月支払われた残業代（円）</label>
+      <input type="number" id="paid" placeholder="0" min="0" inputmode="numeric">
+      <p class="hint">給与明細の「時間外手当」等の合計額。0円の場合は0と入力</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">割増賃金を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">未払い残業代（推計）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 法律メモ -->
+  <div class="law-note" id="law-note" style="display:none">
+    <strong>法定割増率の根拠（労働基準法第37条）</strong><br>
+    時間外（月60h以内）：×1.25 ／ 時間外（月60h超）：×1.50<br>
+    深夜（22〜5時）：+0.25（時間外と重複する場合は合算）<br>
+    法定休日：×1.35 ／ 法定休日深夜：×1.60<br>
+    ※本ツールは目安です。実際の請求は専門家へご相談ください。
+  </div>
+
+  <!-- リセット -->
+  <button class="btn-reset" onclick="resetAll()">入力をリセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var currentMode = 'hourly';
+
+  function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('sec-hourly').style.display  = mode === 'hourly'  ? '' : 'none';
+    document.getElementById('sec-monthly').style.display = mode === 'monthly' ? '' : 'none';
+    document.getElementById('lbl-hourly').classList.toggle('active', mode === 'hourly');
+    document.getElementById('lbl-monthly').classList.toggle('active', mode === 'monthly');
+    saveLS();
+  }
+
+  function getBaseWage() {
+    if (currentMode === 'hourly') {
+      var h = parseFloat(document.getElementById('hourly').value);
+      return isNaN(h) || h <= 0 ? null : h;
+    } else {
+      var m = parseFloat(document.getElementById('monthly').value);
+      var f = parseFloat(document.getElementById('fixed-hours').value);
+      if (isNaN(m) || m <= 0 || isNaN(f) || f <= 0) return null;
+      return m / f;
+    }
+  }
+
+  function calc() {
+    var base = getBaseWage();
+    if (base === null) {
+      showErr(currentMode === 'hourly'
+        ? '基本時給を入力してください'
+        : '月給と所定労働時間を入力してください');
+      return;
+    }
+
+    var otNormal  = parseFloat(document.getElementById('ot-normal').value)       || 0;
+    var otOver60  = parseFloat(document.getElementById('ot-over60').value)        || 0;
+    var otMid     = parseFloat(document.getElementById('ot-midnight').value)      || 0;
+    var midOnly   = parseFloat(document.getElementById('ot-midnight-only').value) || 0;
+    var holiday   = parseFloat(document.getElementById('ot-holiday').value)       || 0;
+    var paid      = parseFloat(document.getElementById('paid').value)             || 0;
+
+    // 割増賃金計算
+    var pay_normal  = base * 1.25 * otNormal;   // 時間外（60h以内）
+    var pay_over60  = base * 1.50 * otOver60;   // 時間外（60h超）
+    var pay_mid     = base * 1.50 * otMid;      // 時間外+深夜
+    var pay_midOnly = base * 1.25 * midOnly;    // 深夜のみ
+    var pay_holiday = base * 1.35 * holiday;    // 休日
+    var totalDue    = pay_normal + pay_over60 + pay_mid + pay_midOnly + pay_holiday;
+    var unpaid      = totalDue - paid;
+
+    var level, note;
+    if (unpaid <= 0) {
+      level = 'ok';
+      note  = '正当に支払われています（未払いリスクなし）';
+    } else if (unpaid < 10000) {
+      level = 'warn';
+      note  = '少額の差異があります。明細を再確認してください';
+    } else {
+      level = 'ng';
+      note  = '大きな未払いの可能性があります。明細を確認し、必要なら労基署か弁護士へ相談を';
+    }
+
+    showResult(level,
+      (unpaid <= 0 ? '未払いなし' : '+' + fmt(unpaid) + ' 円'),
+      note
+    );
+
+    var rows = [];
+    if (otNormal > 0)  rows.push(['時間外残業（60h以内） ' + otNormal + 'h × ×1.25', fmt(pay_normal) + ' 円']);
+    if (otOver60 > 0)  rows.push(['時間外残業（60h超）  ' + otOver60 + 'h × ×1.50', fmt(pay_over60) + ' 円']);
+    if (otMid > 0)     rows.push(['深夜残業（時間外+深夜）' + otMid + 'h × ×1.50', fmt(pay_mid) + ' 円']);
+    if (midOnly > 0)   rows.push(['深夜労働のみ  ' + midOnly + 'h × ×1.25', fmt(pay_midOnly) + ' 円']);
+    if (holiday > 0)   rows.push(['法定休日労働  ' + holiday + 'h × ×1.35', fmt(pay_holiday) + ' 円']);
+    if (rows.length === 0) rows.push(['残業なし', '—']);
+
+    rows.push({ sep: true });
+    rows.push(['本来の割増賃金合計', fmt(totalDue) + ' 円', true]);
+    rows.push(['実際の支払い額', fmt(paid) + ' 円']);
+    rows.push({ sep: true });
+    rows.push(['差額（未払い推計）', (unpaid > 0 ? '+' : '') + fmt(unpaid) + ' 円', true]);
+
+    // 年間換算
+    var annualUnpaid = unpaid * 12;
+    rows.push(['年間換算（×12）', (unpaid > 0 ? '+' : '') + fmt(annualUnpaid) + ' 円']);
+
+    showDetail(rows);
+    document.getElementById('law-note').style.display = '';
+    saveLS();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      if (r.sep) return '<tr class="sep"><td colspan="2"></td></tr>';
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('law-note').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── localStorage ──
+  var LS_KEY = 'zangyo-checker-v1';
+  function saveLS() {
+    var d = {
+      mode:       currentMode,
+      hourly:     document.getElementById('hourly').value,
+      monthly:    document.getElementById('monthly').value,
+      fixedHours: document.getElementById('fixed-hours').value,
+      otNormal:   document.getElementById('ot-normal').value,
+      otOver60:   document.getElementById('ot-over60').value,
+      otMid:      document.getElementById('ot-midnight').value,
+      midOnly:    document.getElementById('ot-midnight-only').value,
+      holiday:    document.getElementById('ot-holiday').value,
+      paid:       document.getElementById('paid').value,
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(d));
+  }
+  function loadLS() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!d) return;
+      if (d.mode) setMode(d.mode);
+      if (d.hourly)     document.getElementById('hourly').value        = d.hourly;
+      if (d.monthly)    document.getElementById('monthly').value       = d.monthly;
+      if (d.fixedHours) document.getElementById('fixed-hours').value   = d.fixedHours;
+      if (d.otNormal)   document.getElementById('ot-normal').value     = d.otNormal;
+      if (d.otOver60)   document.getElementById('ot-over60').value     = d.otOver60;
+      if (d.otMid)      document.getElementById('ot-midnight').value   = d.otMid;
+      if (d.midOnly)    document.getElementById('ot-midnight-only').value = d.midOnly;
+      if (d.holiday)    document.getElementById('ot-holiday').value    = d.holiday;
+      if (d.paid)       document.getElementById('paid').value          = d.paid;
+    } catch(e) {}
+  }
+  function resetAll() {
+    ['hourly','monthly','fixed-hours','ot-normal','ot-over60','ot-midnight','ot-midnight-only','ot-holiday','paid'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+    setMode('hourly');
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('law-note').style.display = 'none';
+    localStorage.removeItem(LS_KEY);
+  }
+
+  // 入力変更時に保存
+  document.querySelectorAll('input').forEach(function(el){
+    el.addEventListener('input', saveLS);
+  });
+
+  window.addEventListener('load', loadLS);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
