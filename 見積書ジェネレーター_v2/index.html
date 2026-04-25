@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>見積書ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card); border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem; margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 700px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+    .field { margin-bottom: 0.8rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.6rem 0.8rem; font-size: 0.9rem;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field textarea { resize: vertical; min-height: 60px; }
+    /* 品目テーブル */
+    .items-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 0.8rem; }
+    .items-table th {
+      background: #f5f0e8; font-size: 0.72rem; font-weight: 700;
+      color: var(--text-sub); padding: 0.4rem 0.4rem; text-align: left;
+      border-bottom: 2px solid var(--border);
+    }
+    .items-table td { padding: 0.35rem 0.3rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .items-table input {
+      width: 100%; padding: 0.4rem 0.5rem; font-size: 0.85rem;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: var(--bg); color: var(--text); outline: none;
+    }
+    .items-table input:focus { border-color: var(--accent); background: #fff; }
+    .items-table .td-amount { text-align: right; font-weight: 600; white-space: nowrap; min-width: 80px; }
+    .items-table .td-del { text-align: center; width: 36px; }
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: #ccc; font-size: 1.1rem; line-height: 1; padding: 2px 4px;
+      transition: color 0.15s;
+    }
+    .btn-del:hover { color: #b91c1c; }
+    .btn-add {
+      font-size: 0.82rem; font-weight: 700; color: var(--accent);
+      background: none; border: 1.5px dashed var(--accent);
+      border-radius: 8px; padding: 0.5rem 1rem; cursor: pointer;
+      width: 100%; transition: background 0.15s;
+    }
+    .btn-add:hover { background: #fff8ee; }
+    /* 合計 */
+    .totals { margin-top: 0.8rem; }
+    .total-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.45rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem;
+    }
+    .total-row:last-child { border-bottom: none; }
+    .total-row .label { color: var(--text-sub); }
+    .total-row .val { font-weight: 600; }
+    .total-row.grand { font-size: 1.1rem; font-weight: 900; color: var(--accent); border-top: 2px solid var(--accent); padding-top: 0.6rem; margin-top: 0.2rem; }
+    /* ボタン */
+    .btn-area { max-width: 700px; margin: 0 auto 1rem; display: flex; gap: 0.8rem; }
+    .btn-print {
+      flex: 1; padding: 1rem; font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-print:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+    .btn-save {
+      padding: 1rem 1.2rem; font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    /* 税率選択 */
+    .tax-select { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .tax-select label { font-size: 0.82rem; cursor: pointer; display: flex; align-items: center; gap: 0.3rem; }
+
+    /* ═══ 印刷スタイル ═══ */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .app-header, .card-title, .btn-area, .btn-add, .btn-del, .back-link,
+      #fav-widget, .no-print, .edit-section { display: none !important; }
+      .print-doc { display: block !important; }
+      .card { box-shadow: none; border: 1px solid #ccc; margin-bottom: 8mm; border-radius: 0; }
+      @page { margin: 12mm; size: A4; }
+    }
+    .print-doc { display: none; }
+
+    @media screen {
+      /* プレビュー枠（画面表示用） */
+      .preview-wrap {
+        max-width: 700px; margin: 0 auto 1rem;
+        background: var(--card); border: 1.5px solid var(--border);
+        border-radius: var(--radius); box-shadow: var(--shadow);
+        padding: 1.5rem 1.4rem;
+      }
+    }
+    /* 見積書本体スタイル（印刷・プレビュー共通） */
+    .doc-title { font-size: 1.6rem; font-weight: 900; text-align: center; margin-bottom: 1.2rem; letter-spacing: 0.1em; }
+    .doc-meta { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap; }
+    .doc-to { font-size: 0.95rem; }
+    .doc-to .to-name { font-size: 1.1rem; font-weight: 700; border-bottom: 2px solid #000; padding-bottom: 2px; display: inline-block; margin-bottom: 4px; }
+    .doc-info { font-size: 0.78rem; color: #555; text-align: right; line-height: 1.7; }
+    .doc-total-banner {
+      background: #f0f0f0; border: 1px solid #ccc; border-radius: 6px;
+      padding: 0.6rem 1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 1rem;
+    }
+    .doc-total-banner .lbl { font-size: 0.8rem; color: #555; }
+    .doc-total-banner .val { font-size: 1.4rem; font-weight: 900; }
+    .doc-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 1rem; }
+    .doc-table th { background: #f0f0f0; padding: 0.4rem 0.5rem; border: 1px solid #ccc; font-size: 0.78rem; text-align: center; }
+    .doc-table td { padding: 0.4rem 0.5rem; border: 1px solid #ddd; }
+    .doc-table td.num { text-align: right; }
+    .doc-table .subtotal-row td { background: #fafafa; font-weight: 600; }
+    .doc-footer { font-size: 0.78rem; color: #555; margin-top: 0.5rem; }
+    .doc-from { margin-top: 1rem; font-size: 0.82rem; border-top: 1px solid #ccc; padding-top: 0.8rem; }
+    .doc-from .from-name { font-size: 1rem; font-weight: 700; }
+
+    @media (max-width: 480px) {
+      .row2 { grid-template-columns: 1fr; }
+      .items-table th:nth-child(2), .items-table td:nth-child(2) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>見積書ジェネレーター</h1>
+    <p class="subtitle">品目を入力するだけで印刷できる見積書を即生成</p>
+  </header>
+
+  <!-- 発行者情報 -->
+  <div class="card edit-section">
+    <p class="card-title">発行者情報</p>
+    <div class="row2">
+      <div class="field"><label>会社名 / 氏名</label><input type="text" id="fromName" placeholder="株式会社〇〇"></div>
+      <div class="field"><label>担当者名</label><input type="text" id="fromPerson" placeholder="山田 太郎"></div>
+    </div>
+    <div class="field"><label>住所</label><input type="text" id="fromAddr" placeholder="東京都〇〇区〇〇1-2-3"></div>
+    <div class="row2">
+      <div class="field"><label>TEL</label><input type="text" id="fromTel" placeholder="03-1234-5678"></div>
+      <div class="field"><label>メール</label><input type="email" id="fromMail" placeholder="info@example.com"></div>
+    </div>
+  </div>
+
+  <!-- 顧客情報 -->
+  <div class="card edit-section">
+    <p class="card-title">宛先</p>
+    <div class="row2">
+      <div class="field"><label>顧客名（会社名）</label><input type="text" id="toName" placeholder="〇〇株式会社"></div>
+      <div class="field"><label>担当者名</label><input type="text" id="toPerson" placeholder="鈴木 様"></div>
+    </div>
+    <div class="field"><label>件名</label><input type="text" id="subject" placeholder="Webサイト制作一式"></div>
+  </div>
+
+  <!-- 品目 -->
+  <div class="card edit-section">
+    <p class="card-title">品目</p>
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th style="width:40%">品名</th>
+          <th style="width:15%">数量</th>
+          <th style="width:15%">単位</th>
+          <th style="width:20%">単価（円）</th>
+          <th style="width:12%" class="td-amount">金額（円）</th>
+          <th class="td-del"></th>
+        </tr>
+      </thead>
+      <tbody id="itemsBody"></tbody>
+    </table>
+    <button class="btn-add" onclick="addRow()">＋ 品目を追加</button>
+    <div class="totals" id="totals"></div>
+  </div>
+
+  <!-- 消費税・備考 -->
+  <div class="card edit-section">
+    <p class="card-title">オプション</p>
+    <div class="field">
+      <label>消費税率</label>
+      <div class="tax-select">
+        <label><input type="radio" name="tax" value="0"> 非課税（0%）</label>
+        <label><input type="radio" name="tax" value="8"> 軽減税率（8%）</label>
+        <label><input type="radio" name="tax" value="10" checked> 標準税率（10%）</label>
+      </div>
+    </div>
+    <div class="field"><label>備考・支払い条件</label><textarea id="note" rows="3" placeholder="お支払い期限：発行日より30日以内&#10;お振込先：〇〇銀行 〇〇支店 普通 1234567"></textarea></div>
+  </div>
+
+  <!-- ボタン -->
+  <div class="btn-area">
+    <button class="btn-print" onclick="printDoc()">📄 印刷 / PDFで保存</button>
+    <button class="btn-save no-print" onclick="saveData()">💾 保存</button>
+  </div>
+
+  <!-- プレビュー（画面） -->
+  <div class="preview-wrap" id="previewWrap">
+    <div id="docPreview"></div>
+  </div>
+
+  <a class="back-link no-print" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'estimateGenV2_v1';
+  var rowId = 0;
+
+  // 初期化
+  (function init() {
+    addRow(); addRow(); addRow();
+    loadData();
+    attachListeners();
+  })();
+
+  function attachListeners() {
+    ['fromName','fromPerson','fromAddr','fromTel','fromMail','toName','toPerson','subject','note'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('input', updatePreview);
+    });
+    document.querySelectorAll('input[name="tax"]').forEach(function(r) {
+      r.addEventListener('change', function() { updateTotals(); updatePreview(); });
+    });
+  }
+
+  function addRow() {
+    rowId++;
+    var rid = 'row' + rowId;
+    var tr = document.createElement('tr');
+    tr.id = rid;
+    tr.innerHTML =
+      '<td><input type="text" placeholder="品名" oninput="updateTotals();updatePreview()"></td>' +
+      '<td><input type="number" value="1" min="0" style="text-align:right" oninput="updateTotals();updatePreview()"></td>' +
+      '<td><input type="text" placeholder="式" oninput="updatePreview()"></td>' +
+      '<td><input type="number" value="" min="0" placeholder="0" style="text-align:right" oninput="updateTotals();updatePreview()"></td>' +
+      '<td class="td-amount" id="amt'+rowId+'">—</td>' +
+      '<td class="td-del"><button class="btn-del" onclick="delRow(\''+rid+'\')" title="削除">✕</button></td>';
+    document.getElementById('itemsBody').appendChild(tr);
+    updateTotals();
+    updatePreview();
+  }
+
+  function delRow(rid) {
+    var el = document.getElementById(rid);
+    if (el) el.remove();
+    updateTotals();
+    updatePreview();
+  }
+
+  function getRows() {
+    var rows = [];
+    document.querySelectorAll('#itemsBody tr').forEach(function(tr) {
+      var inputs = tr.querySelectorAll('input');
+      var name  = inputs[0] ? inputs[0].value.trim() : '';
+      var qty   = parseFloat(inputs[1] ? inputs[1].value : 0) || 0;
+      var unit  = inputs[2] ? inputs[2].value.trim() : '';
+      var price = parseFloat(inputs[3] ? inputs[3].value : 0) || 0;
+      var amt   = qty * price;
+      rows.push({ name: name, qty: qty, unit: unit, price: price, amt: amt, id: tr.id });
+    });
+    return rows;
+  }
+
+  function getTaxRate() {
+    var sel = document.querySelector('input[name="tax"]:checked');
+    return sel ? parseFloat(sel.value) / 100 : 0.1;
+  }
+
+  function updateTotals() {
+    var rows = getRows();
+    var subtotal = 0;
+    rows.forEach(function(r) {
+      subtotal += r.amt;
+      var el = document.getElementById(r.id.replace('row', 'amt'));
+      if (el) el.textContent = r.name || r.price ? fmt(r.amt) : '—';
+    });
+    var taxRate = getTaxRate();
+    var tax = Math.round(subtotal * taxRate);
+    var total = subtotal + tax;
+
+    var taxLabel = taxRate === 0 ? '消費税（非課税）' : taxRate === 0.08 ? '消費税（8%）' : '消費税（10%）';
+    document.getElementById('totals').innerHTML =
+      '<div class="total-row"><span class="label">小計</span><span class="val">' + fmt(subtotal) + ' 円</span></div>' +
+      '<div class="total-row"><span class="label">' + taxLabel + '</span><span class="val">' + fmt(tax) + ' 円</span></div>' +
+      '<div class="total-row grand"><span class="label">合計金額</span><span class="val">¥ ' + fmt(total) + '</span></div>';
+  }
+
+  function updatePreview() {
+    var rows    = getRows();
+    var taxRate = getTaxRate();
+    var subtotal = 0;
+    rows.forEach(function(r) { subtotal += r.amt; });
+    var tax   = Math.round(subtotal * taxRate);
+    var total = subtotal + tax;
+
+    var today   = new Date();
+    var expiry  = new Date(today); expiry.setDate(expiry.getDate() + 30);
+    var dateStr = fmtDate(today);
+    var expStr  = fmtDate(expiry);
+    var num     = '見積-' + today.getFullYear() + zeroPad(today.getMonth()+1) + zeroPad(today.getDate()) + '-001';
+
+    var fromName   = v('fromName')   || '（会社名）';
+    var fromPerson = v('fromPerson') || '';
+    var fromAddr   = v('fromAddr')   || '';
+    var fromTel    = v('fromTel')    || '';
+    var fromMail   = v('fromMail')   || '';
+    var toName     = v('toName')     || '（顧客名）';
+    var toPerson   = v('toPerson')   || '';
+    var subject    = v('subject')    || '（件名）';
+    var note       = v('note')       || '';
+    var taxLabel   = taxRate === 0 ? '消費税（非課税）' : taxRate === 0.08 ? '消費税（8%）' : '消費税（10%）';
+
+    var itemsHtml = rows.filter(function(r) { return r.name || r.price; }).map(function(r) {
+      return '<tr>' +
+        '<td>' + esc(r.name) + '</td>' +
+        '<td class="num">' + r.qty + '</td>' +
+        '<td>' + esc(r.unit) + '</td>' +
+        '<td class="num">' + fmt(r.price) + '</td>' +
+        '<td class="num">' + fmt(r.amt) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    var noteHtml = note ? '<p style="margin-top:0.8rem;font-size:0.78rem;color:#555;white-space:pre-wrap;">' + esc(note) + '</p>' : '';
+
+    document.getElementById('docPreview').innerHTML =
+      '<div class="doc-title">見 積 書</div>' +
+      '<div class="doc-meta">' +
+        '<div class="doc-to">' +
+          '<div class="to-name">' + esc(toName) + (toPerson ? ' ' + esc(toPerson) : '') + '　御中</div>' +
+          '<div style="font-size:0.8rem;margin-top:4px">件名：' + esc(subject) + '</div>' +
+        '</div>' +
+        '<div class="doc-info">' +
+          '見積番号：' + num + '<br>' +
+          '発行日：' + dateStr + '<br>' +
+          '有効期限：' + expStr + '<br>' +
+        '</div>' +
+      '</div>' +
+      '<div class="doc-total-banner">' +
+        '<span class="lbl">合計金額（税込）</span>' +
+        '<span class="val">¥ ' + fmt(total) + '</span>' +
+      '</div>' +
+      '<table class="doc-table">' +
+        '<thead><tr><th>品名</th><th>数量</th><th>単位</th><th>単価（円）</th><th>金額（円）</th></tr></thead>' +
+        '<tbody>' + itemsHtml + '</tbody>' +
+        '<tfoot>' +
+          '<tr class="subtotal-row"><td colspan="4" style="text-align:right">小計</td><td class="num">' + fmt(subtotal) + '</td></tr>' +
+          '<tr class="subtotal-row"><td colspan="4" style="text-align:right">' + taxLabel + '</td><td class="num">' + fmt(tax) + '</td></tr>' +
+          '<tr class="subtotal-row"><td colspan="4" style="text-align:right;font-weight:900">合計</td><td class="num" style="font-weight:900">¥ ' + fmt(total) + '</td></tr>' +
+        '</tfoot>' +
+      '</table>' +
+      noteHtml +
+      '<div class="doc-from">' +
+        '<span class="from-name">' + esc(fromName) + (fromPerson ? ' ' + esc(fromPerson) : '') + '</span><br>' +
+        (fromAddr ? esc(fromAddr) + '<br>' : '') +
+        (fromTel  ? 'TEL: ' + esc(fromTel) + '　' : '') +
+        (fromMail ? 'MAIL: ' + esc(fromMail) : '') +
+      '</div>';
+  }
+
+  function printDoc() {
+    updatePreview();
+    window.print();
+  }
+
+  function saveData() {
+    var rows = getRows().map(function(r) { return { name: r.name, qty: r.qty, unit: r.unit, price: r.price }; });
+    var data = {
+      fromName: v('fromName'), fromPerson: v('fromPerson'), fromAddr: v('fromAddr'),
+      fromTel: v('fromTel'), fromMail: v('fromMail'),
+      toName: v('toName'), toPerson: v('toPerson'), subject: v('subject'), note: v('note'),
+      tax: getTaxRate() * 100, rows: rows
+    };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); alert('保存しました'); } catch(e) { alert('保存に失敗しました'); }
+  }
+
+  function loadData() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!d) return;
+      ['fromName','fromPerson','fromAddr','fromTel','fromMail','toName','toPerson','subject','note'].forEach(function(id) {
+        if (d[id] !== undefined) { var el = document.getElementById(id); if (el) el.value = d[id]; }
+      });
+      if (d.tax !== undefined) {
+        var r = document.querySelector('input[name="tax"][value="'+d.tax+'"]');
+        if (r) r.checked = true;
+      }
+      if (d.rows && d.rows.length > 0) {
+        // 既存行をクリア
+        document.getElementById('itemsBody').innerHTML = '';
+        rowId = 0;
+        d.rows.forEach(function(row) {
+          addRow();
+          var trs = document.querySelectorAll('#itemsBody tr');
+          var tr  = trs[trs.length - 1];
+          var inputs = tr.querySelectorAll('input');
+          if (inputs[0]) inputs[0].value = row.name || '';
+          if (inputs[1]) inputs[1].value = row.qty  || 1;
+          if (inputs[2]) inputs[2].value = row.unit || '';
+          if (inputs[3]) inputs[3].value = row.price || '';
+        });
+      }
+      updateTotals();
+      updatePreview();
+    } catch(e) {}
+  }
+
+  function v(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fmtDate(d) { return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日'; }
+  function zeroPad(n) { return n < 10 ? '0'+n : ''+n; }
+
+  updatePreview();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
