@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家電トラブル診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── カテゴリグリッド ── */
+    .category-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.7rem;
+    }
+    .cat-btn {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 0.85rem 0.5rem;
+      background: var(--bg); border: 2px solid var(--border);
+      border-radius: 12px; cursor: pointer;
+      font-size: 0.82rem; font-weight: 700; color: var(--text);
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cat-btn .icon { font-size: 2rem; margin-bottom: 0.3rem; }
+    .cat-btn:hover, .cat-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    /* ── 症状リスト ── */
+    .symptom-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .symptom-btn {
+      padding: 0.8rem 1rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 10px; cursor: pointer;
+      font-size: 0.9rem; color: var(--text); text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .symptom-btn:hover, .symptom-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:disabled {
+      background: #ccc; box-shadow: none; cursor: not-allowed;
+    }
+    .btn-calc:not(:disabled):active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.75rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: #fff; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.show { display: block; }
+    .result-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; padding-bottom: 0.8rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .result-title { font-size: 1.05rem; font-weight: 900; }
+    .fav-btn {
+      background: none; border: none; font-size: 1.4rem; cursor: pointer;
+      padding: 0.2rem; -webkit-tap-highlight-color: transparent;
+    }
+
+    .cause-section { margin-bottom: 1.2rem; }
+    .cause-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--accent); margin-bottom: 0.5rem;
+    }
+    .cause-item {
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      margin-bottom: 0.4rem; font-size: 0.88rem;
+    }
+    .cause-item .bullet {
+      min-width: 1.2rem; width: 1.2rem; height: 1.2rem;
+      border-radius: 50%; background: var(--warn-bg); border: 1.5px solid var(--warn);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 700; color: var(--warn); margin-top: 0.1rem;
+    }
+
+    .action-section { background: var(--ok-bg); border-radius: 10px; padding: 1rem; }
+    .action-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--ok); margin-bottom: 0.5rem;
+    }
+    .action-item {
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      margin-bottom: 0.4rem; font-size: 0.88rem;
+    }
+    .action-item:last-child { margin-bottom: 0; }
+    .action-item .num {
+      min-width: 1.4rem; width: 1.4rem; height: 1.4rem;
+      border-radius: 50%; background: var(--ok); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700; margin-top: 0.05rem;
+    }
+
+    .repair-hint {
+      margin-top: 0.8rem; padding: 0.7rem 0.9rem;
+      background: var(--ng-bg); border: 1px solid var(--ng);
+      border-radius: 8px; font-size: 0.8rem; color: var(--ng);
+    }
+
+    /* ── ブックマーク ── */
+    .bookmarks-section { display: none; }
+    .bookmarks-section.show { display: block; }
+    .bookmark-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.65rem 0.5rem; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; cursor: pointer;
+    }
+    .bookmark-item:last-child { border-bottom: none; }
+    .bookmark-item:hover { background: var(--accent-light); }
+    .bookmark-item .bm-del {
+      background: none; border: none; font-size: 1rem; cursor: pointer;
+      color: var(--text-sub); padding: 0.2rem 0.4rem;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link {
+      display: block; text-align: center;
+      margin-top: 2rem; font-size: 0.82rem;
+      color: var(--text-sub); text-decoration: none;
+    }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .category-grid { grid-template-columns: repeat(2, 1fr); }
+      .cat-btn .icon { font-size: 1.6rem; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🔧 家電トラブル診断アプリ</h1>
+    <p class="subtitle">症状から故障原因と対処法を即逆引き</p>
+  </header>
+
+  <!-- STEP 1：カテゴリ選択 -->
+  <div class="card" id="step1-card">
+    <p class="card-title">STEP 1 — 家電を選ぶ</p>
+    <div class="category-grid" id="catGrid"></div>
+  </div>
+
+  <!-- STEP 2：症状選択 -->
+  <div class="card" id="step2-card" style="display:none">
+    <p class="card-title">STEP 2 — 症状を選ぶ</p>
+    <p id="catName" style="font-weight:700;margin-bottom:0.8rem;"></p>
+    <div class="symptom-list" id="symptomList"></div>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" id="diagBtn" disabled onclick="showResult()">診断する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <div class="result-header">
+      <p class="result-title" id="resultTitle"></p>
+      <button class="fav-btn" id="favBtn" onclick="toggleFav()" title="ブックマーク">☆</button>
+    </div>
+    <div class="cause-section">
+      <p class="cause-label">⚠️ 考えられる原因</p>
+      <div id="causeList"></div>
+    </div>
+    <div class="action-section">
+      <p class="action-label">✅ 自分でできる対処法</p>
+      <div id="actionList"></div>
+    </div>
+    <div id="repairHint" class="repair-hint" style="display:none"></div>
+  </div>
+
+  <!-- リセットボタン -->
+  <button class="btn-reset" id="resetBtn" style="display:none" onclick="resetAll()">← 最初からやり直す</button>
+
+  <!-- ブックマーク -->
+  <div class="card bookmarks-section" id="bmSection">
+    <p class="card-title">⭐ ブックマーク済み症状</p>
+    <div id="bmList"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  /* ─────────────── データ定義 ─────────────── */
+  var DB = {
+    "冷蔵庫": {
+      icon: "🧊",
+      symptoms: [
+        {
+          s: "冷えない・温度が上がった",
+          causes: ["冷気の吹き出し口が食品で塞がれている","ドアパッキンの劣化・隙間","コンプレッサーの過熱（背面の通気不足）","冷媒ガス漏れ（専門修理が必要）"],
+          actions: ["吹き出し口周辺の食品を整理する","ドアをしっかり閉め直し、パッキンに汚れがないか確認する","背面・側面を壁から5cm以上離す","「急冷・強冷」モードに一時切り替えて様子を見る"],
+          repair: "上記で改善しない場合は冷媒漏れやコンプレッサー故障の可能性があります。修理の目安：8,000〜50,000円。"
+        },
+        {
+          s: "異音がする（ブーン・ガタガタ）",
+          causes: ["水平が取れていない（本体の傾き）","食品や容器が振動で当たっている","ファンに霜が付着している","コンプレッサー内部の劣化"],
+          actions: ["本体を水平に調整する（調整脚を回す）","庫内の食品・容器がドアや壁に当たっていないか確認","霜取り運転（電源を一時OFFにして24時間自然解凍）","それでも続くならメーカー相談"],
+          repair: null
+        },
+        {
+          s: "霜・氷が大量につく",
+          causes: ["ドアの閉め忘れや開閉回数が多い","ドアパッキンの劣化","自動霜取り機能の不具合"],
+          actions: ["ドアをきちんと閉めているか確認","パッキンに亀裂・汚れがないか確認し、ぬるま湯で拭く","電源を切って霜を完全に溶かしてから再起動する"],
+          repair: "自動霜取り機能（ヒーター・センサー）の故障の場合は修理が必要です。"
+        },
+        {
+          s: "水漏れする",
+          causes: ["ドレンホースの詰まり（排水できない）","製氷機の水供給管の緩み","ドア開閉による結露"],
+          actions: ["本体背面下のドレンホースに詰まりがないか確認し、水で洗い流す","製氷機の水の出入り口付近を確認し、接続がゆるければ締め直す","結露は湿度が高い時期に起こりやすいため、室内換気を改善する"],
+          repair: null
+        },
+        {
+          s: "電源が入らない",
+          causes: ["電源プラグが抜けかけている","ブレーカーが落ちている","本体の過熱保護が作動している"],
+          actions: ["コンセントとプラグをしっかり差し込み直す","ブレーカーを確認して復旧させる","電源を抜いて10分待ってから再度差し込む"],
+          repair: "それでも電源が入らない場合は基板故障の可能性があります。修理の目安：20,000〜60,000円。"
+        }
+      ]
+    },
+    "洗濯機": {
+      icon: "🫧",
+      symptoms: [
+        {
+          s: "水が入らない・排水しない",
+          causes: ["給水栓が閉まっている","給水ホースの折れ・詰まり","排水ホースの詰まり・折れ","排水フィルターの詰まり"],
+          actions: ["給水栓（蛇口）が全開になっているか確認する","ホースの折れ・曲がりを直す","排水フィルター（正面下部）を外して掃除する","排水ホースがまっすぐ伸ばされているか確認する"],
+          repair: "ポンプやバルブの故障の場合は修理が必要です。"
+        },
+        {
+          s: "洗濯物が臭い・カビ臭い",
+          causes: ["洗濯槽の内側（裏面）にカビが発生している","洗剤の入れすぎ（残留洗剤）","洗濯後の放置時間が長い"],
+          actions: ["市販の洗濯槽クリーナー（塩素系）で槽洗浄を実施する","洗剤量を適正量に減らす","洗濯終了後すぐに衣類を取り出す","蓋を開けたまま乾燥させる習慣をつける"],
+          repair: null
+        },
+        {
+          s: "異音がする（ガタガタ・ゴトゴト）",
+          causes: ["設置が水平でない","洗濯物が偏って入っている","異物（コイン・ボタン）が槽内にある","ドラムのベアリング摩耗（専門修理）"],
+          actions: ["水平器で水平を確認し、調整脚を調整する","洗濯物を均等に入れ直す","ポケットの中身を確認して異物を取り除く"],
+          repair: "異物除去・ベアリング交換が必要な場合は修理が必要です。"
+        },
+        {
+          s: "振動・揺れが激しい",
+          causes: ["設置が水平でない","防振マットが敷かれていない","洗濯物の偏り"],
+          actions: ["調整脚を調整して水平にする","防振マット・ゴム脚を敷く","洗濯物を均等に入れ直す"],
+          repair: null
+        },
+        {
+          s: "脱水できない・エラーが出る",
+          causes: ["洗濯物の偏り（バランスエラー）","フタ・ドアのセンサー誤作動","洗濯物の量が多すぎる"],
+          actions: ["洗濯物を均等に入れ直して再実行する","フタをしっかり閉め直す","洗濯物の量を減らして再実行する","エラーコードを取扱説明書で確認する"],
+          repair: null
+        }
+      ]
+    },
+    "エアコン": {
+      icon: "❄️",
+      symptoms: [
+        {
+          s: "冷えない・暖まらない",
+          causes: ["フィルターの詰まり","室外機が日当たりの悪い場所や物で塞がれている","設定温度と実際の差が小さい","冷媒ガス漏れ"],
+          actions: ["フィルターを取り外して掃除機で吸い取り、水洗いする","室外機の周囲に物を置かず、直射日光を防ぐ遮熱板を設置する","設定温度を外気温より5度以上の差にする"],
+          repair: "冷媒ガス漏れは専門業者による補充が必要です。修理の目安：15,000〜40,000円。"
+        },
+        {
+          s: "水が垂れてくる（水漏れ）",
+          causes: ["ドレンホースの詰まり（排水できない）","フィルターの詰まりによる結露増大","ドレンパンの汚れ"],
+          actions: ["ドレンホース（室外に出ている排水管）をドレンポンプ等で吸引して詰まりを取る","フィルターを掃除する","専用クリーナーでドレンホースを洗浄する"],
+          repair: "ドレンパンや配管の詰まりが深部の場合はクリーニング業者に依頼してください。"
+        },
+        {
+          s: "異臭がする（カビ・タバコ臭）",
+          causes: ["内部フィン・ファンにカビや汚れが付着","フィルターの汚れ"],
+          actions: ["フィルターを取り外して水洗いし、乾かしてから戻す","市販のエアコン用スプレークリーナーで送風口・ファン周辺を洗浄する","送風モードで数時間運転して内部を乾燥させる"],
+          repair: "深部のカビはエアコンクリーニング業者に依頼するのが効果的です（目安：10,000〜20,000円）。"
+        },
+        {
+          s: "リモコンが効かない",
+          causes: ["リモコンの電池切れ","リモコンの受光部の汚れ","リモコン本体の故障"],
+          actions: ["電池を新品に交換する","エアコン本体の受光部（前面の小窓）を乾いた布で拭く","スマートフォンのカメラでリモコンの赤外線発光を確認する（点灯すれば正常）"],
+          repair: "リモコン本体の故障はメーカーや家電量販店で代替品を購入してください（目安：1,000〜3,000円）。"
+        },
+        {
+          s: "電源が入らない・動かない",
+          causes: ["ブレーカーが落ちている","コンセントの接触不良","本体の過熱保護が作動"],
+          actions: ["ブレーカーを確認して復旧させる","コンセントを差し直す","コンセントを抜いて5分待ちリセットしてから再電源投入"],
+          repair: "基板・コンプレッサー故障の場合は修理または買い替えを検討してください。"
+        }
+      ]
+    },
+    "電子レンジ": {
+      icon: "📡",
+      symptoms: [
+        {
+          s: "温まらない・加熱が弱い",
+          causes: ["ターンテーブルが外れている","食品の配置が中央でない","マグネトロン（加熱管）の劣化"],
+          actions: ["ターンテーブルを正しく装着する","食品をターンテーブル中央に置き直す","耐熱容器に変えて再加熱する"],
+          repair: "マグネトロン故障の場合は修理か買い替えを検討してください（修理の目安：15,000〜30,000円）。"
+        },
+        {
+          s: "異音がする（ブーン・ガタガタ）",
+          causes: ["ターンテーブルの外れ・汚れ","ターンテーブルレールの汚れ","食品から出た液体が庫内に飛び散っている"],
+          actions: ["ターンテーブルを外して洗い、正しく装着し直す","レール部分の汚れをきれいに拭き取る","庫内の汚れを拭き取る"],
+          repair: null
+        },
+        {
+          s: "火花が出た・焦げ臭い",
+          causes: ["金属食器や金属箔を入れた","庫内の汚れが焦げた","マイクロ波のアーク放電"],
+          actions: ["直ちに停止し、コンセントを抜く","金属容器・アルミホイルは絶対に入れない","庫内をきれいに掃除してから再使用する"],
+          repair: "火花が出た場合は庫内をよく確認し、再度火花が出るようなら使用を中止して点検依頼してください。"
+        },
+        {
+          s: "ドアが開かない・閉まらない",
+          causes: ["ロック機構に食品の破片などが挟まっている","ヒンジの変形・破損"],
+          actions: ["ドア周囲の汚れや異物を取り除く","ドアを優しく上下に動かして引っかかりを解消する"],
+          repair: "ヒンジ・ロック機構の破損は修理が必要です。ドアが正しく閉まらない状態での使用は危険なため使用を中止してください。"
+        },
+        {
+          s: "液晶・ボタンが反応しない",
+          causes: ["一時的な電子回路の誤作動","ボタン周りの汚れ","制御基板の故障"],
+          actions: ["コンセントを抜いて1分待ってから再接続する","ボタン周りの汚れを乾いた布で拭く"],
+          repair: "それでも改善しない場合は制御基板の故障が疑われます。修理の目安：10,000〜25,000円。"
+        }
+      ]
+    },
+    "テレビ": {
+      icon: "📺",
+      symptoms: [
+        {
+          s: "映らない・画面が真っ暗",
+          causes: ["入力切替が間違っている","HDMIケーブルの接触不良","バックライトの故障"],
+          actions: ["リモコンで入力切替（HDMI・地デジ・BS）を確認する","HDMIケーブルを抜き差しし直す","電源を切って2分待ってから再起動する"],
+          repair: "バックライト・液晶パネルの故障は修理費用が高額になることが多いため、買い替えも検討してください。"
+        },
+        {
+          s: "音が出ない",
+          causes: ["消音（ミュート）になっている","音量が0になっている","外部スピーカーへの出力設定になっている","スピーカーの故障"],
+          actions: ["ミュートボタンを解除する","音量を上げる","設定メニューで音声出力先を「テレビスピーカー」に変更する"],
+          repair: null
+        },
+        {
+          s: "リモコンが効かない",
+          causes: ["リモコンの電池切れ","受光部の汚れ","リモコンの故障"],
+          actions: ["電池を新品に交換する","受光部（テレビ前面の小窓）を乾いた布で拭く","スマートフォンのカメラで赤外線の点灯を確認する"],
+          repair: "リモコン本体の故障はメーカー純正品か対応汎用リモコンを購入してください。"
+        },
+        {
+          s: "画面が点滅する・ちらつく",
+          causes: ["HDMIケーブルの接触不良","バックライトの劣化","電源ノイズ（同じコンセントに大型家電）"],
+          actions: ["HDMIケーブルを交換・差し直しする","電源タップを変えて専用コンセントにつなぐ","電源を切って数分後に再起動する"],
+          repair: "バックライト・基板の劣化は修理または買い替えを検討してください。"
+        },
+        {
+          s: "電源が入らない",
+          causes: ["コンセントの接触不良","ブレーカーが落ちている","本体の故障"],
+          actions: ["コンセントを差し直す","ブレーカーを確認する","主電源ボタン（本体側）を長押ししてリセットする"],
+          repair: "それでも改善しない場合は基板故障の可能性があります。メーカーに問い合わせてください。"
+        }
+      ]
+    },
+    "給湯器": {
+      icon: "🚿",
+      symptoms: [
+        {
+          s: "お湯が出ない",
+          causes: ["ガスの元栓が閉まっている","ガスの供給が止まっている（ガス会社側）","給湯器がエラー表示している"],
+          actions: ["ガスの元栓が開いているか確認する","他のガス機器（コンロ等）が使えるか確認する","給湯器のエラーコードをリモコンで確認し、取扱説明書で対処法を調べる","リセットボタンを押して再起動する"],
+          repair: "エラーが解消しない場合はガス会社またはメーカーに連絡してください。"
+        },
+        {
+          s: "お湯の温度が不安定",
+          causes: ["シャワーヘッド・蛇口のフィルター詰まり","給水圧力の変動","給湯器の温度センサー不具合"],
+          actions: ["シャワーヘッドや混合水栓のフィルターを掃除する","他の水栓を同時に使わないようにする","設定温度を少し上げてみる"],
+          repair: "温度センサーや制御基板の不具合は専門業者に点検を依頼してください。"
+        },
+        {
+          s: "異音がする（ゴーゴー・パチパチ）",
+          causes: ["配管内の空気（エア噛み）","水量が多すぎる","バーナーの汚れ（パチパチ音）"],
+          actions: ["蛇口を全開にして空気を抜く","お湯の量・圧力を少し絞ってみる"],
+          repair: "パチパチ音が続く場合はバーナーや点火部品の劣化が考えられます。専門業者に点検を依頼してください。"
+        },
+        {
+          s: "エラーコードが表示される",
+          causes: ["各種センサーの異常","ガス圧の不足","部品の劣化"],
+          actions: ["リモコンに表示されたエラーコードをメモする","取扱説明書の「エラーコード一覧」で対処法を確認する","リセットボタンを1回押して様子を見る"],
+          repair: "エラーが繰り返す場合はメーカーサポートまたはガス会社に連絡してください。エラーコードをあわせて伝えると対応がスムーズです。"
+        },
+        {
+          s: "ガスの臭いがする",
+          causes: ["ガス漏れ","給湯器周辺の配管緩み"],
+          actions: ["直ちに給湯器・ガスコンロを止める","窓を開けて換気する","ガスの元栓を閉める","ガス会社（緊急連絡先）にすぐ連絡する"],
+          repair: "ガス漏れは非常に危険です。火気厳禁・換気・ガス会社への緊急連絡を最優先にしてください。"
+        }
+      ]
+    }
+  };
+
+  /* ─────────────── 状態管理 ─────────────── */
+  var selectedCat = null;
+  var selectedSymptomIdx = null;
+
+  /* ─────────────── 初期化 ─────────────── */
+  function init() {
+    var grid = document.getElementById('catGrid');
+    grid.innerHTML = '';
+    Object.keys(DB).forEach(function(cat) {
+      var btn = document.createElement('button');
+      btn.className = 'cat-btn';
+      btn.innerHTML = '<span class="icon">' + DB[cat].icon + '</span>' + cat;
+      btn.onclick = function() { selectCat(cat, btn); };
+      grid.appendChild(btn);
+    });
+    renderBookmarks();
+  }
+
+  function selectCat(cat, btn) {
+    // ボタンのアクティブ状態
+    document.querySelectorAll('.cat-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+
+    selectedCat = cat;
+    selectedSymptomIdx = null;
+
+    // 症状リスト表示
+    document.getElementById('catName').textContent = DB[cat].icon + ' ' + cat + ' の症状';
+    var list = document.getElementById('symptomList');
+    list.innerHTML = '';
+    DB[cat].symptoms.forEach(function(sym, idx) {
+      var sb = document.createElement('button');
+      sb.className = 'symptom-btn';
+      sb.textContent = sym.s;
+      sb.onclick = function() { selectSymptom(idx, sb); };
+      list.appendChild(sb);
+    });
+    document.getElementById('step2-card').style.display = '';
+    document.getElementById('diagBtn').disabled = true;
+
+    // 結果を隠す
+    document.getElementById('resultCard').classList.remove('show');
+    document.getElementById('resetBtn').style.display = 'none';
+  }
+
+  function selectSymptom(idx, btn) {
+    document.querySelectorAll('.symptom-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    selectedSymptomIdx = idx;
+    document.getElementById('diagBtn').disabled = false;
+  }
+
+  function showResult() {
+    if (selectedCat === null || selectedSymptomIdx === null) return;
+    var data = DB[selectedCat].symptoms[selectedSymptomIdx];
+
+    document.getElementById('resultTitle').textContent = DB[selectedCat].icon + ' ' + selectedCat + '：' + data.s;
+
+    // 原因
+    var causeHTML = data.causes.map(function(c, i) {
+      return '<div class="cause-item"><span class="bullet">' + (i+1) + '</span><span>' + c + '</span></div>';
+    }).join('');
+    document.getElementById('causeList').innerHTML = causeHTML;
+
+    // 対処法
+    var actionHTML = data.actions.map(function(a, i) {
+      return '<div class="action-item"><span class="num">' + (i+1) + '</span><span>' + a + '</span></div>';
+    }).join('');
+    document.getElementById('actionList').innerHTML = actionHTML;
+
+    // 修理ヒント
+    var rh = document.getElementById('repairHint');
+    if (data.repair) {
+      rh.textContent = '🛠️ ' + data.repair;
+      rh.style.display = '';
+    } else {
+      rh.style.display = 'none';
+    }
+
+    // ブックマークボタン
+    updateFavBtn();
+
+    document.getElementById('resultCard').classList.add('show');
+    document.getElementById('resetBtn').style.display = '';
+
+    // スクロール
+    document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function resetAll() {
+    document.querySelectorAll('.cat-btn').forEach(function(b) { b.classList.remove('active'); });
+    selectedCat = null;
+    selectedSymptomIdx = null;
+    document.getElementById('step2-card').style.display = 'none';
+    document.getElementById('resultCard').classList.remove('show');
+    document.getElementById('resetBtn').style.display = 'none';
+    document.getElementById('diagBtn').disabled = true;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ─────────────── ブックマーク ─────────────── */
+  var BM_KEY = 'kaden_bm_v1';
+
+  function getBookmarks() {
+    try { return JSON.parse(localStorage.getItem(BM_KEY)) || []; }
+    catch(e) { return []; }
+  }
+  function saveBookmarks(bms) {
+    localStorage.setItem(BM_KEY, JSON.stringify(bms));
+  }
+
+  function bmId() {
+    return selectedCat + '::' + selectedSymptomIdx;
+  }
+
+  function isFaved() {
+    return getBookmarks().some(function(b) { return b.id === bmId(); });
+  }
+
+  function updateFavBtn() {
+    document.getElementById('favBtn').textContent = isFaved() ? '★' : '☆';
+  }
+
+  function toggleFav() {
+    var bms = getBookmarks();
+    var id = bmId();
+    var idx = bms.findIndex(function(b) { return b.id === id; });
+    if (idx >= 0) {
+      bms.splice(idx, 1);
+    } else {
+      var data = DB[selectedCat].symptoms[selectedSymptomIdx];
+      bms.push({ id: id, cat: selectedCat, symIdx: selectedSymptomIdx, label: DB[selectedCat].icon + ' ' + selectedCat + '：' + data.s });
+    }
+    saveBookmarks(bms);
+    updateFavBtn();
+    renderBookmarks();
+  }
+
+  function renderBookmarks() {
+    var bms = getBookmarks();
+    var sec = document.getElementById('bmSection');
+    var list = document.getElementById('bmList');
+    if (bms.length === 0) {
+      sec.classList.remove('show');
+      return;
+    }
+    sec.classList.add('show');
+    list.innerHTML = bms.map(function(b) {
+      return '<div class="bookmark-item" onclick="jumpToBm(\'' + b.id + '\')">'
+        + '<span>' + b.label + '</span>'
+        + '<button class="bm-del" onclick="delBm(event, \'' + b.id + '\')">✕</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function jumpToBm(id) {
+    var parts = id.split('::');
+    var cat = parts[0];
+    var symIdx = parseInt(parts[1]);
+    // カテゴリボタンを探してクリック
+    var catBtns = document.querySelectorAll('.cat-btn');
+    var catKeys = Object.keys(DB);
+    var catIdx = catKeys.indexOf(cat);
+    if (catIdx >= 0 && catBtns[catIdx]) {
+      selectCat(cat, catBtns[catIdx]);
+      // 少し待ってから症状を選択
+      setTimeout(function() {
+        var symBtns = document.querySelectorAll('.symptom-btn');
+        if (symBtns[symIdx]) {
+          selectSymptom(symIdx, symBtns[symIdx]);
+          showResult();
+        }
+      }, 100);
+    }
+  }
+
+  function delBm(e, id) {
+    e.stopPropagation();
+    var bms = getBookmarks().filter(function(b) { return b.id !== id; });
+    saveBookmarks(bms);
+    if (selectedCat !== null && bmId() === id) updateFavBtn();
+    renderBookmarks();
+  }
+
+  /* ─────────────── 起動 ─────────────── */
+  init();
+  </script>
+
+</body>
+</html>

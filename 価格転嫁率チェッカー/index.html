@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>価格転嫁率チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 入力グリッド ── */
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .field-row .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-save {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.75rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-save:hover { background: var(--accent-light); }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .summary-item {
+      background: var(--accent-light);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.75rem;
+      text-align: center;
+    }
+    .summary-item .s-label { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.25rem; }
+    .summary-item .s-value { font-size: 1.15rem; font-weight: 800; color: var(--accent); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 履歴カード ── */
+    .hist-item {
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .hist-item:last-child { border-bottom: none; }
+    .hist-info { flex: 1; }
+    .hist-name { font-size: 0.88rem; font-weight: 700; }
+    .hist-sub { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .hist-badge {
+      font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.55rem;
+      border-radius: 99px; white-space: nowrap;
+    }
+    .hist-badge.ok   { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok); }
+    .hist-badge.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .hist-badge.ng   { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng); }
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1rem; padding: 0.25rem;
+      flex-shrink: 0;
+    }
+    .btn-del:hover { color: var(--ng); }
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>価格転嫁率チェッカー</h1>
+    <p class="subtitle">コスト上昇分のうちいくらを価格に転嫁すべきかを即判断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="itemName">品目名（任意）</label>
+      <input type="text" id="itemName" placeholder="例: A商品">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="costCurrent">現在の仕入れ原価（円）</label>
+        <input type="number" id="costCurrent" placeholder="例: 800" min="0">
+      </div>
+      <div class="field">
+        <label for="costRise">コスト上昇額（円）</label>
+        <input type="number" id="costRise" placeholder="例: 100" min="0">
+        <p class="hint">仕入れ値の増加分</p>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="priceNow">現在の売価（円）</label>
+        <input type="number" id="priceNow" placeholder="例: 1000" min="0">
+      </div>
+      <div class="field">
+        <label for="targetMargin">目標粗利率（%）</label>
+        <input type="number" id="targetMargin" placeholder="例: 20" min="0" max="100">
+        <p class="hint">維持したい粗利率</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">転嫁率を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- サマリーグリッド -->
+  <div class="card" id="summaryCard" style="display:none">
+    <p class="card-title">転嫁サマリー</p>
+    <div class="summary-grid" id="summaryGrid"></div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 保存ボタン -->
+  <button class="btn-save" id="btnSave" style="display:none" onclick="saveItem()">この結果を保存する</button>
+
+  <!-- 履歴カード -->
+  <div class="card" id="histCard">
+    <p class="card-title">保存済み品目</p>
+    <div id="histList"><p class="empty-msg">まだ保存されていません</p></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'kakaku_tenka_rate_checker_v1';
+  var lastResult = null;
+
+  function calc() {
+    var name       = document.getElementById('itemName').value.trim() || '品目';
+    var costCur    = parseFloat(document.getElementById('costCurrent').value);
+    var costRise   = parseFloat(document.getElementById('costRise').value);
+    var priceNow   = parseFloat(document.getElementById('priceNow').value);
+    var targetPct  = parseFloat(document.getElementById('targetMargin').value);
+
+    if (isNaN(costCur) || isNaN(costRise) || isNaN(priceNow) || isNaN(targetPct)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (costRise <= 0) { showErr('コスト上昇額は0より大きい値を入力してください'); return; }
+    if (priceNow <= 0) { showErr('現在の売価は0より大きい値を入力してください'); return; }
+    if (targetPct < 0 || targetPct >= 100) { showErr('目標粗利率は0〜99の間で入力してください'); return; }
+
+    var targetRate  = targetPct / 100;
+    var newCost     = costCur + costRise;               // 新仕入れ原価
+    var minNewPrice = newCost / (1 - targetRate);       // 目標粗利を守る最低新売価
+    var needTenka   = Math.max(0, minNewPrice - priceNow); // 必要転嫁額
+    var tenkaRate   = (needTenka / costRise) * 100;     // 転嫁率(%)
+
+    // 各種粗利率
+    var curMargin   = ((priceNow - costCur)  / priceNow)  * 100; // 現在粗利率
+    var noTenka     = ((priceNow - newCost)  / priceNow)  * 100; // 据え置き粗利率
+    var withTenka   = targetPct;                                  // 転嫁後粗利率=目標
+
+    // 判定
+    var level, label, note;
+    if (needTenka <= 0) {
+      level = 'ok';
+      label = '据え置き可';
+      note  = '現在の売価を変えなくても目標粗利率を維持できます。コスト吸収の余地があります。';
+    } else if (tenkaRate < 50) {
+      level = 'ok';
+      label = '少額転嫁で対応可';
+      note  = 'コスト上昇の一部（' + tenkaRate.toFixed(0) + '%）を転嫁するだけで目標粗利率を維持できます。';
+    } else if (tenkaRate < 100) {
+      level = 'warn';
+      label = '一部転嫁が必要';
+      note  = 'コスト上昇の約' + tenkaRate.toFixed(0) + '%を価格転嫁する必要があります。値上げ交渉を検討してください。';
+    } else {
+      level = 'ng';
+      label = '完全転嫁が必要';
+      note  = 'コスト上昇をそのまま（またはそれ以上）転嫁しないと目標粗利率を維持できません。早急な対応が必要です。';
+    }
+
+    showResult(level, label, note);
+    showSummary([
+      ['必要転嫁額', fmt(needTenka) + '円'],
+      ['転嫁率', tenkaRate.toFixed(1) + '%'],
+      ['転嫁後売価', fmt(priceNow + needTenka) + '円'],
+      ['据え置き粗利率', noTenka.toFixed(1) + '%'],
+    ]);
+    showDetail([
+      ['現在の仕入れ原価',     fmt(costCur)    + '円'],
+      ['コスト上昇額',         '+' + fmt(costRise) + '円'],
+      ['新仕入れ原価',         fmt(newCost)    + '円'],
+      ['現在の売価',           fmt(priceNow)   + '円'],
+      ['現在の粗利率',         curMargin.toFixed(1) + '%'],
+      ['据え置き時の新粗利率', noTenka.toFixed(1) + '%'],
+      ['目標粗利率',           targetPct.toFixed(1) + '%'],
+      ['必要最低新売価',       fmt(minNewPrice) + '円', true],
+      ['必要転嫁額',           fmt(needTenka) + '円', true],
+    ]);
+
+    lastResult = { name: name, level: level, label: label, tenkaRate: tenkaRate, needTenka: needTenka, priceNow: priceNow, costRise: costRise, targetPct: targetPct };
+    document.getElementById('btnSave').style.display = '';
+  }
+
+  function saveItem() {
+    if (!lastResult) return;
+    var items = loadItems();
+    items.push({
+      id: Date.now(),
+      name: lastResult.name,
+      level: lastResult.level,
+      label: lastResult.label,
+      tenkaRate: lastResult.tenkaRate,
+      needTenka: lastResult.needTenka,
+      priceNow: lastResult.priceNow,
+      costRise: lastResult.costRise,
+      targetPct: lastResult.targetPct
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    renderHistory();
+    document.getElementById('btnSave').textContent = '保存しました ✓';
+    setTimeout(function(){ document.getElementById('btnSave').textContent = 'この結果を保存する'; }, 1500);
+  }
+
+  function delItem(id) {
+    var items = loadItems().filter(function(x){ return x.id !== id; });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    renderHistory();
+  }
+
+  function loadItems() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { return []; }
+  }
+
+  function renderHistory() {
+    var items = loadItems();
+    var el = document.getElementById('histList');
+    if (!items.length) { el.innerHTML = '<p class="empty-msg">まだ保存されていません</p>'; return; }
+    el.innerHTML = items.slice().reverse().map(function(x) {
+      return '<div class="hist-item">'
+        + '<div class="hist-info">'
+        + '<div class="hist-name">' + esc(x.name) + '</div>'
+        + '<div class="hist-sub">転嫁率 ' + x.tenkaRate.toFixed(1) + '% ／ 必要転嫁額 ' + fmt(x.needTenka) + '円 ／ 目標粗利 ' + x.targetPct + '%</div>'
+        + '</div>'
+        + '<span class="hist-badge ' + x.level + '">' + esc(x.label) + '</span>'
+        + '<button class="btn-del" onclick="delItem(' + x.id + ')" title="削除">✕</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showSummary(items) {
+    document.getElementById('summaryGrid').innerHTML = items.map(function(r){
+      return '<div class="summary-item"><div class="s-label">' + r[0] + '</div><div class="s-value">' + r[1] + '</div></div>';
+    }).join('');
+    document.getElementById('summaryCard').style.display = '';
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('summaryCard').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('btnSave').style.display = 'none';
+    lastResult = null;
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

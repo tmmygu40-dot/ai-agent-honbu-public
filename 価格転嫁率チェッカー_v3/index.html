@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>価格転嫁率チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.8rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: #fff; color: var(--accent);
+      border: 2px dashed var(--accent); border-radius: var(--radius); cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-add:hover { background: var(--accent-light); }
+
+    .btn-del {
+      background: none; border: none; color: var(--ng); cursor: pointer;
+      font-size: 0.85rem; font-weight: 600; padding: 0.3rem 0.5rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 品目入力グループ ── */
+    .item-group {
+      background: var(--bg); border-radius: 10px;
+      padding: 1rem; margin-bottom: 1rem;
+      position: relative;
+    }
+    .item-group:last-child { margin-bottom: 0; }
+    .item-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.8rem;
+    }
+    .item-header strong { font-size: 0.88rem; color: var(--accent); }
+    .item-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem;
+    }
+    .item-row .field { margin-bottom: 0.6rem; }
+    .item-row .field label { font-size: 0.75rem; }
+    .item-row .field input { padding: 0.55rem 0.7rem; font-size: 0.92rem; }
+
+    /* ── 結果一覧テーブル ── */
+    .result-table-wrap {
+      display: none; max-width: 600px; margin: 0 auto 1rem;
+      overflow-x: auto;
+    }
+    .result-table {
+      width: 100%; border-collapse: collapse; font-size: 0.82rem;
+      background: var(--card); border-radius: var(--radius);
+      overflow: hidden; box-shadow: var(--shadow);
+    }
+    .result-table th {
+      background: var(--accent); color: #fff; font-weight: 700;
+      padding: 0.65rem 0.5rem; text-align: center; font-size: 0.75rem;
+      white-space: nowrap;
+    }
+    .result-table td {
+      padding: 0.6rem 0.5rem; text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    .result-table td:first-child { text-align: left; font-weight: 600; }
+    .result-table tr:last-child td { border-bottom: none; }
+    .result-table .row-ok td { background: var(--ok-bg); }
+    .result-table .row-warn td { background: var(--warn-bg); }
+    .result-table .row-ng td { background: var(--ng-bg); }
+    .result-table .total-row td {
+      font-weight: 800; border-top: 2px solid var(--accent);
+      background: var(--accent-light);
+    }
+
+    .tag {
+      display: inline-block; padding: 0.15rem 0.5rem; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 700; color: #fff;
+    }
+    .tag-ok { background: var(--ok); }
+    .tag-warn { background: var(--warn); }
+    .tag-ng { background: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>価格転嫁率チェッカー</h1>
+    <p class="subtitle">仕入れ値上昇を売価に転嫁できているか品目別に即チェック</p>
+  </header>
+
+  <!-- 品目入力カード -->
+  <div class="card" id="inputCard">
+    <p class="card-title">品目入力</p>
+    <div id="itemList"></div>
+  </div>
+
+  <button class="btn-add" onclick="addItem()">＋ 品目を追加</button>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">転嫁率をチェック</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">合計転嫁不足額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 品目別結果テーブル -->
+  <div class="result-table-wrap" id="tableWrap">
+    <table class="result-table">
+      <thead>
+        <tr>
+          <th>品目名</th>
+          <th>仕入れ値上昇</th>
+          <th>売価値上げ</th>
+          <th>転嫁率</th>
+          <th>不足額</th>
+          <th>判定</th>
+        </tr>
+      </thead>
+      <tbody id="resultBody"></tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var items = [];
+  var LS_KEY = 'price_pass_through_checker_v3';
+
+  function loadData() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      if (d && Array.isArray(d)) { items = d; }
+    } catch(e) {}
+    if (items.length === 0) { items.push(emptyItem()); }
+    renderItems();
+  }
+
+  function saveData() {
+    readItemsFromDOM();
+    localStorage.setItem(LS_KEY, JSON.stringify(items));
+  }
+
+  function emptyItem() {
+    return { name: '', oldCost: '', newCost: '', oldPrice: '', newPrice: '' };
+  }
+
+  function addItem() {
+    readItemsFromDOM();
+    items.push(emptyItem());
+    renderItems();
+  }
+
+  function removeItem(idx) {
+    readItemsFromDOM();
+    if (items.length <= 1) return;
+    items.splice(idx, 1);
+    renderItems();
+    saveData();
+  }
+
+  function readItemsFromDOM() {
+    var groups = document.querySelectorAll('.item-group');
+    items = [];
+    for (var i = 0; i < groups.length; i++) {
+      var inputs = groups[i].querySelectorAll('input');
+      items.push({
+        name: inputs[0].value,
+        oldCost: inputs[1].value,
+        newCost: inputs[2].value,
+        oldPrice: inputs[3].value,
+        newPrice: inputs[4].value
+      });
+    }
+  }
+
+  function renderItems() {
+    var html = '';
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      html += '<div class="item-group">'
+        + '<div class="item-header"><strong>品目 ' + (i+1) + '</strong>'
+        + (items.length > 1 ? '<button class="btn-del" onclick="removeItem('+i+')">削除</button>' : '')
+        + '</div>'
+        + '<div class="item-row">'
+        + '<div class="field" style="grid-column:1/-1"><label>品目名</label><input type="text" value="' + esc(it.name) + '" placeholder="例: 小麦粉"></div>'
+        + '<div class="field"><label>旧仕入れ値（円）</label><input type="number" value="' + esc(it.oldCost) + '" placeholder="例: 800"></div>'
+        + '<div class="field"><label>新仕入れ値（円）</label><input type="number" value="' + esc(it.newCost) + '" placeholder="例: 960"></div>'
+        + '<div class="field"><label>旧売価（円）</label><input type="number" value="' + esc(it.oldPrice) + '" placeholder="例: 1200"></div>'
+        + '<div class="field"><label>新売価（円）</label><input type="number" value="' + esc(it.newPrice) + '" placeholder="例: 1320"></div>'
+        + '</div></div>';
+    }
+    document.getElementById('itemList').innerHTML = html;
+  }
+
+  function esc(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function calc() {
+    readItemsFromDOM();
+    saveData();
+
+    var results = [];
+    var totalShortfall = 0;
+    var totalCostUp = 0;
+    var totalPriceUp = 0;
+    var hasError = false;
+
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      var name = it.name || ('品目' + (i+1));
+      var oldCost = parseFloat(it.oldCost);
+      var newCost = parseFloat(it.newCost);
+      var oldPrice = parseFloat(it.oldPrice);
+      var newPrice = parseFloat(it.newPrice);
+
+      if (isNaN(oldCost) || isNaN(newCost) || isNaN(oldPrice) || isNaN(newPrice)) {
+        hasError = true;
+        continue;
+      }
+
+      var costUp = newCost - oldCost;
+      var priceUp = newPrice - oldPrice;
+      var rate = costUp > 0 ? (priceUp / costUp * 100) : (priceUp >= 0 ? 100 : 0);
+      var shortfall = costUp > 0 ? Math.max(0, costUp - priceUp) : 0;
+
+      totalCostUp += costUp;
+      totalPriceUp += priceUp;
+      totalShortfall += shortfall;
+
+      var level = rate >= 100 ? 'ok' : rate >= 70 ? 'warn' : 'ng';
+      results.push({ name: name, costUp: costUp, priceUp: priceUp, rate: rate, shortfall: shortfall, level: level });
+    }
+
+    if (results.length === 0) {
+      var rc = document.getElementById('result');
+      rc.className = 'result-card ng'; rc.style.display = '';
+      document.getElementById('rv').textContent = '⚠️';
+      document.getElementById('rn').textContent = '全品目の数値を入力してください';
+      document.getElementById('tableWrap').style.display = 'none';
+      return;
+    }
+
+    var totalRate = totalCostUp > 0 ? (totalPriceUp / totalCostUp * 100) : 100;
+    var overallLevel = totalRate >= 100 ? 'ok' : totalRate >= 70 ? 'warn' : 'ng';
+    var overallMsg = overallLevel === 'ok' ? '仕入れ値上昇分を十分に転嫁できています'
+                   : overallLevel === 'warn' ? '転嫁が不十分な品目があります。売価の見直しを検討してください'
+                   : '転嫁不足が大きい状況です。早急に売価改定を検討してください';
+
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + overallLevel; rc.style.display = '';
+    document.getElementById('rv').textContent = fmt(totalShortfall) + ' 円';
+    document.getElementById('rn').textContent = overallMsg + (hasError ? '\n（未入力の品目はスキップしました）' : '');
+
+    // テーブル
+    var tbody = '';
+    for (var j = 0; j < results.length; j++) {
+      var r = results[j];
+      var tagClass = r.level === 'ok' ? 'tag-ok' : r.level === 'warn' ? 'tag-warn' : 'tag-ng';
+      var tagText = r.level === 'ok' ? '十分' : r.level === 'warn' ? '注意' : '不足';
+      tbody += '<tr class="row-' + r.level + '">'
+        + '<td>' + esc(r.name) + '</td>'
+        + '<td>' + fmt(r.costUp) + ' 円</td>'
+        + '<td>' + fmt(r.priceUp) + ' 円</td>'
+        + '<td>' + r.rate.toFixed(1) + '%</td>'
+        + '<td>' + fmt(r.shortfall) + ' 円</td>'
+        + '<td><span class="tag ' + tagClass + '">' + tagText + '</span></td>'
+        + '</tr>';
+    }
+    // 合計行
+    tbody += '<tr class="total-row">'
+      + '<td>合計</td>'
+      + '<td>' + fmt(totalCostUp) + ' 円</td>'
+      + '<td>' + fmt(totalPriceUp) + ' 円</td>'
+      + '<td>' + totalRate.toFixed(1) + '%</td>'
+      + '<td>' + fmt(totalShortfall) + ' 円</td>'
+      + '<td><span class="tag ' + (overallLevel === 'ok' ? 'tag-ok' : overallLevel === 'warn' ? 'tag-warn' : 'tag-ng') + '">'
+      + (overallLevel === 'ok' ? '十分' : overallLevel === 'warn' ? '注意' : '不足') + '</span></td>'
+      + '</tr>';
+
+    document.getElementById('resultBody').innerHTML = tbody;
+    document.getElementById('tableWrap').style.display = '';
+  }
+
+  // 入力変更時に自動保存
+  document.getElementById('inputCard').addEventListener('input', function() { saveData(); });
+
+  loadData();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
