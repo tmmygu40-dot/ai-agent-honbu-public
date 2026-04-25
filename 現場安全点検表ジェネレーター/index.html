@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>現場安全点検表ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card); border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem; margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem; font-size: 1rem;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+    /* チェックリスト */
+    .checklist-card {
+      display: none; background: var(--card); border: 2px solid var(--ok);
+      border-radius: var(--radius); padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px;
+    }
+    .checklist-header { margin-bottom: 1rem; }
+    .checklist-header h2 { font-size: 1rem; font-weight: 900; }
+    .checklist-header .meta { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .section-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.05em; margin: 1rem 0 0.5rem;
+      padding-bottom: 0.3rem; border-bottom: 1px solid var(--border);
+    }
+    /* チェックアイテム */
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.7rem;
+      padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; margin-top: 2px; }
+    .check-item .check-text { font-size: 0.88rem; color: var(--text); line-height: 1.5; }
+    .check-item input[type="checkbox"]:checked ~ .check-text {
+      text-decoration: line-through; color: var(--text-sub); opacity: 0.6;
+    }
+    /* 進捗バー */
+    .progress-wrap { margin: 0.8rem 0; }
+    .progress-label { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.3rem; display: flex; justify-content: space-between; }
+    .progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--ok); border-radius: 4px; transition: width 0.3s; }
+    .all-ok-msg {
+      display: none; text-align: center; padding: 0.6rem;
+      background: var(--ok-bg); color: var(--ok);
+      font-weight: 700; font-size: 0.9rem; border-radius: 8px; margin-top: 0.5rem;
+    }
+    .btn-reset {
+      display: block; width: 100%; padding: 0.6rem;
+      font-size: 0.82rem; font-weight: 700; margin-top: 0.8rem;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer;
+    }
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .card, .btn-calc, .btn-reset, .back-link, #fav-widget, .no-print { display: none !important; }
+      .checklist-card { display: block !important; box-shadow: none; border: 1px solid #ccc; border-radius: 0; }
+      .check-item input[type="checkbox"] { display: inline; }
+      @page { margin: 12mm; }
+    }
+    @media (max-width: 480px) { .row2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>現場安全点検表ジェネレーター</h1>
+    <p class="subtitle">現場種別を選ぶだけで安全点検チェックリストを即生成</p>
+  </header>
+
+  <div class="card">
+    <p class="card-title">現場情報</p>
+    <div class="field">
+      <label for="siteType">現場の種類</label>
+      <select id="siteType">
+        <option value="factory">工場（製造・加工）</option>
+        <option value="warehouse">倉庫・物流センター</option>
+        <option value="construction">建設現場（土木・建築）</option>
+        <option value="food">食品製造・飲食厨房</option>
+        <option value="office">オフィス・事務所</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="siteName">現場名（任意）</label>
+        <input type="text" id="siteName" placeholder="例：第1工場">
+      </div>
+      <div class="field">
+        <label for="inspector">点検者名（任意）</label>
+        <input type="text" id="inspector" placeholder="例：山田太郎">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">点検表を生成する</button>
+
+  <div class="checklist-card" id="checklistCard">
+    <div class="checklist-header">
+      <h2 id="clTitle">安全点検チェックリスト</h2>
+      <div class="meta" id="clMeta"></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>点検進捗</span><span id="progressText">0 / 0</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+    <div id="clBody"></div>
+    <div class="all-ok-msg" id="allOkMsg">✅ 全項目の点検が完了しました！</div>
+    <button class="btn-reset no-print" onclick="resetAll()">チェックをリセット</button>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var CHECKLISTS = {
+    factory: {
+      title: '工場（製造・加工）安全点検表',
+      sections: [
+        { name: '設備・機械', items: [
+          '機械の安全カバー・ガードが正常に取り付けられているか',
+          '緊急停止ボタンが正常に動作するか確認した',
+          '回転部・挟まれ箇所に異物・異音がないか',
+          '油漏れ・水漏れ・煙が発生していないか',
+          '電気配線の被覆に損傷・たこ足配線がないか',
+        ]},
+        { name: '作業環境', items: [
+          '通路・非常口に障害物がないか',
+          '換気・排気設備が正常に稼働しているか',
+          '照明が十分で暗い場所がないか',
+          '床に油・水・異物が散らかっていないか（滑り防止）',
+          '騒音・振動が許容範囲内か',
+        ]},
+        { name: '保護具・消防', items: [
+          '作業者が適切な保護具（ヘルメット・手袋・安全靴）を着用しているか',
+          '消火器の設置場所・有効期限を確認した',
+          'AEDの設置場所・点検日を確認した',
+          '化学物質（薬品等）の保管場所・表示が適切か',
+        ]},
+        { name: '整理整頓（5S）', items: [
+          '不要品が作業場に放置されていないか',
+          '工具・部品が所定の場所に保管されているか',
+          'ゴミ・廃棄物が適切に処理されているか',
+        ]},
+      ]
+    },
+    warehouse: {
+      title: '倉庫・物流センター安全点検表',
+      sections: [
+        { name: 'フォークリフト・荷役', items: [
+          'フォークリフトの始業前点検を実施したか（オイル・タイヤ・ホーン等）',
+          'フォークリフトの運転者が有資格者か確認した',
+          '荷積み・荷卸し時に安全確認をしているか',
+          '荷崩れ防止措置（バンド・ラップ等）が施されているか',
+          '制限速度の表示が見えやすい場所にあるか',
+        ]},
+        { name: '棚・ラック', items: [
+          'ラックの傾き・歪み・ボルトの緩みがないか',
+          '棚の積載制限を超えた荷物が積まれていないか',
+          '高所保管品の落下防止措置があるか',
+          'ラックに損傷や衝突跡がないか',
+        ]},
+        { name: '通路・環境', items: [
+          '荷物が通路や緊急出口をふさいでいないか',
+          '床面に段差・穴・亀裂がないか',
+          '照明が十分で死角がないか',
+          '温度・湿度管理が適切か（冷蔵・冷凍倉庫の場合含む）',
+        ]},
+        { name: '消防・防犯', items: [
+          '消火器・スプリンクラーの周囲に障害物がないか',
+          '防犯カメラ・アラームが正常に動作しているか',
+        ]},
+      ]
+    },
+    construction: {
+      title: '建設現場（土木・建築）安全点検表',
+      sections: [
+        { name: '仮設設備', items: [
+          '足場の組み立て状態に緩み・欠損がないか',
+          '手すり・幅木が所定の高さで設置されているか',
+          '昇降設備（梯子・階段）が安全に設置されているか',
+          '開口部・孔に転落防止カバー・手すりがあるか',
+          '仮設電気の配線に損傷・漏電の危険がないか',
+        ]},
+        { name: '重機・機械', items: [
+          '重機の作業半径内に立入禁止措置があるか',
+          '重機オペレーターと誘導者の連絡手段が確立されているか',
+          '機械の点検記録が最新か',
+        ]},
+        { name: '作業者・保護具', items: [
+          '全作業者がヘルメット・安全帯・安全靴を着用しているか',
+          '高所作業者の安全帯が適切に取り付けられているか',
+          '新規入場者への安全教育が実施されているか',
+          '作業主任者が現場にいるか確認した',
+        ]},
+        { name: '現場環境', items: [
+          '土留め・山留めに異常がないか（掘削現場）',
+          '資材置き場が整理されており転倒・落下の危険がないか',
+          '近隣への騒音・振動・粉じん対策が取られているか',
+          '気象状況（強風・降雨）を確認し作業可否を判断したか',
+        ]},
+      ]
+    },
+    food: {
+      title: '食品製造・飲食厨房安全点検表',
+      sections: [
+        { name: '衛生管理', items: [
+          '入室前の手洗い・消毒が徹底されているか',
+          '作業着・帽子・マスクを着用しているか',
+          '食材の温度管理（冷蔵・冷凍）が適切か',
+          '調理器具・容器の洗浄・消毒が行われているか',
+          '異物混入防止（宝石類の取り外し・網・トング使用）が徹底されているか',
+        ]},
+        { name: '機器・設備', items: [
+          'フライヤー・オーブン等の過熱防止機能が正常か',
+          'ガスの元栓・ホースに漏れ・損傷がないか',
+          '換気扇・排気フードが正常に稼働しているか',
+          '包丁・スライサー等の刃物が適切に保管されているか',
+        ]},
+        { name: '防火・防災', items: [
+          '消火器の設置場所・有効期限を確認した',
+          'スプリンクラー・火災報知機の周囲に障害物がないか',
+          '厨房内の油脂汚れが蓄積していないか（火災防止）',
+        ]},
+        { name: '食品表示・保存', items: [
+          '食材に賞味期限・開封日の表示があるか',
+          'アレルゲン管理が適切か（使用器具の分離等）',
+        ]},
+      ]
+    },
+    office: {
+      title: 'オフィス・事務所安全点検表',
+      sections: [
+        { name: '電気・設備', items: [
+          'たこ足配線・電源コードの断線・被覆損傷がないか',
+          'コンセント周辺に可燃物が置かれていないか',
+          'OA機器から異音・異臭・過熱が発生していないか',
+          '空調フィルターの清掃状況を確認した',
+        ]},
+        { name: '転倒・落下防止', items: [
+          '書棚・ロッカーが壁や床に固定されているか（耐震対策）',
+          '通路に荷物が放置されていないか',
+          '床面にコードが露出して引っかかる危険がないか',
+          '高い棚に重い物が置かれていないか',
+        ]},
+        { name: '消防・防犯', items: [
+          '消火器の設置場所・有効期限を確認した',
+          '非常口・避難経路に障害物がないか',
+          '防犯錠・入退室管理が適切に機能しているか',
+          '個人情報・機密文書が施錠保管されているか',
+        ]},
+        { name: '健康・環境', items: [
+          '照明が十分で目の疲れを防ぐ環境か',
+          '室温・湿度が適切か（18〜28℃、40〜70%目安）',
+          'AEDの設置場所・点検日を確認した',
+        ]},
+      ]
+    },
+  };
+
+  var LS_KEY = 'safetyCheckGen_v1';
+
+  function generate() {
+    var siteType  = document.getElementById('siteType').value;
+    var siteName  = document.getElementById('siteName').value.trim();
+    var inspector = document.getElementById('inspector').value.trim();
+    var today     = fmtDate(new Date());
+    var cl        = CHECKLISTS[siteType];
+
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ siteType: siteType, siteName: siteName, inspector: inspector })); } catch(e) {}
+
+    document.getElementById('clTitle').textContent = cl.title;
+    document.getElementById('clMeta').textContent =
+      '点検日：' + today +
+      (siteName  ? '　現場：' + siteName   : '') +
+      (inspector ? '　点検者：' + inspector : '');
+
+    var html = '';
+    cl.sections.forEach(function(sec) {
+      html += '<div class="section-title">' + sec.name + '</div>';
+      sec.items.forEach(function(item) {
+        html += '<label class="check-item"><input type="checkbox" onchange="updateProgress()"><span class="check-text">' + item + '</span></label>';
+      });
+    });
+    document.getElementById('clBody').innerHTML = html;
+
+    var card = document.getElementById('checklistCard');
+    card.style.display = 'block';
+    document.getElementById('allOkMsg').style.display = 'none';
+    updateProgress();
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function updateProgress() {
+    var all     = document.querySelectorAll('#clBody input[type="checkbox"]');
+    var checked = document.querySelectorAll('#clBody input[type="checkbox"]:checked');
+    var total   = all.length;
+    var done    = checked.length;
+    var pct     = total > 0 ? Math.round(done / total * 100) : 0;
+
+    document.getElementById('progressText').textContent = done + ' / ' + total + ' (' + pct + '%)';
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('allOkMsg').style.display = (done === total && total > 0) ? 'block' : 'none';
+  }
+
+  function resetAll() {
+    document.querySelectorAll('#clBody input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+    updateProgress();
+  }
+
+  function fmtDate(d) { return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日'; }
+
+  // 復元
+  (function() {
+    try {
+      var s = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!s) return;
+      if (s.siteType)  document.getElementById('siteType').value  = s.siteType;
+      if (s.siteName)  document.getElementById('siteName').value  = s.siteName;
+      if (s.inspector) document.getElementById('inspector').value = s.inspector;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
