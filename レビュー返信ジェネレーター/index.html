@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>レビュー返信ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2378716c' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 0.9rem center;
+      padding-right: 2.5rem;
+    }
+    .field select:focus { border-color: var(--accent); background-color: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 星評価 ── */
+    .star-group {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .star-btn {
+      flex: 1; min-width: 50px;
+      padding: 0.7rem 0.3rem;
+      font-size: 1.1rem; font-weight: 700;
+      background: var(--bg); color: var(--text-sub);
+      border: 1.5px solid var(--border);
+      border-radius: 9px; cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .star-btn.selected {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+      font-weight: 900;
+    }
+    .star-btn:active { transform: scale(0.95); }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果エリア ── */
+    .result-area {
+      display: none;
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .result-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .result-label-tag {
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+    }
+    .star-badge {
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 20px; padding: 0.2rem 0.7rem;
+    }
+    .result-text {
+      width: 100%; min-height: 180px;
+      padding: 1rem;
+      font-size: 0.95rem; line-height: 1.75;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      color: var(--text);
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+      box-shadow: var(--shadow);
+    }
+    .result-text:focus { border-color: var(--accent); }
+    .btn-copy {
+      display: block; width: 100%;
+      margin-top: 0.75rem; padding: 0.85rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius); cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:hover { background: var(--accent-light); }
+    .btn-copy:active { transform: scale(0.98); }
+    .btn-copy.copied {
+      background: var(--ok-bg); color: var(--ok);
+      border-color: var(--ok);
+    }
+
+    /* ── 履歴 ── */
+    .history-list { list-style: none; }
+    .history-item {
+      padding: 0.6rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      cursor: pointer;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { background: var(--accent-light); border-radius: 8px; }
+    .history-star { font-size: 0.85rem; font-weight: 700; color: var(--accent); min-width: 30px; }
+    .history-scene { color: var(--text-sub); flex: 1; }
+    .history-preview { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 2; }
+    .history-empty { color: var(--text-sub); font-size: 0.82rem; text-align: center; padding: 1rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⭐ レビュー返信ジェネレーター</h1>
+    <p class="subtitle">星評価と内容を選ぶだけで返信文を即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">返信設定</p>
+
+    <div class="field">
+      <label>レビューの星評価</label>
+      <div class="star-group">
+        <button class="star-btn" data-star="1" onclick="selectStar(1)">★1</button>
+        <button class="star-btn" data-star="2" onclick="selectStar(2)">★2</button>
+        <button class="star-btn" data-star="3" onclick="selectStar(3)">★3</button>
+        <button class="star-btn" data-star="4" onclick="selectStar(4)">★4</button>
+        <button class="star-btn" data-star="5" onclick="selectStar(5)">★5</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="scene">レビューの内容・シーン</label>
+      <select id="scene">
+        <option value="">選択してください</option>
+        <option value="staff">接客・スタッフ対応について</option>
+        <option value="quality">料理・商品の品質について</option>
+        <option value="price">価格・コスパについて</option>
+        <option value="clean">清潔さ・雰囲気・環境について</option>
+        <option value="wait">待ち時間・混雑について</option>
+        <option value="general">全般的な感想・総評について</option>
+        <option value="repeat">リピート・また来たいという内容</option>
+        <option value="recommend">おすすめ・友人紹介という内容</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="storeName">店舗名・屋号（任意）</label>
+      <select id="storeName" style="display:none"></select>
+      <input type="text" id="storeNameInput" placeholder="例：〇〇食堂" style="width:100%;padding:0.72rem 0.9rem;font-size:1rem;border:1.5px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);outline:none;">
+      <p class="hint">入力すると返信文に店舗名が入ります（省略可）</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">📝 返信文を生成する</button>
+
+  <!-- 結果エリア -->
+  <div class="result-area" id="resultArea">
+    <div class="card" style="margin-bottom:0.5rem;">
+      <div class="result-header">
+        <span class="result-label-tag">生成された返信文</span>
+        <span class="star-badge" id="starBadge"></span>
+      </div>
+      <textarea class="result-text" id="resultText" readonly></textarea>
+      <button class="btn-copy" id="copyBtn" onclick="copyText()">📋 コピーする</button>
+    </div>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard">
+    <p class="card-title">最近使ったパターン</p>
+    <ul class="history-list" id="historyList">
+      <li class="history-empty">まだ履歴がありません</li>
+    </ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var selectedStar = 0;
+  var STORAGE_KEY = 'review_reply_gen_history';
+
+  // ── 返信文テンプレート ──
+  var templates = {
+    1: {
+      staff:     ['この度は不快な思いをおかけし、誠に申し訳ございません。スタッフの対応につきまして、ご指摘の内容を真摯に受け止め、接客の改善に取り組んでまいります。大変ご不便をおかけいたしました。今後はより丁寧なご対応ができるよう、スタッフ全員で取り組んでまいります。またの機会にぜひご来店いただけますと幸いです。', '先般はご不満のご来店をいただき、誠に申し訳ございません。接客対応について深く反省しております。改善策を講じ、お客様に心地よいサービスをご提供できるよう努めてまいります。'],
+      quality:   ['この度はご来店いただきありがとうございます。料理・商品の品質についてご不満をおかけし、大変申し訳ございません。ご指摘の内容を真剣に受け止め、品質管理の徹底に努めてまいります。今後このようなことがないよう改善に取り組みますので、今後ともよろしくお願い申し上げます。', '品質面でご期待に沿えず、申し訳ございません。お客様のご意見を参考に、より良い商品・料理のご提供に向けて改善を進めてまいります。'],
+      price:     ['ご来店ありがとうございます。価格面でご不満をおかけし、申し訳ございません。コストパフォーマンスの向上に向けて取り組んでまいります。お客様のご意見を大切に参考にさせていただきます。', 'ご意見ありがとうございます。価格設定についてご不便をおかけしております。よりご満足いただけるサービスの提供に努めてまいります。'],
+      clean:     ['この度は清潔さや環境面においてご不快な思いをおかけし、誠に申し訳ございません。店内の清掃・環境整備について改善いたします。快適な空間をご提供できるよう、スタッフ一同取り組んでまいります。', '清潔さにつきましてご指摘をいただき、誠に恐縮です。早急に対応し、より清潔で快適な環境整備に努めてまいります。'],
+      wait:      ['この度は長いお待ち時間でご不便をおかけし、大変申し訳ございませんでした。混雑時の対応を改善し、よりスムーズにご案内できるよう努めてまいります。貴重なご意見をありがとうございました。', 'お待ち時間についてご不満をおかけしました。業務オペレーションの改善に取り組み、お客様をスムーズにご案内できるよう努力してまいります。'],
+      general:   ['この度はご来店いただきありがとうございました。ご満足いただけなかった点について、深くお詫び申し上げます。いただいたご意見を真摯に受け止め、サービス全般の改善に努めてまいります。今後ともご指導ご鞭撻のほど、よろしくお願い申し上げます。', '貴重なご意見をいただき、ありがとうございます。お客様のご期待に沿えず、大変申し訳ございませんでした。一層のサービス向上に取り組んでまいります。'],
+      repeat:    ['再度のご来店をご検討の中でご不満のご意見をいただき、誠に申し訳ございません。ご指摘の点を改善し、次回は満足してご利用いただけるよう努めてまいります。またのご来店をお待ちしております。', 'ご不満のご意見の中でもご来店をお考えいただいていること、ありがとうございます。改善に全力で取り組み、ぜひ次回は満足していただけるお店にしてまいります。'],
+      recommend: ['ご不満の中でも当店についてご言及いただきありがとうございます。ご指摘の点を改善し、より多くの方においでいただける店舗づくりに励んでまいります。今後ともよろしくお願いいたします。', 'ご意見をいただきありがとうございます。いただいたご指摘を活かし、皆さまに自信を持っておすすめできるお店になれるよう努力してまいります。']
+    },
+    2: {
+      staff:     ['ご来店ありがとうございました。スタッフの対応についてご不満をおかけし、大変申し訳ございません。ご指摘を参考にスタッフへの研修を強化し、接客品質の向上に努めてまいります。次回はご満足いただけるよう努めますので、またのご来店をお待ちしております。', '接客面でのご不満、誠に申し訳ございません。スタッフ教育を徹底し、よりお客様に喜ばれるサービスを提供できるよう改善してまいります。'],
+      quality:   ['ご来店ありがとうございました。商品・料理の品質についてご期待に沿えず、申し訳ございません。仕入れや調理工程の見直しを行い、品質向上に取り組んでまいります。またご来店の際にはご満足いただけるよう努めます。', '品質面でのご不満をお聞かせいただきありがとうございます。改善に向けて取り組み、より良い商品を提供できるよう努めてまいります。'],
+      price:     ['ご来店ありがとうございます。価格面でご納得いただけなかったことをお詫び申し上げます。価値に見合ったサービスをご提供できるよう検討してまいります。', 'コストパフォーマンスについてのご意見、ありがとうございます。より満足度の高いサービスを提供できるよう改善に努めてまいります。'],
+      clean:     ['ご来店ありがとうございました。店内環境についてご不満をおかけし、申し訳ございません。清掃体制を見直し、清潔で快適な空間のご提供に努めてまいります。', 'ご指摘ありがとうございます。衛生管理・清掃の強化に取り組み、快適にご利用いただける環境づくりを進めてまいります。'],
+      wait:      ['ご来店ありがとうございました。お待たせしてしまい、申し訳ございません。混雑時の人員配置や業務フローを見直し、スムーズなご案内ができるよう改善に取り組んでまいります。', '長い待ち時間でご不便をおかけしました。業務効率の改善を進め、お客様をお待たせしない体制を整えてまいります。'],
+      general:   ['ご来店いただきありがとうございました。ご満足いただけなかった点について申し訳ございません。いただいたご意見を参考に、全体的なサービス品質の向上に取り組んでまいります。次回はご満足いただけるよう努めますので、またのご来店をお待ちしております。', 'ご意見をいただきありがとうございます。改善点を真摯に受け止め、より良いサービスの提供に努めてまいります。'],
+      repeat:    ['またご来店をお考えいただきありがとうございます。前回のご不満点を改善できるよう努めておりますので、次回はより良い体験をご提供できるよう頑張ります。お待ちしております。', '再びのご来店のご検討、ありがとうございます。ご不満の点を改善し、満足していただけるサービスをご提供できるよう取り組んでまいります。'],
+      recommend: ['ご意見をいただきながらも当店への関心を持っていただきありがとうございます。ご指摘の点を改善し、皆さまに安心しておすすめいただけるお店を目指してまいります。', 'ご意見ありがとうございます。いただいたフィードバックをもとに改善を続け、多くの方においでいただけるお店にしてまいります。']
+    },
+    3: {
+      staff:     ['ご来店ありがとうございました。スタッフの接客について貴重なご意見をいただき、感謝申し上げます。より丁寧で温かいサービスをご提供できるよう、引き続き努力してまいります。またのご来店をスタッフ一同お待ちしております。', '接客についてのご感想をいただきありがとうございます。スタッフへのフィードバックとして活用し、さらなるサービス向上に努めてまいります。またのご来店をお待ちしております。'],
+      quality:   ['ご来店ありがとうございました。商品・料理についてのご意見をいただき、ありがとうございます。より一層の品質向上に向けて努力してまいります。またのご来店の際にはさらに満足していただけるようお出迎えいたします。', '品質面についてのご意見、ありがとうございます。いただいたフィードバックを活かして改善に取り組み、次回はよりご満足いただけるようにしてまいります。'],
+      price:     ['ご来店いただきありがとうございました。価格面についてのご感想をいただきありがとうございます。コストパフォーマンスの向上に努め、よりご満足いただけるサービスをご提供できるよう取り組んでまいります。', '価格についてのご意見、ありがとうございます。価値を感じていただけるサービスの向上に取り組んでまいります。またのご来店をお待ちしております。'],
+      clean:     ['ご来店ありがとうございました。店内環境についてご意見をいただきありがとうございます。より快適な空間をご提供できるよう、清潔さの維持・向上に取り組んでまいります。またのご来店をお待ちしております。', '清潔さ・雰囲気についてのご感想をありがとうございます。快適にお過ごしいただける環境づくりを続けてまいります。またのご来店をお待ちしております。'],
+      wait:      ['ご来店ありがとうございました。お待ち時間についてご不便をおかけした点、お詫び申し上げます。よりスムーズなご案内ができるよう改善に取り組んでまいります。またのご来店をお待ちしております。', '待ち時間についてのご意見、ありがとうございます。業務の効率化に取り組み、お客様をお待たせしないよう努めてまいります。次回はよりスムーズにご案内できるよう準備してお待ちしております。'],
+      general:   ['この度はご来店いただきありがとうございました。貴重なご意見をお寄せいただき感謝申し上げます。よりご満足いただけるよう引き続きサービスの向上に努めてまいります。またのご来店を心よりお待ちしております。', 'ご感想をいただきありがとうございます。今後もお客様の声を大切にしながら、より良いサービスを提供できるよう取り組んでまいります。またのご来店をお待ちしております。'],
+      repeat:    ['またのご来店、ありがとうございます。引き続きご満足いただけるサービスをご提供できるよう努めてまいります。スタッフ一同お待ちしております。', '再びのご来店を検討いただきありがとうございます。前回よりもさらに良い体験をご提供できるよう努めてまいります。またのご来店をお待ちしております。'],
+      recommend: ['ご来店いただきありがとうございました。お知り合いへのご紹介もご検討いただきありがとうございます。より多くの方においでいただけるよう、サービスの向上に努めてまいります。またのご来店をお待ちしております。', '当店についてご友人等にお伝えいただけることを嬉しく思います。引き続きご満足いただけるサービスをご提供できるよう努めてまいります。']
+    },
+    4: {
+      staff:     ['ご来店いただきありがとうございました。スタッフの対応をお褒めいただき、大変嬉しく思います。今後もお客様に喜んでいただけるサービスをご提供できるよう、スタッフ一同励んでまいります。またのご来店を心よりお待ちしております。', '接客についてお褒めの言葉をいただきありがとうございます。スタッフへの励みになります。今後もより一層の笑顔でお出迎えできるよう努めてまいります。またのご来店をお待ちしております。'],
+      quality:   ['ご来店いただきありがとうございました。料理・商品の品質をご評価いただき、大変光栄です。お客様のご期待に応え続けられるよう、引き続き品質向上に努めてまいります。またのご来店を心よりお待ちしております。', '商品・料理をご満足いただけてとても嬉しいです！引き続き品質にこだわり、おいしいものをお届けできるよう努めてまいります。またのご来店をお待ちしております。'],
+      price:     ['ご来店いただきありがとうございました。コストパフォーマンスをご評価いただき、大変嬉しく思います。今後も価値あるサービスをご提供できるよう努めてまいります。またのご来店を心よりお待ちしております。', '価格面でご満足いただけてありがとうございます。引き続き満足度の高いサービスをお得にご利用いただけるよう努めてまいります。またのご来店をお待ちしております。'],
+      clean:     ['ご来店いただきありがとうございました。清潔さや雰囲気をご評価いただき、大変嬉しく思います。今後も快適な空間をご提供できるよう、環境の維持・向上に努めてまいります。またのご来店をお待ちしております。', '店内の清潔さ・雰囲気をご評価いただきありがとうございます。お客様に気持ちよくお過ごしいただけるよう、引き続き環境維持に努めてまいります。またのご来店をお待ちしております。'],
+      wait:      ['ご来店いただきありがとうございました。スムーズにご案内できたことを嬉しく思います。今後もお待たせしないよう業務を改善しながら、快適にご利用いただける体制を維持してまいります。またのご来店をお待ちしております。', 'スムーズなご案内をご評価いただきありがとうございます。引き続きお客様をお待たせしないよう努めてまいります。またのご来店をお待ちしております。'],
+      general:   ['この度はご来店いただき、また温かいご感想をいただきありがとうございました。お客様にご満足いただけたこと、スタッフ一同大変嬉しく思います。今後もご期待に応えられるよう精一杯努めてまいります。またのご来店を心よりお待ちしております。', 'ご来店いただきありがとうございました。ご満足いただけたとのこと、大変嬉しく思います。今後も変わらぬ品質とサービスをご提供できるよう努めてまいります。またのご来店をお待ちしております。'],
+      repeat:    ['ご来店いただきありがとうございました。また来たいとおっしゃっていただき、大変嬉しく思います。次回もより良い体験をご提供できるよう努めてまいります。スタッフ一同お待ちしております。', 'またのご来店をご検討いただきありがとうございます。次回もご満足いただけるよう準備してお待ちしております。ぜひまたいらしてください！'],
+      recommend: ['ご来店いただきありがとうございました。お知り合いへのご紹介もご検討いただき、大変光栄です。多くの方に喜んでいただけるよう、引き続きサービスの向上に努めてまいります。またのご来店をお待ちしております。', 'ご友人へのご紹介もご検討いただきありがとうございます。皆さまに喜んでいただけるお店であり続けられるよう努めてまいります。またのご来店を心よりお待ちしております。']
+    },
+    5: {
+      staff:     ['ご来店いただきありがとうございました。スタッフの接客をこれほど高くご評価いただき、誠に光栄です。スタッフ一同、大変励みになります。また喜んでいただけるよう、引き続き心を込めたサービスをご提供してまいります。またのご来店を心よりお待ちしております！', 'スタッフの対応を最高評価でお褒めいただき、大変ありがとうございます！スタッフ全員で共有し、さらなるサービス向上への励みにしてまいります。ぜひまたお越しください！'],
+      quality:   ['ご来店いただきありがとうございました。料理・商品を最高評価でご評価いただき、大変嬉しく思います。お客様のお声がスタッフ・料理人の一番の励みになります。また最高の品質をご提供できるよう努めてまいります。ぜひまたお越しください！', '最高の評価をいただきありがとうございます！品質をこれほど喜んでいただけて、作り手としてこれ以上の喜びはありません。またのご来店を楽しみにしております！'],
+      price:     ['ご来店いただきありがとうございました。価格やコスパを最高評価でご評価いただき、大変光栄です。引き続きお得で満足度の高いサービスをご提供できるよう努めてまいります。またのご来店を心よりお待ちしております！', '最高の評価をいただきありがとうございます！コスパの高さを喜んでいただけて嬉しいです。今後もご満足いただけるサービスを続けてまいります。またのご来店をお待ちしております！'],
+      clean:     ['ご来店いただきありがとうございました。清潔さや雰囲気を最高評価でご評価いただき、大変嬉しく思います。お客様に気持ちよくお過ごしいただけるよう、引き続き環境の維持に努めてまいります。またのご来店をお待ちしております！', '清潔さ・雰囲気を最高評価でいただきありがとうございます！スタッフ一同の励みになります。快適な空間を維持できるよう引き続き努めてまいります。ぜひまたいらしてください！'],
+      wait:      ['ご来店いただきありがとうございました。スムーズなご案内を最高評価でいただき、大変嬉しく思います。今後もお待たせしないよう努め、快適にご利用いただける環境を維持してまいります。またのご来店をお待ちしております！', '待ち時間の少なさを評価いただきありがとうございます！引き続きスムーズなご案内を心がけてまいります。またのご来店を楽しみにしております！'],
+      general:   ['この度はご来店いただき、また最高のご評価をいただきありがとうございました！スタッフ一同、これ以上ない喜びです。これからもお客様のご期待に応え続けられるよう、全力で努めてまいります。またのご来店を心よりお待ちしております！', 'ご来店いただきありがとうございました。最高評価をいただき大変光栄です！この喜びを励みに、今後もより良いサービスをご提供できるよう頑張ってまいります。ぜひまたお越しください！'],
+      repeat:    ['ご来店いただきありがとうございました。またお越しいただけるとのこと、大変嬉しく思います！次回も最高の体験をご提供できるよう、スタッフ一同お待ちしております。ぜひまた遊びにいらしてください！', 'またのご来店をお待ちしております！次回もご満足いただけるよう全力でお出迎えいたします。スタッフ一同、お越しを楽しみにしております！'],
+      recommend: ['ご来店いただきありがとうございました。お知り合いへのご紹介もいただけるとのこと、大変光栄です！より多くの方に喜んでいただけるよう、引き続き最高のサービスをご提供できるよう努めてまいります。またのご来店をお待ちしております！', '当店をご友人・お知り合いにご紹介いただき、ありがとうございます！これ以上の嬉しいことはありません。ご紹介いただいた方々にも喜んでいただけるよう、最高のサービスでお迎えいたします。またのご来店をお待ちしております！']
+    }
+  };
+
+  function selectStar(n) {
+    selectedStar = n;
+    document.querySelectorAll('.star-btn').forEach(function(b) {
+      b.classList.toggle('selected', parseInt(b.dataset.star) === n);
+    });
+  }
+
+  function generate() {
+    if (!selectedStar) { alert('星評価を選択してください'); return; }
+    var scene = document.getElementById('scene').value;
+    if (!scene) { alert('レビューの内容・シーンを選択してください'); return; }
+    var storeName = document.getElementById('storeNameInput').value.trim();
+
+    var arr = templates[selectedStar][scene];
+    var text = arr[Math.floor(Math.random() * arr.length)];
+
+    if (storeName) {
+      text = storeName + 'をご利用いただきありがとうございました。\n\n' + text;
+    }
+
+    document.getElementById('resultText').value = text;
+
+    var starLabels = {1:'★☆☆☆☆', 2:'★★☆☆☆', 3:'★★★☆☆', 4:'★★★★☆', 5:'★★★★★'};
+    var sceneLabels = {
+      staff:'接客・スタッフ', quality:'料理・品質', price:'価格・コスパ',
+      clean:'清潔さ・環境', wait:'待ち時間', general:'全般的な感想',
+      repeat:'リピート', recommend:'おすすめ・紹介'
+    };
+    document.getElementById('starBadge').textContent = starLabels[selectedStar] + ' / ' + sceneLabels[scene];
+
+    var copyBtn = document.getElementById('copyBtn');
+    copyBtn.classList.remove('copied');
+    copyBtn.textContent = '📋 コピーする';
+
+    document.getElementById('resultArea').style.display = 'block';
+    document.getElementById('resultArea').scrollIntoView({behavior:'smooth', block:'nearest'});
+
+    // 履歴保存
+    saveHistory({star: selectedStar, scene: scene, sceneLabel: sceneLabels[scene], text: text});
+    renderHistory();
+  }
+
+  function copyText() {
+    var text = document.getElementById('resultText').value;
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() { showCopied(); });
+    } else {
+      var ta = document.getElementById('resultText');
+      ta.select();
+      document.execCommand('copy');
+      showCopied();
+    }
+  }
+
+  function showCopied() {
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = '📋 コピーする';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+
+  // ── 履歴 ──
+  function saveHistory(item) {
+    var list = loadHistory();
+    list.unshift(item);
+    if (list.length > 5) list = list.slice(0, 5);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch(e) {}
+  }
+
+  function loadHistory() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch(e) { return []; }
+  }
+
+  function renderHistory() {
+    var list = loadHistory();
+    var ul = document.getElementById('historyList');
+    if (!list.length) {
+      ul.innerHTML = '<li class="history-empty">まだ履歴がありません</li>';
+      return;
+    }
+    var starLabels = {1:'★1',2:'★2',3:'★3',4:'★4',5:'★5'};
+    ul.innerHTML = list.map(function(item, i) {
+      return '<li class="history-item" onclick="restoreHistory(' + i + ')">'
+        + '<span class="history-star">' + starLabels[item.star] + '</span>'
+        + '<span class="history-scene">' + escHtml(item.sceneLabel) + '</span>'
+        + '<span class="history-preview">' + escHtml(item.text.substring(0, 30)) + '…</span>'
+        + '</li>';
+    }).join('');
+  }
+
+  function restoreHistory(i) {
+    var list = loadHistory();
+    if (!list[i]) return;
+    var item = list[i];
+    selectStar(item.star);
+    document.getElementById('scene').value = item.scene;
+    document.getElementById('resultText').value = item.text;
+    var starLabels = {1:'★☆☆☆☆', 2:'★★☆☆☆', 3:'★★★☆☆', 4:'★★★★☆', 5:'★★★★★'};
+    document.getElementById('starBadge').textContent = starLabels[item.star] + ' / ' + item.sceneLabel;
+    document.getElementById('resultArea').style.display = 'block';
+    document.getElementById('copyBtn').textContent = '📋 コピーする';
+    document.getElementById('copyBtn').classList.remove('copied');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // 起動時
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

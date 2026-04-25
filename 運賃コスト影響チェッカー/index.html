@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>運賃コスト影響チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem;
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .summary-item {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 0.9rem 0.6rem;
+      text-align: center; box-shadow: var(--shadow);
+    }
+    .summary-item .s-label { font-size: 0.68rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .summary-item .s-value { font-size: 1.15rem; font-weight: 900; color: var(--accent); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── リセットボタン ── */
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0.5rem auto 0; padding: 0.7rem;
+      font-size: 0.9rem; font-weight: 600;
+      background: transparent; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+    .btn-reset:hover { background: var(--bg); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>運賃コスト影響チェッカー</h1>
+    <p class="subtitle">燃料サーチャージ・運賃値上がりが仕入れ原価と粗利率に与える影響を即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="cost">仕入れ原価（円）</label>
+      <input type="number" id="cost" placeholder="例: 50000" min="0">
+      <p class="hint">運賃を除いた仕入れ原価</p>
+    </div>
+    <div class="field">
+      <label for="price">販売価格（円）</label>
+      <input type="number" id="price" placeholder="例: 80000" min="0">
+    </div>
+    <div class="field">
+      <label for="freightNow">現在の運賃（円）</label>
+      <input type="number" id="freightNow" placeholder="例: 3000" min="0">
+    </div>
+    <div class="field">
+      <label for="freightNew">値上がり後の運賃（円）</label>
+      <input type="number" id="freightNew" placeholder="例: 4500" min="0">
+    </div>
+    <div class="field">
+      <label for="surNow">現在の燃料サーチャージ率（%）</label>
+      <input type="number" id="surNow" placeholder="例: 10" min="0" step="0.1">
+      <p class="hint">運賃に対する上乗せ率</p>
+    </div>
+    <div class="field">
+      <label for="surNew">変更後の燃料サーチャージ率（%）</label>
+      <input type="number" id="surNew" placeholder="例: 20" min="0" step="0.1">
+    </div>
+    <div class="field">
+      <label for="monthQty">月間出荷数量</label>
+      <input type="number" id="monthQty" placeholder="例: 100" min="1" value="1">
+      <p class="hint">年間影響額の試算に使用</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリーグリッド -->
+  <div class="summary-grid" id="summaryGrid" style="display:none">
+    <div class="summary-item">
+      <p class="s-label">運賃コスト増加額</p>
+      <p class="s-value" id="s1">—</p>
+    </div>
+    <div class="summary-item">
+      <p class="s-label">粗利率変化</p>
+      <p class="s-value" id="s2">—</p>
+    </div>
+    <div class="summary-item">
+      <p class="s-label">年間影響額</p>
+      <p class="s-value" id="s3">—</p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- リセット -->
+  <button class="btn-reset" onclick="resetAll()">リセット</button>
+
+  <a class="back-link" href="../index.html">&larr; トップへ戻る</a>
+
+  <script>
+  var FIELDS = ['cost','price','freightNow','freightNew','surNow','surNew','monthQty'];
+  var LS_KEY = '運賃コスト影響チェッカー_data';
+
+  function saveLS() {
+    var d = {};
+    FIELDS.forEach(function(id) { d[id] = document.getElementById(id).value; });
+    try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch(e) {}
+  }
+  function loadLS() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!d) return;
+      FIELDS.forEach(function(id) { if (d[id] !== undefined) document.getElementById(id).value = d[id]; });
+    } catch(e) {}
+  }
+
+  function calc() {
+    var cost       = parseFloat(document.getElementById('cost').value);
+    var price      = parseFloat(document.getElementById('price').value);
+    var freightNow = parseFloat(document.getElementById('freightNow').value);
+    var freightNew = parseFloat(document.getElementById('freightNew').value);
+    var surNow     = parseFloat(document.getElementById('surNow').value);
+    var surNew     = parseFloat(document.getElementById('surNew').value);
+    var monthQty   = parseInt(document.getElementById('monthQty').value) || 1;
+
+    if ([cost, price, freightNow, freightNew, surNow, surNew].some(isNaN)) {
+      showErr('すべての項目を入力してください'); return;
+    }
+    if (price <= 0) { showErr('販売価格は0より大きくしてください'); return; }
+
+    saveLS();
+
+    // 燃料サーチャージ額
+    var surchargeNow = freightNow * (surNow / 100);
+    var surchargeNew = freightNew * (surNew / 100);
+
+    // トータル物流コスト（1個あたり）
+    var logisNow = freightNow + surchargeNow;
+    var logisNew = freightNew + surchargeNew;
+
+    // 運賃コスト増加
+    var logisIncrease = logisNew - logisNow;
+    var logisIncreaseRate = logisNow > 0 ? (logisIncrease / logisNow * 100) : 0;
+
+    // 仕入れ+物流 トータルコスト
+    var totalCostNow = cost + logisNow;
+    var totalCostNew = cost + logisNew;
+
+    // 粗利額・粗利率
+    var profitNow = price - totalCostNow;
+    var profitNew = price - totalCostNew;
+    var marginNow = (profitNow / price * 100);
+    var marginNew = (profitNew / price * 100);
+    var marginDrop = marginNow - marginNew;
+
+    // 年間影響額
+    var annualImpact = logisIncrease * monthQty * 12;
+
+    // 判定（粗利率低下幅）
+    var level, msg;
+    if (marginDrop < 2) {
+      level = 'ok';
+      msg = '粗利率への影響は軽微です（低下 ' + marginDrop.toFixed(1) + '%pt）';
+    } else if (marginDrop < 5) {
+      level = 'warn';
+      msg = '粗利率が ' + marginDrop.toFixed(1) + '%pt 低下。価格転嫁の検討を推奨';
+    } else {
+      level = 'ng';
+      msg = '粗利率が ' + marginDrop.toFixed(1) + '%pt 大幅低下。早急に対策が必要';
+    }
+
+    showResult(level, level === 'ok' ? '影響軽微' : level === 'warn' ? '注意' : '要対策', msg);
+
+    // サマリーグリッド
+    document.getElementById('s1').textContent = fmt(logisIncrease) + ' 円';
+    document.getElementById('s2').textContent = (marginDrop >= 0 ? '-' : '+') + Math.abs(marginDrop).toFixed(1) + '%pt';
+    document.getElementById('s3').textContent = fmt(annualImpact) + ' 円';
+    document.getElementById('summaryGrid').style.display = '';
+
+    // 内訳テーブル
+    showDetail([
+      ['現在の運賃',            fmt(freightNow) + ' 円'],
+      ['値上がり後の運賃',      fmt(freightNew) + ' 円'],
+      ['現在のサーチャージ額',  fmt(Math.round(surchargeNow)) + ' 円（' + surNow + '%）'],
+      ['変更後のサーチャージ額', fmt(Math.round(surchargeNew)) + ' 円（' + surNew + '%）'],
+      ['現在の物流コスト計',    fmt(Math.round(logisNow)) + ' 円'],
+      ['変更後の物流コスト計',  fmt(Math.round(logisNew)) + ' 円'],
+      ['物流コスト増加額',      fmt(Math.round(logisIncrease)) + ' 円（+' + logisIncreaseRate.toFixed(1) + '%）', true],
+      ['現在のトータル原価',    fmt(Math.round(totalCostNow)) + ' 円'],
+      ['変更後のトータル原価',  fmt(Math.round(totalCostNew)) + ' 円'],
+      ['現在の粗利額',          fmt(Math.round(profitNow)) + ' 円（粗利率 ' + marginNow.toFixed(1) + '%）'],
+      ['変更後の粗利額',        fmt(Math.round(profitNew)) + ' 円（粗利率 ' + marginNew.toFixed(1) + '%）'],
+      ['粗利率変化',            (marginDrop >= 0 ? '-' : '+') + Math.abs(marginDrop).toFixed(1) + '%pt', true],
+      ['年間影響額（' + monthQty + '個/月）', fmt(Math.round(annualImpact)) + ' 円', true],
+    ]);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '入力エラー', msg);
+    document.getElementById('summaryGrid').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function resetAll() {
+    FIELDS.forEach(function(id) { document.getElementById(id).value = ''; });
+    document.getElementById('monthQty').value = '1';
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('summaryGrid').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    try { localStorage.removeItem(LS_KEY); } catch(e) {}
+  }
+
+  // 初期読み込み
+  loadLS();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

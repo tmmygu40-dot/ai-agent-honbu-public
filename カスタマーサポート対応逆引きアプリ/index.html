@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>カスタマーサポート対応逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* カテゴリ・状況グリッド */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+    }
+    .btn-cat, .btn-sit {
+      padding: 0.65rem 0.5rem;
+      font-size: 0.88rem; font-weight: 600;
+      background: var(--bg); color: var(--text);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; text-align: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-cat:hover, .btn-sit:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-cat.active, .btn-sit.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+
+    /* 結果エリア */
+    .result-area {
+      display: none;
+    }
+
+    .script-box {
+      background: var(--accent-light);
+      border: 1.5px solid var(--accent);
+      border-radius: 10px;
+      padding: 1rem;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      color: var(--text);
+      margin-bottom: 1rem;
+    }
+    .script-label {
+      font-size: 0.72rem; font-weight: 700; color: var(--accent);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 0.4rem;
+    }
+
+    .reply-box {
+      background: var(--ok-bg);
+      border: 1.5px solid var(--ok);
+      border-radius: 10px;
+      padding: 1rem;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      color: var(--text);
+    }
+
+    .btn-copy {
+      display: block; width: 100%;
+      margin-top: 0.75rem; padding: 0.65rem;
+      font-size: 0.88rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .toast {
+      position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+      background: #1c1917; color: #fff; font-size: 0.85rem; font-weight: 600;
+      padding: 0.6rem 1.4rem; border-radius: 99px;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.25s;
+      white-space: nowrap;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .back-link, #fav-widget, .no-print, .btn-pdf, .btn-copy { display: none !important; }
+      .card, .result-area { box-shadow: none; border: 1px solid #ccc; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📞 カスタマーサポート対応逆引き</h1>
+    <p class="subtitle">問い合わせ内容と状況を選ぶだけで対応スクリプトと返答文例を即表示</p>
+  </header>
+
+  <!-- STEP 1: カテゴリ選択 -->
+  <div class="card">
+    <p class="card-title">STEP 1｜問い合わせ内容を選ぶ</p>
+    <div class="btn-grid" id="catGrid"></div>
+  </div>
+
+  <!-- STEP 2: 状況選択 -->
+  <div class="card" id="sitCard" style="display:none">
+    <p class="card-title">STEP 2｜お客様の状況を選ぶ</p>
+    <div class="btn-grid" id="sitGrid"></div>
+  </div>
+
+  <!-- STEP 3: 結果 -->
+  <div class="card result-area" id="resultCard">
+    <p class="card-title">STEP 3｜対応スクリプト ＆ 返答文例</p>
+
+    <p class="script-label">🎙 対応スクリプト（話す内容）</p>
+    <div class="script-box" id="scriptBox"></div>
+    <button class="btn-copy no-print" onclick="copyText('scriptBox')">📋 スクリプトをコピー</button>
+
+    <div style="height:1.2rem"></div>
+
+    <p class="script-label" style="color:var(--ok)">✉️ 返答文例（メール・チャット用）</p>
+    <div class="reply-box" id="replyBox"></div>
+    <button class="btn-copy no-print" onclick="copyText('replyBox')">📋 返答文をコピー</button>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <div class="toast" id="toast">コピーしました</div>
+
+  <script>
+  // ── データ定義 ──
+  var CATEGORIES = [
+    '返品・交換',
+    '配送遅延',
+    '支払い・請求',
+    '使い方・操作方法',
+    '商品不良・破損',
+    'クレーム・苦情',
+    'キャンセル',
+    '在庫・入荷時期',
+    '会員登録・ログイン',
+    'その他・不明'
+  ];
+
+  var SITUATIONS = ['穏やか', '困惑・戸惑い', '急ぎ', '怒り', 'クレーム'];
+
+  // ── スクリプトデータ [カテゴリ][状況] ──
+  var DATA = {
+    '返品・交換': {
+      '穏やか': {
+        script: 'お問い合わせいただきありがとうございます。\n返品・交換のご希望ですね。\n①注文番号と②返品理由をお聞きし、\n③対象商品の状態を確認します。\n条件を満たせば手続きをご案内します。',
+        reply: 'お問い合わせいただきありがとうございます。\n\n返品・交換のご希望を承りました。\n以下をご確認のうえ、お知らせください。\n\n・注文番号\n・返品・交換を希望される商品名\n・理由（不良品 / サイズ違い / その他）\n\n確認次第、手続き方法をご案内いたします。\nどうぞよろしくお願いいたします。'
+      },
+      '困惑・戸惑い': {
+        script: 'ご不便をおかけして申し訳ございません。\n返品・交換の手順を丁寧にご説明します。\nまず注文番号をご確認いただき、\n弊社から返送用ラベルをお送りします。\n一緒に進めましょう。',
+        reply: 'ご不便をおかけし、誠に申し訳ございません。\n\n返品・交換の手続きは以下の3ステップです。\n\n1. 注文番号を当メールへ返信でご連絡\n2. 弊社より返送用ラベルをメールでお送り\n3. 梱包して最寄りのコンビニから発送\n\nご不明な点はお気軽にお問い合わせください。'
+      },
+      '急ぎ': {
+        script: '急いでのご対応が必要ですね。\n注文番号を今すぐ確認させてください。\n優先対応で手続きを進めます。\n本日中に返送ラベルをお送りします。',
+        reply: 'お急ぎのところ大変失礼いたしました。\n\n至急確認いたします。注文番号を折り返しご連絡ください。\n本日中に返送ラベルをお送りし、\n交換品は最優先で発送手配いたします。'
+      },
+      '怒り': {
+        script: 'ご不便をおかけし、大変申し訳ございません。\nまずはお詫び申し上げます。\n速やかに交換の手続きをご案内します。\n注文番号をお教えいただければ、\n優先対応で進めさせていただきます。',
+        reply: 'ご不便をおかけし、誠に申し訳ございません。\n\nご状況を確認の上、速やかに対応いたします。\nお手数ですが注文番号をお知らせください。\n交換品は最優先で手配いたします。\n\nこの度はご不快をおかけし、深くお詫び申し上げます。'
+      },
+      'クレーム': {
+        script: 'ご指摘をいただきありがとうございます。\nお客様のご不満はもっともです。\n返品・全額返金または交換を即座にご用意します。\nご希望の対応方法をお聞かせください。',
+        reply: 'この度はご不便をおかけし、誠に申し訳ございません。\n\nお客様のご状況を真摯に受け止め、\n以下のいずれかの対応をご用意しております。\n\n・全額返金\n・同商品との交換\n・代替商品のご提案\n\nご希望をお知らせいただければ、即座に対応いたします。'
+      }
+    },
+    '配送遅延': {
+      '穏やか': {
+        script: 'お問い合わせありがとうございます。\n配送状況を確認します。\n注文番号を教えてください。\n追跡番号で最新状況をお調べします。',
+        reply: 'お問い合わせいただきありがとうございます。\n\n配送状況を確認いたします。\n注文番号と追跡番号（お手元にある場合）をお知らせください。\n\n確認後、最新の配送状況をご連絡いたします。'
+      },
+      '困惑・戸惑い': {
+        script: 'お荷物が届いていないのですね。\nご心配をおかけして申し訳ございません。\n配送会社に問い合わせて確認します。\n本日中に状況をご連絡します。',
+        reply: 'お荷物が届いておらず、ご不安をおかけし申し訳ございません。\n\n配送会社へ確認を行い、\n本日中に現在の状況をご連絡いたします。\n今しばらくお待ちくださいますようお願いいたします。'
+      },
+      '急ぎ': {
+        script: '急ぎでご確認ですね。\n今すぐ配送会社に連絡して最新状況を確認します。\n30分以内に折り返しご連絡します。',
+        reply: 'ご連絡いただきありがとうございます。\n\nただいま配送会社へ緊急確認を行っております。\n30分以内に状況をご連絡いたします。\nお急ぎのところ大変申し訳ございません。'
+      },
+      '怒り': {
+        script: 'お待たせして大変申し訳ございません。\n即座に配送会社に問い合わせます。\n状況によっては再発送または返金の対応をご案内します。\nご不便をおかけして本当に申し訳ございません。',
+        reply: 'お待たせしてしまい、誠に申し訳ございません。\n\n今すぐ配送会社へ確認し、\n・荷物の現在地特定\n・お届け日の確定または再発送の手配\nを進めてまいります。\n\nご不快をおかけしたことを深くお詫び申し上げます。'
+      },
+      'クレーム': {
+        script: '配送の遅れにより多大なご迷惑をおかけし、\n深くお詫び申し上げます。\n再発送または返金でご対応します。\nご希望をお聞かせください。',
+        reply: '配送遅延により大変なご迷惑をおかけし、\n誠に申し訳ございません。\n\n以下の対応をご用意しております。\n・再発送（即日手配）\n・全額返金\n\nご希望をお知らせいただければ速やかに対応いたします。'
+      }
+    },
+    '支払い・請求': {
+      '穏やか': {
+        script: '支払いに関するご質問ですね。\n注文番号または請求日をお聞きして確認します。\n内容を確認後、詳細をご説明します。',
+        reply: 'お問い合わせいただきありがとうございます。\n\n支払い・請求についてご確認いたします。\n注文番号と請求日をお知らせください。\n内容を確認後、詳細をご連絡いたします。'
+      },
+      '困惑・戸惑い': {
+        script: 'ご請求内容についてご不明な点がおありですね。\n一緒に確認しましょう。\n注文番号をもとに内訳を詳しくご説明します。',
+        reply: 'ご請求内容でご不明な点があり、お手数をおかけいたします。\n\n注文番号をお知らせいただければ、\n請求の内訳を分かりやすくご説明いたします。'
+      },
+      '急ぎ': {
+        script: '支払いに関するお急ぎのご確認ですね。\n注文番号を教えていただければ、\n今すぐ確認して折り返します。',
+        reply: 'お急ぎのところ失礼いたしました。\n注文番号をご連絡ください。\n速やかに確認してご連絡いたします。'
+      },
+      '怒り': {
+        script: 'ご請求内容に誤りがあったとしたら、\n誠に申し訳ございません。\n今すぐ確認して正確な内容をご説明します。\n誤請求の場合は即座に返金対応いたします。',
+        reply: 'ご不快をおかけし、誠に申し訳ございません。\n\n請求内容を即時確認いたします。\n注文番号をお知らせください。\n誤りが確認できた場合は速やかに返金手続きを行います。'
+      },
+      'クレーム': {
+        script: '請求に関して多大なご迷惑をおかけし、\n深くお詫び申し上げます。\n誤請求が確認できた場合は全額返金いたします。\n注文番号をご確認させてください。',
+        reply: 'この度は請求に関してご迷惑をおかけし、誠に申し訳ございません。\n\n注文番号をお知らせいただければ、\n速やかに確認の上、誤りがあれば全額返金いたします。'
+      }
+    },
+    '使い方・操作方法': {
+      '穏やか': {
+        script: 'ご質問ありがとうございます。\n操作についてご説明します。\nどの機能についてお困りですか？\n順を追ってご案内します。',
+        reply: 'お問い合わせいただきありがとうございます。\n\nご不明な操作について、詳しくご案内いたします。\nどの機能についてお困りかお知らせください。\n手順を分かりやすくご説明いたします。'
+      },
+      '困惑・戸惑い': {
+        script: '操作でお困りですね。\n一緒に確認しましょう。\nどの画面・機能で詰まっていますか？\nステップを追ってご説明します。',
+        reply: 'ご不便をおかけし申し訳ございません。\n\n操作手順を以下にご案内いたします。\n\n①〔該当の画面〕を開く\n②〔操作〕を行う\n③完了を確認する\n\nご不明な点はお気軽にご連絡ください。'
+      },
+      '急ぎ': {
+        script: '急ぎで操作確認ですね。\n今すぐ手順をご案内します。',
+        reply: 'お急ぎのところ失礼いたしました。\n\n手順を簡潔にご案内いたします。\n①〔操作①〕\n②〔操作②〕\n③完了\n\nご不明な場合はすぐにご連絡ください。'
+      },
+      '怒り': {
+        script: 'ご不便をおかけして大変申し訳ございません。\n説明が分かりにくかったことをお詫びします。\n今から丁寧にご案内します。',
+        reply: 'ご不便をおかけし、誠に申し訳ございません。\n\n分かりやすくご案内いたします。\n操作でお困りの点を改めてお聞かせください。\n担当者が丁寧にサポートいたします。'
+      },
+      'クレーム': {
+        script: '操作説明の不備でご迷惑をおかけし、\n深くお詫び申し上げます。\n今すぐ個別サポートをご提供します。\nご希望の連絡方法をお聞かせください。',
+        reply: 'ご不便をおかけし、誠に申し訳ございません。\n\n個別サポートをご用意いたします。\n・チャットでのリアルタイムサポート\n・電話でのご案内\n・画面共有でのサポート（対応可能な場合）\n\nご希望をお知らせください。'
+      }
+    },
+    '商品不良・破損': {
+      '穏やか': {
+        script: '商品の不良・破損についてのご連絡ですね。\nご不便をおかけし申し訳ございません。\n写真の添付をお願いし、\n交換または返金でご対応します。',
+        reply: 'お問い合わせいただきありがとうございます。\n\n商品の状態について確認させてください。\n破損・不良箇所の写真を添付いただけますでしょうか。\n確認次第、交換または返金の手続きをご案内いたします。'
+      },
+      '困惑・戸惑い': {
+        script: '届いた商品が破損していたのですね。\nご不安をおかけして申し訳ございません。\n写真を送っていただければ、\nすぐに交換手続きに入ります。',
+        reply: 'お届けした商品に問題があり、誠に申し訳ございません。\n\n以下の情報をご連絡ください。\n・注文番号\n・破損箇所の写真（1〜2枚）\n\n確認後、交換品をお送りいたします。'
+      },
+      '急ぎ': {
+        script: '破損品の急ぎ対応ですね。\n写真を今すぐ送っていただければ、\n本日中に代替品の発送手配を行います。',
+        reply: '商品の破損についてお急ぎのところ失礼いたしました。\n\n写真をご送付いただければ、\n本日中に代替品の発送を手配いたします。'
+      },
+      '怒り': {
+        script: '不良品をお届けしてしまい、\n大変申し訳ございません。\n即座に交換または返金でご対応します。\nご希望をお聞かせください。',
+        reply: '不良品をお届けしてしまい、誠に申し訳ございません。\n\nお客様のご希望に沿って対応いたします。\n・即時交換（最優先発送）\n・全額返金\n\nご希望をお知らせください。速やかに手配いたします。'
+      },
+      'クレーム': {
+        script: '不良品のお届けにより多大なご迷惑をおかけし、\n深くお詫び申し上げます。\n全額返金＋代替品のご提供でご対応します。',
+        reply: 'この度は不良品をお届けしてしまい、誠に申し訳ございません。\n\n以下の対応をご用意いたします。\n・全額返金\n・代替品の即日発送\n・ご不便料として〔次回割引クーポン〕のご提供\n\nご希望をお知らせください。'
+      }
+    },
+    'クレーム・苦情': {
+      '穏やか': {
+        script: 'ご意見をいただきありがとうございます。\nしっかりお聞きします。\nどのような点でご不満がありましたでしょうか。',
+        reply: 'ご意見をお聞かせいただきありがとうございます。\n\n貴重なフィードバックとして真摯に受け止め、\n改善に努めてまいります。\n具体的な内容があればお知らせください。'
+      },
+      '困惑・戸惑い': {
+        script: 'ご不満をお聞きし、申し訳ございません。\nご状況をもう少し詳しく教えていただけますか？\n原因を確認して適切な対応をします。',
+        reply: 'ご不便をおかけし、申し訳ございません。\n\nご状況を正確に把握するため、\n詳しいご経緯をお聞かせいただけますでしょうか。\n確認の上、適切に対応いたします。'
+      },
+      '急ぎ': {
+        script: 'ご不満への対応を急ぎます。\n今すぐ担当者につなぎます。\nまたは折り返しご連絡先をお聞きします。',
+        reply: 'ご連絡いただきありがとうございます。\n\n至急対応いたします。\n担当者よりお電話またはメールでご連絡いたします。\nご連絡先をお知らせください。'
+      },
+      '怒り': {
+        script: 'ご不快をおかけして大変申し訳ございません。\nまずは深くお詫び申し上げます。\nご状況をお聞きし、責任を持って対応します。\n何が一番のご不満でしたか？',
+        reply: 'ご不快をおかけし、誠に申し訳ございません。\n\nお客様のお気持ちを真剣に受け止め、\n責任を持って対応いたします。\n\nご不満の内容をお聞かせいただけますでしょうか。\n状況を確認し、速やかに解決策をご提案いたします。'
+      },
+      'クレーム': {
+        script: 'ご不満をおかけしたことを深くお詫び申し上げます。\nお客様のご指摘はもっともです。\n責任者として対応し、\n再発防止と解決策をご提示します。',
+        reply: 'この度はご不満をおかけし、誠に申し訳ございません。\n\nお客様のご指摘を真摯に受け止め、\n・今回の件の原因調査\n・具体的な解決策のご提案\n・再発防止策の実施\nに取り組んでまいります。\n\n担当者より改めてご連絡いたします。'
+      }
+    },
+    'キャンセル': {
+      '穏やか': {
+        script: 'キャンセルのご希望ですね。\n注文番号を確認して、\n発送前かどうかを確認します。\n発送前であれば即座に対応できます。',
+        reply: 'キャンセルのご希望を承りました。\n\n注文番号をお知らせください。\n発送前であれば速やかにキャンセル手続きを行います。\n返金は〔〇〇営業日〕以内に処理いたします。'
+      },
+      '困惑・戸惑い': {
+        script: 'キャンセルの手続きについてご説明します。\n注文番号をご確認いただき、\n発送状況によって手続きが変わります。\n一緒に確認しましょう。',
+        reply: 'キャンセルについてご案内いたします。\n\n注文番号をお知らせください。\n発送状況を確認の上、\nキャンセル可否と手順をご連絡いたします。'
+      },
+      '急ぎ': {
+        script: '急ぎのキャンセルですね。\n注文番号を今すぐ確認します。\n発送前であれば即座にキャンセル処理します。',
+        reply: 'お急ぎのところ失礼いたしました。\n\n注文番号を至急お知らせください。\n発送前であれば即座にキャンセル処理いたします。'
+      },
+      '怒り': {
+        script: 'キャンセルの件でご不便をおかけして申し訳ございません。\n今すぐ状況を確認して対応します。\n発送済みの場合も返品・返金でご対応します。',
+        reply: 'ご不便をおかけし、誠に申し訳ございません。\n\n注文番号をお知らせください。\n状況を確認の上、キャンセルまたは返品・返金手続きを速やかに進めます。'
+      },
+      'クレーム': {
+        script: 'キャンセル手続きでご迷惑をおかけし、\n深くお詫び申し上げます。\n即座にキャンセルと全額返金で対応します。',
+        reply: 'キャンセル手続きでご不便をおかけし、誠に申し訳ございません。\n\n即時キャンセル手続きと全額返金を行います。\n注文番号をお知らせください。'
+      }
+    },
+    '在庫・入荷時期': {
+      '穏やか': {
+        script: '在庫・入荷時期についてのご質問ですね。\n現在の在庫状況と予定入荷時期を確認します。\n分かり次第ご連絡します。',
+        reply: 'お問い合わせいただきありがとうございます。\n\n在庫状況と入荷予定について確認いたします。\n商品名をお知らせいただければ、現状をご連絡いたします。'
+      },
+      '困惑・戸惑い': {
+        script: '在庫がないことでご不便をおかけしています。\n入荷予定を確認してお知らせします。\nまた入荷時に通知する方法もご案内できます。',
+        reply: 'ご不便をおかけし申し訳ございません。\n\n現在在庫切れとなっております。\n入荷予定日は〔〇月〇日頃〕の見込みです。\nご希望であれば入荷通知をお送りすることも可能です。'
+      },
+      '急ぎ': {
+        script: 'お急ぎで在庫確認ですね。\n在庫状況を今すぐ確認して折り返します。\n代替品のご提案も可能です。',
+        reply: 'お急ぎのところ失礼いたしました。\n\nただいま在庫状況を確認中です。\n折り返しご連絡いたします。\nお急ぎの場合、代替品のご提案も可能です。'
+      },
+      '怒り': {
+        script: '在庫切れでご不便をおかけして申し訳ございません。\n入荷時期を正確に確認し、\n代替品のご提案または優先予約をご案内します。',
+        reply: 'ご不便をおかけし、誠に申し訳ございません。\n\n入荷時期を確認し、速やかにご連絡いたします。\nご希望があれば入荷次第優先的にお届けする予約も承ります。'
+      },
+      'クレーム': {
+        script: '在庫不足でご迷惑をおかけし、\n深くお詫び申し上げます。\n優先予約または代替品でご対応します。',
+        reply: 'ご迷惑をおかけし、誠に申し訳ございません。\n\n以下の対応をご用意いたします。\n・入荷後の優先発送予約\n・代替品のご提案\n\nご希望をお知らせください。'
+      }
+    },
+    '会員登録・ログイン': {
+      '穏やか': {
+        script: '会員登録・ログインについてのご質問ですね。\n登録メールアドレスをご確認いただき、\n手順をご案内します。',
+        reply: 'お問い合わせいただきありがとうございます。\n\nログインできない場合は以下をお試しください。\n①「パスワードを忘れた」からリセット\n②登録メールアドレスの確認\n③ブラウザのキャッシュをクリア\n\n解決しない場合はご連絡ください。'
+      },
+      '困惑・戸惑い': {
+        script: 'ログインでお困りですね。\n一緒に確認しましょう。\n登録したメールアドレスは分かりますか？\nパスワードリセットの手順をご案内します。',
+        reply: 'ご不便をおかけし申し訳ございません。\n\nログイン手順を改めてご案内いたします。\n\n① 〔ログイン画面〕へアクセス\n② 「パスワードを忘れた」をクリック\n③ 登録メールアドレスを入力\n④ メール内のリンクからパスワードを再設定\n\nご不明な点はお気軽にご連絡ください。'
+      },
+      '急ぎ': {
+        script: 'ログインできないお急ぎの状況ですね。\nパスワードリセットが最速です。\n今すぐ手順をご案内します。',
+        reply: 'お急ぎのところ失礼いたしました。\n\n最速の対処法をご案内いたします。\n①「パスワードを忘れた」からリセットメールを送信\n②メール内リンクから再設定\n通常2〜3分で届きます。届かない場合はご連絡ください。'
+      },
+      '怒り': {
+        script: 'ログインできずご不便をおかけして申し訳ございません。\n今すぐ手動でアカウント確認を行います。\n登録メールアドレスをお聞かせください。',
+        reply: 'ご不便をおかけし、誠に申し訳ございません。\n\n担当者が直接アカウントを確認いたします。\n登録メールアドレスをお知らせください。\n速やかに解決策をご連絡いたします。'
+      },
+      'クレーム': {
+        script: 'ログイン問題で多大なご迷惑をおかけし、\n深くお詫び申し上げます。\n今すぐ担当者がアカウントを復旧対応します。',
+        reply: 'ご不便をおかけし、誠に申し訳ございません。\n\n担当者が直接対応いたします。\n登録メールアドレスをお知らせいただければ、\n速やかにアカウントの確認・復旧を行います。'
+      }
+    },
+    'その他・不明': {
+      '穏やか': {
+        script: 'お問い合わせありがとうございます。\n内容を確認して適切な担当に案内します。\nどのようなことでお困りですか？',
+        reply: 'お問い合わせいただきありがとうございます。\n\nご状況をお聞かせください。\n内容を確認の上、担当部署より改めてご連絡いたします。'
+      },
+      '困惑・戸惑い': {
+        script: 'どのようなことでお困りか教えてください。\n一緒に解決策を探します。\n担当部署につないで対応します。',
+        reply: 'ご不明な点があり、お手数をおかけいたします。\n\nお困りの内容をできるだけ詳しくお知らせください。\n担当者が確認の上、丁寧にご対応いたします。'
+      },
+      '急ぎ': {
+        script: 'お急ぎのご連絡ですね。\n今すぐ担当者につなぎます。\n簡単にお困りの内容を教えてください。',
+        reply: 'お急ぎのところ失礼いたしました。\n\n担当者を手配いたします。\nお困りの内容を簡単にお知らせください。\n折り返しご連絡いたします。'
+      },
+      '怒り': {
+        script: 'ご不便をおかけして申し訳ございません。\n責任を持って対応します。\nお困りの内容をお聞かせください。',
+        reply: 'ご不便をおかけし、誠に申し訳ございません。\n\nご状況を詳しくお聞かせください。\n担当者が責任を持って対応いたします。'
+      },
+      'クレーム': {
+        script: 'ご迷惑をおかけして深くお詫び申し上げます。\n責任者として対応します。\nご状況をお聞かせいただければ、\n即座に解決策をご提示します。',
+        reply: 'この度はご不便をおかけし、誠に申し訳ございません。\n\n責任者として対応いたします。\nご状況をお知らせいただければ、\n速やかに解決策をご提示いたします。'
+      }
+    }
+  };
+
+  // ── 状態 ──
+  var selCat = null;
+  var selSit = null;
+
+  // ── 初期化 ──
+  function init() {
+    var catGrid = document.getElementById('catGrid');
+    CATEGORIES.forEach(function(cat) {
+      var btn = document.createElement('button');
+      btn.className = 'btn-cat';
+      btn.textContent = cat;
+      btn.onclick = function() { selectCat(cat); };
+      catGrid.appendChild(btn);
+    });
+
+    var sitGrid = document.getElementById('sitGrid');
+    SITUATIONS.forEach(function(sit) {
+      var btn = document.createElement('button');
+      btn.className = 'btn-sit';
+      btn.textContent = sit;
+      btn.onclick = function() { selectSit(sit); };
+      sitGrid.appendChild(btn);
+    });
+
+    // localStorage 復元
+    var saved = getSaved();
+    if (saved.cat && DATA[saved.cat]) {
+      selectCat(saved.cat);
+      if (saved.sit) {
+        selectSit(saved.sit);
+      }
+    }
+  }
+
+  function selectCat(cat) {
+    selCat = cat;
+    selSit = null;
+
+    // カテゴリボタン更新
+    document.querySelectorAll('.btn-cat').forEach(function(b) {
+      b.className = 'btn-cat' + (b.textContent === cat ? ' active' : '');
+    });
+
+    // 状況パネル表示
+    document.getElementById('sitCard').style.display = 'block';
+    document.querySelectorAll('.btn-sit').forEach(function(b) {
+      b.className = 'btn-sit';
+    });
+
+    // 結果を隠す
+    document.getElementById('resultCard').style.display = 'none';
+
+    save(cat, null);
+  }
+
+  function selectSit(sit) {
+    if (!selCat) return;
+    selSit = sit;
+
+    document.querySelectorAll('.btn-sit').forEach(function(b) {
+      b.className = 'btn-sit' + (b.textContent === sit ? ' active' : '');
+    });
+
+    var d = DATA[selCat] && DATA[selCat][sit];
+    if (!d) return;
+
+    document.getElementById('scriptBox').textContent = d.script;
+    document.getElementById('replyBox').textContent = d.reply;
+
+    var rc = document.getElementById('resultCard');
+    rc.style.display = 'block';
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    save(selCat, sit);
+  }
+
+  function copyText(id) {
+    var text = document.getElementById(id).textContent;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(showToast);
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast();
+    }
+  }
+
+  function showToast() {
+    var t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 1800);
+  }
+
+  function save(cat, sit) {
+    try { localStorage.setItem('cs_support_cat', cat || ''); } catch(e){}
+    try { localStorage.setItem('cs_support_sit', sit || ''); } catch(e){}
+  }
+
+  function getSaved() {
+    try {
+      return {
+        cat: localStorage.getItem('cs_support_cat') || '',
+        sit: localStorage.getItem('cs_support_sit') || ''
+      };
+    } catch(e) { return { cat: '', sit: '' }; }
+  }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

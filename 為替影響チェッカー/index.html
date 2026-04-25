@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>為替影響チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+
+    /* ── レート表示 ── */
+    .rate-display {
+      background: var(--accent-light);
+      border: 1.5px solid var(--accent);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-top: 0.75rem;
+      text-align: center;
+    }
+    .rate-display .rate-val { font-size: 1.6rem; font-weight: 900; color: var(--accent); }
+    .rate-display .rate-lbl { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.15rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-add {
+      width: 100%; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      margin-top: 0.5rem;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-del {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1.1rem; padding: 0.2rem 0.4rem;
+      border-radius: 6px; transition: background 0.1s;
+    }
+    .btn-del:hover { background: var(--ng-bg); color: var(--ng); }
+    .btn-clear {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 0.5rem; padding: 0.65rem;
+      font-size: 0.88rem; font-weight: 600;
+      background: #fff; color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer;
+    }
+
+    /* ── サマリーカード ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .sum-item {
+      background: var(--accent-light);
+      border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.75rem 0.9rem;
+      text-align: center;
+    }
+    .sum-item .s-val { font-size: 1.35rem; font-weight: 900; color: var(--accent); }
+    .sum-item .s-lbl { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.15rem; }
+
+    /* ── 品目リスト ── */
+    .item-list { display: flex; flex-direction: column; gap: 0.85rem; }
+    .item-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      box-shadow: var(--shadow);
+      max-width: 600px; margin: 0 auto; width: 100%;
+    }
+    .item-card.ok   { border-left: 5px solid var(--ok);   }
+    .item-card.warn { border-left: 5px solid var(--warn); }
+    .item-card.ng   { border-left: 5px solid var(--ng);   }
+
+    .item-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .item-name { font-size: 1rem; font-weight: 800; }
+    .badge {
+      font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem;
+      border-radius: 20px; letter-spacing: 0.04em;
+    }
+    .badge.ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge.warn { background: var(--warn-bg); color: var(--warn); }
+    .badge.ng   { background: var(--ng-bg);   color: var(--ng);   }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.45rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1rem; }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+    .detail-table .ok-row td:last-child { color: var(--ok); }
+
+    /* ── 空状態 ── */
+    .empty-state {
+      text-align: center; padding: 2.5rem 1rem;
+      color: var(--text-sub); font-size: 0.9rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>為替影響チェッカー</h1>
+    <p class="subtitle">為替レートを入れるだけで仕入れ原価変動と必要売価を即確認</p>
+  </header>
+
+  <!-- 為替レート設定 -->
+  <div class="card">
+    <p class="card-title">為替レート設定</p>
+    <div class="row2">
+      <div class="field">
+        <label for="baseRate">基準レート（円/ドル）</label>
+        <input type="number" id="baseRate" placeholder="例: 130" min="1" step="0.1">
+        <p class="hint">仕入れ時の基準レート</p>
+      </div>
+      <div class="field">
+        <label for="currentRate">現在レート（円/ドル）</label>
+        <input type="number" id="currentRate" placeholder="例: 155" min="1" step="0.1">
+        <p class="hint">今現在の為替レート</p>
+      </div>
+    </div>
+    <div class="rate-display" id="rateDisplay" style="display:none">
+      <div class="rate-val" id="rateVal">—</div>
+      <div class="rate-lbl" id="rateLbl"></div>
+    </div>
+  </div>
+
+  <!-- 品目追加 -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="field">
+      <label for="itemName">品目名</label>
+      <input type="text" id="itemName" placeholder="例: 輸入原材料A">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="basePrice">基準仕入れ単価（円）</label>
+        <input type="number" id="basePrice" placeholder="例: 5000" min="0">
+        <p class="hint">基準レート時の1個あたり単価</p>
+      </div>
+      <div class="field">
+        <label for="qty">数量</label>
+        <input type="number" id="qty" placeholder="例: 100" min="1">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="currentSell">現在の売価（円）</label>
+        <input type="number" id="currentSell" placeholder="例: 8000" min="0">
+      </div>
+      <div class="field">
+        <label for="targetMargin">目標粗利率（%）</label>
+        <input type="number" id="targetMargin" placeholder="例: 30" min="0" max="99" step="0.1">
+      </div>
+    </div>
+    <button class="btn-add" onclick="addItem()">＋ 品目を追加して計算</button>
+  </div>
+
+  <!-- サマリー -->
+  <div id="summaryArea" style="display:none">
+    <div class="card" style="max-width:600px;margin:0 auto 1rem;">
+      <p class="card-title">全品目サマリー</p>
+      <div class="summary-grid">
+        <div class="sum-item">
+          <div class="s-val" id="sumCostIncrease">—</div>
+          <div class="s-lbl">合計コスト増加額（円）</div>
+        </div>
+        <div class="sum-item">
+          <div class="s-val" id="sumNeedRaise">—</div>
+          <div class="s-lbl">値上げ必要品目数</div>
+        </div>
+        <div class="sum-item">
+          <div class="s-val" id="sumAvgMargin">—</div>
+          <div class="s-lbl">平均現粗利率</div>
+        </div>
+        <div class="sum-item">
+          <div class="s-val" id="sumAvgTarget">—</div>
+          <div class="s-lbl">平均目標粗利率</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 品目一覧 -->
+  <div style="max-width:600px;margin:0 auto 1rem;padding:0 0;">
+    <div id="itemList">
+      <div class="empty-state">品目を追加すると結果が表示されます</div>
+    </div>
+  </div>
+
+  <button class="btn-clear" id="clearBtn" onclick="clearAll()" style="display:none">全件クリア</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var items = [];
+
+  // ── 初期化 ──
+  function init() {
+    var saved = localStorage.getItem('kawase_items');
+    if (saved) items = JSON.parse(saved);
+    var rate = localStorage.getItem('kawase_rate');
+    if (rate) {
+      var r = JSON.parse(rate);
+      document.getElementById('baseRate').value    = r.base    || '';
+      document.getElementById('currentRate').value = r.current || '';
+    }
+    render();
+    updateRateDisplay();
+  }
+
+  // ── レート変更時 ──
+  document.getElementById('baseRate').addEventListener('input', function() {
+    saveRate(); updateRateDisplay(); render();
+  });
+  document.getElementById('currentRate').addEventListener('input', function() {
+    saveRate(); updateRateDisplay(); render();
+  });
+
+  function saveRate() {
+    localStorage.setItem('kawase_rate', JSON.stringify({
+      base:    document.getElementById('baseRate').value,
+      current: document.getElementById('currentRate').value
+    }));
+  }
+
+  function updateRateDisplay() {
+    var base    = parseFloat(document.getElementById('baseRate').value);
+    var current = parseFloat(document.getElementById('currentRate').value);
+    var disp = document.getElementById('rateDisplay');
+    if (isNaN(base) || isNaN(current) || base <= 0) {
+      disp.style.display = 'none'; return;
+    }
+    var change = ((current - base) / base * 100).toFixed(1);
+    var ratio  = (current / base).toFixed(4);
+    disp.style.display = '';
+    document.getElementById('rateVal').textContent = ratio + '倍';
+    var sign = change >= 0 ? '+' : '';
+    document.getElementById('rateLbl').textContent =
+      '基準 ' + fmt(base) + '円 → 現在 ' + fmt(current) + '円（' + sign + change + '%）';
+  }
+
+  // ── 品目追加 ──
+  function addItem() {
+    var base    = parseFloat(document.getElementById('baseRate').value);
+    var current = parseFloat(document.getElementById('currentRate').value);
+    if (isNaN(base) || isNaN(current) || base <= 0) {
+      alert('先に基準レートと現在レートを入力してください'); return;
+    }
+    var name       = document.getElementById('itemName').value.trim();
+    var basePrice  = parseFloat(document.getElementById('basePrice').value);
+    var qty        = parseFloat(document.getElementById('qty').value);
+    var sellPrice  = parseFloat(document.getElementById('currentSell').value);
+    var targetMgn  = parseFloat(document.getElementById('targetMargin').value);
+    if (!name)                      { alert('品目名を入力してください'); return; }
+    if (isNaN(basePrice) || basePrice < 0) { alert('基準仕入れ単価を入力してください'); return; }
+    if (isNaN(qty) || qty < 1)      { alert('数量を入力してください'); return; }
+    if (isNaN(sellPrice) || sellPrice < 0) { alert('現在の売価を入力してください'); return; }
+    if (isNaN(targetMgn) || targetMgn < 0 || targetMgn >= 100) { alert('目標粗利率を入力してください（0〜99）'); return; }
+
+    items.push({ id: Date.now(), name: name, basePrice: basePrice, qty: qty, sellPrice: sellPrice, targetMgn: targetMgn });
+    localStorage.setItem('kawase_items', JSON.stringify(items));
+
+    // フォームリセット（レートはそのまま）
+    document.getElementById('itemName').value   = '';
+    document.getElementById('basePrice').value  = '';
+    document.getElementById('qty').value        = '';
+    document.getElementById('currentSell').value = '';
+    document.getElementById('targetMargin').value = '';
+
+    render();
+  }
+
+  // ── 削除 ──
+  function deleteItem(id) {
+    items = items.filter(function(i){ return i.i !== id; });
+    // idフィールド名修正
+    items = items.filter(function(i){ return i.id !== id; });
+    localStorage.setItem('kawase_items', JSON.stringify(items));
+    render();
+  }
+
+  function clearAll() {
+    if (!confirm('全品目を削除しますか？')) return;
+    items = [];
+    localStorage.setItem('kawase_items', JSON.stringify(items));
+    render();
+  }
+
+  // ── 計算 ──
+  function calcItem(item, baseRate, currentRate) {
+    var ratio        = currentRate / baseRate;
+    var newCost      = item.basePrice * ratio;            // 新仕入れ単価
+    var costIncrease = (newCost - item.basePrice) * item.qty; // コスト増加額（合計）
+    var costPct      = (ratio - 1) * 100;                  // 原価変動率%
+    var reqSell      = newCost / (1 - item.targetMgn / 100); // 必要売価
+    var raiseAmt     = reqSell - item.sellPrice;            // 必要値上げ幅
+    var curMargin    = item.sellPrice > 0 ? (1 - newCost / item.sellPrice) * 100 : 0;
+    var diff         = curMargin - item.targetMgn;
+    var level        = diff >= 0 ? 'ok' : diff >= -5 ? 'warn' : 'ng';
+    return { ratio: ratio, newCost: newCost, costIncrease: costIncrease, costPct: costPct,
+             reqSell: reqSell, raiseAmt: raiseAmt, curMargin: curMargin, diff: diff, level: level };
+  }
+
+  // ── 描画 ──
+  function render() {
+    var base    = parseFloat(document.getElementById('baseRate').value);
+    var current = parseFloat(document.getElementById('currentRate').value);
+    var listEl  = document.getElementById('itemList');
+    var summaryArea = document.getElementById('summaryArea');
+    var clearBtn    = document.getElementById('clearBtn');
+
+    if (items.length === 0) {
+      listEl.innerHTML = '<div class="empty-state">品目を追加すると結果が表示されます</div>';
+      summaryArea.style.display = 'none';
+      clearBtn.style.display    = 'none';
+      return;
+    }
+
+    clearBtn.style.display = '';
+
+    if (isNaN(base) || isNaN(current) || base <= 0) {
+      listEl.innerHTML = '<div class="empty-state">基準レートと現在レートを入力してください</div>';
+      summaryArea.style.display = 'none';
+      return;
+    }
+
+    summaryArea.style.display = '';
+
+    var totalCostIncrease = 0;
+    var needRaise = 0;
+    var sumCurMargin = 0;
+    var sumTargetMgn = 0;
+
+    var html = '<div class="item-list">';
+    items.forEach(function(item) {
+      var c = calcItem(item, base, current);
+      totalCostIncrease += c.costIncrease;
+      if (c.raiseAmt > 0) needRaise++;
+      sumCurMargin += c.curMargin;
+      sumTargetMgn += item.targetMgn;
+
+      var lvLabel = c.level === 'ok' ? '採算OK' : c.level === 'warn' ? '要注意' : '赤字リスク';
+      var costSign = c.costPct >= 0 ? '+' : '';
+      html += '<div class="item-card ' + c.level + '">';
+      html += '<div class="item-header">';
+      html += '<span class="item-name">' + esc(item.name) + '</span>';
+      html += '<span>';
+      html += '<span class="badge ' + c.level + '">' + lvLabel + '</span>';
+      html += ' <button class="btn-del" onclick="deleteItem(' + item.id + ')" title="削除">✕</button>';
+      html += '</span>';
+      html += '</div>';
+      html += '<table class="detail-table"><tbody>';
+      html += row('基準仕入れ単価', fmt(item.basePrice) + ' 円');
+      html += row('新仕入れ単価（為替後）', fmt(c.newCost) + ' 円（' + costSign + c.costPct.toFixed(1) + '%）');
+      html += row('コスト増加（' + fmt(item.qty) + '個分）', fmtSign(c.costIncrease) + ' 円', c.costIncrease > 0 ? 'ng-row' : 'ok-row');
+      html += row('現在の売価', fmt(item.sellPrice) + ' 円');
+      html += row('現在の粗利率', c.curMargin.toFixed(1) + '%（目標 ' + item.targetMgn + '%）');
+      html += row('必要売価', fmt(c.reqSell) + ' 円', 'hl');
+      html += row('必要値上げ幅', fmtSign(c.raiseAmt) + ' 円', c.raiseAmt > 0 ? 'ng-row' : 'ok-row');
+      html += '</tbody></table>';
+      html += '</div>';
+    });
+    html += '</div>';
+    listEl.innerHTML = html;
+
+    // サマリー更新
+    document.getElementById('sumCostIncrease').textContent = fmtSign(totalCostIncrease);
+    document.getElementById('sumNeedRaise').textContent    = needRaise + ' 件';
+    document.getElementById('sumAvgMargin').textContent    = (sumCurMargin / items.length).toFixed(1) + '%';
+    document.getElementById('sumAvgTarget').textContent    = (sumTargetMgn / items.length).toFixed(1) + '%';
+  }
+
+  function row(label, val, cls) {
+    return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + label + '</td><td>' + val + '</td></tr>';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmtSign(n) { var s = Math.round(n) >= 0 ? '+' : ''; return s + Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  init();
+  </script>
+
+</body>
+</html>

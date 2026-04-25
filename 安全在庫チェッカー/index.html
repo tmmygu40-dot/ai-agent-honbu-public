@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>安全在庫チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2); }
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.75rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: #fff; color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    /* 品目リスト */
+    .item-list { list-style: none; }
+    .item-list li {
+      background: #fff; border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 0.9rem 1rem; margin-bottom: 0.7rem;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;
+    }
+    .item-info { flex: 1; }
+    .item-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 0.3rem; }
+    .item-detail { font-size: 0.78rem; color: var(--text-sub); line-height: 1.6; }
+    .item-result { text-align: right; }
+    .item-stock { font-size: 1.15rem; font-weight: 900; color: var(--accent); }
+    .item-cost { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .badge {
+      display: inline-block; font-size: 0.7rem; font-weight: 700;
+      padding: 0.15rem 0.5rem; border-radius: 99px; margin-left: 0.4rem;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok); }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng); }
+    .btn-del {
+      background: none; border: none; color: var(--text-sub); cursor: pointer;
+      font-size: 1.1rem; padding: 0.2rem; flex-shrink: 0;
+    }
+    .btn-del:hover { color: var(--ng); }
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1.5rem 0; }
+    .formula-box {
+      background: var(--accent-light); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.8rem 1rem; margin-top: 0.8rem;
+      font-size: 0.78rem; color: var(--text-sub); line-height: 1.7;
+    }
+    .formula-box strong { color: var(--text); }
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>安全在庫チェッカー</h1>
+    <p class="subtitle">リードタイムと需要変動から最適な安全在庫量と保管コストを即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">条件入力</p>
+    <div class="field">
+      <label for="itemName">品目名</label>
+      <input type="text" id="itemName" placeholder="例: 原材料A">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="avgDemand">需要平均（個/日）</label>
+        <input type="number" id="avgDemand" placeholder="例: 50" min="0">
+      </div>
+      <div class="field">
+        <label for="stdDemand">需要の標準偏差（個/日）</label>
+        <input type="number" id="stdDemand" placeholder="例: 10" min="0">
+        <p class="hint">変動が大きいほど高め</p>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="leadTime">リードタイム（日）</label>
+        <input type="number" id="leadTime" placeholder="例: 7" min="1">
+      </div>
+      <div class="field">
+        <label for="serviceRate">許容欠品率（サービス率）</label>
+        <select id="serviceRate">
+          <option value="1.28">90%（z=1.28）</option>
+          <option value="1.645" selected>95%（z=1.645）</option>
+          <option value="2.326">99%（z=2.326）</option>
+          <option value="3.09">99.9%（z=3.09）</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="storageCost">保管コスト（円/個/日）</label>
+      <input type="number" id="storageCost" placeholder="例: 5" min="0">
+      <p class="hint">0のままでも計算可能</p>
+    </div>
+    <div class="formula-box">
+      <strong>計算式：</strong> 安全在庫 = z係数 × 需要の標準偏差 × √リードタイム<br>
+      <strong>保管コスト（月額）：</strong> 安全在庫 × 保管コスト単価 × 30日
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">安全在庫を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">必要な安全在庫量</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 品目一覧に追加 -->
+  <button class="btn-add" id="addBtn" style="display:none" onclick="addToList()">+ この品目を一覧に保存</button>
+
+  <!-- 品目一覧 -->
+  <div class="card" id="listCard">
+    <p class="card-title">品目一覧（localStorage保存）</p>
+    <ul class="item-list" id="itemList"></ul>
+    <p class="empty-msg" id="emptyMsg">品目がまだありません。計算後に「保存」してください。</p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEY = 'anzen-zaiko-items';
+  var lastResult = null;
+
+  var Z_LABELS = {
+    '1.28':  '90%',
+    '1.645': '95%',
+    '2.326': '99%',
+    '3.09':  '99.9%'
+  };
+
+  function calc() {
+    var avgD   = parseFloat(document.getElementById('avgDemand').value);
+    var stdD   = parseFloat(document.getElementById('stdDemand').value);
+    var lt     = parseFloat(document.getElementById('leadTime').value);
+    var z      = parseFloat(document.getElementById('serviceRate').value);
+    var cost   = parseFloat(document.getElementById('storageCost').value) || 0;
+
+    if (isNaN(stdD) || isNaN(lt) || lt <= 0) {
+      showErr('需要の標準偏差・リードタイムを入力してください');
+      document.getElementById('addBtn').style.display = 'none';
+      return;
+    }
+    if (stdD < 0 || lt < 0) {
+      showErr('0以上の値を入力してください');
+      document.getElementById('addBtn').style.display = 'none';
+      return;
+    }
+
+    var safetyStock = z * stdD * Math.sqrt(lt);
+    var safetyRounded = Math.ceil(safetyStock);
+    var monthlyCost   = safetyRounded * cost * 30;
+    var avgD2 = isNaN(avgD) ? null : avgD;
+
+    // 判定：安全在庫が平均需要の30日分以内→ok、30〜90日分→warn、90日超→ng
+    var level, msg;
+    if (avgD2 === null || avgD2 === 0) {
+      level = 'ok';
+      msg   = '適切な安全在庫を設定できます';
+    } else {
+      var days = safetyStock / avgD2;
+      if (days <= 30) {
+        level = 'ok';
+        msg   = '在庫水準は適正範囲です（在庫日数: ' + days.toFixed(1) + '日分）';
+      } else if (days <= 90) {
+        level = 'warn';
+        msg   = '在庫がやや多め。需要安定後に見直しを（' + days.toFixed(1) + '日分）';
+      } else {
+        level = 'ng';
+        msg   = '過剰在庫のリスクあり。標準偏差・設定を確認（' + days.toFixed(1) + '日分）';
+      }
+    }
+
+    var zLabel = Z_LABELS[String(z)] || z;
+    var rows = [
+      ['z係数（サービス率 ' + zLabel + '）', z],
+      ['需要の標準偏差', fmt(stdD) + ' 個/日'],
+      ['リードタイム', lt + ' 日'],
+      ['√リードタイム', Math.sqrt(lt).toFixed(3)],
+      ['安全在庫（切り上げ）', fmt(safetyRounded) + ' 個', true],
+    ];
+    if (cost > 0) {
+      rows.push(['保管コスト単価', fmt(cost) + ' 円/個/日']);
+      rows.push(['追加保管コスト（月額）', '¥' + fmt(monthlyCost), true]);
+    }
+
+    showResult(level, fmt(safetyRounded) + ' 個', msg);
+    showDetail(rows);
+
+    lastResult = {
+      name:        document.getElementById('itemName').value || '品目',
+      avgD:        avgD2,
+      stdD:        stdD,
+      lt:          lt,
+      z:           z,
+      zLabel:      zLabel,
+      cost:        cost,
+      safetyStock: safetyRounded,
+      monthlyCost: monthlyCost,
+      level:       level
+    };
+    document.getElementById('addBtn').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) {
+    if (typeof n === 'string') return n;
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+
+  function addToList() {
+    if (!lastResult) return;
+    var items = loadItems();
+    items.unshift(lastResult);
+    saveItems(items);
+    renderList();
+    document.getElementById('addBtn').style.display = 'none';
+  }
+
+  function deleteItem(idx) {
+    var items = loadItems();
+    items.splice(idx, 1);
+    saveItems(items);
+    renderList();
+  }
+
+  function loadItems() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || []; }
+    catch(e) { return []; }
+  }
+  function saveItems(items) {
+    localStorage.setItem(KEY, JSON.stringify(items));
+  }
+
+  function renderList() {
+    var items = loadItems();
+    var ul    = document.getElementById('itemList');
+    var empty = document.getElementById('emptyMsg');
+    if (items.length === 0) {
+      ul.innerHTML = '';
+      empty.style.display = '';
+      return;
+    }
+    empty.style.display = 'none';
+    ul.innerHTML = items.map(function(it, i) {
+      var badgeCls = 'badge-' + it.level;
+      var detail = 'σ=' + it.stdD + '個/日　LT=' + it.lt + '日　SL=' + it.zLabel;
+      if (it.avgD !== null && it.avgD > 0) detail += '　平均需要=' + it.avgD + '個/日';
+      var costLine = it.cost > 0
+        ? '<div class="item-cost">保管コスト(月)：¥' + Math.round(it.monthlyCost).toLocaleString('ja-JP') + '</div>'
+        : '';
+      return '<li>'
+        + '<div class="item-info">'
+        + '<div class="item-name">' + esc(it.name) + '<span class="badge ' + badgeCls + '">' + it.level.toUpperCase() + '</span></div>'
+        + '<div class="item-detail">' + esc(detail) + '</div>'
+        + '</div>'
+        + '<div class="item-result">'
+        + '<div class="item-stock">' + Math.round(it.safetyStock).toLocaleString('ja-JP') + ' 個</div>'
+        + costLine
+        + '</div>'
+        + '<button class="btn-del" onclick="deleteItem(' + i + ')" title="削除">✕</button>'
+        + '</li>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  renderList();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

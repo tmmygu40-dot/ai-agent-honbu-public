@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>営業トークジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果エリア ── */
+    .result-area {
+      display: none; max-width: 600px; margin: 0 auto;
+    }
+
+    /* ── トークブロック ── */
+    .talk-block {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 0.8rem;
+    }
+    .talk-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.7rem;
+    }
+    .talk-label {
+      font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em;
+      padding: 0.22rem 0.7rem; border-radius: 20px;
+    }
+    .talk-label.ice   { background: #dbeafe; color: #1d4ed8; }
+    .talk-label.issue { background: #fef9c3; color: #854d0e; }
+    .talk-label.solve { background: #dcfce7; color: #166534; }
+    .talk-label.close { background: #ede9fe; color: #5b21b6; }
+    .talk-title { font-size: 0.92rem; font-weight: 700; color: var(--text); }
+    .talk-body {
+      font-size: 0.92rem; line-height: 1.75; color: var(--text);
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .btn-copy {
+      font-size: 0.78rem; font-weight: 700;
+      padding: 0.3rem 0.8rem;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 8px;
+      cursor: pointer; white-space: nowrap;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-copy.copied { border-color: var(--ok); color: var(--ok); }
+
+    /* ── 一括コピーボタン ── */
+    .btn-copy-all {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.8rem;
+      font-size: 0.92rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-copy-all:hover { background: #ffecd0; }
+
+    /* ── 履歴 ── */
+    .history-list { list-style: none; }
+    .history-item {
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { background: var(--accent-light); border-radius: 8px; }
+    .history-item .h-meta { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.2rem; }
+    .history-item .h-title { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+    .history-empty { font-size: 0.82rem; color: var(--text-sub); text-align: center; padding: 1rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .btn-copy-all, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .talk-block { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>営業トークジェネレーター</h1>
+    <p class="subtitle">業種・ターゲット・商品特徴を入力するだけで刺さるトークスクリプトを自動生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="industry">業種</label>
+      <select id="industry">
+        <option value="">選択してください</option>
+        <option value="製造業">製造業</option>
+        <option value="建設・工事業">建設・工事業</option>
+        <option value="小売・販売業">小売・販売業</option>
+        <option value="飲食業">飲食業</option>
+        <option value="IT・ソフトウェア">IT・ソフトウェア</option>
+        <option value="医療・介護">医療・介護</option>
+        <option value="不動産業">不動産業</option>
+        <option value="運輸・物流">運輸・物流</option>
+        <option value="コンサルティング">コンサルティング</option>
+        <option value="その他サービス業">その他サービス業</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="target">ターゲット</label>
+      <input type="text" id="target" placeholder="例: 中小企業の社長、店舗オーナー" maxlength="60">
+      <p class="hint">誰に売りたいかを入力してください</p>
+    </div>
+    <div class="field">
+      <label for="product">商品・サービス名</label>
+      <input type="text" id="product" placeholder="例: クラウド在庫管理システム" maxlength="60">
+    </div>
+    <div class="field">
+      <label for="features">商品の特徴・強み</label>
+      <textarea id="features" placeholder="例: 月額1万円、導入3日で使える、スマホ対応"></textarea>
+      <p class="hint">箇条書きや単語の羅列でOKです</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">営業トークを生成する</button>
+
+  <!-- 結果エリア -->
+  <div class="result-area" id="resultArea">
+    <button class="btn-copy-all no-print" onclick="copyAll()">📋 スクリプト全文をコピー</button>
+    <div class="talk-block" id="block-ice">
+      <div class="talk-header">
+        <div>
+          <span class="talk-label ice">STEP 1</span>
+          <span class="talk-title" style="margin-left:0.5rem">アイスブレイク</span>
+        </div>
+        <button class="btn-copy no-print" onclick="copyBlock('ice')">コピー</button>
+      </div>
+      <p class="talk-body" id="text-ice"></p>
+    </div>
+    <div class="talk-block" id="block-issue">
+      <div class="talk-header">
+        <div>
+          <span class="talk-label issue">STEP 2</span>
+          <span class="talk-title" style="margin-left:0.5rem">課題提起</span>
+        </div>
+        <button class="btn-copy no-print" onclick="copyBlock('issue')">コピー</button>
+      </div>
+      <p class="talk-body" id="text-issue"></p>
+    </div>
+    <div class="talk-block" id="block-solve">
+      <div class="talk-header">
+        <div>
+          <span class="talk-label solve">STEP 3</span>
+          <span class="talk-title" style="margin-left:0.5rem">解決提案</span>
+        </div>
+        <button class="btn-copy no-print" onclick="copyBlock('solve')">コピー</button>
+      </div>
+      <p class="talk-body" id="text-solve"></p>
+    </div>
+    <div class="talk-block" id="block-close">
+      <div class="talk-header">
+        <div>
+          <span class="talk-label close">STEP 4</span>
+          <span class="talk-title" style="margin-left:0.5rem">クロージング</span>
+        </div>
+        <button class="btn-copy no-print" onclick="copyBlock('close')">コピー</button>
+      </div>
+      <p class="talk-body" id="text-close"></p>
+    </div>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">生成履歴（最大5件）</p>
+    <ul class="history-list" id="historyList"></ul>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'eigyo-talk-history';
+
+  // ── トーク生成テンプレート ──
+  var iceTemplates = [
+    '{target}の皆さんとお話しする機会をいただき、ありがとうございます。\n私、{industry}向けのソリューションを専門にご提供しております。\n今日は{product}についてご紹介させていただけますでしょうか。',
+    'お忙しいところお時間をいただきありがとうございます。\n{industry}のお客様から「{painPoint}」というお声をよくいただきます。\n今日はそのご課題を解決できる{product}をご紹介したいと思います。',
+    'はじめまして。本日はお時間をいただきありがとうございます。\n{industry}に携わる{target}の方々に喜んでいただけるご提案があり、お声がけしました。\nぜひ{product}のことを少しだけ聞いていただけますか？'
+  ];
+
+  var issueTemplates = {
+    '製造業':       '「原材料費の高騰で利益が圧迫されている」「在庫管理に手間がかかっている」「品質トラブルの記録・対応に時間がかかる」──こういったお悩みはありませんか？',
+    '建設・工事業':  '「現場ごとの進捗管理が煩雑で、報告書作成に追われている」「職人の手配・工程調整に余計な時間がかかっている」──こういった課題はございませんか？',
+    '小売・販売業':  '「在庫の過不足で機会損失・廃棄ロスが出ている」「売上データの集計・分析に時間がかかっている」──こういったお悩みはよく聞こえてきます。',
+    '飲食業':       '「仕入れコスト管理とメニュー原価計算が大変」「スタッフのシフト管理・人件費の最適化が難しい」──そういったお声を多くいただきます。',
+    'IT・ソフトウェア': '「顧客ごとの要望対応で工数がオーバーしがち」「既存システムとの連携・引き継ぎ工数が大きい」──こうした課題にお悩みではないでしょうか。',
+    '医療・介護':    '「書類・記録業務の負担が大きく、ケアの時間が削られている」「スタッフ間の情報共有・連携がうまくいかない」──そういったお声をよく伺います。',
+    '不動産業':      '「物件情報の管理・更新に手間がかかりすぎる」「反響対応の速度が遅く、機会を逃してしまっている」──こういった課題はありませんか？',
+    '運輸・物流':    '「配送ルートの最適化・ドライバー管理が煩雑」「燃料費・人件費の上昇で採算が厳しくなっている」──よく伺う課題です。',
+    'コンサルティング': '「提案資料作成・報告書作成に多大な時間を費やしている」「クライアントへの成果の"見える化"が難しい」──そういったお悩みをお持ちではないでしょうか。',
+    'その他サービス業': '「業務の効率化・コスト削減が急務になっている」「スタッフの定着率・生産性向上に悩んでいる」──こういったお声はよくいただきます。'
+  };
+
+  var solveTemplate = '{product}は{features}という特徴があります。\nこれにより、{target}の方々が抱えている課題を解決し、\n業務効率化とコスト削減を同時に実現できます。\n実際に{industry}のお客様から「導入後に手間が大幅に減った」とのお声もいただいています。';
+
+  var closeTemplates = [
+    '今日ご説明した内容について、一度詳しくご説明する場を設けさせていただけますでしょうか。\nまずは無料でご相談いただけます。{target}の皆さまに合ったご提案をさせていただきますので、\nぜひこの機会にお声がけください。',
+    'まずは{product}を実際にお試しいただくことが一番かと思います。\nデモ・無料トライアルをご用意しておりますので、\nぜひ「試してみたい」というお気持ちになっていただけたら、いつでもご連絡ください。',
+    '導入に際してご不安な点があれば、何でもお聞きします。\n他の{industry}のお客様の事例もご紹介できますので、\nまずは一度じっくりとお話しさせていただく機会をいただけますか？'
+  ];
+
+  var painPoints = {
+    '製造業': 'コスト管理・品質管理の手間',
+    '建設・工事業': '現場管理・工程調整の煩雑さ',
+    '小売・販売業': '在庫管理・売上分析の手間',
+    '飲食業': '原価管理・シフト管理の難しさ',
+    'IT・ソフトウェア': '工数オーバー・連携コスト',
+    '医療・介護': '書類業務・情報共有の非効率さ',
+    '不動産業': '物件管理・反響対応の遅れ',
+    '運輸・物流': '配送最適化・コスト上昇',
+    'コンサルティング': '提案資料作成・成果の見える化',
+    'その他サービス業': '業務効率化・人材定着'
+  };
+
+  function pick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function generate() {
+    var industry = document.getElementById('industry').value;
+    var target   = document.getElementById('target').value.trim();
+    var product  = document.getElementById('product').value.trim();
+    var features = document.getElementById('features').value.trim();
+
+    if (!industry || !target || !product || !features) {
+      alert('すべての項目を入力してください。');
+      return;
+    }
+
+    var painPoint = painPoints[industry] || '業務上の課題';
+
+    var iceRaw = pick(iceTemplates)
+      .replace(/{industry}/g, industry)
+      .replace(/{target}/g, target)
+      .replace(/{product}/g, product)
+      .replace(/{painPoint}/g, painPoint);
+
+    var issueRaw = issueTemplates[industry] || issueTemplates['その他サービス業'];
+
+    var solveRaw = solveTemplate
+      .replace(/{industry}/g, industry)
+      .replace(/{target}/g, target)
+      .replace(/{product}/g, product)
+      .replace(/{features}/g, features);
+
+    var closeRaw = pick(closeTemplates)
+      .replace(/{industry}/g, industry)
+      .replace(/{target}/g, target)
+      .replace(/{product}/g, product);
+
+    document.getElementById('text-ice').textContent   = iceRaw;
+    document.getElementById('text-issue').textContent = issueRaw;
+    document.getElementById('text-solve').textContent = solveRaw;
+    document.getElementById('text-close').textContent = closeRaw;
+
+    document.getElementById('resultArea').style.display = 'block';
+    document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // 履歴保存
+    saveHistory({ industry: industry, target: target, product: product, features: features,
+      ice: iceRaw, issue: issueRaw, solve: solveRaw, close: closeRaw,
+      date: new Date().toLocaleDateString('ja-JP') });
+    renderHistory();
+  }
+
+  function copyBlock(key) {
+    var text = document.getElementById('text-' + key).textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      var btn = document.querySelector('#block-' + key + ' .btn-copy');
+      btn.textContent = '✓ コピー済み';
+      btn.classList.add('copied');
+      setTimeout(function() { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 1500);
+    });
+  }
+
+  function copyAll() {
+    var ice   = document.getElementById('text-ice').textContent;
+    var issue = document.getElementById('text-issue').textContent;
+    var solve = document.getElementById('text-solve').textContent;
+    var close = document.getElementById('text-close').textContent;
+    var full  = '【STEP1 アイスブレイク】\n' + ice
+              + '\n\n【STEP2 課題提起】\n' + issue
+              + '\n\n【STEP3 解決提案】\n' + solve
+              + '\n\n【STEP4 クロージング】\n' + close;
+    navigator.clipboard.writeText(full).then(function() {
+      var btn = document.querySelector('.btn-copy-all');
+      btn.textContent = '✓ コピーしました！';
+      setTimeout(function() { btn.textContent = '📋 スクリプト全文をコピー'; }, 1800);
+    });
+  }
+
+  // ── localStorage 履歴 ──
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+
+  function saveHistory(entry) {
+    var hist = loadHistory();
+    hist.unshift(entry);
+    if (hist.length > 5) hist = hist.slice(0, 5);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(hist));
+  }
+
+  function renderHistory() {
+    var hist = loadHistory();
+    var card = document.getElementById('historyCard');
+    var list = document.getElementById('historyList');
+    if (!hist.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    list.innerHTML = hist.map(function(h, i) {
+      return '<li class="history-item" onclick="restoreHistory(' + i + ')">'
+           + '<p class="h-meta">' + h.date + ' ／ ' + h.industry + '</p>'
+           + '<p class="h-title">' + escHtml(h.product) + ' → ' + escHtml(h.target) + '</p>'
+           + '</li>';
+    }).join('');
+  }
+
+  function restoreHistory(idx) {
+    var hist = loadHistory();
+    var h = hist[idx];
+    if (!h) return;
+    document.getElementById('industry').value = h.industry;
+    document.getElementById('target').value   = h.target;
+    document.getElementById('product').value  = h.product;
+    document.getElementById('features').value = h.features;
+    document.getElementById('text-ice').textContent   = h.ice;
+    document.getElementById('text-issue').textContent = h.issue;
+    document.getElementById('text-solve').textContent = h.solve;
+    document.getElementById('text-close').textContent = h.close;
+    document.getElementById('resultArea').style.display = 'block';
+    document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // 初期化
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

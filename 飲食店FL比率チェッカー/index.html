@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>飲食店FL比率チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.4rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-badge {
+      display: inline-block; padding: 0.25rem 0.9rem;
+      border-radius: 99px; font-size: 0.82rem; font-weight: 700;
+      margin-bottom: 0.6rem;
+    }
+    .ok .result-badge   { background: var(--ok);   color: #fff; }
+    .warn .result-badge { background: var(--warn);  color: #fff; }
+    .ng .result-badge   { background: var(--ng);    color: #fff; }
+
+    /* ── 比率バー ── */
+    .ratio-bars { margin: 1rem 0 0.5rem; }
+    .ratio-row { margin-bottom: 0.6rem; }
+    .ratio-row-head { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.2rem; }
+    .ratio-row-head .lbl { color: var(--text-sub); font-weight: 600; }
+    .ratio-row-head .val { font-weight: 700; }
+    .bar-track { background: var(--border); border-radius: 99px; height: 10px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+    .bar-f   { background: #3b82f6; }
+    .bar-l   { background: #8b5cf6; }
+    .bar-fl  { background: var(--accent); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 目安ガイド ── */
+    .guide-box {
+      background: var(--accent-light);
+      border: 1px solid #f3d2a0;
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      font-size: 0.78rem;
+      color: var(--text-sub);
+      line-height: 1.7;
+      margin-top: 0.5rem;
+    }
+    .guide-box strong { color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>飲食店FL比率チェッカー</h1>
+    <p class="subtitle">食材費＋人件費の合計比率を即判定</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">月次データを入力</p>
+    <div class="field">
+      <label for="sales">月間売上（円）</label>
+      <input type="number" id="sales" placeholder="例: 2000000" min="0">
+    </div>
+    <div class="field">
+      <label for="food">食材費 / F（円）</label>
+      <input type="number" id="food" placeholder="例: 500000" min="0">
+      <p class="hint">仕入れ原価・食材の合計</p>
+    </div>
+    <div class="field">
+      <label for="labor">人件費 / L（円）</label>
+      <input type="number" id="labor" placeholder="例: 600000" min="0">
+      <p class="hint">給与・アルバイト代・社会保険料など</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">FL比率を判定する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">FL比率（食材費＋人件費）</p>
+    <p class="result-value" id="rv">—</p>
+    <div id="rbadge"></div>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 比率バーカード -->
+  <div class="card" id="bar-card" style="display:none">
+    <p class="card-title">比率の内訳</p>
+    <div class="ratio-bars">
+      <div class="ratio-row">
+        <div class="ratio-row-head">
+          <span class="lbl">F比率（食材費）</span>
+          <span class="val" id="f-pct-lbl">—</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill bar-f" id="bar-f" style="width:0%"></div></div>
+      </div>
+      <div class="ratio-row">
+        <div class="ratio-row-head">
+          <span class="lbl">L比率（人件費）</span>
+          <span class="val" id="l-pct-lbl">—</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill bar-l" id="bar-l" style="width:0%"></div></div>
+      </div>
+      <div class="ratio-row">
+        <div class="ratio-row-head">
+          <span class="lbl">FL比率（合計）</span>
+          <span class="val" id="fl-pct-lbl">—</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill bar-fl" id="bar-fl" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+    <div class="guide-box" style="margin-top:1rem">
+      <strong>業界目安：</strong>F比率 25〜30%・L比率 25〜35%・FL合計 60%以下<br>
+      FL比率が高い場合は仕入れコスト見直しまたは人員効率の改善を検討してください
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'fl_checker';
+
+  function loadSaved() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      if (d.sales) document.getElementById('sales').value = d.sales;
+      if (d.food)  document.getElementById('food').value  = d.food;
+      if (d.labor) document.getElementById('labor').value = d.labor;
+    } catch(e) {}
+  }
+
+  function calc() {
+    var sales = parseFloat(document.getElementById('sales').value);
+    var food  = parseFloat(document.getElementById('food').value);
+    var labor = parseFloat(document.getElementById('labor').value);
+
+    if (isNaN(sales) || isNaN(food) || isNaN(labor)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (sales <= 0) {
+      showErr('月間売上は0より大きい値を入力してください');
+      return;
+    }
+    if (food < 0 || labor < 0) {
+      showErr('食材費・人件費に負の値は入力できません');
+      return;
+    }
+
+    // 保存
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({ sales: sales, food: food, labor: labor }));
+    } catch(e) {}
+
+    var fl = food + labor;
+    var fPct  = food  / sales * 100;
+    var lPct  = labor / sales * 100;
+    var flPct = fl    / sales * 100;
+    var remain = sales - fl;
+
+    var level, badge, note;
+    if (flPct <= 60) {
+      level = 'ok';
+      badge = '✅ 安全圏';
+      note  = 'FL比率は60%以内に収まっています。利益確保の余裕があります。';
+    } else if (flPct <= 70) {
+      level = 'warn';
+      badge = '⚠️ 要注意';
+      note  = 'FL比率が60%を超えています。仕入れコストや人員配置を見直しましょう。';
+    } else {
+      level = 'ng';
+      badge = '🔴 危険水域';
+      note  = 'FL比率が70%超です。このまま続くと利益が出にくくなります。早急な改善が必要です。';
+    }
+
+    showResult(level, flPct.toFixed(1) + '%', badge, note);
+
+    // バー更新
+    var barCap = 100;
+    document.getElementById('f-pct-lbl').textContent  = fPct.toFixed(1) + '%';
+    document.getElementById('l-pct-lbl').textContent  = lPct.toFixed(1) + '%';
+    document.getElementById('fl-pct-lbl').textContent = flPct.toFixed(1) + '%';
+    document.getElementById('bar-f').style.width  = Math.min(fPct, barCap) + '%';
+    document.getElementById('bar-l').style.width  = Math.min(lPct, barCap) + '%';
+    document.getElementById('bar-fl').style.width = Math.min(flPct, barCap) + '%';
+    document.getElementById('bar-card').style.display = '';
+
+    // 内訳
+    showDetail([
+      ['月間売上',                   fmt(sales)  + ' 円'],
+      ['食材費（F）',                fmt(food)   + ' 円'],
+      ['人件費（L）',                fmt(labor)  + ' 円'],
+      ['FL合計（F＋L）',             fmt(fl)     + ' 円', true],
+      ['F比率',                      fPct.toFixed(1)  + '% （目安: 25〜30%）'],
+      ['L比率',                      lPct.toFixed(1)  + '% （目安: 25〜35%）'],
+      ['FL比率',                     flPct.toFixed(1) + '% （目安: 60%以下）', true],
+      ['FL超過後の残り（売上−FL）',  fmt(remain) + ' 円'],
+    ]);
+  }
+
+  function showResult(level, val, badge, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rbadge').innerHTML = '<span class="result-badge">' + badge + '</span>';
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rbadge').innerHTML = '';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('bar-card').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  loadSaved();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
