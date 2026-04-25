@@ -73,6 +73,6 @@
   var current = getCurrentAppName();
   if(!current) return;
   fetchAppList().then(function(apps){
-    render(pickRelated(apps, current, 5));
+    render(pickRelated(apps, current, 3));
   }).catch(function(){});
 })();
