@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI代替リスク診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    .task-grid {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .task-btn {
+      padding: 0.45rem 0.85rem;
+      font-size: 0.85rem; font-weight: 600;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      background: var(--bg); color: var(--text-sub);
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .task-btn.selected {
+      background: var(--accent); color: #fff;
+      border-color: var(--accent);
+    }
+    .task-hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.4rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-calc:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* 結論カード */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.85rem; color: var(--text-sub); line-height: 1.6; margin-top: 0.4rem; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* リスクバー */
+    .risk-bar-wrap {
+      margin: 1rem 0 0.5rem;
+      background: #f0e8d8; border-radius: 99px;
+      height: 14px; position: relative; overflow: hidden;
+    }
+    .risk-bar-fill {
+      height: 100%; border-radius: 99px;
+      transition: width 0.6s ease;
+    }
+    .risk-bar-labels {
+      display: flex; justify-content: space-between;
+      font-size: 0.65rem; color: var(--text-sub); margin-top: 0.3rem;
+    }
+
+    /* スキルリスト */
+    .skill-list { list-style: none; margin-top: 0.6rem; }
+    .skill-list li {
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      padding: 0.55rem 0.3rem; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; color: var(--text); line-height: 1.5;
+    }
+    .skill-list li:last-child { border-bottom: none; }
+    .skill-icon { font-size: 1rem; flex-shrink: 0; margin-top: 0.05rem; }
+
+    /* 内訳テーブル */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); vertical-align: top; }
+    .detail-table td:first-child { width: 40%; }
+    .detail-table td:last-child { font-weight: 600; color: var(--text); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🤖 AI代替リスク診断アプリ</h1>
+    <p class="subtitle">職種と業務内容を選ぶだけ。あなたの仕事がAIに代替されるリスクと対応スキルを即診断。</p>
+  </header>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">STEP 1 — 職種を選ぶ</p>
+    <div class="field">
+      <label for="jobSelect">あなたの職種</label>
+      <select id="jobSelect" onchange="updateTasks()">
+        <option value="">-- 職種を選んでください --</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card" id="taskCard" style="display:none">
+    <p class="card-title">STEP 2 — 主な業務内容を選ぶ（複数選択可）</p>
+    <p class="task-hint">あてはまる業務をタップしてください</p>
+    <div class="task-grid" id="taskGrid"></div>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" id="diagBtn" onclick="diagnose()" disabled>診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">AI代替リスク</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <div class="risk-bar-wrap">
+      <div class="risk-bar-fill" id="riskBar" style="width:0%"></div>
+    </div>
+    <div class="risk-bar-labels">
+      <span>低</span><span>やや低</span><span>中</span><span>やや高</span><span>高</span>
+    </div>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- スキル提案カード -->
+  <div class="card" id="skillCard" style="display:none">
+    <p class="card-title">おすすめ対応スキル</p>
+    <ul class="skill-list" id="skillList"></ul>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">診断内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // =============================================
+  // データ定義
+  // =============================================
+  var JOBS = [
+    {
+      id: 'jimu', name: '事務職',
+      tasks: [
+        { id: 't1', name: 'データ入力・整理', risk: 5 },
+        { id: 't2', name: '書類作成・ファイリング', risk: 4 },
+        { id: 't3', name: 'スケジュール管理', risk: 4 },
+        { id: 't4', name: '電話・メール対応', risk: 3 },
+        { id: 't5', name: '経費精算・集計', risk: 5 },
+      ]
+    },
+    {
+      id: 'eigyo', name: '営業職',
+      tasks: [
+        { id: 't1', name: '新規顧客開拓', risk: 2 },
+        { id: 't2', name: '提案書・見積書作成', risk: 4 },
+        { id: 't3', name: '既存顧客フォロー', risk: 2 },
+        { id: 't4', name: '商談・交渉', risk: 1 },
+        { id: 't5', name: '売上データ分析', risk: 4 },
+      ]
+    },
+    {
+      id: 'it', name: 'IT・エンジニア',
+      tasks: [
+        { id: 't1', name: 'プログラミング・コーディング', risk: 3 },
+        { id: 't2', name: 'テスト・デバッグ', risk: 4 },
+        { id: 't3', name: 'システム設計・アーキテクチャ', risk: 2 },
+        { id: 't4', name: '定型バッチ処理・運用', risk: 5 },
+        { id: 't5', name: 'セキュリティ管理', risk: 3 },
+      ]
+    },
+    {
+      id: 'medical', name: '医療・看護',
+      tasks: [
+        { id: 't1', name: '診断・治療', risk: 2 },
+        { id: 't2', name: '患者ケア・コミュニケーション', risk: 1 },
+        { id: 't3', name: '医療記録入力', risk: 4 },
+        { id: 't4', name: '検査・データ分析', risk: 3 },
+        { id: 't5', name: '服薬管理・調剤補助', risk: 4 },
+      ]
+    },
+    {
+      id: 'fukushi', name: '介護・福祉',
+      tasks: [
+        { id: 't1', name: '身体介助（入浴・食事）', risk: 2 },
+        { id: 't2', name: '利用者とのコミュニケーション', risk: 1 },
+        { id: 't3', name: '記録・書類作成', risk: 4 },
+        { id: 't4', name: '生活支援・見守り', risk: 2 },
+      ]
+    },
+    {
+      id: 'kyoiku', name: '教育・保育',
+      tasks: [
+        { id: 't1', name: '授業・講義', risk: 2 },
+        { id: 't2', name: '試験問題作成・採点', risk: 4 },
+        { id: 't3', name: '個別指導・メンタリング', risk: 1 },
+        { id: 't4', name: '教材・カリキュラム作成', risk: 3 },
+        { id: 't5', name: '保護者対応', risk: 1 },
+      ]
+    },
+    {
+      id: 'seizou', name: '製造・工場',
+      tasks: [
+        { id: 't1', name: '組み立て・検査（定型）', risk: 5 },
+        { id: 't2', name: '設備保守・メンテナンス', risk: 3 },
+        { id: 't3', name: '品質管理・判定', risk: 4 },
+        { id: 't4', name: '工程設計・改善', risk: 2 },
+        { id: 't5', name: '原材料の入出庫管理', risk: 5 },
+      ]
+    },
+    {
+      id: 'kensetsu', name: '建設・土木',
+      tasks: [
+        { id: 't1', name: '現場施工・作業', risk: 2 },
+        { id: 't2', name: '設計・積算', risk: 3 },
+        { id: 't3', name: '測量・調査', risk: 4 },
+        { id: 't4', name: '工程管理・安全管理', risk: 2 },
+      ]
+    },
+    {
+      id: 'inshoku', name: '飲食・調理',
+      tasks: [
+        { id: 't1', name: '調理（定番メニュー）', risk: 3 },
+        { id: 't2', name: '創作料理・メニュー開発', risk: 1 },
+        { id: 't3', name: '接客・オーダー対応', risk: 3 },
+        { id: 't4', name: '在庫・発注管理', risk: 5 },
+        { id: 't5', name: 'キャッシュレス会計・レジ', risk: 5 },
+      ]
+    },
+    {
+      id: 'kouri', name: '小売・販売',
+      tasks: [
+        { id: 't1', name: 'レジ・会計業務', risk: 5 },
+        { id: 't2', name: '接客・商品提案', risk: 2 },
+        { id: 't3', name: '在庫管理・補充', risk: 4 },
+        { id: 't4', name: '売場づくり・陳列', risk: 3 },
+        { id: 't5', name: 'クレーム対応', risk: 2 },
+      ]
+    },
+    {
+      id: 'butsuryu', name: '物流・配送',
+      tasks: [
+        { id: 't1', name: '仕分け・ピッキング', risk: 5 },
+        { id: 't2', name: '配送ドライバー', risk: 3 },
+        { id: 't3', name: '倉庫管理・棚卸', risk: 4 },
+        { id: 't4', name: '配送ルート計画', risk: 4 },
+      ]
+    },
+    {
+      id: 'kaikei', name: '会計・経理',
+      tasks: [
+        { id: 't1', name: '記帳・仕訳入力', risk: 5 },
+        { id: 't2', name: '決算・財務諸表作成', risk: 4 },
+        { id: 't3', name: '税務申告', risk: 4 },
+        { id: 't4', name: '財務分析・コンサル', risk: 2 },
+        { id: 't5', name: '給与計算', risk: 5 },
+      ]
+    },
+    {
+      id: 'horitsu', name: '法律・法務',
+      tasks: [
+        { id: 't1', name: '契約書レビュー（定型）', risk: 4 },
+        { id: 't2', name: '法律相談・判断', risk: 1 },
+        { id: 't3', name: '文書作成・調査', risk: 4 },
+        { id: 't4', name: '訴訟・交渉', risk: 1 },
+      ]
+    },
+    {
+      id: 'marketing', name: 'マーケティング',
+      tasks: [
+        { id: 't1', name: 'データ分析・レポート作成', risk: 4 },
+        { id: 't2', name: '広告運用（定型）', risk: 5 },
+        { id: 't3', name: '戦略立案・企画', risk: 2 },
+        { id: 't4', name: 'コンテンツ作成', risk: 3 },
+        { id: 't5', name: 'SNS管理・投稿', risk: 4 },
+      ]
+    },
+    {
+      id: 'jinzai', name: '人事・採用',
+      tasks: [
+        { id: 't1', name: '書類選考・履歴書確認', risk: 4 },
+        { id: 't2', name: '面接・評価', risk: 2 },
+        { id: 't3', name: '給与・勤怠管理', risk: 5 },
+        { id: 't4', name: '研修設計・実施', risk: 2 },
+        { id: 't5', name: '労務管理・手続き', risk: 4 },
+      ]
+    },
+    {
+      id: 'design', name: 'デザイン・クリエイティブ',
+      tasks: [
+        { id: 't1', name: 'グラフィックデザイン（定型）', risk: 4 },
+        { id: 't2', name: 'ブランド戦略・コンセプト設計', risk: 1 },
+        { id: 't3', name: 'UI/UXデザイン', risk: 3 },
+        { id: 't4', name: '写真・動画撮影', risk: 2 },
+        { id: 't5', name: 'コピーライティング（定型）', risk: 4 },
+      ]
+    },
+    {
+      id: 'kanri', name: '管理職・経営',
+      tasks: [
+        { id: 't1', name: '意思決定・戦略立案', risk: 1 },
+        { id: 't2', name: '部下育成・マネジメント', risk: 1 },
+        { id: 't3', name: '定例会議・報告書作成', risk: 4 },
+        { id: 't4', name: '予算管理・数値分析', risk: 3 },
+        { id: 't5', name: '社内調整・折衝', risk: 2 },
+      ]
+    },
+    {
+      id: 'consult', name: 'コンサルタント',
+      tasks: [
+        { id: 't1', name: '課題分析・調査', risk: 3 },
+        { id: 't2', name: '資料・報告書作成', risk: 4 },
+        { id: 't3', name: '提案・プレゼン', risk: 2 },
+        { id: 't4', name: '実行支援・伴走', risk: 1 },
+      ]
+    },
+    {
+      id: 'kenkyu', name: '研究・開発',
+      tasks: [
+        { id: 't1', name: '実験・データ収集', risk: 3 },
+        { id: 't2', name: 'データ解析・モデリング', risk: 4 },
+        { id: 't3', name: '仮説立案・研究設計', risk: 2 },
+        { id: 't4', name: '論文・特許作成', risk: 3 },
+      ]
+    },
+    {
+      id: 'norin', name: '農業・林業・漁業',
+      tasks: [
+        { id: 't1', name: '作付け・収穫作業', risk: 3 },
+        { id: 't2', name: '品質判定・出荷管理', risk: 4 },
+        { id: 't3', name: '農場計画・経営判断', risk: 2 },
+        { id: 't4', name: '病害虫管理・環境観察', risk: 3 },
+      ]
+    },
+  ];
+
+  var RISK_CONFIG = [
+    { level: 'ok',   label: '低',     eval: 'AIに代替されにくい職種です',    color: '#15803d', pct: 15, note: 'この業務は対人スキル・創造性・高度な判断が必要なため、AIが完全に代替するのは難しいとされています。ただし、業務の一部はAIが補助する形に変化していく可能性があります。' },
+    { level: 'ok',   label: 'やや低', eval: 'AIとうまく共存できる職種です',  color: '#2f855a', pct: 35, note: 'AIが補助ツールとして入り込む可能性はありますが、最終判断や人との関係構築は引き続き人間が担います。AIを使いこなすスキルを身につけると強みになります。' },
+    { level: 'warn', label: '中',     eval: '一部の業務がAIに移行しそうです', color: '#b45309', pct: 55, note: '定型的な作業はAIに代替が進む可能性があります。より複雑な判断や創造的な部分に注力し、AIツールを業務に取り入れる姿勢が求められます。' },
+    { level: 'warn', label: 'やや高', eval: 'AI化が急速に進んでいる領域です', color: '#c05621', pct: 75, note: '自動化・AI化がすでに進んでいる領域です。現在の業務の多くがAIに置き換わるリスクがあります。早めにスキルアップを始めることを強くおすすめします。' },
+    { level: 'ng',   label: '高',     eval: 'AI代替リスクが非常に高い状態です', color: '#b91c1c', pct: 95, note: '定型・繰り返し作業が多く、AIによる自動化が技術的に容易な領域です。近い将来、この業務の多くがAIや自動化システムに代替される可能性が高いです。今すぐスキルチェンジを検討しましょう。' },
+  ];
+
+  var SKILLS_BY_LEVEL = [
+    // 低
+    [
+      { icon: '🤝', text: 'AIツールを業務に取り入れ、生産性をさらに高めるスキル' },
+      { icon: '🧠', text: 'より高度な専門知識・資格の取得' },
+      { icon: '💡', text: '創造的問題解決・新規提案力' },
+      { icon: '🌐', text: '業界横断的なコミュニケーション力' },
+    ],
+    // やや低
+    [
+      { icon: '🤖', text: 'ChatGPT・生成AIツールの実務活用スキル' },
+      { icon: '📊', text: 'データ読解・活用スキル（Excel/Sheets の基礎分析）' },
+      { icon: '🤝', text: '対人折衝・プレゼンテーション能力の強化' },
+      { icon: '🎯', text: 'プロジェクト管理・リーダーシップスキル' },
+    ],
+    // 中
+    [
+      { icon: '🤖', text: '生成AI（ChatGPT・Copilot）の業務組み込み活用' },
+      { icon: '📈', text: 'データ分析・統計の基礎スキル（Pythonまたは統計ツール）' },
+      { icon: '💼', text: 'AIに任せる業務と自分が担う業務の切り分け能力' },
+      { icon: '🎓', text: '専門性の深化（業界知識・資格取得）' },
+      { icon: '🗣️', text: '高度なコミュニケーション・交渉スキル' },
+    ],
+    // やや高
+    [
+      { icon: '🚀', text: 'AI・自動化ツールの設計・管理スキル（Pythonの基礎）' },
+      { icon: '📊', text: 'データサイエンスの基礎（機械学習の仕組みを理解する）' },
+      { icon: '🧠', text: 'より高度な判断・戦略立案など、AIが苦手な領域へのシフト' },
+      { icon: '🎓', text: '現職と親和性の高い資格・専門スキルの取得' },
+      { icon: '🌱', text: '副業・フリーランスなど複数の収入源の検討' },
+    ],
+    // 高
+    [
+      { icon: '🚀', text: 'Python・RPAなどの自動化スキルの習得（AIの使い手側へ）' },
+      { icon: '🔄', text: 'キャリアチェンジの検討（AI代替しにくい職種への移行）' },
+      { icon: '🎓', text: '別職種へのリスキリング（IT・介護・医療・コンサルなど）' },
+      { icon: '💼', text: 'マネジメント・プロジェクト管理スキルの習得' },
+      { icon: '🌐', text: 'AI・テクノロジーを活用する側のポジション取り' },
+    ],
+  ];
+
+  // =============================================
+  // UI 制御
+  // =============================================
+  var selectedTasks = {};
+
+  function init() {
+    var sel = document.getElementById('jobSelect');
+    JOBS.forEach(function(j) {
+      var opt = document.createElement('option');
+      opt.value = j.id; opt.textContent = j.name;
+      sel.appendChild(opt);
+    });
+    loadStorage();
+  }
+
+  function updateTasks() {
+    var jobId = document.getElementById('jobSelect').value;
+    selectedTasks = {};
+    var taskCard = document.getElementById('taskCard');
+    var grid = document.getElementById('taskGrid');
+    grid.innerHTML = '';
+
+    if (!jobId) { taskCard.style.display = 'none'; updateBtn(); return; }
+
+    var job = JOBS.find(function(j){ return j.id === jobId; });
+    if (!job) { taskCard.style.display = 'none'; updateBtn(); return; }
+
+    job.tasks.forEach(function(t) {
+      var btn = document.createElement('button');
+      btn.className = 'task-btn';
+      btn.textContent = t.name;
+      btn.dataset.id = t.id;
+      btn.onclick = function() {
+        if (selectedTasks[t.id]) {
+          delete selectedTasks[t.id];
+          btn.classList.remove('selected');
+        } else {
+          selectedTasks[t.id] = t;
+          btn.classList.add('selected');
+        }
+        updateBtn();
+      };
+      grid.appendChild(btn);
+    });
+
+    taskCard.style.display = '';
+    updateBtn();
+  }
+
+  function updateBtn() {
+    var jobId = document.getElementById('jobSelect').value;
+    var hasTask = Object.keys(selectedTasks).length > 0;
+    document.getElementById('diagBtn').disabled = !(jobId && hasTask);
+  }
+
+  function diagnose() {
+    var tasks = Object.values(selectedTasks);
+    if (tasks.length === 0) return;
+
+    var avg = tasks.reduce(function(s, t){ return s + t.risk; }, 0) / tasks.length;
+    var levelIdx = Math.min(4, Math.max(0, Math.round(avg) - 1));
+    var cfg = RISK_CONFIG[levelIdx];
+
+    // 結論カード
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + cfg.level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = cfg.label;
+    document.getElementById('re').textContent = cfg.eval;
+    document.getElementById('rn').textContent = cfg.note;
+
+    var bar = document.getElementById('riskBar');
+    bar.style.background = cfg.color;
+    bar.style.width = '0%';
+    setTimeout(function(){ bar.style.width = cfg.pct + '%'; }, 50);
+
+    // スキル提案
+    var skills = SKILLS_BY_LEVEL[levelIdx];
+    var ul = document.getElementById('skillList');
+    ul.innerHTML = skills.map(function(s){
+      return '<li><span class="skill-icon">' + s.icon + '</span><span>' + s.text + '</span></li>';
+    }).join('');
+    document.getElementById('skillCard').style.display = '';
+
+    // 内訳
+    var jobId = document.getElementById('jobSelect').value;
+    var job = JOBS.find(function(j){ return j.id === jobId; });
+    var rows = tasks.map(function(t){
+      var r = RISK_CONFIG[Math.min(4, t.risk - 1)];
+      return '<tr><td>' + t.name + '</td><td>' + r.label + '（' + t.risk + '/5）</td></tr>';
+    });
+    rows.push('<tr style="border-top:2px solid var(--border)"><td><strong>平均スコア</strong></td><td><strong>' + avg.toFixed(1) + ' / 5.0</strong></td></tr>');
+    document.getElementById('db').innerHTML = rows.join('');
+    document.getElementById('detail').style.display = '';
+
+    saveStorage(jobId, Object.keys(selectedTasks));
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function saveStorage(jobId, taskIds) {
+    try {
+      localStorage.setItem('ai_risk_job', jobId);
+      localStorage.setItem('ai_risk_tasks', JSON.stringify(taskIds));
+    } catch(e) {}
+  }
+
+  function loadStorage() {
+    try {
+      var jobId = localStorage.getItem('ai_risk_job');
+      var taskIds = JSON.parse(localStorage.getItem('ai_risk_tasks') || '[]');
+      if (!jobId) return;
+      var sel = document.getElementById('jobSelect');
+      sel.value = jobId;
+      updateTasks();
+      setTimeout(function() {
+        taskIds.forEach(function(tid) {
+          var btns = document.querySelectorAll('.task-btn');
+          btns.forEach(function(btn) {
+            if (btn.dataset.id === tid) btn.click();
+          });
+        });
+      }, 50);
+    } catch(e) {}
+  }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

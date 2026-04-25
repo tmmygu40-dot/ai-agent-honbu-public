@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>キャッシュフロー枯渇予測アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 700px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力グリッド ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.9rem;
+    }
+    @media (max-width: 480px) {
+      .input-grid { grid-template-columns: 1fr; }
+    }
+    .field { margin-bottom: 0; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 700px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 700px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 月次テーブル ── */
+    .cf-table-wrap { overflow-x: auto; }
+    .cf-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.82rem; min-width: 520px;
+    }
+    .cf-table th {
+      background: var(--bg); color: var(--text-sub);
+      font-weight: 700; font-size: 0.75rem;
+      padding: 0.5rem 0.4rem; border-bottom: 2px solid var(--border);
+      text-align: right; white-space: nowrap;
+    }
+    .cf-table th:first-child { text-align: left; }
+    .cf-table td {
+      padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border);
+      text-align: right; color: var(--text);
+    }
+    .cf-table td:first-child { text-align: left; font-weight: 700; }
+    .cf-table tr:last-child td { border-bottom: none; }
+    .cf-table tr.row-ng td { background: var(--ng-bg); }
+    .cf-table tr.row-ng td:first-child { color: var(--ng); }
+    .cf-table tr.row-warn td { background: var(--warn-bg); }
+    .cf-table tr.row-warn td:first-child { color: var(--warn); }
+    .cf-table .neg { color: var(--ng); font-weight: 700; }
+    .cf-table .pos { color: var(--ok); }
+    .cf-table .zero { color: var(--text-sub); }
+    .cf-table .badge {
+      display: inline-block; padding: 0.1rem 0.45rem;
+      border-radius: 6px; font-size: 0.7rem; font-weight: 700;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok); }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng); }
+
+    /* ── 警告バナー ── */
+    .alert-banner {
+      max-width: 700px; margin: 0 auto 1rem;
+      padding: 0.9rem 1.1rem; border-radius: var(--radius);
+      font-size: 0.88rem; font-weight: 700; line-height: 1.5;
+      display: none;
+    }
+    .alert-banner.ng   { background: var(--ng-bg);   color: var(--ng);   border: 1.5px solid var(--ng);   }
+    .alert-banner.warn { background: var(--warn-bg); color: var(--warn); border: 1.5px solid var(--warn); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 700px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💸 キャッシュフロー枯渇予測アプリ</h1>
+    <p class="subtitle">売上・固定費・支払いサイクルを入力して、資金ショートする月を事前に把握する</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="input-grid">
+      <div class="field">
+        <label for="startBalance">期初現金残高（円）</label>
+        <input type="number" id="startBalance" placeholder="例: 500000" min="0">
+        <p class="hint">シミュレーション開始時点の手元資金</p>
+      </div>
+      <div class="field">
+        <label for="startMonth">開始年月</label>
+        <input type="month" id="startMonth">
+      </div>
+      <div class="field">
+        <label for="monthlyRevenue">月次売上（円）</label>
+        <input type="number" id="monthlyRevenue" placeholder="例: 800000" min="0">
+      </div>
+      <div class="field">
+        <label for="revenueCollect">売上入金サイクル</label>
+        <select id="revenueCollect">
+          <option value="0">当月払い（即入金）</option>
+          <option value="1" selected>翌月払い（1ヶ月後）</option>
+          <option value="2">翌々月払い（2ヶ月後）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="fixedCost">月次固定費（円）</label>
+        <input type="number" id="fixedCost" placeholder="例: 300000" min="0">
+        <p class="hint">家賃・人件費・リース料など</p>
+      </div>
+      <div class="field">
+        <label for="paymentCycle">固定費支払いサイクル</label>
+        <select id="paymentCycle">
+          <option value="0" selected>当月払い（即支払い）</option>
+          <option value="1">翌月払い（1ヶ月後）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="variableCostRate">変動費率（%）</label>
+        <input type="number" id="variableCostRate" placeholder="例: 30" min="0" max="100" step="0.1">
+        <p class="hint">売上に対する仕入れ・材料費などの割合</p>
+      </div>
+      <div class="field">
+        <label for="monthlyOther">その他月次支出（円）</label>
+        <input type="number" id="monthlyOther" placeholder="例: 50000" min="0">
+        <p class="hint">広告費・交通費など（任意）</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">📊 12ヶ月分を試算する</button>
+
+  <!-- 警告バナー -->
+  <div class="alert-banner" id="alertBanner"></div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">資金状況の診断</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 月次テーブルカード -->
+  <div class="card" id="tableCard" style="display:none">
+    <p class="card-title">月次キャッシュフロー（12ヶ月）</p>
+    <div class="cf-table-wrap">
+      <table class="cf-table">
+        <thead>
+          <tr>
+            <th>月</th>
+            <th>入金額</th>
+            <th>支出計</th>
+            <th>当月収支</th>
+            <th>月末残高</th>
+            <th>状態</th>
+          </tr>
+        </thead>
+        <tbody id="cfBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">試算の前提</p>
+    <table style="width:100%;border-collapse:collapse;font-size:0.88rem;">
+      <tbody id="detailBody"></tbody>
+    </table>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+
+  <script>
+  var LS_KEY = 'cf_forecast_v1';
+
+  // ── 初期化 ──
+  window.addEventListener('DOMContentLoaded', function() {
+    // デフォルト開始月（今月）
+    var now = new Date();
+    var yyyy = now.getFullYear();
+    var mm   = String(now.getMonth() + 1).padStart(2, '0');
+    document.getElementById('startMonth').value = yyyy + '-' + mm;
+    loadFromLS();
+  });
+
+  // ── localStorage 保存・読み込み ──
+  function saveToLS() {
+    var data = {
+      startBalance:     document.getElementById('startBalance').value,
+      startMonth:       document.getElementById('startMonth').value,
+      monthlyRevenue:   document.getElementById('monthlyRevenue').value,
+      revenueCollect:   document.getElementById('revenueCollect').value,
+      fixedCost:        document.getElementById('fixedCost').value,
+      paymentCycle:     document.getElementById('paymentCycle').value,
+      variableCostRate: document.getElementById('variableCostRate').value,
+      monthlyOther:     document.getElementById('monthlyOther').value,
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  }
+  function loadFromLS() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.startBalance     !== undefined) document.getElementById('startBalance').value     = data.startBalance;
+      if (data.startMonth       !== undefined) document.getElementById('startMonth').value       = data.startMonth;
+      if (data.monthlyRevenue   !== undefined) document.getElementById('monthlyRevenue').value   = data.monthlyRevenue;
+      if (data.revenueCollect   !== undefined) document.getElementById('revenueCollect').value   = data.revenueCollect;
+      if (data.fixedCost        !== undefined) document.getElementById('fixedCost').value        = data.fixedCost;
+      if (data.paymentCycle     !== undefined) document.getElementById('paymentCycle').value     = data.paymentCycle;
+      if (data.variableCostRate !== undefined) document.getElementById('variableCostRate').value = data.variableCostRate;
+      if (data.monthlyOther     !== undefined) document.getElementById('monthlyOther').value     = data.monthlyOther;
+    } catch(e) {}
+  }
+
+  // ── メイン計算 ──
+  function calc() {
+    var startBalance     = parseFloat(document.getElementById('startBalance').value)     || 0;
+    var startMonthVal    = document.getElementById('startMonth').value;
+    var monthlyRevenue   = parseFloat(document.getElementById('monthlyRevenue').value)   || 0;
+    var revenueCollect   = parseInt(document.getElementById('revenueCollect').value,  10);
+    var fixedCost        = parseFloat(document.getElementById('fixedCost').value)        || 0;
+    var paymentCycle     = parseInt(document.getElementById('paymentCycle').value,    10);
+    var variableCostRate = parseFloat(document.getElementById('variableCostRate').value) || 0;
+    var monthlyOther     = parseFloat(document.getElementById('monthlyOther').value)     || 0;
+
+    if (!startMonthVal) {
+      showResultCard('ng', '⚠️ エラー', '開始年月を入力してください', '');
+      return;
+    }
+    if (monthlyRevenue <= 0 && fixedCost <= 0) {
+      showResultCard('ng', '⚠️ エラー', '売上または固定費を入力してください', '');
+      return;
+    }
+
+    saveToLS();
+
+    // ── 月次シミュレーション ──
+    // 売上は各月に発生するが、入金は revenueCollect ヶ月後
+    // 固定費は各月に発生するが、支払いは paymentCycle ヶ月後
+    // 変動費は売上発生時に当月支払い（現金払い想定）
+
+    var MONTHS = 14; // 2ヶ月前後を考慮して14ヶ月計算し、先頭12ヶ月を表示
+    var revenue  = new Array(MONTHS).fill(monthlyRevenue);
+    var varCost  = revenue.map(function(r) { return r * (variableCostRate / 100); });
+    var fixed    = new Array(MONTHS).fill(fixedCost);
+    var other    = new Array(MONTHS).fill(monthlyOther);
+
+    // 入金スケジュール（t月の売上がt+revenueCollect月に入金）
+    var inflow = new Array(MONTHS + 3).fill(0);
+    for (var t = 0; t < MONTHS; t++) {
+      inflow[t + revenueCollect] += revenue[t];
+    }
+
+    // 支出スケジュール（変動費は当月支払い、固定費はpaymentCycle後）
+    var outflow = new Array(MONTHS + 2).fill(0);
+    for (var t = 0; t < MONTHS; t++) {
+      outflow[t] += varCost[t];       // 変動費：当月
+      outflow[t] += other[t];          // その他：当月
+      outflow[t + paymentCycle] += fixed[t];  // 固定費：サイクル考慮
+    }
+
+    // 月末残高を計算（最初の12ヶ月のみ表示）
+    var SHOW = 12;
+    var balance = startBalance;
+    var rows = [];
+    var ngMonths   = [];
+    var warnMonths = [];
+
+    // 開始月をパース
+    var parts = startMonthVal.split('-');
+    var baseYear  = parseInt(parts[0], 10);
+    var baseMonth = parseInt(parts[1], 10) - 1; // 0-indexed
+
+    for (var i = 0; i < SHOW; i++) {
+      var monthInflow  = inflow[i]  || 0;
+      var monthOutflow = outflow[i] || 0;
+      var cashflow     = monthInflow - monthOutflow;
+      balance += cashflow;
+
+      var d = new Date(baseYear, baseMonth + i, 1);
+      var label = d.getFullYear() + '年' + (d.getMonth() + 1) + '月';
+
+      var status = 'ok';
+      if (balance < 0) {
+        status = 'ng';
+        ngMonths.push(label);
+      } else if (balance < fixedCost + monthlyOther) {
+        status = 'warn';
+        warnMonths.push(label);
+      }
+
+      rows.push({
+        label:     label,
+        inflow:    monthInflow,
+        outflow:   monthOutflow,
+        cashflow:  cashflow,
+        balance:   balance,
+        status:    status,
+      });
+    }
+
+    // ── 結果カード ──
+    var level, val, eval_, note;
+    if (ngMonths.length > 0) {
+      level = 'ng';
+      val   = '⚠️ 資金ショートあり';
+      eval_ = ngMonths[0] + 'に残高がマイナスになります';
+      note  = '資金ショートが ' + ngMonths.length + 'ヶ月発生。早急な対策が必要です。';
+    } else if (warnMonths.length > 0) {
+      level = 'warn';
+      val   = '⚠️ 残高が薄い月あり';
+      eval_ = warnMonths[0] + 'から資金が不足気味になります';
+      note  = '固定費1ヶ月分を下回る月が ' + warnMonths.length + 'ヶ月あります。追加の資金手当てを検討してください。';
+    } else {
+      level = 'ok';
+      val   = '✅ 資金ショートなし';
+      eval_ = '12ヶ月間、残高は安全圏内です';
+      note  = '最低残高: ' + fmt(Math.min.apply(null, rows.map(function(r){return r.balance;}))) + ' 円（' + rows.reduce(function(a,b){ return b.balance < a.balance ? b : a; }).label + '）';
+    }
+
+    showResultCard(level, val, eval_, note);
+
+    // ── 警告バナー ──
+    var banner = document.getElementById('alertBanner');
+    if (ngMonths.length > 0) {
+      banner.className = 'alert-banner ng';
+      banner.style.display = 'block';
+      banner.textContent = '🚨 資金ショート月：' + ngMonths.join('、');
+    } else if (warnMonths.length > 0) {
+      banner.className = 'alert-banner warn';
+      banner.style.display = 'block';
+      banner.textContent = '⚠️ 残高が薄い月：' + warnMonths.join('、');
+    } else {
+      banner.style.display = 'none';
+    }
+
+    // ── 月次テーブル ──
+    var tbody = document.getElementById('cfBody');
+    tbody.innerHTML = rows.map(function(r) {
+      var rowClass = r.status === 'ng' ? 'row-ng' : r.status === 'warn' ? 'row-warn' : '';
+      var badge = r.status === 'ng'
+        ? '<span class="badge badge-ng">危険</span>'
+        : r.status === 'warn'
+        ? '<span class="badge badge-warn">注意</span>'
+        : '<span class="badge badge-ok">安全</span>';
+      var cfClass = r.cashflow < 0 ? 'neg' : r.cashflow > 0 ? 'pos' : 'zero';
+      var balClass = r.balance  < 0 ? 'neg' : '';
+      return '<tr class="' + rowClass + '">'
+        + '<td>' + r.label + '</td>'
+        + '<td>' + fmt(r.inflow)    + '</td>'
+        + '<td>' + fmt(r.outflow)   + '</td>'
+        + '<td class="' + cfClass   + '">' + (r.cashflow >= 0 ? '+' : '') + fmt(r.cashflow) + '</td>'
+        + '<td class="' + balClass  + '">' + fmt(r.balance)  + '</td>'
+        + '<td>' + badge + '</td>'
+        + '</tr>';
+    }).join('');
+    document.getElementById('tableCard').style.display = 'block';
+
+    // ── 前提内訳 ──
+    var collectLabel  = ['当月払い（即入金）','翌月払い','翌々月払い'][revenueCollect];
+    var paymentLabel  = ['当月払い','翌月払い'][paymentCycle];
+    var detailRows = [
+      ['期初残高',         fmt(startBalance)                            + ' 円'],
+      ['月次売上',         fmt(monthlyRevenue)                          + ' 円'],
+      ['売上入金サイクル', collectLabel],
+      ['月次固定費',       fmt(fixedCost)                               + ' 円'],
+      ['固定費支払いサイクル', paymentLabel],
+      ['変動費率',         variableCostRate                             + ' %（月 ' + fmt(monthlyRevenue * variableCostRate / 100) + ' 円相当）'],
+      ['その他月次支出',   fmt(monthlyOther)                            + ' 円'],
+    ];
+    document.getElementById('detailBody').innerHTML = detailRows.map(function(r) {
+      return '<tr style="border-bottom:1px solid var(--border)">'
+           + '<td style="padding:0.5rem 0.3rem;color:var(--text-sub);font-size:0.85rem;">' + r[0] + '</td>'
+           + '<td style="padding:0.5rem 0.3rem;text-align:right;font-weight:600;font-size:0.85rem;">' + r[1] + '</td>'
+           + '</tr>';
+    }).join('');
+    document.getElementById('detailCard').style.display = 'block';
+  }
+
+  // ── 結論カード表示 ──
+  function showResultCard(level, val, eval_, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent   = val;
+    document.getElementById('re').textContent   = eval_;
+    document.getElementById('rn').textContent   = note;
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

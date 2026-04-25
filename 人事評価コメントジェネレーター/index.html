@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>人事評価コメントジェネレーター</title>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* スタッフ名 */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* 評価項目リスト */
+    .item-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .eval-item {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 0.5rem;
+      align-items: center;
+      padding: 0.75rem 0.9rem;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+    }
+    .eval-item .item-name {
+      font-size: 0.9rem; font-weight: 600; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .eval-item .star-select {
+      display: flex; gap: 3px;
+    }
+    .eval-item .star-select label {
+      cursor: pointer; font-size: 1.4rem; line-height: 1;
+      color: #d4c4b0; transition: color 0.1s;
+      user-select: none; -webkit-user-select: none;
+    }
+    .eval-item .star-select input[type="radio"] { display: none; }
+    .eval-item .star-select input[type="radio"]:checked ~ label,
+    .eval-item .star-select label:hover,
+    .eval-item .star-select label:hover ~ label { color: #d4c4b0; }
+    /* 星の選択状態は JS で制御 */
+    .star-filled { color: var(--accent) !important; }
+
+    .eval-item .del-btn {
+      background: none; border: none; cursor: pointer;
+      color: #d4c4b0; font-size: 1.1rem; padding: 0.2rem 0.3rem;
+      border-radius: 5px; transition: color 0.1s, background 0.1s;
+      flex-shrink: 0;
+    }
+    .eval-item .del-btn:hover { color: var(--ng); background: var(--ng-bg); }
+
+    /* スコア表示 */
+    .score-badge {
+      font-size: 0.78rem; font-weight: 700; padding: 0.18rem 0.55rem;
+      border-radius: 20px; background: var(--accent-light); color: var(--accent);
+      white-space: nowrap; flex-shrink: 0;
+    }
+
+    /* カスタム追加 */
+    .add-row {
+      display: flex; gap: 0.5rem; margin-top: 0.75rem;
+    }
+    .add-row input {
+      flex: 1; padding: 0.65rem 0.9rem;
+      font-size: 0.92rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .add-row input:focus { border-color: var(--accent); background: #fff; }
+    .add-row button {
+      padding: 0.65rem 1rem; font-size: 0.9rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 9px; cursor: pointer;
+      white-space: nowrap; transition: background 0.1s;
+    }
+    .add-row button:hover { background: var(--accent); color: #fff; }
+
+    /* 評価期間・総評 */
+    .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+      resize: vertical; min-height: 4.5rem; line-height: 1.6;
+      font-family: inherit;
+    }
+    .field textarea:focus { border-color: var(--accent); background: #fff; }
+
+    /* 生成ボタン */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 結果 */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.6rem; }
+    .result-score-row {
+      display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;
+      padding-bottom: 0.75rem; border-bottom: 1px solid var(--border);
+    }
+    .result-score-big { font-size: 2.2rem; font-weight: 900; color: var(--accent); }
+    .result-score-sub { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .result-text-area {
+      width: 100%; padding: 0.9rem; font-size: 0.93rem; line-height: 1.75;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      resize: vertical; min-height: 8rem; font-family: inherit; outline: none;
+    }
+    .result-text-area:focus { border-color: var(--accent); background: #fff; }
+
+    .copy-btn {
+      display: block; width: 100%; margin-top: 0.75rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 1.5px solid var(--ok); border-radius: 9px; cursor: pointer;
+      transition: background 0.1s, color 0.1s;
+    }
+    .copy-btn:hover { background: var(--ok); color: #fff; }
+    .copy-msg { font-size: 0.78rem; color: var(--ok); text-align: center; margin-top: 0.4rem; height: 1.2em; }
+
+    /* 内訳 */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.5rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); }
+
+    .stars-display { color: var(--accent); letter-spacing: -1px; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>人事評価コメントジェネレーター</h1>
+    <p class="subtitle">評価項目と点数を入れるだけでコメント文を自動生成</p>
+  </header>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="staffName">スタッフ名（任意）</label>
+      <input type="text" id="staffName" placeholder="例：山田 太郎">
+    </div>
+    <div class="field">
+      <label for="period">評価期間（任意）</label>
+      <input type="text" id="period" placeholder="例：2025年度 上期">
+    </div>
+  </div>
+
+  <!-- 評価項目 -->
+  <div class="card">
+    <p class="card-title">評価項目と点数（1〜5）</p>
+    <div class="item-list" id="itemList"></div>
+    <div class="add-row" style="margin-top:0.9rem;">
+      <input type="text" id="customItem" placeholder="カスタム項目を追加（例：リーダーシップ）" maxlength="30">
+      <button onclick="addCustomItem()">＋ 追加</button>
+    </div>
+  </div>
+
+  <!-- 追記 -->
+  <div class="card">
+    <p class="card-title">追記・備考（任意）</p>
+    <div class="field">
+      <textarea id="extraNote" placeholder="特記事項・具体的なエピソードなど（生成コメントの末尾に追加されます）"></textarea>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">コメント文を生成する</button>
+
+  <!-- 結果 -->
+  <div class="result-card" id="resultCard">
+    <p class="result-label">生成されたコメント文</p>
+    <div class="result-score-row" id="scoreRow"></div>
+    <textarea class="result-text-area" id="resultText" readonly></textarea>
+    <button class="copy-btn" onclick="copyText()">コピーする</button>
+    <p class="copy-msg" id="copyMsg"></p>
+  </div>
+
+  <!-- 内訳 -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">評価内訳</p>
+    <table class="detail-table"><tbody id="detailBody"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  /* ── コメントテンプレート ── */
+  var TEMPLATES = {
+    '業績': [
+      '',
+      '業務目標の達成が難しい状況が続きました。優先課題の整理と計画的な取り組みが求められます。',
+      '業務目標に対して一部未達の部分が見られました。さらなる努力と取り組みの強化に期待します。',
+      '業務目標をおおむね達成することができました。引き続き安定した成果を期待しています。',
+      '業務目標を十分に達成し、高い成果を上げることができました。今後のさらなる飛躍に期待します。',
+      '業務目標を大きく上回る優れた成果を上げました。チームへの貢献も大変高く評価しています。',
+    ],
+    '協調性': [
+      '',
+      'チームワークや周囲との連携において改善が必要な点が見られました。円滑なコミュニケーションを心がけてほしいと思います。',
+      'チームとの協力においてまだ伸びしろがある状態です。積極的に周囲と連携を取る姿勢に期待します。',
+      'チームとうまく協力し、良好な関係を保ちながら業務に取り組めています。',
+      'チームへの貢献度が高く、周囲との連携も積極的に行えています。職場の雰囲気づくりにも良い影響を与えています。',
+      'チームの中心的な存在として高い協調性を発揮してくれました。周囲からの信頼も厚く、チーム全体を引き上げる存在です。',
+    ],
+    '責任感': [
+      '',
+      '担当業務への取り組みにおいて、責任感の観点から今後の改善を期待しています。',
+      '担当業務への取り組みにおいて、責任感のさらなる向上が求められます。一つひとつの仕事に誠実に向き合ってほしいと思います。',
+      '担当業務をしっかりと最後まで取り組む責任感が見られます。',
+      '高い責任感を持って業務に取り組み、周囲からの信頼も厚くなっています。',
+      '卓越した責任感で業務を遂行し、困難な状況でも最後まで粘り強く取り組む姿勢が際立ちます。',
+    ],
+    '積極性': [
+      '',
+      '自ら積極的に行動する場面が少なく、指示待ちになる状況が目立ちました。主体的な行動を心がけてほしいと思います。',
+      '積極性という点ではまだ伸びしろがあります。自分から率先して取り組む姿勢をより強化してほしいと思います。',
+      '業務に積極的に取り組む姿勢が感じられます。',
+      '自発的に課題を見つけ積極的に取り組む姿勢が評価できます。業務改善への提案なども積極的に行えています。',
+      '非常に高い積極性を持って業務に取り組み、新たな課題やチャンスにも率先して挑戦する姿勢が際立っています。',
+    ],
+    'コンプライアンス': [
+      '',
+      'コンプライアンスや規則の遵守について改善が必要な点が見られました。基本的なルールの遵守を徹底してほしいと思います。',
+      '規則の遵守という面においていくつか気になる点がありました。コンプライアンス意識のさらなる向上に期待します。',
+      '規則やルールを適切に守り、コンプライアンス意識を持って業務に取り組めています。',
+      '高いコンプライアンス意識を持ち、規則やルールを率先して遵守する姿勢が評価できます。',
+      'コンプライアンスへの意識が非常に高く、模範的な行動で周囲への良いお手本となっています。',
+    ],
+  };
+
+  var GENERIC_TEMPLATES = [
+    '',
+    '{name}の取り組みにおいて、さらなる向上が必要な状況でした。具体的な目標を設定し、改善に向けた取り組みを期待します。',
+    '{name}においてまだ伸びしろがある状態です。継続的な努力と取り組みの強化に期待します。',
+    '{name}においておおむね期待に応えることができました。',
+    '{name}において高いパフォーマンスを発揮することができました。その姿勢は大変評価しています。',
+    '{name}において非常に優れた成果を示しました。今後もその水準を維持し、周囲への良い影響を期待します。',
+  ];
+
+  var OVERALL = [
+    '',
+    '総合的に見て、多くの面で改善が必要な状況でした。具体的な目標を設定し、計画的な取り組みを求めます。',
+    '総合的に見て、取り組みに課題が見られた期間でした。次の評価期間での改善を期待します。',
+    '総合的に見て、一定の成果を上げることができました。さらなる成長に向けて、引き続き努力を続けてほしいと思います。',
+    '総合的に見て、良好な成果を上げることができた期間でした。引き続き安定した活躍を期待します。',
+    '総合的に見て、非常に優れたパフォーマンスを発揮した期間でした。今後のさらなる活躍と成長を期待します。',
+  ];
+
+  var PRESET_ITEMS = ['業績', '協調性', '責任感', '積極性', 'コンプライアンス'];
+  var items = []; // { name, score }
+
+  function init() {
+    var saved = loadStorage();
+    if (saved) {
+      if (saved.staffName) document.getElementById('staffName').value = saved.staffName;
+      if (saved.period) document.getElementById('period').value = saved.period;
+      items = saved.items || PRESET_ITEMS.map(function(n){ return {name:n, score:3}; });
+    } else {
+      items = PRESET_ITEMS.map(function(n){ return {name:n, score:3}; });
+    }
+    renderItems();
+  }
+
+  function renderItems() {
+    var list = document.getElementById('itemList');
+    list.innerHTML = '';
+    items.forEach(function(item, idx) {
+      var div = document.createElement('div');
+      div.className = 'eval-item';
+      div.innerHTML =
+        '<span class="item-name">' + escHtml(item.name) + '</span>' +
+        '<div class="star-select" id="stars_' + idx + '">' +
+          [1,2,3,4,5].map(function(s){
+            return '<label data-val="' + s + '" onclick="setScore(' + idx + ',' + s + ')">'
+              + (s <= item.score ? '★' : '☆') + '</label>';
+          }).join('') +
+        '</div>' +
+        '<button class="del-btn" onclick="delItem(' + idx + ')" title="削除">✕</button>';
+      list.appendChild(div);
+    });
+  }
+
+  function setScore(idx, score) {
+    items[idx].score = score;
+    var container = document.getElementById('stars_' + idx);
+    if (!container) return;
+    var labels = container.querySelectorAll('label');
+    labels.forEach(function(lb, i) {
+      lb.textContent = (i + 1) <= score ? '★' : '☆';
+    });
+    saveStorage();
+  }
+
+  function delItem(idx) {
+    items.splice(idx, 1);
+    renderItems();
+    saveStorage();
+  }
+
+  function addCustomItem() {
+    var input = document.getElementById('customItem');
+    var name = input.value.trim();
+    if (!name) return;
+    items.push({name: name, score: 3});
+    input.value = '';
+    renderItems();
+    saveStorage();
+  }
+
+  function generate() {
+    if (items.length === 0) {
+      alert('評価項目を1つ以上追加してください。');
+      return;
+    }
+
+    var staffName = document.getElementById('staffName').value.trim();
+    var period = document.getElementById('period').value.trim();
+    var extra = document.getElementById('extraNote').value.trim();
+
+    var totalScore = 0;
+    items.forEach(function(it){ totalScore += it.score; });
+    var avg = totalScore / items.length;
+
+    // コメント生成
+    var sentences = [];
+
+    // ヘッダー
+    var header = '';
+    if (staffName && period) {
+      header = staffName + 'さんの' + period + 'の評価について、以下の通りまとめます。';
+    } else if (staffName) {
+      header = staffName + 'さんの今期の評価について、以下の通りまとめます。';
+    } else if (period) {
+      header = period + 'の評価について、以下の通りまとめます。';
+    }
+    if (header) sentences.push(header);
+
+    // 各項目コメント
+    items.forEach(function(item) {
+      var s = item.score;
+      var tmpl = TEMPLATES[item.name];
+      var comment;
+      if (tmpl && tmpl[s]) {
+        comment = tmpl[s];
+      } else {
+        comment = GENERIC_TEMPLATES[s].replace(/{name}/g, item.name);
+      }
+      if (comment) sentences.push(comment);
+    });
+
+    // 総合評価
+    var overallIdx = avg >= 4.5 ? 5 : avg >= 3.5 ? 4 : avg >= 2.5 ? 3 : avg >= 1.5 ? 2 : 1;
+    sentences.push(OVERALL[overallIdx]);
+
+    // 追記
+    if (extra) sentences.push(extra);
+
+    var resultText = sentences.join('\n');
+
+    // 結果表示
+    var card = document.getElementById('resultCard');
+    card.style.display = '';
+
+    var starsHtml = '';
+    var roundedAvg = Math.round(avg);
+    for (var i = 1; i <= 5; i++) {
+      starsHtml += i <= roundedAvg ? '★' : '☆';
+    }
+    document.getElementById('scoreRow').innerHTML =
+      '<span class="result-score-big">' + avg.toFixed(1) + '</span>' +
+      '<div class="result-score-sub"><span style="color:var(--accent);font-size:1.3rem;">' + starsHtml + '</span><br>' +
+      '総合スコア（' + items.length + '項目平均）</div>';
+
+    document.getElementById('resultText').value = resultText;
+    document.getElementById('copyMsg').textContent = '';
+
+    // 内訳
+    var tbody = document.getElementById('detailBody');
+    tbody.innerHTML = items.map(function(it){
+      var stars = '';
+      for (var i = 1; i <= 5; i++) stars += i <= it.score ? '★' : '☆';
+      return '<tr><td>' + escHtml(it.name) + '</td><td><span style="color:var(--accent)">' + stars + '</span> ' + it.score + '/5</td></tr>';
+    }).join('') +
+    '<tr class="hl"><td>平均スコア</td><td>' + avg.toFixed(1) + ' / 5.0</td></tr>';
+
+    document.getElementById('detailCard').style.display = '';
+
+    card.scrollIntoView({behavior:'smooth', block:'start'});
+    saveStorage();
+  }
+
+  function copyText() {
+    var text = document.getElementById('resultText').value;
+    if (!text) return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function(){
+        showCopyMsg('コピーしました！');
+      });
+    } else {
+      var ta = document.getElementById('resultText');
+      ta.select();
+      document.execCommand('copy');
+      showCopyMsg('コピーしました！');
+    }
+  }
+
+  function showCopyMsg(msg) {
+    var el = document.getElementById('copyMsg');
+    el.textContent = msg;
+    setTimeout(function(){ el.textContent = ''; }, 2000);
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  /* ── localStorage ── */
+  var STORAGE_KEY = 'hyoka_comment_gen_v1';
+
+  function saveStorage() {
+    try {
+      var data = {
+        staffName: document.getElementById('staffName').value,
+        period: document.getElementById('period').value,
+        items: items
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch(e){}
+  }
+
+  function loadStorage() {
+    try {
+      var s = localStorage.getItem(STORAGE_KEY);
+      return s ? JSON.parse(s) : null;
+    } catch(e){ return null; }
+  }
+
+  // 入力変化を保存
+  document.addEventListener('DOMContentLoaded', function(){
+    ['staffName','period'].forEach(function(id){
+      document.getElementById(id).addEventListener('input', saveStorage);
+    });
+  });
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

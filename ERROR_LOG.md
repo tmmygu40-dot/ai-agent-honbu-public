@@ -160,3 +160,10 @@ commit: dea0c02
 - $MyInvocation.MyCommand.Path などからスクリプト位置基準でパスを組み立てる
 - check_unpublished.ps1 のように動作確認済みの検出ロジックを基準にする
 - no_unpublished_apps が続く場合は、dev/public の実フォルダ差分を必ず別系統で確認する
+[2026-04-26_022427] SCAN apps=AI代替リスク診断アプリ total=0 exit=0
+[2026-04-26_024544] SCAN apps=キャッシュフロー枯渇予測アプリ total=0 exit=0
+[2026-04-26_030033] SCAN apps=中小企業助成金診断アプリ total=0 exit=0
+[2026-04-26_032359] SCAN apps=キャンペーン採算シミュレーター total=0 exit=0
+[2026-04-26_034723] SCAN apps=人事評価コメントジェネレーター total=1 exit=0
+[2026-04-26_040518] SCAN apps=人件費シミュレーター total=2 exit=0
+[2026-04-26_042750] SCAN apps=退去費用診断アプリ total=0 exit=0

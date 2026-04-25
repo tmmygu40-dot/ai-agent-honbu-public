@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>人件費シミュレーター｜残業 vs パート増員 比較</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 割増バッジ */
+    .rate-badge {
+      display: inline-block; font-size: 0.72rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1px solid var(--accent); border-radius: 5px;
+      padding: 0.1rem 0.5rem; margin-left: 0.4rem;
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 比較バー ── */
+    .compare-bar-wrap { margin: 1rem 0 0.5rem; }
+    .compare-label { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .bar-track { background: #e8e4de; border-radius: 999px; height: 18px; overflow: hidden; position: relative; }
+    .bar-ot  { height: 100%; background: #e07b00; transition: width 0.4s; border-radius: 999px 0 0 999px; }
+    .bar-pt  { height: 100%; background: #3b82f6; transition: width 0.4s; border-radius: 0 999px 999px 0; position: absolute; right: 0; top: 0; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .hl-blue td:last-child { color: #3b82f6; font-size: 1.05rem; }
+
+    .section-divider {
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.06em; padding: 0.5rem 0.3rem 0.3rem;
+      border-top: 1px dashed var(--border); margin-top: 0.3rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>人件費シミュレーター</h1>
+    <p class="subtitle">残業代 vs パート増員コスト を比較して最適な人員判断を支援</p>
+  </header>
+
+  <!-- 残業代セクション -->
+  <div class="card">
+    <p class="card-title">A｜残業代の計算</p>
+    <div class="field">
+      <label for="hourlyWage">スタッフの時給・時間単価（円）</label>
+      <input type="number" id="hourlyWage" placeholder="例: 1200" min="0">
+    </div>
+    <div class="field">
+      <label for="otHours">時間外労働（月間）<span class="rate-badge">×1.25</span></label>
+      <input type="number" id="otHours" placeholder="例: 20" min="0">
+      <p class="hint">1日8時間・週40時間超の残業時間（深夜・休日以外）</p>
+    </div>
+    <div class="field">
+      <label for="nightHours">深夜労働（月間）<span class="rate-badge">+0.25</span></label>
+      <input type="number" id="nightHours" placeholder="例: 5" min="0">
+      <p class="hint">22:00〜5:00の時間帯。時間外と重複する場合は合計1.5倍</p>
+    </div>
+    <div class="field">
+      <label for="holHours">法定休日労働（月間）<span class="rate-badge">×1.35</span></label>
+      <input type="number" id="holHours" placeholder="例: 8" min="0">
+      <p class="hint">法定休日に勤務させた時間</p>
+    </div>
+  </div>
+
+  <!-- パート増員セクション -->
+  <div class="card">
+    <p class="card-title">B｜パート増員コストの計算</p>
+    <div class="field">
+      <label for="partWage">パート時給（円）</label>
+      <input type="number" id="partWage" placeholder="例: 1100" min="0">
+    </div>
+    <div class="field">
+      <label for="partHours">月間勤務時間（時間）</label>
+      <input type="number" id="partHours" placeholder="例: 80" min="0">
+    </div>
+    <div class="field">
+      <label for="recruitCost">採用コスト（円）</label>
+      <input type="number" id="recruitCost" placeholder="例: 50000" min="0">
+      <p class="hint">求人広告・紹介料など。月割り計算のため雇用予定月数も入力してください</p>
+    </div>
+    <div class="field">
+      <label for="employMonths">雇用予定期間（ヶ月）</label>
+      <input type="number" id="employMonths" placeholder="例: 6" min="1" value="6">
+      <p class="hint">採用・育成コストをこの月数で割って月額換算します</p>
+    </div>
+    <div class="field">
+      <label for="trainingCost">育成・研修コスト（円）</label>
+      <input type="number" id="trainingCost" placeholder="例: 20000" min="0">
+      <p class="hint">OJT・研修費など（任意）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">コスト比較する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判断</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+    <div class="compare-bar-wrap" id="barWrap" style="display:none">
+      <div class="compare-label">
+        <span id="barLabelOT" style="color:#e07b00">● 残業代</span>
+        <span id="barLabelPT" style="color:#3b82f6">● パートコスト</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-ot" id="barOT" style="width:50%"></div>
+        <div class="bar-pt" id="barPT" style="width:50%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEYS = {
+    hourlyWage: 'nkfs_hourlyWage', otHours: 'nkfs_otHours',
+    nightHours: 'nkfs_nightHours', holHours: 'nkfs_holHours',
+    partWage: 'nkfs_partWage', partHours: 'nkfs_partHours',
+    recruitCost: 'nkfs_recruitCost', employMonths: 'nkfs_employMonths',
+    trainingCost: 'nkfs_trainingCost'
+  };
+
+  // 保存済み値を復元
+  Object.keys(KEYS).forEach(function(id) {
+    var v = localStorage.getItem(KEYS[id]);
+    if (v !== null) document.getElementById(id).value = v;
+  });
+
+  // 入力変化で保存
+  Object.keys(KEYS).forEach(function(id) {
+    document.getElementById(id).addEventListener('input', function() {
+      localStorage.setItem(KEYS[id], this.value);
+    });
+  });
+
+  function getVal(id) {
+    return parseFloat(document.getElementById(id).value) || 0;
+  }
+
+  function calc() {
+    var hourlyWage  = getVal('hourlyWage');
+    var otHours     = getVal('otHours');
+    var nightHours  = getVal('nightHours');
+    var holHours    = getVal('holHours');
+    var partWage    = getVal('partWage');
+    var partHours   = getVal('partHours');
+    var recruitCost = getVal('recruitCost');
+    var employMonths= Math.max(1, getVal('employMonths') || 6);
+    var trainingCost= getVal('trainingCost');
+
+    if (hourlyWage <= 0 && partWage <= 0) {
+      showErr('時給・時間単価を入力してください');
+      return;
+    }
+
+    // ── 残業代計算 ──
+    var otCost    = hourlyWage * otHours * 1.25;
+    var nightCost = hourlyWage * nightHours * 0.25;  // 深夜加算分のみ（基本給は別途支払い済みとして追加分）
+    var holCost   = hourlyWage * holHours * 1.35;
+    var totalOT   = otCost + nightCost + holCost;
+
+    // 深夜は通常勤務中の深夜加算と想定し、追加コストを+0.25倍で計算
+    // 実務上は基本時給に加算されるため追加コスト部分のみ
+    var nightNote = '（深夜加算分：基本時給×0.25×時間）';
+
+    // ── パートコスト計算 ──
+    var partBaseCost  = partWage * partHours;
+    var recruitMonthly = recruitCost / employMonths;
+    var trainingMonthly = trainingCost / employMonths;
+    var totalPT = partBaseCost + recruitMonthly + trainingMonthly;
+
+    // ── 比較判断 ──
+    var diff = totalOT - totalPT;
+    var level, evalText, note;
+
+    if (Math.abs(diff) < totalOT * 0.05) {
+      level = 'warn';
+      evalText = '残業 ≒ パート増員（ほぼ同コスト）';
+      note = '差が小さいため、スタッフの負担感や業務の継続性で判断してください。';
+    } else if (diff > 0) {
+      level = 'ok';
+      evalText = '✓ パート増員の方が安い';
+      note = '残業より月 ' + fmt(diff) + ' 円の節約になります。人員補強を検討してください。';
+    } else {
+      level = 'ng';
+      evalText = '✓ 残業対応の方が安い';
+      note = 'パート増員より月 ' + fmt(-diff) + ' 円コストが低くなります。短期対応なら残業が有利です。';
+    }
+
+    showResult(level, '差額 ' + fmt(Math.abs(diff)) + ' 円/月', evalText, note);
+
+    // 比較バー
+    var maxV = Math.max(totalOT, totalPT, 1);
+    document.getElementById('barOT').style.width = (totalOT / maxV * 100) + '%';
+    document.getElementById('barPT').style.width = (totalPT / maxV * 100) + '%';
+    document.getElementById('barLabelOT').textContent = '● 残業代 ' + fmt(totalOT) + '円';
+    document.getElementById('barLabelPT').textContent = '● パスト ' + fmt(totalPT) + '円';
+    document.getElementById('barWrap').style.display = '';
+
+    showDetail([
+      { label: '【A】残業代', section: true },
+      { label: '時間外割増（×1.25）', val: fmt(otCost) + ' 円', sub: otHours + 'h' },
+      { label: '深夜加算（+0.25）', val: fmt(nightCost) + ' 円', sub: nightHours + 'h' },
+      { label: '法定休日（×1.35）', val: fmt(holCost) + ' 円', sub: holHours + 'h' },
+      { label: '残業代 合計', val: fmt(totalOT) + ' 円', hl: true },
+      { label: '【B】パート増員コスト', section: true },
+      { label: '人件費（時給×時間）', val: fmt(partBaseCost) + ' 円', sub: partWage + '円×' + partHours + 'h' },
+      { label: '採用コスト（月割）', val: fmt(recruitMonthly) + ' 円', sub: '÷' + employMonths + 'ヶ月' },
+      { label: '育成コスト（月割）', val: fmt(trainingMonthly) + ' 円', sub: '÷' + employMonths + 'ヶ月' },
+      { label: 'パートコスト 合計', val: fmt(totalPT) + ' 円', hlBlue: true },
+    ]);
+  }
+
+  function showResult(level, val, evalText, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    var html = '';
+    rows.forEach(function(r) {
+      if (r.section) {
+        html += '<tr><td colspan="2" class="section-divider">' + r.label + '</td></tr>';
+      } else if (r.hl) {
+        html += '<tr class="hl"><td>' + r.label + '</td><td>' + r.val + '</td></tr>';
+      } else if (r.hlBlue) {
+        html += '<tr class="hl hl-blue"><td>' + r.label + '</td><td>' + r.val + '</td></tr>';
+      } else {
+        var sub = r.sub ? ' <span style="color:var(--text-sub);font-size:0.78rem;">(' + r.sub + ')</span>' : '';
+        html += '<tr><td>' + r.label + sub + '</td><td>' + r.val + '</td></tr>';
+      }
+    });
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('re').textContent = '入力エラー';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('barWrap').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
