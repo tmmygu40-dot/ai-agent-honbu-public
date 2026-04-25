@@ -135,3 +135,28 @@ commit: dea0c02
 - 手動公開と自動公開を同時に走らせない
 - 一括公開は最初10件ずつ、安定後も20件程度までに抑える
 - 3-point check（実フォルダ数 / index.html / PUBLISHED.md）を毎回確認する
+
+---
+
+## 2026-04-26 run_queue の未公開検出が0件になる深掘り原因
+
+### 症状
+- dev側には未公開アプリが110件あった
+- check_unpublished.ps1 では正しく110件検出できた
+- しかし run_queue.ps1 経由では no_unpublished_apps が続き、public側の公開数が633件から増えなかった
+
+### 原因
+- run_queue.ps1 の $devDir / $pubDir が日本語を含むハードコードパスだった
+- Task Scheduler 経由では日本語パス文字列が文字化けし、存在しないパス扱いになる可能性があった
+- その結果、Get-ChildItem が0件となり、未公開アプリが無いと誤判定された
+- check_unpublished.ps1 はスクリプト位置からパスを算出していたため正常に動いていた
+
+### 対応
+- run_queue.ps1 の $devDir / $pubDir をハードコードから、スクリプト位置基準の算出方式に変更
+- commit: 9899a42 fix: derive publish paths in run queue
+
+### 再発防止
+- 自動実行スクリプトでは日本語入り絶対パスをなるべくハードコードしない
+- $MyInvocation.MyCommand.Path などからスクリプト位置基準でパスを組み立てる
+- check_unpublished.ps1 のように動作確認済みの検出ロジックを基準にする
+- no_unpublished_apps が続く場合は、dev/public の実フォルダ差分を必ず別系統で確認する
