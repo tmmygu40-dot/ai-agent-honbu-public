@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>円安・関税コストシミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 2列レイアウト */
+    .field-row { display: flex; gap: 0.8rem; }
+    .field-row .field { flex: 1; margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.7rem;
+      font-size: 0.88rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--ng); font-size: 1.05rem; }
+    .detail-table .hl2 td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* 品目タグ */
+    .item-tag {
+      display: inline-block; background: var(--accent-light); color: var(--accent);
+      font-size: 0.75rem; font-weight: 700; padding: 0.2rem 0.5rem;
+      border-radius: 6px; margin-bottom: 0.5rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-reset, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>円安・関税コストシミュレーター</h1>
+    <p class="subtitle">為替レートと関税率から仕入れコスト増加額を即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目・数量</p>
+    <div class="field">
+      <label for="item">品目名</label>
+      <input type="text" id="item" placeholder="例: アルミ部品A">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="price_usd">仕入れ単価（USD）</label>
+        <input type="number" id="price_usd" placeholder="例: 50" min="0" step="0.01">
+      </div>
+      <div class="field">
+        <label for="qty">数量</label>
+        <input type="number" id="qty" placeholder="例: 100" min="0" step="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- 為替カード -->
+  <div class="card">
+    <p class="card-title">為替レート</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="rate_base">基準レート（円/USD）</label>
+        <input type="number" id="rate_base" placeholder="例: 130" min="0" step="0.1">
+        <p class="hint">コスト変化の比較元レート</p>
+      </div>
+      <div class="field">
+        <label for="rate_now">現在レート（円/USD）</label>
+        <input type="number" id="rate_now" placeholder="例: 155" min="0" step="0.1">
+        <p class="hint">現在の実勢レート</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 関税カード -->
+  <div class="card">
+    <p class="card-title">関税率</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="tariff_base">基準関税率（%）</label>
+        <input type="number" id="tariff_base" placeholder="例: 0" min="0" max="200" step="0.1">
+        <p class="hint">変化前の関税率</p>
+      </div>
+      <div class="field">
+        <label for="tariff_now">現在関税率（%）</label>
+        <input type="number" id="tariff_now" placeholder="例: 25" min="0" max="200" step="0.1">
+        <p class="hint">現在の関税率</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">コスト増加額を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label" id="result-item-label">コスト増加額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📌 このツールは入力値をもとに目安額を計算します。実際の仕入れコストは別途ご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+  <button class="btn-reset no-print" onclick="resetForm()">入力をリセット</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEYS = ['item','price_usd','qty','rate_base','rate_now','tariff_base','tariff_now'];
+
+  // localStorage復元
+  KEYS.forEach(function(k){
+    var v = localStorage.getItem('enyas_' + k);
+    if (v !== null) document.getElementById(k).value = v;
+  });
+
+  function save() {
+    KEYS.forEach(function(k){
+      localStorage.setItem('enyas_' + k, document.getElementById(k).value);
+    });
+  }
+
+  function calc() {
+    save();
+    var item       = document.getElementById('item').value.trim() || '品目';
+    var price_usd  = parseFloat(document.getElementById('price_usd').value);
+    var qty        = parseFloat(document.getElementById('qty').value);
+    var rate_base  = parseFloat(document.getElementById('rate_base').value);
+    var rate_now   = parseFloat(document.getElementById('rate_now').value);
+    var tariff_base = parseFloat(document.getElementById('tariff_base').value);
+    var tariff_now  = parseFloat(document.getElementById('tariff_now').value);
+
+    if ([price_usd,qty,rate_base,rate_now,tariff_base,tariff_now].some(isNaN) || price_usd <= 0 || qty <= 0 || rate_base <= 0 || rate_now <= 0) {
+      showErr('品目名以外の全項目を入力してください');
+      return;
+    }
+
+    // 計算
+    var base_cost  = price_usd * qty * rate_base * (1 + tariff_base / 100); // 基準コスト（円）
+    var now_cost   = price_usd * qty * rate_now  * (1 + tariff_now  / 100); // 現在コスト（円）
+    var diff       = now_cost - base_cost;
+    var pct        = base_cost > 0 ? (diff / base_cost * 100) : 0;
+
+    // 為替のみの影響
+    var fx_effect  = price_usd * qty * (rate_now - rate_base) * (1 + tariff_base / 100);
+    // 関税のみの影響（現在レート基準）
+    var tariff_effect = price_usd * qty * rate_now * ((tariff_now - tariff_base) / 100);
+
+    var level = diff <= 0 ? 'ok' : pct < 10 ? 'warn' : 'ng';
+    var eval_msg = diff <= 0 ? 'コストは増加していません'
+                 : pct < 10 ? '約' + pct.toFixed(1) + '% のコスト増加（軽微）'
+                 :             '約' + pct.toFixed(1) + '% のコスト増加（要対応）';
+
+    var note = '仕入れ先との価格交渉や調達先の見直しを検討してください。';
+    if (diff <= 0) note = '現在の条件では仕入れコストは減少・横ばいです。';
+
+    document.getElementById('result-item-label').textContent = '【' + item + '】コスト増加額';
+    showResult(level, (diff >= 0 ? '+' : '') + fmt(diff) + ' 円', eval_msg, note);
+    showDetail([
+      ['基準コスト（円）', fmt(base_cost) + ' 円'],
+      ['現在コスト（円）', fmt(now_cost) + ' 円'],
+      ['─────────────────', ''],
+      ['為替変化による増加分', fmt(fx_effect) + ' 円'],
+      ['関税変化による増加分', fmt(tariff_effect) + ' 円'],
+      ['コスト増加合計', (diff >= 0 ? '+' : '') + fmt(diff) + ' 円', true],
+      ['増加率', pct.toFixed(1) + ' %', false, true],
+    ]);
+  }
+
+  function showResult(level, val, eval_msg, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = eval_msg;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      var cls = r[2] ? ' class="hl"' : r[3] ? ' class="hl2"' : '';
+      return '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = '';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function resetForm() {
+    KEYS.forEach(function(k){
+      document.getElementById(k).value = '';
+      localStorage.removeItem('enyas_' + k);
+    });
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
