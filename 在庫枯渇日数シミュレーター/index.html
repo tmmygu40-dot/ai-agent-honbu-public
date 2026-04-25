@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在庫枯渇日数シミュレーター</title>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active { opacity: 0.7; }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 在庫一覧 ── */
+    .item-list { list-style: none; }
+    .item-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.8rem 0.4rem; border-bottom: 1px solid var(--border);
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-info { flex: 1; min-width: 0; }
+    .item-name { font-size: 0.92rem; font-weight: 700; color: var(--text); }
+    .item-days { font-size: 0.82rem; margin-top: 0.15rem; }
+    .item-days.ok   { color: var(--ok); }
+    .item-days.warn { color: var(--warn); }
+    .item-days.ng   { color: var(--ng); }
+    .item-badge {
+      flex-shrink: 0;
+      font-size: 0.8rem; font-weight: 800;
+      padding: 0.25rem 0.6rem; border-radius: 99px;
+    }
+    .item-badge.ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .item-badge.warn { background: var(--warn-bg);  color: var(--warn); }
+    .item-badge.ng   { background: var(--ng-bg);    color: var(--ng);   }
+    .btn-del {
+      flex-shrink: 0; background: none; border: none;
+      color: var(--text-sub); cursor: pointer; font-size: 1.1rem; padding: 0.2rem 0.3rem;
+    }
+    .btn-del:hover { color: var(--ng); }
+    .empty-msg { font-size: 0.85rem; color: var(--text-sub); text-align: center; padding: 1rem 0; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-add, .btn-del, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📦 在庫枯渇日数シミュレーター</h1>
+    <p class="subtitle">仕入れ停止・品薄時に在庫が何日もつか即確認</p>
+  </header>
+
+  <!-- 単品チェック -->
+  <div class="card">
+    <p class="card-title">単品チェック</p>
+    <div class="field">
+      <label for="name">商品名・品目</label>
+      <input type="text" id="name" placeholder="例: マスク、醤油">
+    </div>
+    <div class="field">
+      <label for="stock">現在の在庫数</label>
+      <input type="number" id="stock" placeholder="例: 200" min="0" step="1">
+      <p class="hint">個・本・袋など単位は問いません</p>
+    </div>
+    <div class="field">
+      <label for="daily">1日あたりの消費量</label>
+      <input type="number" id="daily" placeholder="例: 5" min="0.1" step="0.1">
+      <p class="hint">小数点入力可（例: 0.5）</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calcSingle()">計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">在庫持続日数</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 一覧に追加ボタン -->
+  <button class="btn-add no-print" id="btn-add-list" style="display:none" onclick="addToList()">＋ 一覧に追加して管理する</button>
+
+  <!-- 在庫一覧 -->
+  <div class="card" id="list-card">
+    <p class="card-title">在庫一覧（複数管理）</p>
+    <ul class="item-list" id="item-list">
+      <li class="empty-msg" id="empty-msg">まだ登録がありません</li>
+    </ul>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var lastCalc = null; // 直近の計算結果を一時保持
+
+  function calcSingle() {
+    var name  = document.getElementById('name').value.trim() || '商品';
+    var stock = parseFloat(document.getElementById('stock').value);
+    var daily = parseFloat(document.getElementById('daily').value);
+
+    if (isNaN(stock) || isNaN(daily)) {
+      showErr('在庫数と1日消費量を入力してください');
+      document.getElementById('btn-add-list').style.display = 'none';
+      return;
+    }
+    if (daily <= 0) {
+      showErr('1日消費量は0より大きい値を入力してください');
+      document.getElementById('btn-add-list').style.display = 'none';
+      return;
+    }
+    if (stock < 0) {
+      showErr('在庫数は0以上を入力してください');
+      document.getElementById('btn-add-list').style.display = 'none';
+      return;
+    }
+
+    var days = stock / daily;
+    var level = days >= 7 ? 'ok' : days >= 3 ? 'warn' : 'ng';
+    var daysRound = Math.floor(days);
+
+    var expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + daysRound);
+    var dateStr = (expiryDate.getMonth() + 1) + '月' + expiryDate.getDate() + '日';
+
+    var evalMsg = level === 'ok'   ? '当面の在庫は確保できています'
+                : level === 'warn' ? '在庫が少なくなっています。発注を検討してください'
+                : '在庫がまもなく切れます。早急に対処が必要です';
+
+    var noteMsg = stock === 0 ? 'すでに在庫がありません'
+                : 'あと ' + daysRound + ' 日（' + dateStr + ' ごろ枯渇）';
+
+    showResult(level, daysRound + ' 日', evalMsg, noteMsg);
+
+    lastCalc = { name: name, stock: stock, daily: daily, days: daysRound, level: level, dateStr: dateStr };
+    document.getElementById('btn-add-list').style.display = 'block';
+  }
+
+  function showResult(level, val, evalMsg, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalMsg;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+  }
+
+  /* ── 一覧管理 ── */
+  var items = loadItems();
+  renderList();
+
+  function addToList() {
+    if (!lastCalc) return;
+    // 同名の場合は上書き
+    var idx = items.findIndex(function(it) { return it.name === lastCalc.name; });
+    if (idx >= 0) {
+      items[idx] = lastCalc;
+    } else {
+      items.push(lastCalc);
+    }
+    saveItems();
+    renderList();
+    document.getElementById('btn-add-list').style.display = 'none';
+  }
+
+  function deleteItem(i) {
+    items.splice(i, 1);
+    saveItems();
+    renderList();
+  }
+
+  function renderList() {
+    var ul = document.getElementById('item-list');
+    var emptyMsg = document.getElementById('empty-msg');
+    if (items.length === 0) {
+      ul.innerHTML = '';
+      ul.appendChild(emptyMsg);
+      emptyMsg.style.display = 'block';
+      return;
+    }
+    emptyMsg.style.display = 'none';
+    // 残日数の少ない順に並べる
+    var sorted = items.slice().map(function(it, i) { return { it: it, idx: i }; });
+    sorted.sort(function(a, b) { return a.it.days - b.it.days; });
+
+    ul.innerHTML = '';
+    sorted.forEach(function(obj) {
+      var it = obj.it;
+      var origIdx = items.indexOf(it);
+      var level = it.days >= 7 ? 'ok' : it.days >= 3 ? 'warn' : 'ng';
+      var badge = level === 'ok' ? '安全' : level === 'warn' ? '注意' : '危険';
+      var li = document.createElement('li');
+      li.className = 'item-row';
+      li.innerHTML =
+        '<div class="item-info">'
+        + '<div class="item-name">' + esc(it.name) + '</div>'
+        + '<div class="item-days ' + level + '">あと ' + it.days + ' 日（' + it.dateStr + ' ごろ枯渇）</div>'
+        + '<div style="font-size:0.75rem;color:var(--text-sub);margin-top:0.15rem;">在庫 ' + it.stock + ' / 日次消費 ' + it.daily + '</div>'
+        + '</div>'
+        + '<span class="item-badge ' + level + '">' + badge + '</span>'
+        + '<button class="btn-del no-print" onclick="deleteItem(' + origIdx + ')">✕</button>';
+      ul.appendChild(li);
+    });
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function loadItems() {
+    try { return JSON.parse(localStorage.getItem('zaiko-items') || '[]'); } catch(e) { return []; }
+  }
+  function saveItems() {
+    localStorage.setItem('zaiko-items', JSON.stringify(items));
+  }
+  </script>
+
+</body>
+</html>
