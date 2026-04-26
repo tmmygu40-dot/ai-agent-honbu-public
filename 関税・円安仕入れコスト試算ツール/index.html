@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="関税率変更・円安による仕入れコスト上昇額を試算し、粗利を維持するための必要価格転嫁額を即計算。販売価格の目安も算出できます。">
+  <title>関税・円安 仕入れコスト試算ツール</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .field-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .field-row .field { margin-bottom: 0; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-head td {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+      color: var(--accent); padding-top: 0.9rem; padding-bottom: 0.3rem;
+      text-transform: uppercase;
+    }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>関税・円安 仕入れコスト試算ツール</h1>
+    <p class="subtitle">関税率変更・円安による仕入れコスト増加と必要価格転嫁額を即算出</p>
+  </header>
+
+  <!-- 現状入力 -->
+  <div class="card">
+    <p class="card-title">現状の仕入れ条件</p>
+    <div class="field">
+      <label for="base_cost">現在の仕入れ単価（円）</label>
+      <input type="number" id="base_cost" placeholder="例: 1000" min="0">
+      <p class="hint">関税・送料込みの実際の仕入れ原価</p>
+    </div>
+    <div class="field">
+      <label for="sell_price">現在の販売価格（円）</label>
+      <input type="number" id="sell_price" placeholder="例: 2500" min="0">
+    </div>
+    <div class="field">
+      <label for="monthly_qty">月間販売数量（個）</label>
+      <input type="number" id="monthly_qty" placeholder="例: 100" min="1">
+    </div>
+  </div>
+
+  <!-- コスト上昇要因 -->
+  <div class="card">
+    <p class="card-title">コスト上昇の要因</p>
+    <div class="field">
+      <label for="tariff_before">現在の関税率（%）</label>
+      <input type="number" id="tariff_before" placeholder="例: 5" min="0" max="100">
+      <p class="hint">輸入品にかかる関税率（非輸入品は0）</p>
+    </div>
+    <div class="field">
+      <label for="tariff_after">新しい関税率（%）</label>
+      <input type="number" id="tariff_after" placeholder="例: 25" min="0" max="100">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="rate_before">現在の為替レート（円/ドル）</label>
+        <input type="number" id="rate_before" placeholder="例: 130" min="1">
+      </div>
+      <div class="field">
+        <label for="rate_after">現在の実勢レート（円/ドル）</label>
+        <input type="number" id="rate_after" placeholder="例: 155" min="1">
+      </div>
+    </div>
+    <div class="field">
+      <label for="import_ratio">仕入れ原価に占める外貨比率（%）</label>
+      <input type="number" id="import_ratio" placeholder="例: 80" min="0" max="100" value="100">
+      <p class="hint">100%＝全額海外調達、50%＝半分が国内コスト</p>
+    </div>
+  </div>
+
+  <!-- 判断条件 -->
+  <div class="card">
+    <p class="card-title">価格転嫁の判断条件</p>
+    <div class="field">
+      <label for="min_margin">最低維持したい粗利率（%）</label>
+      <input type="number" id="min_margin" placeholder="例: 35" min="0" max="99">
+      <p class="hint">現状の粗利率以下になる場合は転嫁が必要</p>
+    </div>
+    <div class="field">
+      <label for="absorb_pct">自社で吸収できるコスト増加（%）</label>
+      <input type="number" id="absorb_pct" placeholder="例: 20" min="0" max="100" value="0">
+      <p class="hint">コスト削減・効率化で吸収できる割合（0%なら全額転嫁を試算）</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">コスト増加・転嫁額を計算する</button>
+
+  <div class="result-card" id="result">
+    <p class="result-label">価格転嫁の判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">試算内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは概算試算です。実際の仕入れ交渉・価格改定においては、競合価格・顧客の価格弾力性・取引先との関係性なども総合的に判断してください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  function calc() {
+    var baseCost    = parseFloat(document.getElementById('base_cost').value);
+    var sellPrice   = parseFloat(document.getElementById('sell_price').value);
+    var monthlyQty  = parseFloat(document.getElementById('monthly_qty').value);
+    var tariffBefore= parseFloat(document.getElementById('tariff_before').value) || 0;
+    var tariffAfter = parseFloat(document.getElementById('tariff_after').value) || 0;
+    var rateBefore  = parseFloat(document.getElementById('rate_before').value) || 0;
+    var rateAfter   = parseFloat(document.getElementById('rate_after').value) || 0;
+    var importRatio = parseFloat(document.getElementById('import_ratio').value) / 100;
+    var minMargin   = parseFloat(document.getElementById('min_margin').value);
+    var absorbPct   = parseFloat(document.getElementById('absorb_pct').value) / 100 || 0;
+
+    if (isNaN(baseCost) || isNaN(sellPrice) || isNaN(monthlyQty) || isNaN(minMargin)) {
+      showErr('必須項目をすべて入力してください');
+      return;
+    }
+    if (sellPrice <= baseCost) { showErr('販売価格が仕入れ単価以下です。入力を確認してください'); return; }
+
+    // 現状粗利
+    var currentGrossMargin = (sellPrice - baseCost) / sellPrice * 100;
+
+    // 関税変化によるコスト増加（仕入れ単価に対して）
+    // 関税は仕入れ価格の何%かを表す→ベース仕入れ（関税前）を逆算してから再計算
+    // ここでは「仕入れ単価」に占める関税部分を除いた本体価格を求め、新関税率を適用
+    var tariffMultiplierBefore = 1 + tariffBefore / 100;
+    var tariffMultiplierAfter  = 1 + tariffAfter  / 100;
+    var preTariffCost = baseCost / tariffMultiplierBefore; // 関税前の原価相当
+    var newTariffCost = preTariffCost * tariffMultiplierAfter; // 新関税後の仕入れ
+
+    // 為替変化によるコスト増加（外貨コスト部分のみ）
+    var fxRatio = (rateBefore > 0 && rateAfter > 0) ? rateAfter / rateBefore : 1;
+    var foreignPart = baseCost * importRatio;
+    var domesticPart = baseCost * (1 - importRatio);
+    var newFxCost = foreignPart * fxRatio + domesticPart;
+
+    // 両方の効果を組み合わせる（関税変化後の原価に為替変化を乗せる）
+    // 簡易計算: 新コスト = 旧コスト × 関税倍率変化 × 為替倍率変化（外貨部分）
+    var tariffRatioChange = tariffMultiplierAfter / tariffMultiplierBefore;
+    var newCostRaw = baseCost * (1 - importRatio + importRatio * fxRatio) * tariffRatioChange;
+
+    // 自社吸収後の実質コスト上昇
+    var costIncrease = newCostRaw - baseCost;
+    var absorbedIncrease = costIncrease * absorbPct;
+    var netCostIncrease = costIncrease * (1 - absorbPct);
+    var newCostNet = baseCost + netCostIncrease;
+
+    // 最低粗利率を維持するための必要販売価格
+    // 粗利率 = (P - C) / P >= minMargin% → P >= C / (1 - minMargin/100)
+    var requiredPrice = newCostNet / (1 - minMargin / 100);
+    var priceIncrease = requiredPrice - sellPrice;
+    var priceIncreasePct = priceIncrease / sellPrice * 100;
+
+    // 月間影響額
+    var monthlyImpact = netCostIncrease * monthlyQty;
+    var monthlyRevenueIncrease = priceIncrease * monthlyQty;
+
+    // 新販売価格での粗利率
+    var newMargin = (requiredPrice - newCostNet) / requiredPrice * 100;
+
+    // 転嫁不要か必要か
+    var currentNewMargin = (sellPrice - newCostNet) / sellPrice * 100;
+    var needsTransfer = currentNewMargin < minMargin;
+
+    var level, label, eval_msg, note_msg;
+    if (costIncrease <= 0) {
+      level = 'ok';
+      label = '価格転嫁 不要';
+      eval_msg = 'コスト上昇なし・価格維持で問題ありません';
+      note_msg = '入力条件ではコスト上昇が発生しません。';
+    } else if (!needsTransfer) {
+      level = 'warn';
+      label = '転嫁なしでも維持可能';
+      eval_msg = '現状価格でも最低粗利率を確保できます（ただし粗利は低下）';
+      note_msg = '現在価格のまま粗利率 ' + currentNewMargin.toFixed(1) + '% に低下。最低ライン' + minMargin + '%は確保できます。';
+    } else {
+      level = 'ng';
+      label = '価格転嫁が必要';
+      eval_msg = '現状価格では最低粗利率を下回ります。値上げが必要です。';
+      note_msg = '価格据え置きの場合、粗利率が ' + currentNewMargin.toFixed(1) + '% まで低下。目標' + minMargin + '% を下回ります。';
+    }
+
+    showResult(level, label, eval_msg, note_msg);
+
+    var rows = [
+      {type:'head', label:'現状'},
+      ['現在の仕入れ単価', '¥' + fmt(baseCost)],
+      ['現在の販売価格', '¥' + fmt(sellPrice)],
+      ['現在の粗利率', currentGrossMargin.toFixed(1) + '%'],
+      ['月間販売数量', fmt(monthlyQty) + ' 個'],
+      {type:'head', label:'コスト上昇の内訳'},
+      ['関税変化によるコスト増加', costIncrease > 0 ? '+¥' + fmt(costIncrease * (tariffRatioChange - 1) / (fxRatio * tariffRatioChange - 1 || 1)) : '¥0'],
+      ['円安によるコスト増加', fxRatio > 1 ? '+¥' + fmt(newFxCost - baseCost) : '¥0'],
+      ['コスト上昇合計', '+¥' + fmt(costIncrease) + ' (+' + (costIncrease/baseCost*100).toFixed(1) + '%)'],
+      ['自社吸収額', absorbPct > 0 ? '-¥' + fmt(absorbedIncrease) : '¥0'],
+      ['実質コスト増加（転嫁対象）', '+¥' + fmt(netCostIncrease), true],
+      ['新しい仕入れ単価（実効）', '¥' + fmt(newCostNet)],
+      {type:'head', label:'価格転嫁の試算'},
+      ['現状価格での新粗利率', currentNewMargin.toFixed(1) + '%'],
+      ['最低維持したい粗利率', minMargin + '%'],
+      ['粗利維持に必要な販売価格', '¥' + fmt(requiredPrice), true],
+      ['必要な値上げ額', (priceIncrease > 0 ? '+' : '') + '¥' + fmt(priceIncrease) + ' (' + (priceIncreasePct > 0 ? '+' : '') + priceIncreasePct.toFixed(1) + '%)'],
+      {type:'head', label:'月間への影響'},
+      ['コスト増加分（月間）', '+¥' + fmt(monthlyImpact)],
+      ['価格転嫁した場合の追加売上（月間）', '¥' + fmt(monthlyRevenueIncrease)],
+    ];
+
+    showDetail(rows);
+  }
+
+  function showResult(level, val, ev, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = ev;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    var html = rows.map(function(r) {
+      if (r.type === 'head') {
+        return '<tr class="section-head"><td colspan="2">' + r.label + '</td></tr>';
+      }
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg, '');
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  var KEYS = ['base_cost','sell_price','monthly_qty','tariff_before','tariff_after',
+              'rate_before','rate_after','import_ratio','min_margin','absorb_pct'];
+  (function() {
+    KEYS.forEach(function(k) {
+      var v = localStorage.getItem('tariff_' + k);
+      if (v !== null) document.getElementById(k).value = v;
+    });
+  })();
+  document.addEventListener('input', function(e) {
+    if (KEYS.indexOf(e.target.id) !== -1) {
+      localStorage.setItem('tariff_' + e.target.id, e.target.value);
+    }
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
