@@ -295,3 +295,4 @@ commit: dea0c02
 [2026-04-26_194515] SCAN apps=輸入採算シミュレーター total=0 exit=0
 [2026-04-26_200148] SCAN apps=シフト穴埋めシミュレーター total=0 exit=0
 [2026-04-26_202058] SCAN apps=副業適性診断アプリ total=0 exit=0
+[2026-04-26_205310] SCAN apps=引越し料金相場チェッカー total=1 exit=0
