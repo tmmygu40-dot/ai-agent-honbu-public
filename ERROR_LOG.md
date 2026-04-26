@@ -284,3 +284,4 @@ commit: dea0c02
 [2026-04-26_154437] SCAN apps=フリーランス単価シミュレーター total=0 exit=0
 [2026-04-26_155949] SCAN apps=仕入れ値下げ交渉逆引きアプリ total=0 exit=0
 [2026-04-26_161421] SCAN apps=現場作業法令要件逆引きアプリ total=0 exit=0
+[2026-04-26_162658] SCAN apps=フリーランス単価逆算シミュレーター total=0 exit=0
