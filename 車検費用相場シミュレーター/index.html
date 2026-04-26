@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="車種・重量帯・整備プランを選ぶだけで車検費用の相場レンジと法定費用（重量税・自賠責・検査手数料）の内訳をすぐ確認できる車検費用シミュレーターです。2025年4月時点の参考値。">
+  <title>車検費用相場シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.warn { border-color: var(--warn); background: var(--warn-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.9rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; margin-top: 0.5rem; }
+    .result-sub { font-size: 0.88rem; color: var(--text-sub); margin-top: 0.3rem; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-header td {
+      font-size: 0.75rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.05em; background: var(--accent-light);
+      padding: 0.4rem 0.5rem; text-transform: uppercase;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🚗 車検費用相場シミュレーター</h1>
+    <p class="subtitle">車種・重量帯・整備プランを選ぶだけで法定費用＋整備費用の相場レンジを即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">条件を選択</p>
+    <div class="field">
+      <label for="carType">車種</label>
+      <select id="carType" onchange="onCarTypeChange()">
+        <option value="kei">軽自動車</option>
+        <option value="normal">普通自動車</option>
+      </select>
+    </div>
+    <div class="field" id="weightField">
+      <label for="weightBand">重量帯</label>
+      <select id="weightBand">
+        <option value="1">〜1t（コンパクトカー等）</option>
+        <option value="1.5">1〜1.5t（セダン・ミニバン等）</option>
+        <option value="2">1.5〜2t（SUV・大型ミニバン等）</option>
+        <option value="2.5">2〜2.5t（大型SUV・高級車等）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="carAge">車齢（重量税に影響）</label>
+      <select id="carAge">
+        <option value="new">13年未満</option>
+        <option value="mid">13年以上18年未満</option>
+        <option value="old">18年以上</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="plan">整備プラン</label>
+      <select id="plan">
+        <option value="min">最低限（法定点検＋基本整備のみ）</option>
+        <option value="std" selected>標準（オイル・フィルター・ブレーキ等）</option>
+        <option value="full">フルコース（タイヤ・バッテリー・ベルト等含む）</option>
+      </select>
+      <p class="hint">整備内容により実費は大きく変わります</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">車検費用の相場を確認する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card warn" id="result">
+    <p class="result-label">合計費用の目安</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-sub" id="rs"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">費用内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 法定費用は国土交通省・国税庁の資料をもとにした2025年4月時点の参考値です。整備費用は全国の整備工場・ディーラーの一般的な相場目安です。実際の費用は車の状態・地域・業者により異なります。最新情報は公式情報や各業者にご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── データ定義 ──
+
+  // 自動車重量税（2年分・エコカー非該当）
+  // kei: 軽自動車固定  /  normal: 0.5tごと
+  var weightTax = {
+    kei:  { new: 6600,  mid: 8200,  old: 11400 },
+    // 普通車は重量帯(t)×8,200×4（0.5t単位の2年分換算）
+    1:   { new: 16400, mid: 20500, old: 25200 },
+    1.5: { new: 24600, mid: 30750, old: 37800 },
+    2:   { new: 32800, mid: 41000, old: 50400 },
+    2.5: { new: 41000, mid: 51250, old: 63000 }
+  };
+
+  // 自賠責保険（24ヶ月）
+  var jibaiseki = { kei: 17650, normal: 17650 };
+
+  // 検査手数料（持込）
+  var inspFee = { kei: 1400, normal: 1800 };
+
+  // 整備費用相場レンジ [下限, 上限]
+  // carType: kei / small(〜1.5t) / large(〜2.5t)
+  var maintenanceRange = {
+    kei:   { min: [20000, 40000], std: [60000, 100000], full: [120000, 200000] },
+    small: { min: [30000, 60000], std: [80000, 130000], full: [160000, 280000] },
+    large: { min: [40000, 80000], std: [100000, 180000], full: [200000, 400000] }
+  };
+
+  function onCarTypeChange() {
+    var isKei = document.getElementById('carType').value === 'kei';
+    document.getElementById('weightField').style.display = isKei ? 'none' : '';
+  }
+
+  function getMaintenanceKey(carType, weight) {
+    if (carType === 'kei') return 'kei';
+    return parseFloat(weight) <= 1.5 ? 'small' : 'large';
+  }
+
+  function calc() {
+    var carType  = document.getElementById('carType').value;
+    var weight   = document.getElementById('weightBand').value;
+    var age      = document.getElementById('carAge').value;
+    var plan     = document.getElementById('plan').value;
+
+    // 重量税
+    var wTaxKey = carType === 'kei' ? 'kei' : parseFloat(weight);
+    var wTax = weightTax[wTaxKey][age];
+
+    // 自賠責
+    var jib = jibaiseki[carType];
+
+    // 検査手数料
+    var insp = inspFee[carType];
+
+    // 法定費用合計
+    var legalTotal = wTax + jib + insp;
+
+    // 整備費用相場
+    var mKey = getMaintenanceKey(carType, weight);
+    var range = maintenanceRange[mKey][plan];
+    var mLow  = range[0];
+    var mHigh = range[1];
+
+    // 合計
+    var totalLow  = legalTotal + mLow;
+    var totalHigh = legalTotal + mHigh;
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = fmt(totalLow) + '〜' + fmt(totalHigh) + ' 円';
+    document.getElementById('rs').textContent = '（法定費用 ' + fmt(legalTotal) + ' 円 ＋ 整備費用 ' + fmt(mLow) + '〜' + fmt(mHigh) + ' 円）';
+    document.getElementById('rn').textContent = '※整備内容・車の状態・業者によって実費は変わります';
+
+    // 内訳
+    var planLabel = { min: '最低限', std: '標準', full: 'フルコース' }[plan];
+    var weightLabel = carType === 'kei' ? '軽自動車' : {
+      1: '〜1t', 1.5: '1〜1.5t', 2: '1.5〜2t', 2.5: '2〜2.5t'
+    }[parseFloat(weight)];
+    var ageLabel = { new: '13年未満', mid: '13〜18年', old: '18年以上' }[age];
+
+    showDetail([
+      { section: '法定費用（固定）' },
+      ['自動車重量税（2年分）', fmt(wTax) + ' 円'],
+      ['自賠責保険（24ヶ月）', fmt(jib) + ' 円'],
+      ['自動車検査手数料', fmt(insp) + ' 円'],
+      { hl: ['法定費用 合計', fmt(legalTotal) + ' 円'] },
+      { section: '整備費用（' + planLabel + 'プラン / ' + weightLabel + ' / ' + ageLabel + '）' },
+      ['整備費用の相場レンジ', fmt(mLow) + '〜' + fmt(mHigh) + ' 円'],
+      { hl: ['合計の目安', fmt(totalLow) + '〜' + fmt(totalHigh) + ' 円'] },
+    ]);
+
+    // localStorage保存
+    try {
+      localStorage.setItem('shaken_sim', JSON.stringify({ carType: carType, weight: weight, age: age, plan: plan }));
+    } catch(e) {}
+  }
+
+  function showDetail(rows) {
+    var html = '';
+    rows.forEach(function(r) {
+      if (r.section) {
+        html += '<tr class="section-header"><td colspan="2">' + r.section + '</td></tr>';
+      } else if (r.hl) {
+        html += '<tr class="hl"><td>' + r.hl[0] + '</td><td>' + r.hl[1] + '</td></tr>';
+      } else {
+        html += '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+      }
+    });
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── 起動時: localStorage 復元 ──
+  (function() {
+    try {
+      var saved = localStorage.getItem('shaken_sim');
+      if (!saved) return;
+      var d = JSON.parse(saved);
+      if (d.carType) document.getElementById('carType').value = d.carType;
+      if (d.weight)  document.getElementById('weightBand').value = d.weight;
+      if (d.age)     document.getElementById('carAge').value = d.age;
+      if (d.plan)    document.getElementById('plan').value = d.plan;
+      onCarTypeChange();
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

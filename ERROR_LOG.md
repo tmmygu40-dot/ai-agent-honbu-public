@@ -252,3 +252,4 @@ commit: dea0c02
 [2026-04-26_133238] SCAN apps=設備・機械トラブル逆引きアプリ total=0 exit=0
 [2026-04-26_134346] SCAN apps=ビジネス敬語フレーズ逆引きアプリ total=0 exit=0
 [2026-04-26_135424] SCAN apps=防災備蓄量早見表アプリ total=0 exit=0
+[2026-04-26_140434] SCAN apps=車検費用相場シミュレーター total=0 exit=0
