@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>営業切り返しトーク逆引きアプリ</title>
+  <meta name="description" content="断られたときの切り返しトークを相手の反応別に即表示。「値段が高い」「今は必要ない」など8パターンの断り方に対応した営業トーク例をすぐ確認できるツール。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 反応タイプ選択ボタン ── */
+    .type-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+    }
+    .type-btn {
+      padding: 0.75rem 0.6rem;
+      font-size: 0.88rem; font-weight: 700;
+      background: var(--bg); color: var(--text);
+      border: 1.5px solid var(--border);
+      border-radius: 10px; cursor: pointer;
+      text-align: center; line-height: 1.3;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .type-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .type-btn.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); }
+    .type-btn .emoji { display: block; font-size: 1.3rem; margin-bottom: 0.2rem; }
+
+    /* ── 結果エリア ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .result-card.show { display: block; }
+    .result-type-label {
+      display: inline-block;
+      background: var(--accent); color: #fff;
+      font-size: 0.78rem; font-weight: 700;
+      padding: 0.3rem 0.75rem; border-radius: 20px;
+      margin-bottom: 1rem;
+    }
+    .result-card-title {
+      font-size: 1rem; font-weight: 800;
+      color: var(--text); margin-bottom: 1rem;
+    }
+
+    /* ── トーク例リスト ── */
+    .talk-list { list-style: none; }
+    .talk-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      margin-bottom: 0.75rem;
+      position: relative;
+    }
+    .talk-item:last-child { margin-bottom: 0; }
+    .talk-num {
+      display: inline-block;
+      background: var(--accent); color: #fff;
+      font-size: 0.72rem; font-weight: 700;
+      width: 20px; height: 20px; border-radius: 50%;
+      text-align: center; line-height: 20px;
+      margin-right: 0.5rem; flex-shrink: 0;
+    }
+    .talk-header {
+      display: flex; align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .talk-tag {
+      font-size: 0.72rem; font-weight: 700;
+      color: var(--accent); background: var(--accent-light);
+      padding: 0.15rem 0.5rem; border-radius: 5px;
+    }
+    .talk-text {
+      font-size: 0.9rem; line-height: 1.6; color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    .copy-btn {
+      font-size: 0.75rem; font-weight: 600;
+      color: var(--text-sub); background: var(--card);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 0.25rem 0.6rem; cursor: pointer;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .copy-btn.copied { color: var(--ok); border-color: var(--ok); }
+
+    /* ── 最近見たパターン ── */
+    .recent-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .recent-chip {
+      font-size: 0.78rem; font-weight: 600;
+      background: var(--accent-light); color: var(--accent);
+      border: 1px solid var(--accent); border-radius: 20px;
+      padding: 0.2rem 0.7rem; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .recent-chip:hover { background: var(--accent); color: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>営業切り返しトーク逆引き</h1>
+    <p class="subtitle">断られ方を選ぶだけで切り返しトーク例を即表示</p>
+  </header>
+
+  <!-- 反応タイプ選択 -->
+  <div class="card">
+    <p class="card-title">相手の断り方を選ぶ</p>
+    <div class="type-grid" id="typeGrid">
+      <button class="type-btn" onclick="showTalks(0)" id="btn0">
+        <span class="emoji">💰</span>値段が高い
+      </button>
+      <button class="type-btn" onclick="showTalks(1)" id="btn1">
+        <span class="emoji">🤔</span>今は必要ない
+      </button>
+      <button class="type-btn" onclick="showTalks(2)" id="btn2">
+        <span class="emoji">🏢</span>他社に決めた
+      </button>
+      <button class="type-btn" onclick="showTalks(3)" id="btn3">
+        <span class="emoji">⏳</span>検討中
+      </button>
+      <button class="type-btn" onclick="showTalks(4)" id="btn4">
+        <span class="emoji">👔</span>上司に確認が必要
+      </button>
+      <button class="type-btn" onclick="showTalks(5)" id="btn5">
+        <span class="emoji">🕐</span>今忙しい
+      </button>
+      <button class="type-btn" onclick="showTalks(6)" id="btn6">
+        <span class="emoji">🔍</span>効果・品質が不安
+      </button>
+      <button class="type-btn" onclick="showTalks(7)" id="btn7">
+        <span class="emoji">🤝</span>信頼・実績がない
+      </button>
+    </div>
+  </div>
+
+  <!-- 最近見たパターン -->
+  <div class="card" id="recentCard" style="display:none">
+    <p class="card-title">最近見たパターン</p>
+    <div class="recent-list" id="recentList"></div>
+  </div>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <span class="result-type-label" id="resultLabel"></span>
+    <p class="result-card-title" id="resultTitle"></p>
+    <ul class="talk-list" id="talkList"></ul>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 掲載しているトーク例は一般的な営業手法を参考に作成しています。お客様の状況や業種に応じてアレンジしてご使用ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var TALKS = [
+    {
+      type: '値段が高い',
+      emoji: '💰',
+      title: '「値段が高い」と言われたときの切り返し',
+      items: [
+        { tag: '費用対効果', text: '「ご予算のご心配、ごもっともです。ただ、〇〇をご利用いただくことで毎月△△円のコスト削減が期待できるため、長期的にはむしろお得になるケースが多いんです。一度数字で比較させていただけますか？」' },
+        { tag: '損失換算', text: '「確かに初期費用はかかります。ただ、いまの〇〇の問題がこのまま続くと、年間でどれくらいの損失になるかご存知ですか？その視点でも比べてみませんか？」' },
+        { tag: '導入事例', text: '「多くのお客様も最初はそうおっしゃるのですが、導入後に『もっと早く使えばよかった』とおっしゃる方がほとんどです。費用対効果について少し詳しくご説明させてください。」' },
+        { tag: '段階導入', text: '「段階的な導入プランもございます。まず小さく試してみて、効果を確認してから拡大する方法もあります。」' },
+        { tag: 'キャンペーン', text: '「今月末までの特別価格がございます。通常より〇〇円お得になりますので、このタイミングがよいかもしれません。」' },
+      ]
+    },
+    {
+      type: '今は必要ない',
+      emoji: '🤔',
+      title: '「今は必要ない」と言われたときの切り返し',
+      items: [
+        { tag: '将来の条件確認', text: '「そうですよね。では改めて伺いたいのですが、今後どんな状況になったら必要だと感じますか？」' },
+        { tag: '準備の提案', text: '「おっしゃる通り、今すぐは不要かもしれません。ただ、準備しておくと後でスムーズに動けます。今の段階で情報だけ持っていただくのはいかがでしょうか？」' },
+        { tag: 'リードタイム', text: '「実は、多くのお客様が"必要になってから動いた"ことを後悔されています。導入まで時間がかかるため、必要な3ヶ月前には準備を始めるのがベストです。」' },
+        { tag: 'リスク確認', text: '「現状で十分に回っているということですね。では逆に、もし〇〇が起きたとしたら、いまの状況でどう対応されますか？」' },
+      ]
+    },
+    {
+      type: '他社に決めた',
+      emoji: '🏢',
+      title: '「他社に決めた」と言われたときの切り返し',
+      items: [
+        { tag: '決め手確認', text: '「それはお早い決断でしたね。差し支えなければ、どんな点が決め手になったかお聞きできますか？」' },
+        { tag: '将来につなぐ', text: '「承知しました。今後もし何か変化があった際は、ぜひ声をかけていただけますか？長期的なお付き合いができればと思っています。」' },
+        { tag: '改善ヒアリング', text: '「ありがとうございます。ひとつだけ確認させてください。弊社のどの点が足りなかったか教えていただけると、今後の改善に活かせますので。」' },
+        { tag: 'フォロー提案', text: '「今後他社さんとのお取引で気になることがあれば、比較の意味でも弊社をご検討いただけると嬉しいです。」' },
+      ]
+    },
+    {
+      type: '検討中',
+      emoji: '⏳',
+      title: '「検討中」と言われたときの切り返し',
+      items: [
+        { tag: '懸念点の把握', text: '「ありがとうございます。検討していただける点は何でしょうか？そこを深掘りしてご説明できればと思いまして。」' },
+        { tag: '比較対象確認', text: '「ご検討ありがとうございます。他に比較されているサービスはありますか？そちらと弊社の違いをご説明することもできますよ。」' },
+        { tag: '疑問の解消', text: '「もし検討にあたって何か不安な点や疑問点があれば、ぜひ今解消させてください。」' },
+        { tag: 'タイムライン確認', text: '「検討の期間はどれくらいでしょうか？いつ頃ご判断いただけそうですか？改めてご連絡してもよいでしょうか？」' },
+      ]
+    },
+    {
+      type: '上司に確認が必要',
+      emoji: '👔',
+      title: '「上司に確認が必要」と言われたときの切り返し',
+      items: [
+        { tag: '資料提供', text: '「もちろんです。上司の方にご説明する際に使える資料をご用意しますが、いかがでしょうか？」' },
+        { tag: '同席提案', text: '「ぜひ一度、上司の方とご一緒にお話しできる機会をいただけますか？直接説明した方がスムーズかと思います。」' },
+        { tag: '懸念点の先読み', text: '「上司の方が気にされそうな点は、どういったことでしょうか？そこを重点的にまとめた提案書をお持ちします。」' },
+        { tag: 'キーポイント確認', text: '「ありがとうございます。ご確認いただく際に、特に気にされそうなポイントはありますか？それを含めた資料をご用意します。」' },
+      ]
+    },
+    {
+      type: '今忙しい',
+      emoji: '🕐',
+      title: '「今忙しい」と言われたときの切り返し',
+      items: [
+        { tag: '短時間提案', text: '「お忙しい中ありがとうございます。5分だけでも今お時間いただけますか？一番大切な部分だけご説明します。」' },
+        { tag: '日程の確認', text: '「承知しました。改めてご連絡させてください。今週と来週、どちらがご都合よさそうですか？」' },
+        { tag: '先約の確保', text: '「では来週以降でご都合のよい日時を教えていただけますか？日程だけ先に押さえておければと思いまして。」' },
+        { tag: 'メール提案', text: '「メールでご案内だけ送ってもよいですか？お手すきのときにご確認いただけると嬉しいです。」' },
+      ]
+    },
+    {
+      type: '効果・品質が不安',
+      emoji: '🔍',
+      title: '「効果・品質が不安」と言われたときの切り返し',
+      items: [
+        { tag: '導入事例紹介', text: '「不安をお持ちなのはよくわかります。実は〇〇社さんでも同じご懸念をお持ちでしたが、導入後△ヶ月で成果が出ました。事例をご紹介してもよいですか？」' },
+        { tag: '期待値の確認', text: '「ご心配の点をもう少し詳しく教えていただけますか？具体的にどんな結果をご期待されていますか？」' },
+        { tag: '小規模トライアル', text: '「まず小規模でお試しいただく方法もございます。効果を確認してから広げる形にすれば、リスクを最小限にできます。」' },
+        { tag: 'お客様の声', text: '「実際にご使用いただいたお客様の声をご紹介しますので、参考にしていただけますか？」' },
+      ]
+    },
+    {
+      type: '信頼・実績がない',
+      emoji: '🤝',
+      title: '「信頼・実績がない」と言われたときの切り返し',
+      items: [
+        { tag: '実績の紹介', text: '「おっしゃる通り、最初はどんな会社かわからないですよね。弊社の実績や事例をご紹介できますが、いかがでしょうか？」' },
+        { tag: 'リスク排除', text: '「ご心配のお気持ちはよくわかります。無料のお試し期間や返金保証もございます。まずリスクなくお試しいただけます。」' },
+        { tag: '小さく始める', text: '「小さい取引から始めて、信頼関係を築いていければと思っています。まず一番小さい形でお試しいただけませんか？」' },
+        { tag: '既存顧客の紹介', text: '「弊社をご利用中のお客様をご紹介することも可能です。直接お話しいただければ、より安心いただけると思います。」' },
+      ]
+    }
+  ];
+
+  var selectedIdx = -1;
+
+  function showTalks(idx) {
+    selectedIdx = idx;
+    var data = TALKS[idx];
+
+    // ボタンのアクティブ状態を切り替え
+    for (var i = 0; i < 8; i++) {
+      var btn = document.getElementById('btn' + i);
+      btn.className = 'type-btn' + (i === idx ? ' active' : '');
+    }
+
+    // 結果カードを表示
+    var rc = document.getElementById('result');
+    document.getElementById('resultLabel').textContent = data.emoji + ' ' + data.type;
+    document.getElementById('resultTitle').textContent = data.title;
+
+    var html = '';
+    data.items.forEach(function(item, i) {
+      html += '<li class="talk-item">'
+        + '<div class="talk-header">'
+        + '<span class="talk-num">' + (i + 1) + '</span>'
+        + '<span class="talk-tag">' + item.tag + '</span>'
+        + '</div>'
+        + '<p class="talk-text">' + item.text + '</p>'
+        + '<button class="copy-btn" onclick="copyTalk(this, ' + JSON.stringify(item.text) + ')">📋 コピー</button>'
+        + '</li>';
+    });
+    document.getElementById('talkList').innerHTML = html;
+    rc.className = 'result-card show';
+
+    // スクロール
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // localStorage に保存
+    saveRecent(idx);
+    renderRecent();
+  }
+
+  function copyTalk(btn, text) {
+    // テキストから引用符をそのまま使えるようにする
+    var plain = text.replace(/^「|」$/g, '');
+    navigator.clipboard ? navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = '✅ コピーしました';
+      btn.className = 'copy-btn copied';
+      setTimeout(function() { btn.textContent = '📋 コピー'; btn.className = 'copy-btn'; }, 1500);
+    }) : fallbackCopy(btn, text);
+  }
+
+  function fallbackCopy(btn, text) {
+    var el = document.createElement('textarea');
+    el.value = text;
+    el.style.position = 'fixed'; el.style.opacity = '0';
+    document.body.appendChild(el); el.select();
+    try { document.execCommand('copy'); btn.textContent = '✅ コピーしました'; btn.className = 'copy-btn copied'; } catch(e) {}
+    document.body.removeChild(el);
+    setTimeout(function() { btn.textContent = '📋 コピー'; btn.className = 'copy-btn'; }, 1500);
+  }
+
+  /* ── localStorage：最近見たパターン ── */
+  var STORAGE_KEY = 'eigyo_recent_v1';
+
+  function saveRecent(idx) {
+    var list = loadRecent();
+    list = list.filter(function(i) { return i !== idx; });
+    list.unshift(idx);
+    if (list.length > 5) list = list.slice(0, 5);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch(e) {}
+  }
+
+  function loadRecent() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch(e) { return []; }
+  }
+
+  function renderRecent() {
+    var list = loadRecent();
+    var card = document.getElementById('recentCard');
+    var ul = document.getElementById('recentList');
+    if (list.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    ul.innerHTML = list.map(function(i) {
+      var d = TALKS[i];
+      return '<button class="recent-chip" onclick="showTalks(' + i + ')">' + d.emoji + ' ' + d.type + '</button>';
+    }).join('');
+  }
+
+  // 初期化
+  renderRecent();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
