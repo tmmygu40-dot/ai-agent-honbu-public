@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="仕入れ単価の増加率と月間固定費・変動費率を入力して、仕入れコスト増分・損益分岐点・必要値上げ幅を一括試算できる飲食・小売店向けの採算確認ツールです。">
+  <title>飲食・小売コスト採算ツール</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── セクション区切り ── */
+    .section-head {
+      max-width: 600px; margin: 1.6rem auto 0.6rem;
+      padding: 0 0.2rem;
+      font-size: 0.82rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.04em;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <a class="back-link" href="../index.html" style="display:inline-block;margin-bottom:0.5rem;font-size:0.78rem;">← アプリ一覧に戻る</a>
+    <h1>飲食・小売コスト採算ツール</h1>
+    <p class="subtitle">仕入れコスト増分と損益分岐点を一括試算｜値上げ判断を即サポート</p>
+  </header>
+
+  <!-- ① 仕入れコスト増分 -->
+  <p class="section-head">① 仕入れコスト増分の試算</p>
+  <div class="card">
+    <p class="card-title">仕入れコスト入力</p>
+    <div class="field">
+      <label for="curCost">現在の仕入れ単価（円）</label>
+      <input type="number" id="curCost" placeholder="例: 1000" min="0">
+    </div>
+    <div class="field">
+      <label for="costUpRate">仕入れ増加率（%）</label>
+      <input type="number" id="costUpRate" placeholder="例: 15" min="0" max="300">
+      <p class="hint">「15」と入れると15%アップで試算します</p>
+    </div>
+    <div class="field">
+      <label for="monthlyQty">月間仕入れ数量（個・kg・食分など）</label>
+      <input type="number" id="monthlyQty" placeholder="例: 200" min="0">
+    </div>
+  </div>
+
+  <!-- ② 採算分岐点（損益分岐点） -->
+  <p class="section-head">② 採算分岐点（損益分岐点）の計算</p>
+  <div class="card">
+    <p class="card-title">損益分岐点入力</p>
+    <div class="field">
+      <label for="fixedCost">月間固定費合計（円）</label>
+      <input type="number" id="fixedCost" placeholder="例: 500000" min="0">
+      <p class="hint">家賃・人件費・光熱費など変動しないコスト</p>
+    </div>
+    <div class="field">
+      <label for="varRate">変動費率（%）</label>
+      <input type="number" id="varRate" placeholder="例: 35" min="0" max="99">
+      <p class="hint">売上に対する変動費の割合（仕入れ・消耗品など）</p>
+    </div>
+    <div class="field">
+      <label for="curSales">現在の月間売上（円）</label>
+      <input type="number" id="curSales" placeholder="例: 900000" min="0">
+      <p class="hint">現状の月商。BEPとの差を確認できます</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">まとめて採算チェック</button>
+
+  <!-- 結論カード：損益分岐点判定 -->
+  <div class="result-card" id="resultBEP">
+    <p class="result-label">損益分岐点との差（月間）</p>
+    <p class="result-value" id="rvBEP">—</p>
+    <p class="result-eval" id="reBEP"></p>
+    <p class="result-note" id="rnBEP"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">試算結果の内訳</p>
+    <table class="detail-table"><tbody id="detailBody"></tbody></table>
+  </div>
+
+  <!-- 必要値上げカード -->
+  <div class="card" id="priceCard" style="display:none">
+    <p class="card-title">値上げ・採算対策の目安</p>
+    <table class="detail-table"><tbody id="priceBody"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 計算式は一般的な管理会計の損益分岐点分析に基づいています。実際の経営判断は顧問税理士・中小企業診断士などの専門家にご相談ください。参考：中小企業庁・経済産業省
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var LS_KEY = 'food-retail-cost-checker-v1';
+
+  // localStorage 復元
+  window.addEventListener('load', function() {
+    try {
+      var s = localStorage.getItem(LS_KEY);
+      if (!s) return;
+      var d = JSON.parse(s);
+      ['curCost','costUpRate','monthlyQty','fixedCost','varRate','curSales'].forEach(function(id) {
+        if (d[id] !== undefined) document.getElementById(id).value = d[id];
+      });
+    } catch(e) {}
+  });
+
+  function saveLS() {
+    try {
+      var d = {};
+      ['curCost','costUpRate','monthlyQty','fixedCost','varRate','curSales'].forEach(function(id) {
+        d[id] = document.getElementById(id).value;
+      });
+      localStorage.setItem(LS_KEY, JSON.stringify(d));
+    } catch(e) {}
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmtF(n, d) { return n.toFixed(d !== undefined ? d : 1).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+  function showResult(id, level, val, eval_, note) {
+    var rc = document.getElementById(id);
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv' + id.replace('result', '')).textContent = val;
+    var el = document.getElementById('re' + id.replace('result', ''));
+    if (el) el.textContent = eval_;
+    var nl = document.getElementById('rn' + id.replace('result', ''));
+    if (nl) nl.textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('detailBody').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detailCard').style.display = 'block';
+  }
+
+  function showPrice(rows) {
+    document.getElementById('priceBody').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('priceCard').style.display = 'block';
+  }
+
+  function calc() {
+    // ① 仕入れコスト増分
+    var curCost   = parseFloat(document.getElementById('curCost').value)   || 0;
+    var costUpRate= parseFloat(document.getElementById('costUpRate').value) || 0;
+    var qty       = parseFloat(document.getElementById('monthlyQty').value) || 0;
+
+    // ② 損益分岐点
+    var fixedCost = parseFloat(document.getElementById('fixedCost').value) || 0;
+    var varRate   = parseFloat(document.getElementById('varRate').value)   || 0;
+    var curSales  = parseFloat(document.getElementById('curSales').value)  || 0;
+
+    // 最低1項目入力チェック
+    if (curCost <= 0 && fixedCost <= 0) {
+      var rc = document.getElementById('resultBEP');
+      rc.className = 'result-card ng'; rc.style.display = 'block';
+      document.getElementById('rvBEP').textContent = '⚠️';
+      document.getElementById('reBEP').textContent = '仕入れ単価か固定費を入力してください';
+      document.getElementById('rnBEP').textContent = '';
+      document.getElementById('detailCard').style.display = 'none';
+      document.getElementById('priceCard').style.display = 'none';
+      return;
+    }
+
+    saveLS();
+
+    // ── 計算 ──
+    // 仕入れコスト増分
+    var newCost       = curCost * (1 + costUpRate / 100);
+    var costDiffUnit  = newCost - curCost;
+    var costDiffMonth = costDiffUnit * qty;
+
+    // 損益分岐点
+    var marginalRate = 1 - varRate / 100;
+    var bep = (marginalRate > 0) ? fixedCost / marginalRate : 0;
+
+    // コスト増分考慮後のBEP（固定費にコスト増分を加算して再計算）
+    var fixedCostNew = fixedCost + costDiffMonth;
+    var bepNew = (marginalRate > 0) ? fixedCostNew / marginalRate : 0;
+
+    // 現在売上とBEPの差
+    var bepGap    = curSales - bep;
+    var bepGapNew = curSales - bepNew;
+
+    // 判定
+    var level, evalMsg, noteMsg;
+    if (bep <= 0) {
+      // BEP計算不能の場合はコスト増分のみ表示
+      level = 'warn';
+      evalMsg = '損益分岐点を計算するには固定費と変動費率を入力してください';
+      noteMsg = '';
+    } else if (curSales <= 0) {
+      level = 'warn';
+      evalMsg = '月間売上を入力すると余裕度も確認できます';
+      noteMsg = '損益分岐点: ' + fmt(Math.round(bep)) + ' 円';
+    } else if (bepGap >= bep * 0.2) {
+      level = 'ok';
+      evalMsg = '採算ラインに余裕があります';
+      noteMsg = '損益分岐点を ' + fmt(Math.abs(Math.round(bepGap))) + ' 円 上回っています';
+    } else if (bepGap > 0) {
+      level = 'warn';
+      evalMsg = '採算ラインに近づいています。要注意';
+      noteMsg = '損益分岐点まで残り ' + fmt(Math.abs(Math.round(bepGap))) + ' 円 の余裕';
+    } else {
+      level = 'ng';
+      evalMsg = '損益分岐点を下回っています。赤字状態';
+      noteMsg = '損益分岐点まで ' + fmt(Math.abs(Math.round(bepGap))) + ' 円 不足';
+    }
+
+    // 結論カード表示
+    var rc = document.getElementById('resultBEP');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    if (bep > 0 && curSales > 0) {
+      document.getElementById('rvBEP').textContent = (bepGap >= 0 ? '+' : '') + fmt(Math.round(bepGap)) + ' 円';
+    } else if (bep > 0) {
+      document.getElementById('rvBEP').textContent = 'BEP ' + fmt(Math.round(bep)) + ' 円';
+    } else {
+      document.getElementById('rvBEP').textContent = '—';
+    }
+    document.getElementById('reBEP').textContent = evalMsg;
+    document.getElementById('rnBEP').textContent = noteMsg;
+
+    // 内訳
+    var detRows = [];
+    if (curCost > 0) {
+      detRows.push(['現在の仕入れ単価', fmt(curCost) + ' 円']);
+      detRows.push(['増加率', costUpRate.toFixed(1) + ' %']);
+      detRows.push(['値上げ後の仕入れ単価', fmt(Math.round(newCost)) + ' 円']);
+      detRows.push(['単価増加額', '+' + fmt(Math.round(costDiffUnit)) + ' 円', true]);
+      if (qty > 0) {
+        detRows.push(['月間数量', fmt(qty) + ' 個・食・kg']);
+        detRows.push(['月間コスト増加額', '+' + fmt(Math.round(costDiffMonth)) + ' 円', true]);
+      }
+    }
+    if (bep > 0) {
+      if (detRows.length > 0) detRows.push(['─────', '─────────']);
+      detRows.push(['月間固定費', fmt(fixedCost) + ' 円']);
+      detRows.push(['変動費率', varRate.toFixed(1) + ' %']);
+      detRows.push(['限界利益率', (marginalRate * 100).toFixed(1) + ' %']);
+      detRows.push(['現在の損益分岐点', fmt(Math.round(bep)) + ' 円', true]);
+      if (costDiffMonth > 0) {
+        detRows.push(['コスト増後の損益分岐点', fmt(Math.round(bepNew)) + ' 円', true]);
+        detRows.push(['BEP上昇幅', '+' + fmt(Math.round(bepNew - bep)) + ' 円']);
+      }
+      if (curSales > 0) {
+        detRows.push(['現在の月間売上', fmt(curSales) + ' 円']);
+        detRows.push(['BEPとの差（現在）', (bepGap >= 0 ? '+' : '') + fmt(Math.round(bepGap)) + ' 円']);
+        if (costDiffMonth > 0) {
+          detRows.push(['BEPとの差（増加後）', (bepGapNew >= 0 ? '+' : '') + fmt(Math.round(bepGapNew)) + ' 円']);
+        }
+      }
+    }
+    showDetail(detRows);
+
+    // 値上げ対策の目安
+    var priceRows = [];
+    if (curCost > 0 && costDiffUnit > 0) {
+      // 現在売価は未入力前提で「仕入れ単価の倍率別の目安」を出す
+      [3, 2.5, 2].forEach(function(mult) {
+        var sellPrice = curCost * mult;
+        var newSell = newCost * mult;
+        var upAmt = newSell - sellPrice;
+        priceRows.push([
+          '売価が仕入れの' + mult + '倍設定の場合',
+          '値上げ目安 +' + fmt(Math.round(upAmt)) + ' 円'
+        ]);
+      });
+    }
+    if (bep > 0 && curSales > 0 && bepGapNew < 0) {
+      // 売上不足分を補う必要値上げ率
+      var needSales = bepNew;
+      var needUpRate = ((needSales - curSales) / curSales * 100);
+      priceRows.push(['採算確保のための必要売上', fmt(Math.round(needSales)) + ' 円', true]);
+      priceRows.push(['現状からの売上増加必要額', '+' + fmt(Math.round(needSales - curSales)) + ' 円']);
+      priceRows.push(['全品目均等値上げ目安', '+' + needUpRate.toFixed(1) + ' %']);
+    } else if (bep > 0 && curSales > 0 && costDiffMonth > 0) {
+      var needSales2 = bepNew;
+      var diff2 = needSales2 - curSales;
+      if (diff2 > 0) {
+        priceRows.push(['コスト増後の必要売上', fmt(Math.round(needSales2)) + ' 円', true]);
+        priceRows.push(['追加で必要な売上', '+' + fmt(Math.round(diff2)) + ' 円']);
+      } else {
+        priceRows.push(['コスト増後も採算ライン内', '余裕: +' + fmt(Math.abs(Math.round(diff2))) + ' 円', true]);
+      }
+    }
+    if (priceRows.length > 0) {
+      showPrice(priceRows);
+    } else {
+      document.getElementById('priceCard').style.display = 'none';
+    }
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

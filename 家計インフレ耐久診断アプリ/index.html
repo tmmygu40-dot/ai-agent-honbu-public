@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>家計インフレ耐久診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 上昇率ボタン群 ── */
+    .rate-btns { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+    .rate-btn {
+      padding: 0.35rem 0.75rem; font-size: 0.82rem; font-weight: 700;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text-sub); cursor: pointer;
+      transition: all 0.12s;
+    }
+    .rate-btn.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print, .rate-btns { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>家計インフレ耐久診断アプリ</h1>
+    <p class="subtitle">収支と物価上昇率から「家計があと何ヶ月もつか」を即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">収支を入力</p>
+    <div class="field">
+      <label for="income">月収（手取り）</label>
+      <input type="number" id="income" placeholder="例: 280000" min="0">
+      <p class="hint">税引き後の実際の手取り額（円）</p>
+    </div>
+    <div class="field">
+      <label for="expense">月支出（現在）</label>
+      <input type="number" id="expense" placeholder="例: 260000" min="0">
+      <p class="hint">食費・光熱費・家賃など月の合計支出（円）</p>
+    </div>
+    <div class="field">
+      <label for="savings">現在の貯蓄残高</label>
+      <input type="number" id="savings" placeholder="例: 1500000" min="0">
+      <p class="hint">銀行預金など今すぐ使える資産の合計（円）</p>
+    </div>
+    <div class="field">
+      <label for="rate">年間物価上昇率（%）</label>
+      <input type="number" id="rate" placeholder="例: 3" min="0" max="50" step="0.1">
+      <p class="hint">インフレにより支出が毎年この割合で増えると仮定</p>
+      <div class="rate-btns">
+        <button class="rate-btn" onclick="setRate(1)">1%</button>
+        <button class="rate-btn" onclick="setRate(2)">2%</button>
+        <button class="rate-btn active" onclick="setRate(3)">3%</button>
+        <button class="rate-btn" onclick="setRate(5)">5%</button>
+        <button class="rate-btn" onclick="setRate(7)">7%</button>
+        <button class="rate-btn" onclick="setRate(10)">10%</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">家計の耐久月数を診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">耐久月数（貯蓄が尽きるまで）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">診断の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは月次シミュレーションによる目安です。収入・支出・インフレ率は一定と仮定しています。実際の結果は異なる場合があります。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // 物価上昇率ボタン
+  function setRate(v) {
+    document.getElementById('rate').value = v;
+    document.querySelectorAll('.rate-btn').forEach(function(b) {
+      b.classList.toggle('active', b.textContent === v + '%');
+    });
+    save();
+  }
+
+  // localStorage キー
+  var LS = 'kakeInflDuranceDiag_v1';
+
+  function save() {
+    try {
+      localStorage.setItem(LS, JSON.stringify({
+        income:  document.getElementById('income').value,
+        expense: document.getElementById('expense').value,
+        savings: document.getElementById('savings').value,
+        rate:    document.getElementById('rate').value
+      }));
+    } catch(e) {}
+  }
+
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS));
+      if (!d) return;
+      if (d.income)  document.getElementById('income').value  = d.income;
+      if (d.expense) document.getElementById('expense').value = d.expense;
+      if (d.savings) document.getElementById('savings').value = d.savings;
+      if (d.rate) {
+        document.getElementById('rate').value = d.rate;
+        document.querySelectorAll('.rate-btn').forEach(function(b) {
+          b.classList.toggle('active', b.textContent === d.rate + '%');
+        });
+      }
+    } catch(e) {}
+  }
+
+  ['income','expense','savings','rate'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', save);
+  });
+
+  window.addEventListener('DOMContentLoaded', function() {
+    load();
+    // デフォルト率がlocalStorageにない場合は3%をセット
+    if (!document.getElementById('rate').value) {
+      document.getElementById('rate').value = 3;
+    }
+  });
+
+  function calc() {
+    var income  = parseFloat(document.getElementById('income').value);
+    var expense = parseFloat(document.getElementById('expense').value);
+    var savings = parseFloat(document.getElementById('savings').value);
+    var annualRate = parseFloat(document.getElementById('rate').value);
+
+    if (isNaN(income) || isNaN(expense) || isNaN(savings) || isNaN(annualRate)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (income < 0 || expense < 0 || savings < 0 || annualRate < 0) {
+      showErr('マイナス値は入力できません');
+      return;
+    }
+
+    var monthlyRate = annualRate / 100 / 12;
+    var currentBalance = savings;
+    var months = 0;
+    var maxMonths = 600; // 50年上限
+    var enoughForever = false;
+
+    // 月次シミュレーション
+    for (var k = 0; k < maxMonths; k++) {
+      var monthlyExpense = expense * Math.pow(1 + monthlyRate, k);
+      var monthlyBalance = income - monthlyExpense;
+      currentBalance += monthlyBalance;
+      if (currentBalance <= 0) {
+        months = k + 1;
+        break;
+      }
+      if (k === maxMonths - 1) {
+        enoughForever = true;
+      }
+    }
+
+    // 1年後・3年後の月支出
+    var expAfter1y = expense * Math.pow(1 + monthlyRate, 12);
+    var expAfter3y = expense * Math.pow(1 + monthlyRate, 36);
+    var currentMonthly = income - expense;
+    var afterYear1Monthly = income - expAfter1y;
+    var afterYear3Monthly = income - expAfter3y;
+
+    // 枯渇予測年月
+    var now = new Date();
+    var depletionDate = '';
+    if (!enoughForever) {
+      var dep = new Date(now.getFullYear(), now.getMonth() + months, 1);
+      depletionDate = dep.getFullYear() + '年' + (dep.getMonth() + 1) + '月';
+    }
+
+    var level, evalText, noteText, dispValue;
+
+    if (enoughForever) {
+      level = 'ok';
+      dispValue = '50年以上';
+      evalText = '家計は長期にわたり安定しています';
+      noteText = '現在の収支とインフレ率では、50年以上貯蓄が持続するシミュレーション結果です。';
+    } else if (months >= 120) {
+      level = 'ok';
+      dispValue = months + 'ヶ月';
+      evalText = '当面は安心ですが、長期視点で対策を';
+      noteText = '約' + Math.floor(months / 12) + '年後（' + depletionDate + '頃）に貯蓄が尽きる見込みです。';
+    } else if (months >= 36) {
+      level = 'warn';
+      dispValue = months + 'ヶ月';
+      evalText = 'インフレが家計を圧迫しています';
+      noteText = '約' + Math.floor(months / 12) + '年後（' + depletionDate + '頃）に貯蓄が尽きる見込みです。支出削減か収入アップを検討しましょう。';
+    } else {
+      level = 'ng';
+      dispValue = months + 'ヶ月';
+      evalText = '家計の赤字化が近づいています';
+      noteText = depletionDate + '頃に貯蓄が底をつく見込みです。早急な家計改善が必要です。';
+    }
+
+    showResult(level, dispValue, evalText, noteText);
+    showDetail([
+      ['現在の月収',             fmt(income) + ' 円'],
+      ['現在の月支出',           fmt(expense) + ' 円'],
+      ['現在の月次収支',         (currentMonthly >= 0 ? '+' : '') + fmt(currentMonthly) + ' 円'],
+      ['現在の貯蓄残高',         fmt(savings) + ' 円'],
+      ['年間物価上昇率',         annualRate + ' %'],
+      ['1年後の月支出（試算）',  fmt(expAfter1y) + ' 円'],
+      ['1年後の月次収支（試算）',(afterYear1Monthly >= 0 ? '+' : '') + fmt(afterYear1Monthly) + ' 円'],
+      ['3年後の月支出（試算）',  fmt(expAfter3y) + ' 円'],
+      ['3年後の月次収支（試算）',(afterYear3Monthly >= 0 ? '+' : '') + fmt(afterYear3Monthly) + ' 円'],
+      [enoughForever ? '耐久月数' : '貯蓄枯渇予測', enoughForever ? '50年以上' : depletionDate + '頃（' + months + 'ヶ月後）', true],
+    ]);
+  }
+
+  function showResult(level, val, evalText, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = '';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

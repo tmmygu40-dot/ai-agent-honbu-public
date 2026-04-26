@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>飼料コスト影響チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+    .detail-table .ok-row td:last-child { color: var(--ok); }
+
+    /* ── 損益分岐点カード ── */
+    .bep-card {
+      display: none; background: var(--accent-light);
+      border: 1.5px solid var(--accent); border-radius: var(--radius);
+      padding: 1.2rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .bep-title { font-size: 0.78rem; font-weight: 700; color: var(--accent); margin-bottom: 0.75rem; letter-spacing: 0.05em; }
+    .bep-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.5rem; font-size: 0.88rem; }
+    .bep-row:last-child { margin-bottom: 0; }
+    .bep-row .bep-label { color: var(--text-sub); }
+    .bep-row .bep-val { font-weight: 800; font-size: 1.15rem; color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🌾 飼料コスト影響チェッカー</h1>
+    <p class="subtitle">飼料高騰による畜産コスト増加と採算悪化を即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">現状を入力</p>
+    <div class="field">
+      <label for="feedCost">現在の飼料費（月額・円）</label>
+      <input type="number" id="feedCost" placeholder="例: 500000" min="0" inputmode="numeric">
+      <p class="hint">全頭分の月間飼料費合計を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="riseRate">飼料費の値上がり率（%）</label>
+      <input type="number" id="riseRate" placeholder="例: 20" min="0" max="300" inputmode="decimal">
+      <p class="hint">現在の飼料費に対する上昇率（例：20%高騰なら「20」）</p>
+    </div>
+    <div class="field">
+      <label for="headCount">頭数 / 羽数</label>
+      <input type="number" id="headCount" placeholder="例: 100" min="1" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label for="sellPrice">1頭（羽）あたりの販売単価（円）</label>
+      <input type="number" id="sellPrice" placeholder="例: 30000" min="0" inputmode="numeric">
+      <p class="hint">月間に出荷・販売する単価を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="fixedCost">その他の月間固定費（円）</label>
+      <input type="number" id="fixedCost" placeholder="例: 200000" min="0" inputmode="numeric">
+      <p class="hint">人件費・光熱費・設備費など飼料費以外のコスト合計</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算を試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">値上がり後の月間利益</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 損益分岐点カード -->
+  <div class="bep-card" id="bepCard">
+    <p class="bep-title">📊 損益分岐点</p>
+    <div class="bep-row">
+      <span class="bep-label">損益分岐点（頭数/羽数）</span>
+      <span class="bep-val" id="bepHead">—</span>
+    </div>
+    <div class="bep-row">
+      <span class="bep-label">現在の頭数との差</span>
+      <span class="bep-val" id="bepDiff">—</span>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'feedCostChecker_v1';
+
+  function loadSaved() {
+    try {
+      var d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      if (d.feedCost)  document.getElementById('feedCost').value  = d.feedCost;
+      if (d.riseRate)  document.getElementById('riseRate').value  = d.riseRate;
+      if (d.headCount) document.getElementById('headCount').value = d.headCount;
+      if (d.sellPrice) document.getElementById('sellPrice').value = d.sellPrice;
+      if (d.fixedCost) document.getElementById('fixedCost').value = d.fixedCost;
+    } catch(e) {}
+  }
+
+  function saveInputs(feedCost, riseRate, headCount, sellPrice, fixedCost) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        feedCost: feedCost, riseRate: riseRate,
+        headCount: headCount, sellPrice: sellPrice, fixedCost: fixedCost
+      }));
+    } catch(e) {}
+  }
+
+  function calc() {
+    var feedCost  = parseFloat(document.getElementById('feedCost').value);
+    var riseRate  = parseFloat(document.getElementById('riseRate').value);
+    var headCount = parseFloat(document.getElementById('headCount').value);
+    var sellPrice = parseFloat(document.getElementById('sellPrice').value);
+    var fixedCost = parseFloat(document.getElementById('fixedCost').value) || 0;
+
+    if (isNaN(feedCost) || isNaN(riseRate) || isNaN(headCount) || isNaN(sellPrice)) {
+      showErr('飼料費・値上がり率・頭数・販売単価は必ず入力してください');
+      return;
+    }
+    if (headCount <= 0 || sellPrice <= 0) {
+      showErr('頭数・販売単価は1以上を入力してください');
+      return;
+    }
+
+    saveInputs(feedCost, riseRate, headCount, sellPrice, fixedCost);
+
+    // 計算
+    var feedAfter    = feedCost * (1 + riseRate / 100);
+    var feedIncrease = feedAfter - feedCost;
+    var revenue      = headCount * sellPrice;
+    var costBefore   = feedCost  + fixedCost;
+    var costAfter    = feedAfter + fixedCost;
+    var profitBefore = revenue - costBefore;
+    var profitAfter  = revenue - costAfter;
+    var profitChange = profitAfter - profitBefore;
+
+    // 損益分岐点（頭数）= 総コスト / 販売単価
+    var bepHead = costAfter / sellPrice;
+    var bepDiff = headCount - bepHead;
+
+    // 判定
+    var level;
+    if (profitAfter >= 0) {
+      level = 'ok';
+    } else if (Math.abs(profitAfter) / revenue < 0.15) {
+      level = 'warn';
+    } else {
+      level = 'ng';
+    }
+
+    var profitAfterStr = (profitAfter >= 0 ? '+' : '') + fmt(profitAfter) + ' 円';
+    var msg;
+    if (level === 'ok') {
+      msg = '値上がり後も黒字を維持。ただし利益は ' + fmt(Math.abs(profitChange)) + ' 円減少しています。';
+    } else if (level === 'warn') {
+      msg = '赤字転落。損失は比較的小規模ですが、早急な対策が必要です。';
+    } else {
+      msg = '大幅な赤字。飼料費高騰が経営を直撃しています。価格転嫁・頭数調整を検討してください。';
+    }
+
+    showResult(level, profitAfterStr, msg);
+
+    // 損益分岐点
+    var bepCard = document.getElementById('bepCard');
+    bepCard.style.display = '';
+    document.getElementById('bepHead').textContent = fmt(Math.ceil(bepHead)) + ' 頭（羽）';
+    var diffStr = bepDiff >= 0
+      ? '現頭数が損益分岐点を ' + fmt(Math.floor(bepDiff)) + ' 頭（羽）上回る'
+      : '損益分岐点に対して ' + fmt(Math.ceil(Math.abs(bepDiff))) + ' 頭（羽）不足';
+    document.getElementById('bepDiff').textContent = diffStr;
+
+    showDetail([
+      ['月間売上',                    fmt(revenue) + ' 円'],
+      ['値上がり前の飼料費',          fmt(feedCost) + ' 円'],
+      ['値上がり後の飼料費',          fmt(feedAfter) + ' 円'],
+      ['飼料費の増加額',              fmt(feedIncrease) + ' 円', false, 'ng-row'],
+      ['その他固定費',                fmt(fixedCost) + ' 円'],
+      ['値上がり後の総コスト',        fmt(costAfter) + ' 円'],
+      ['値上がり前の月間利益',        (profitBefore >= 0 ? '+' : '') + fmt(profitBefore) + ' 円', false, profitBefore >= 0 ? 'ok-row' : 'ng-row'],
+      ['値上がり後の月間利益',        (profitAfter >= 0 ? '+' : '') + fmt(profitAfter) + ' 円', true, profitAfter >= 0 ? 'ok-row' : 'ng-row'],
+      ['利益の変化（飼料高騰の影響）', (profitChange >= 0 ? '+' : '') + fmt(profitChange) + ' 円'],
+    ]);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      var cls = r[2] ? ' class="hl"' : (r[3] ? ' class="' + r[3] + '"' : '');
+      return '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('bepCard').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  loadSaved();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

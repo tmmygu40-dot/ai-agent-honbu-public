@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鮮度管理発注シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2列グリッド ── */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.4rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 廃棄リスクバッジ ── */
+    .risk-badge {
+      display: inline-block; padding: 0.3rem 0.9rem;
+      border-radius: 99px; font-size: 0.88rem; font-weight: 700;
+      margin-bottom: 0.6rem;
+    }
+    .risk-ok   { background: var(--ok-bg);   color: var(--ok);   border: 1.5px solid var(--ok); }
+    .risk-warn { background: var(--warn-bg); color: var(--warn); border: 1.5px solid var(--warn); }
+    .risk-ng   { background: var(--ng-bg);   color: var(--ng);   border: 1.5px solid var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🥬 鮮度管理発注シミュレーター</h1>
+    <p class="subtitle">賞味期限・日販数・リードタイムから廃棄ゼロの発注量を即算出</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品情報を入力</p>
+    <div class="grid2">
+      <div class="field">
+        <label for="expiry">賞味期限（日）</label>
+        <input type="number" id="expiry" placeholder="例: 7" min="1">
+        <p class="hint">入荷日から数えた日数</p>
+      </div>
+      <div class="field">
+        <label for="daily">日販数（個/日）</label>
+        <input type="number" id="daily" placeholder="例: 10" min="0.1" step="0.1">
+        <p class="hint">1日の平均販売数</p>
+      </div>
+      <div class="field">
+        <label for="lead">リードタイム（日）</label>
+        <input type="number" id="lead" placeholder="例: 2" min="1">
+        <p class="hint">発注から入荷までの日数</p>
+      </div>
+      <div class="field">
+        <label for="stock">現在在庫数（個）</label>
+        <input type="number" id="stock" placeholder="例: 5" min="0">
+        <p class="hint">今の手持ち在庫数</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">発注量を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">最適発注量</p>
+    <p class="result-value" id="rv">—</p>
+    <div id="risk-wrap"></div>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'freshnessOrder_v1';
+
+  window.onload = function() {
+    var saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      try {
+        var d = JSON.parse(saved);
+        if (d.expiry) document.getElementById('expiry').value = d.expiry;
+        if (d.daily)  document.getElementById('daily').value  = d.daily;
+        if (d.lead)   document.getElementById('lead').value   = d.lead;
+        if (d.stock !== undefined) document.getElementById('stock').value = d.stock;
+      } catch(e) {}
+    }
+  };
+
+  function calc() {
+    var expiry = parseFloat(document.getElementById('expiry').value);
+    var daily  = parseFloat(document.getElementById('daily').value);
+    var lead   = parseFloat(document.getElementById('lead').value);
+    var stock  = parseFloat(document.getElementById('stock').value) || 0;
+
+    if (isNaN(expiry) || isNaN(daily) || isNaN(lead)) {
+      showErr('賞味期限・日販数・リードタイムを入力してください');
+      return;
+    }
+    if (expiry <= 0 || daily <= 0 || lead <= 0) {
+      showErr('0より大きい値を入力してください');
+      return;
+    }
+
+    // localStorage 保存
+    localStorage.setItem(LS_KEY, JSON.stringify({ expiry: expiry, daily: daily, lead: lead, stock: stock }));
+
+    // ── 計算 ──
+    // 入荷後に販売できる日数 = 賞味期限 - リードタイム（入荷した日には既にリードタイム分経過）
+    // ただし最低1日は確保
+    var sellDays = Math.max(expiry - lead, 1);
+
+    // 廃棄ゼロの1回発注量 = 販売可能日数 × 日販数
+    var maxOrder = sellDays * daily;
+
+    // 発注点在庫 = リードタイム中に売れる量
+    var reorderPoint = lead * daily;
+
+    // 現在庫が発注点以下なら発注が必要
+    // 最適発注量 = 販売可能日数 × 日販数 - 現在在庫（最小0）
+    var orderQty = Math.max(Math.ceil(maxOrder - stock), 0);
+
+    // 廃棄リスク評価：現在在庫が「賞味期限×日販数」に対して何%か
+    var maxSellable = expiry * daily; // 賞味期限内に売れる最大量
+    var stockRatio = maxSellable > 0 ? (stock / maxSellable) * 100 : 0;
+    var level, riskText, evalText, noteText;
+
+    if (stockRatio >= 80) {
+      level = 'ng';
+      riskText = '⚠️ 廃棄リスク：高';
+      evalText = '在庫が多すぎます。発注を見送るか量を減らしてください';
+      noteText = '現在庫が賞味期限内販売可能量の' + stockRatio.toFixed(0) + '%です。早急に消費を促進してください。';
+    } else if (stockRatio >= 50) {
+      level = 'warn';
+      riskText = '注意 廃棄リスク：中';
+      evalText = '在庫がやや多め。少量発注か発注時期を遅らせることを検討';
+      noteText = '現在庫が賞味期限内販売可能量の' + stockRatio.toFixed(0) + '%です。';
+    } else {
+      level = 'ok';
+      riskText = '✓ 廃棄リスク：低';
+      evalText = orderQty > 0 ? '発注タイミングです。下記の発注量を目安にしてください' : '在庫に余裕があります。まだ発注不要です';
+      noteText = '現在庫が発注点（' + fmt(reorderPoint) + '個）を' + (stock <= reorderPoint ? '下回っています。発注を推奨します。' : '上回っています。');
+    }
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = fmt(orderQty) + ' 個';
+    document.getElementById('risk-wrap').innerHTML = '<span class="risk-badge risk-' + level + '">' + riskText + '</span>';
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = noteText;
+
+    // 内訳
+    showDetail([
+      ['賞味期限', expiry + ' 日'],
+      ['リードタイム', lead + ' 日'],
+      ['入荷後の販売可能日数', sellDays + ' 日'],
+      ['日販数', fmt(daily) + ' 個/日'],
+      ['廃棄ゼロの最大発注量', fmt(maxOrder) + ' 個'],
+      ['現在庫', fmt(stock) + ' 個'],
+      ['発注点在庫', fmt(reorderPoint) + ' 個'],
+      ['最適発注量', fmt(orderQty) + ' 個', true],
+    ]);
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('risk-wrap').innerHTML = '';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return parseFloat(n.toFixed(1)).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
