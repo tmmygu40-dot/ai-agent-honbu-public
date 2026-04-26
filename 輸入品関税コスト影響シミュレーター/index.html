@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>輸入品関税コスト影響シミュレーター</title>
+  <meta name="description" content="関税率・仕入れ価格・為替レートを入力するだけで、関税増加による値上がり額と国内代替品への切替コストを即比較。輸入継続か代替切替かの採算判断をサポートする無料Webツールです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* セクション区切り */
+    .section-label {
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.06em; margin: 1.2rem 0 0.6rem;
+      padding-bottom: 0.3rem; border-bottom: 1px dashed var(--border);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ok-row td:last-child { color: var(--ok); }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+
+    /* ── 比較バッジ ── */
+    .compare-badge {
+      display: inline-block; padding: 0.2rem 0.7rem;
+      border-radius: 999px; font-size: 0.78rem; font-weight: 700;
+      margin-left: 0.4rem; vertical-align: middle;
+    }
+    .badge-ok  { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok); }
+    .badge-ng  { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng); }
+    .badge-warn{ background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>輸入品関税コスト影響シミュレーター</h1>
+    <p class="subtitle">関税増加による値上がり額と代替切替コストを即試算・比較</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">輸入品の情報</p>
+    <div class="field">
+      <label for="price_usd">仕入れ単価（USD）</label>
+      <input type="number" id="price_usd" placeholder="例: 50" min="0" step="0.01">
+      <p class="hint">1単位あたりのドル建て仕入れ価格</p>
+    </div>
+    <div class="field">
+      <label for="exchange">為替レート（円/USD）</label>
+      <input type="number" id="exchange" placeholder="例: 150" min="0" step="0.1">
+      <p class="hint">現在の円ドル相場（例: 150）</p>
+    </div>
+    <div class="field">
+      <label for="qty">数量（個・件・kg 等）</label>
+      <input type="number" id="qty" placeholder="例: 100" min="1" step="1">
+    </div>
+
+    <p class="section-label">関税率</p>
+    <div class="field">
+      <label for="rate_old">現行の関税率（%）</label>
+      <input type="number" id="rate_old" placeholder="例: 5" min="0" max="200" step="0.1">
+    </div>
+    <div class="field">
+      <label for="rate_new">新しい関税率（%）</label>
+      <input type="number" id="rate_new" placeholder="例: 25" min="0" max="200" step="0.1">
+    </div>
+
+    <p class="section-label">代替品（国内調達）</p>
+    <div class="field">
+      <label for="alt_price">代替品の単価（円）</label>
+      <input type="number" id="alt_price" placeholder="例: 8000" min="0" step="1">
+      <p class="hint">国内代替品・別調達先の1単位あたり価格。未入力なら比較をスキップ</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">コスト影響を試算する</button>
+
+  <!-- 結論カード：関税増加コスト -->
+  <div class="result-card" id="result">
+    <p class="result-label">関税増加による値上がり額（総計）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">コスト内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 代替比較カード -->
+  <div class="result-card" id="alt-result" style="display:none">
+    <p class="result-label">代替切替の採算判定</p>
+    <p class="result-value" id="arv">—</p>
+    <p class="result-eval" id="are"></p>
+    <p class="result-note"  id="arn"></p>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、経産省・中小企業庁・公取委などの公開資料を参考に試算の目安として整理しています。実際の関税率・為替は変動するため、最新の公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'tariff-impact-sim-v1';
+
+  function calc() {
+    var priceUsd = parseFloat(document.getElementById('price_usd').value);
+    var exchange = parseFloat(document.getElementById('exchange').value);
+    var qty      = parseFloat(document.getElementById('qty').value);
+    var rateOld  = parseFloat(document.getElementById('rate_old').value);
+    var rateNew  = parseFloat(document.getElementById('rate_new').value);
+    var altPrice = parseFloat(document.getElementById('alt_price').value);
+
+    if (isNaN(priceUsd) || isNaN(exchange) || isNaN(qty) || isNaN(rateOld) || isNaN(rateNew)) {
+      showErr('仕入れ単価・為替・数量・関税率（現行・新）を入力してください'); return;
+    }
+
+    // 基本計算
+    var unitJpy    = priceUsd * exchange;           // 単価（円）
+    var costBase   = unitJpy * qty;                  // 仕入れ原価合計（円）
+    var tariffOld  = costBase * (rateOld / 100);     // 旧関税コスト
+    var tariffNew  = costBase * (rateNew / 100);     // 新関税コスト
+    var tariffDiff = tariffNew - tariffOld;          // 関税増加額
+    var totalOld   = costBase + tariffOld;           // 輸入品総コスト（旧）
+    var totalNew   = costBase + tariffNew;           // 輸入品総コスト（新）
+    var pctIncrease = totalOld > 0 ? (tariffDiff / totalOld * 100) : 0;
+
+    // 結論カードの判定（関税増加）
+    var level = tariffDiff <= 0 ? 'ok'
+              : pctIncrease < 5  ? 'warn'
+              : 'ng';
+    var evalMsg = tariffDiff <= 0 ? '関税は増加しません（変更なし or 減少）'
+                : pctIncrease < 5 ? '影響は軽微ですが価格転嫁の検討を'
+                : 'コスト増加が大きく、対策が必要です';
+    var note = '旧総コストに対して +' + pctIncrease.toFixed(1) + '% のコスト上昇';
+
+    showResult(level, '+' + fmt(tariffDiff) + ' 円', evalMsg, note);
+
+    // 内訳テーブル
+    var rows = [
+      ['単価（USD × 為替）', fmt(unitJpy) + ' 円'],
+      ['仕入れ原価（数量 ' + qty + '）', fmt(costBase) + ' 円'],
+      ['旧関税コスト（' + rateOld + '%）', fmt(tariffOld) + ' 円'],
+      ['新関税コスト（' + rateNew + '%）', fmt(tariffNew) + ' 円'],
+      ['輸入品総コスト（旧）', fmt(totalOld) + ' 円'],
+      ['輸入品総コスト（新）', fmt(totalNew) + ' 円'],
+      ['関税増加額', '+' + fmt(tariffDiff) + ' 円', true],
+    ];
+    showDetail(rows);
+
+    // 代替比較
+    if (!isNaN(altPrice) && altPrice > 0) {
+      var altTotal  = altPrice * qty;
+      var costDiff  = altTotal - totalNew;   // 正 = 代替が高い, 負 = 代替が安い
+      var altLevel, altEval, altNote;
+      if (costDiff < 0) {
+        altLevel = 'ok';
+        altEval  = '代替切替を推奨します';
+        altNote  = '代替品の方が ' + fmt(-costDiff) + ' 円 安い（数量 ' + qty + ' の総計）';
+      } else if (costDiff === 0) {
+        altLevel = 'warn';
+        altEval  = 'コストは同等です';
+        altNote  = '品質・リードタイムなど他の条件で判断してください';
+      } else {
+        altLevel = 'ng';
+        altEval  = '輸入継続が有利です';
+        altNote  = '代替品の方が ' + fmt(costDiff) + ' 円 高い（数量 ' + qty + ' の総計）';
+      }
+      var altRc = document.getElementById('alt-result');
+      altRc.className = 'result-card ' + altLevel;
+      altRc.style.display = 'block';
+      document.getElementById('arv').textContent = fmt(altTotal) + ' 円';
+      document.getElementById('are').textContent = altEval;
+      document.getElementById('arn').textContent = altNote;
+    } else {
+      document.getElementById('alt-result').style.display = 'none';
+    }
+
+    saveData();
+  }
+
+  function showResult(level, val, evalMsg, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalMsg;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('alt-result').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function saveData() {
+    var ids = ['price_usd','exchange','qty','rate_old','rate_new','alt_price'];
+    var data = {};
+    ids.forEach(function(id){ data[id] = document.getElementById(id).value; });
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e){}
+  }
+
+  function loadData() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      Object.keys(data).forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) el.value = data[id];
+      });
+    } catch(e){}
+  }
+
+  loadData();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
