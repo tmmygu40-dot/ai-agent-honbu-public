@@ -275,6 +275,11 @@ if ($ok) {
 }
 
 # (7) Git add -- all app folders + core files (explicit, no wildcard)
+# git の non-terminating warning (CRLF など) で Stop モードが throw して中断するのを防ぐため、
+# git add/commit/push の間だけ ErrorActionPreference を Continue に切り替える。
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+
 if ($ok) {
     git add -- index.html PUBLISHED.md sitemap.xml
     if ($LASTEXITCODE -ne 0) { LogError "git add index.html/PUBLISHED.md/sitemap.xml failed"; $ok = $false }
@@ -316,6 +321,9 @@ if ($ok -and $didCommit) {
     git push origin main
     if ($LASTEXITCODE -ne 0) { LogError "git push failed"; $ok = $false }
 }
+
+# git ブロック終了。ErrorActionPreference を元に戻す
+$ErrorActionPreference = $prevEAP
 
 # (9) Result summary
 if ($ok) {
