@@ -255,3 +255,4 @@ commit: dea0c02
 [2026-04-26_140434] SCAN apps=車検費用相場シミュレーター total=0 exit=0
 [2026-04-26_140954] SCAN apps=車検費用相場シミュレーター total=0 exit=0
 [2026-04-26_141227] SCAN apps=車検費用相場シミュレーター total=0 exit=0
+[2026-04-26_141343] SCAN apps=住まいトラブル対応逆引きアプリ total=0 exit=0
