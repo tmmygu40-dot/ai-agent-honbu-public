@@ -300,3 +300,4 @@ commit: dea0c02
 [2026-04-26_214335] SCAN apps=美容院・サロン料金改定シミュレーター total=0 exit=0
 [2026-04-26_220115] SCAN apps=関税・仕入れ値上げ採算悪化診断アプリ total=0 exit=0
 [2026-04-26_222009] SCAN apps=値上げ通知文ジェネレーター_v2 total=0 exit=0
+[2026-04-26_223716] SCAN apps=人材確保対策逆引きアプリ total=0 exit=0
