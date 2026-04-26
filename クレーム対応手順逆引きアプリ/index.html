@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>クレーム対応手順逆引きアプリ</title>
+  <meta name="description" content="クレームのトラブル種別と状況を選ぶだけで、対応の優先手順と注意点をすぐ表示。品質不良・納期遅延・対応不備など6種類×初回・再発・エスカレーション対応をカバー。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card); border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem; margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem; font-size: 1rem;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2); }
+
+    /* ── 手順リスト ── */
+    .step-list { list-style: none; padding: 0; }
+    .step-list li {
+      display: flex; gap: 0.85rem; align-items: flex-start;
+      padding: 0.75rem 0; border-bottom: 1px solid var(--border);
+    }
+    .step-list li:last-child { border-bottom: none; }
+    .step-num {
+      flex-shrink: 0; width: 28px; height: 28px;
+      background: var(--accent); color: #fff;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 0.82rem; font-weight: 800;
+    }
+    .step-text { font-size: 0.92rem; line-height: 1.6; padding-top: 0.2rem; }
+
+    /* ── 注意点リスト ── */
+    .note-list { list-style: none; padding: 0; }
+    .note-list li {
+      display: flex; gap: 0.6rem; align-items: flex-start;
+      padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; line-height: 1.5; color: var(--text-sub);
+    }
+    .note-list li:last-child { border-bottom: none; }
+    .note-list li::before { content: "⚠️"; flex-shrink: 0; margin-top: 0.05rem; }
+
+    /* ── 禁止カード ── */
+    .ng-card {
+      background: var(--ng-bg); border: 1.5px solid var(--ng);
+      border-radius: var(--radius); padding: 1rem 1.2rem; margin: 0 auto 1rem; max-width: 600px;
+    }
+    .ng-card .card-title { color: var(--ng); border-color: #fca5a5; }
+    .ng-list { list-style: none; padding: 0; }
+    .ng-list li {
+      display: flex; gap: 0.6rem; align-items: flex-start;
+      padding: 0.5rem 0; border-bottom: 1px solid #fca5a5;
+      font-size: 0.88rem; line-height: 1.5; color: var(--ng);
+    }
+    .ng-list li:last-child { border-bottom: none; }
+    .ng-list li::before { content: "✕"; flex-shrink: 0; font-weight: 800; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .ng-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>クレーム対応手順 逆引きアプリ</h1>
+    <p class="subtitle">種別と状況を選ぶだけ。対応手順と注意点を即表示</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">選択</p>
+    <div class="field">
+      <label for="claimType">クレームの種類</label>
+      <select id="claimType">
+        <option value="quality">品質不良・不具合</option>
+        <option value="delay">納期遅延・配送遅延</option>
+        <option value="response">対応不備・接客マナー</option>
+        <option value="billing">誤請求・請求ミス</option>
+        <option value="delivery">配送ミス・誤配</option>
+        <option value="other">その他・複合</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="situation">現在の状況</label>
+      <select id="situation">
+        <option value="first">初回連絡（初めてのクレーム）</option>
+        <option value="repeat">再発・二次クレーム</option>
+        <option value="escalation">上位対応・法的示唆あり</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="lookup()">対応手順を確認する</button>
+
+  <!-- 手順カード -->
+  <div class="card" id="stepsCard" style="display:none">
+    <p class="card-title" id="stepsTitle">優先対応手順</p>
+    <ul class="step-list" id="stepsList"></ul>
+  </div>
+
+  <!-- 注意点カード -->
+  <div class="card" id="notesCard" style="display:none">
+    <p class="card-title">注意点</p>
+    <ul class="note-list" id="notesList"></ul>
+  </div>
+
+  <!-- 禁止カード -->
+  <div class="ng-card" id="ngCard" style="display:none">
+    <p class="card-title">やってはいけないこと</p>
+    <ul class="ng-list" id="ngList"></ul>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📋 対応手順は一般的なビジネス実務の目安です。法的トラブルに発展した場合は弁護士など専門家にご相談ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var DATA = {
+    quality: {
+      label: '品質不良・不具合',
+      first: {
+        steps: [
+          'お客様にすぐ謝罪の連絡をする（24時間以内が目安）',
+          '具体的な状況・症状・発生日時を丁寧にヒアリングする',
+          '製品・現物の回収または写真・証拠を確保する',
+          '社内担当部門（品質管理・製造など）に速やかに報告する',
+          '原因調査の期限と連絡方法をお客様に明確に伝える',
+          '調査結果と対応策（交換・返金・再発防止）を報告する',
+        ],
+        notes: ['感情的にならず、まず事実確認を優先する', '「絶対にない」などの断定表現は使わない', '原因が分かる前に賠償約束をしない'],
+        ng: ['事実確認前に「こちらの責任ではない」と言う', '「以前も同様のクレームがあった」と話す', '上長・担当外への取り次ぎを拒否する'],
+      },
+      repeat: {
+        steps: [
+          '前回の経緯と対応内容を事前に確認・把握してから連絡する',
+          '再発について深くお詫びし、前回対応の不十分さも認める',
+          '根本原因の再調査を実施し、前回との差異を明確にする',
+          '恒久対策（再発防止策）を具体的な内容と期限付きで提示する',
+          'フォローアップの日程を設定し、定期報告を約束する',
+        ],
+        notes: ['前回対応を責任持って引き継いでいる姿勢を示す', '「前回もお伝えしました」という言い方は避ける'],
+        ng: ['前回と同じ回答を繰り返す', '担当者が変わったことを理由に前回対応を知らないふりをする'],
+      },
+      escalation: {
+        steps: [
+          '上長または責任者に即座に報告・引き継ぎを行う',
+          '事実経緯を時系列でまとめた記録を作成する',
+          '法的示唆がある場合は法務担当または顧問弁護士に相談する',
+          'お客様への窓口を明確にし、担当者名と連絡先を伝える',
+          '対応方針が決まるまで軽率な約束や謝罪は避ける',
+        ],
+        notes: ['感情的な発言・書面は後に不利になる可能性がある', '全てのやり取りを記録・保管する'],
+        ng: ['お客様の要求に慌てて全面同意する', '録音・証拠を隠滅しようとする', '単独で解決しようとして上司に報告しない'],
+      },
+    },
+    delay: {
+      label: '納期遅延・配送遅延',
+      first: {
+        steps: [
+          '遅延が判明した時点でお客様に速やかに連絡する（事後報告厳禁）',
+          '遅延の理由と現在の状況を正直に説明する',
+          '新しい納期・お届け予定日を具体的な日付で伝える',
+          '遅延による影響・損害があれば、どう対応するかを提示する',
+          '確定次第、改めて連絡することを約束する',
+        ],
+        notes: ['見込みで早めの日程を言わない（さらなる遅延に注意）', '理由が外部要因でも言い訳にならないよう配慮する'],
+        ng: ['遅延が確定してからも連絡を先延ばしにする', '「いつになるか分からない」と曖昧に伝える'],
+      },
+      repeat: {
+        steps: [
+          '再度の遅延を深くお詫びし、管理体制の問題を認める',
+          '今回の遅延原因と前回との関連性を調査・説明する',
+          '進捗確認の頻度を増やす（日次報告など）',
+          '代替手段（特急対応・代替品・一部先行納品）を検討・提示する',
+        ],
+        notes: ['「またか」という印象を与えないよう、前回より丁寧な対応を心がける'],
+        ng: ['原因が同じなのに「今回は特別な事情」と説明する', '詫び状・補償なしに「次は大丈夫」と言う'],
+      },
+      escalation: {
+        steps: [
+          '管理職・責任者が直接お客様に連絡・謝罪する',
+          '損害賠償・キャンセルの申し出には法務と相談のうえ対応する',
+          '改善計画書（納期管理体制の見直し内容）を文書で提出する',
+          '再発防止の第三者確認（外部監査等）を検討する',
+        ],
+        notes: ['納期違約金・損害賠償の範囲は契約書を確認してから対応する'],
+        ng: ['キャンセル要求を無視する', '責任回避のため証拠を隠蔽する'],
+      },
+    },
+    response: {
+      label: '対応不備・接客マナー',
+      first: {
+        steps: [
+          'お客様の不快な思いに対して誠心誠意お詫びする',
+          '具体的にどの点が問題だったかをヒアリングする',
+          '事実確認を社内で速やかに行い、担当者の行為を把握する',
+          '改善策・再発防止策を報告し、今後の対応を約束する',
+          '必要に応じて担当者を変更する',
+        ],
+        notes: ['「スタッフにも言い分がある」という話は持ち出さない', '「誤解ではないか」と言わない'],
+        ng: ['担当者を庇って事実を否定する', '「マニュアル通りの対応だった」と弁明する'],
+      },
+      repeat: {
+        steps: [
+          '再発に対して責任者が直接謝罪する',
+          '前回改善策が機能しなかった理由を調査・説明する',
+          '研修・指導の強化など、具体的な組織的対応策を示す',
+          '担当者変更または専任窓口設置を検討する',
+        ],
+        notes: ['「個人の問題」として片付けず、組織の問題として捉える'],
+        ng: ['「担当者を処罰した」と詳細を告げる（個人情報・労務問題）', '同じ担当者が対応し続ける'],
+      },
+      escalation: {
+        steps: [
+          '責任者・上長が窓口になり、組織としての謝罪姿勢を示す',
+          '録音・証拠がある場合は内容を確認したうえで対応する',
+          '外部への申告（消費者センター等）には誠実に対応する',
+          '法的請求には弁護士に相談してから回答する',
+        ],
+        notes: ['感情的な報復・脅し的な言動は絶対に避ける'],
+        ng: ['証拠の提出を拒否する', 'SNS等での反論・応戦をする'],
+      },
+    },
+    billing: {
+      label: '誤請求・請求ミス',
+      first: {
+        steps: [
+          'ミスを認めてすぐに謝罪する',
+          '誤りの内容・金額・原因を正確に確認する',
+          '正しい請求書を早急に再発行する',
+          '過請求があった場合は返金または次回請求への充当を提案する',
+          '再発防止策（ダブルチェック体制など）を伝える',
+        ],
+        notes: ['「システムのせい」などの言い訳は避ける', '返金タイミングを明確に伝える'],
+        ng: ['ミスを認める前に「こちらの計算は正しい」と主張する', '訂正を先延ばしにする'],
+      },
+      repeat: {
+        steps: [
+          '再発に対して深くお詫びし、管理体制の不備を認める',
+          '請求フローの見直しと承認プロセスの強化を説明する',
+          '過去の請求を遡って確認し、他に誤りがないかチェックする',
+          '確認結果を報告してから正しい請求書を送付する',
+        ],
+        notes: ['過去の請求も全部確認するという姿勢を示すとお客様の不安が和らぐ'],
+        ng: ['「今回だけの例外的なミス」と繰り返し言う'],
+      },
+      escalation: {
+        steps: [
+          '法務または財務部門と連携して対応する',
+          '請求に関する全書類・記録を保全する',
+          '損害賠償請求の可能性がある場合は弁護士に相談する',
+          '和解・解決の条件を書面で取り交わす',
+        ],
+        notes: ['口頭での合意は後のトラブルの元。必ず書面化する'],
+        ng: ['証拠書類を廃棄・改ざんする', '相手の要求額を確認せずに支払いを約束する'],
+      },
+    },
+    delivery: {
+      label: '配送ミス・誤配',
+      first: {
+        steps: [
+          'すぐに謝罪し、状況（誤配内容・数量・着荷の有無）を確認する',
+          '正しい商品の再手配を最優先で行う',
+          '誤配された商品の回収方法と日時をお客様と調整する',
+          '物流会社・配送担当への指示と原因確認を行う',
+          '再発防止策を伝える',
+        ],
+        notes: ['回収日時はお客様の都合を最優先にする', '誤配先への対応も速やかに行う'],
+        ng: ['「配送会社の責任」としてこちらの対応を拒否する', '回収を急かして二次クレームを招く'],
+      },
+      repeat: {
+        steps: [
+          '再発に対して責任者から連絡・謝罪する',
+          '配送フローの見直し（ラベル確認・仕分け強化）を行う',
+          '物流会社との品質会議・改善要求を実施する',
+          '配送前の確認プロセス（ピッキングリスト照合など）を追加する',
+        ],
+        notes: ['「配送会社の問題」という説明はお客様には不要。自社の責任として対応する'],
+        ng: ['同じ配送会社を使い続け、対策なしに再配送する'],
+      },
+      escalation: {
+        steps: [
+          '責任者が直接謝罪し、損害補償の検討に入る',
+          '配送会社との責任分担を整理し、賠償範囲を確認する',
+          'お客様への補償内容を書面で提示する',
+          '必要に応じて弁護士・消費者対応窓口に相談する',
+        ],
+        notes: ['補償額は独断で約束しない。法務・保険担当と確認してから提示する'],
+        ng: ['配送会社に全責任を押しつけ、自社は関与しない姿勢をとる'],
+      },
+    },
+    other: {
+      label: 'その他・複合',
+      first: {
+        steps: [
+          'まずお客様の話を最後まで丁寧に聞く',
+          '問題の内容と影響範囲を整理・確認する',
+          '誠意を持ってお詫びし、対応の意思を示す',
+          '確認・調査が必要な場合は期限と連絡方法を明確に伝える',
+          '調査結果を報告し、具体的な解決策を提示する',
+        ],
+        notes: ['複合クレームは複数の担当部門を巻き込む場合がある。早めに内部共有する', '解決策が複数ある場合はお客様に選択肢を提示する'],
+        ng: ['たらい回しにして対応窓口を不明瞭にする', '「それは当社の管轄ではない」と即答して断る'],
+      },
+      repeat: {
+        steps: [
+          '前回の対応経緯を把握してから連絡する',
+          '再発の要因を多角的に分析し、根本改善策を検討する',
+          '責任者が謝罪し、改善計画を具体的に説明する',
+          '定期フォローアップの体制を整える',
+        ],
+        notes: ['「お客様が何を求めているか」を再確認し、対応の優先順位を合わせる'],
+        ng: ['前回と同じ対応を繰り返す', 'お客様の要望を確認せずに自社都合の解決策を押しつける'],
+      },
+      escalation: {
+        steps: [
+          '責任者が窓口となり、誠実な対応姿勢を示す',
+          '事実経緯を整理した記録を作成・保全する',
+          '法的・規制上の問題が絡む場合は専門家に相談する',
+          '解決条件を書面で確認・合意する',
+        ],
+        notes: ['エスカレーション時は全てのやり取りを記録する'],
+        ng: ['対応を引き延ばして問題を放置する', '感情的なやり取りを書面・SNSで行う'],
+      },
+    },
+  };
+
+  function lookup() {
+    var type = document.getElementById('claimType').value;
+    var sit  = document.getElementById('situation').value;
+    var d    = DATA[type][sit];
+    var typeLabel = DATA[type].label;
+    var sitLabel = { first: '初回連絡', repeat: '再発・二次クレーム', escalation: 'エスカレーション対応' }[sit];
+
+    // 手順
+    document.getElementById('stepsTitle').textContent = '優先対応手順（' + typeLabel + ' / ' + sitLabel + '）';
+    document.getElementById('stepsList').innerHTML = d.steps.map(function(s, i) {
+      return '<li><span class="step-num">' + (i + 1) + '</span><span class="step-text">' + s + '</span></li>';
+    }).join('');
+    document.getElementById('stepsCard').style.display = 'block';
+
+    // 注意点
+    document.getElementById('notesList').innerHTML = d.notes.map(function(n) {
+      return '<li>' + n + '</li>';
+    }).join('');
+    document.getElementById('notesCard').style.display = 'block';
+
+    // 禁止
+    document.getElementById('ngList').innerHTML = d.ng.map(function(n) {
+      return '<li>' + n + '</li>';
+    }).join('');
+    document.getElementById('ngCard').style.display = 'block';
+
+    document.getElementById('stepsCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    saveSettings();
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem('claim_steps_type', document.getElementById('claimType').value);
+      localStorage.setItem('claim_steps_sit',  document.getElementById('situation').value);
+    } catch(e) {}
+  }
+  function loadSettings() {
+    try {
+      var t = localStorage.getItem('claim_steps_type');
+      var s = localStorage.getItem('claim_steps_sit');
+      if (t) document.getElementById('claimType').value = t;
+      if (s) document.getElementById('situation').value = s;
+    } catch(e) {}
+  }
+  loadSettings();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
