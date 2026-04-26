@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>年金シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 受給パターン比較 ── */
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 0;
+    }
+    .pattern-item {
+      background: var(--accent-light);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 0.5rem;
+      text-align: center;
+    }
+    .pattern-item.best {
+      border-color: var(--ok);
+      background: var(--ok-bg);
+    }
+    .pattern-age {
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--text-sub); margin-bottom: 0.3rem;
+    }
+    .pattern-monthly {
+      font-size: 1.05rem; font-weight: 900;
+      color: var(--text); line-height: 1.1;
+    }
+    .pattern-item.best .pattern-monthly { color: var(--ok); }
+    .pattern-yearly {
+      font-size: 0.72rem; color: var(--text-sub); margin-top: 0.2rem;
+    }
+    .pattern-badge {
+      display: inline-block; font-size: 0.65rem; font-weight: 700;
+      color: var(--ok); background: var(--ok-bg);
+      border: 1px solid var(--ok); border-radius: 20px;
+      padding: 0.1rem 0.45rem; margin-top: 0.3rem;
+    }
+
+    /* ── 注意書き ── */
+    .notice {
+      max-width: 600px; margin: 0 auto 1rem;
+      font-size: 0.74rem; color: var(--text-sub);
+      padding: 0 1.2rem;
+      line-height: 1.6;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>年金シミュレーター</h1>
+    <p class="subtitle">年齢・職業・月収から将来の年金受給額を即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">あなたの情報を入力</p>
+    <div class="field">
+      <label for="age">現在の年齢</label>
+      <input type="number" id="age" placeholder="例: 35" min="20" max="64">
+      <p class="hint">20〜64歳の範囲で入力してください</p>
+    </div>
+    <div class="field">
+      <label for="job">職業タイプ</label>
+      <select id="job">
+        <option value="employee">会社員（厚生年金加入）</option>
+        <option value="self">自営業・フリーランス（国民年金のみ）</option>
+        <option value="official">公務員・私学職員（共済年金）</option>
+      </select>
+    </div>
+    <div class="field" id="salaryField">
+      <label for="salary">現在の月収（額面）</label>
+      <input type="number" id="salary" placeholder="例: 30" min="1" max="200">
+      <p class="hint">万円単位で入力（例：月収30万円 → 30）</p>
+    </div>
+    <div class="field">
+      <label for="startAge">年金受給開始年齢</label>
+      <select id="startAge">
+        <option value="65">65歳から受給（標準）</option>
+        <option value="60">60歳から受給（早期受給・減額）</option>
+        <option value="70">70歳から受給（繰下げ・増額）</option>
+        <option value="75">75歳から受給（最大繰下げ）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">年金を試算する</button>
+
+  <!-- メイン結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月額受給額（概算）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 受給開始年齢別比較カード -->
+  <div class="card" id="patternCard" style="display:none">
+    <p class="card-title">受給開始年齢別の比較</p>
+    <div class="pattern-grid" id="patternGrid"></div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="notice">
+    ※ この試算は簡易計算式による概算です。実際の受給額は年金機構の計算によります。<br>
+    ※ 国民年金は2024年度満額 68,000円/月を基準に計算。<br>
+    ※ 厚生年金は報酬比例部分のみの簡易計算です（賞与・標準報酬月額の変動は考慮しません）。<br>
+    ※ 正確な受給額は「ねんきんネット」または年金事務所でご確認ください。
+  </p>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // localStorage に保存・復元
+  var STORE_KEY = 'nenkin_sim_v1';
+
+  function saveState() {
+    var state = {
+      age: document.getElementById('age').value,
+      job: document.getElementById('job').value,
+      salary: document.getElementById('salary').value,
+      startAge: document.getElementById('startAge').value
+    };
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e) {}
+  }
+
+  function loadState() {
+    try {
+      var s = localStorage.getItem(STORE_KEY);
+      if (!s) return;
+      var state = JSON.parse(s);
+      if (state.age)      document.getElementById('age').value      = state.age;
+      if (state.job)      document.getElementById('job').value      = state.job;
+      if (state.salary)   document.getElementById('salary').value   = state.salary;
+      if (state.startAge) document.getElementById('startAge').value = state.startAge;
+    } catch(e) {}
+  }
+
+  // 職業タイプによって月収入力欄の表示/非表示
+  document.getElementById('job').addEventListener('change', function() {
+    var isSelf = this.value === 'self';
+    document.getElementById('salaryField').style.display = isSelf ? 'none' : '';
+  });
+
+  // 国民年金基礎部分の計算
+  // 受給開始65歳時点での加入年数: 20歳〜60歳 = 最大40年
+  function calcBasic(age) {
+    // すでに支払った年数（20歳〜現在）
+    var paidYears = Math.max(age - 20, 0);
+    // これから支払う年数（現在〜60歳）
+    var futureYears = Math.max(60 - age, 0);
+    // 合計（40年上限）
+    var totalYears = Math.min(paidYears + futureYears, 40);
+    // 国民年金満額 68,000円/月
+    return Math.round(68000 * totalYears / 40);
+  }
+
+  // 厚生年金（報酬比例部分）の計算
+  // 標準報酬月額 × 5.481/1000 × 加入年数（22歳〜65歳まで）
+  function calcKosei(age, salaryMan) {
+    var salaryYen = salaryMan * 10000;
+    // 過去の加入年数（22歳〜現在）
+    var paidYears = Math.max(age - 22, 0);
+    // 将来の加入年数（現在〜65歳）
+    var futureYears = Math.max(65 - age, 0);
+    var totalYears = paidYears + futureYears;
+    return Math.round(salaryYen * 5.481 / 1000 * totalYears);
+  }
+
+  // 受給開始年齢による調整倍率
+  // 早期: 1ヶ月繰上げごとに0.4%減（最大24%減@60歳）
+  // 繰下げ: 1ヶ月繰下げごとに0.7%増
+  function getMultiplier(startAge) {
+    var diffMonths = (startAge - 65) * 12;
+    if (diffMonths < 0) {
+      // 繰上げ: 0.4%/月減、最大-24%
+      return Math.max(1 + diffMonths * 0.004, 0.76);
+    } else {
+      // 繰下げ: 0.7%/月増、最大+84%（75歳）
+      return Math.min(1 + diffMonths * 0.007, 1.84);
+    }
+  }
+
+  function calc() {
+    var age = parseInt(document.getElementById('age').value);
+    var job = document.getElementById('job').value;
+    var salary = parseFloat(document.getElementById('salary').value) || 0;
+    var startAge = parseInt(document.getElementById('startAge').value);
+
+    if (isNaN(age) || age < 20 || age > 64) {
+      showErr('年齢を20〜64歳で入力してください');
+      return;
+    }
+    if (job !== 'self' && (isNaN(salary) || salary <= 0)) {
+      showErr('月収を入力してください');
+      return;
+    }
+
+    saveState();
+
+    var basicMonthly = calcBasic(age);
+    var koseiMonthly = (job !== 'self') ? calcKosei(age, salary) : 0;
+    var base65 = basicMonthly + koseiMonthly;
+
+    // 選択した受給開始年齢での月額
+    var multiplier = getMultiplier(startAge);
+    var selectedMonthly = Math.round(base65 * multiplier);
+    var selectedYearly = selectedMonthly * 12;
+
+    // レベル判定（月額）
+    var level = selectedMonthly >= 200000 ? 'ok'
+              : selectedMonthly >= 120000 ? 'warn' : 'ng';
+
+    var evalMsg = selectedMonthly >= 200000 ? '比較的余裕のある老後の見込みです'
+                : selectedMonthly >= 120000 ? '平均的な水準。追加の老後対策も検討を'
+                : '受給額は少なめです。iDeCo・NISAなどの活用を検討してください';
+
+    var jobName = job === 'employee' ? '会社員（厚生年金）'
+                : job === 'official' ? '公務員・私学（共済年金）'
+                : '自営業・フリーランス（国民年金のみ）';
+
+    var startLabel = startAge === 65 ? '65歳（標準）'
+                   : startAge === 60 ? '60歳（早期・' + Math.round((1-multiplier)*100) + '%減）'
+                   : startAge === 70 ? '70歳（繰下げ・' + Math.round((multiplier-1)*100) + '%増）'
+                   : '75歳（最大繰下げ・' + Math.round((multiplier-1)*100) + '%増）';
+
+    showResult(level, fmt(selectedMonthly) + ' 円/月', evalMsg,
+      startLabel + ' 受給開始の場合');
+
+    // 内訳
+    var rows = [
+      ['職業タイプ', jobName],
+      ['現在年齢', age + '歳'],
+    ];
+    if (job !== 'self') {
+      rows.push(['月収（額面）', fmt(salary * 10000) + ' 円']);
+      rows.push(['基礎年金（65歳・満額時）', fmt(basicMonthly) + ' 円/月']);
+      rows.push(['厚生年金・共済年金（65歳時）', fmt(koseiMonthly) + ' 円/月']);
+    } else {
+      rows.push(['基礎年金（65歳・満額時）', fmt(basicMonthly) + ' 円/月']);
+    }
+    rows.push(['65歳受給の合計', fmt(base65) + ' 円/月']);
+    rows.push(['受給開始年齢', startLabel]);
+    rows.push(['調整倍率', (multiplier * 100).toFixed(1) + ' %']);
+    rows.push(['月額受給額（概算）', fmt(selectedMonthly) + ' 円', true]);
+    rows.push(['年額受給額（概算）', fmt(selectedYearly) + ' 円', true]);
+
+    showDetail(rows);
+
+    // 受給年齢別比較パネル
+    var patterns = [
+      { age: 60, label: '60歳' },
+      { age: 65, label: '65歳' },
+      { age: 70, label: '70歳' },
+      { age: 75, label: '75歳' }
+    ];
+    var grid = document.getElementById('patternGrid');
+    grid.innerHTML = '';
+    patterns.forEach(function(p) {
+      var m = getMultiplier(p.age);
+      var monthly = Math.round(base65 * m);
+      var yearly = monthly * 12;
+      var isBest = p.age === startAge;
+      var div = document.createElement('div');
+      div.className = 'pattern-item' + (isBest ? ' best' : '');
+      div.innerHTML =
+        '<div class="pattern-age">' + p.age + '歳〜</div>' +
+        '<div class="pattern-monthly">' + fmtShort(monthly) + '</div>' +
+        '<div class="pattern-yearly">年 ' + fmtShort(yearly) + '</div>' +
+        (isBest ? '<div class="pattern-badge">選択中</div>' : '');
+      grid.appendChild(div);
+    });
+    document.getElementById('patternCard').style.display = '';
+  }
+
+  function showResult(level, val, evalMsg, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalMsg;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('patternCard').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmtShort(n) {
+    if (n >= 10000) return Math.round(n / 1000) + '千円';
+    return fmt(n) + '円';
+  }
+
+  // 初期化
+  loadState();
+  // 職業タイプに合わせて月収フィールド表示
+  (function() {
+    var isSelf = document.getElementById('job').value === 'self';
+    document.getElementById('salaryField').style.display = isSelf ? 'none' : '';
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>実質時給チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 2カラム入力 */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+    .field-row .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 判定バッジ ── */
+    .badge {
+      display: inline-block; padding: 0.2rem 0.7rem;
+      border-radius: 99px; font-size: 0.78rem; font-weight: 700;
+      margin-bottom: 0.6rem;
+    }
+    .ok   .badge { background: var(--ok);   color: #fff; }
+    .warn .badge { background: var(--warn); color: #fff; }
+    .ng   .badge { background: var(--ng);   color: #fff; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>実質時給チェッカー</h1>
+    <p class="subtitle">移動・準備時間を含めた「本当の時給」を即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="hourlyRate">名目時給（円）</label>
+      <input type="number" id="hourlyRate" placeholder="例: 1050" min="0">
+      <p class="hint">求人票や給与明細に記載の時給</p>
+    </div>
+    <div class="field">
+      <label for="workHours">実働時間（時間）</label>
+      <input type="number" id="workHours" placeholder="例: 8" min="0" step="0.5">
+      <p class="hint">実際に働く時間（休憩除く）</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">拘束される時間</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="commuteMin">移動時間（分・往復）</label>
+        <input type="number" id="commuteMin" placeholder="例: 60" min="0">
+        <p class="hint">通勤往復合計</p>
+      </div>
+      <div class="field">
+        <label for="prepMin">準備時間（分）</label>
+        <input type="number" id="prepMin" placeholder="例: 30" min="0">
+        <p class="hint">着替え・身支度など</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">実質時給を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">実質時給</p>
+    <p class="badge" id="rb">—</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'jissitu_jikyu_v1';
+
+  // 保存済みの入力値を復元
+  (function(){
+    try {
+      var s = localStorage.getItem(LS_KEY);
+      if (!s) return;
+      var d = JSON.parse(s);
+      if (d.hourlyRate) document.getElementById('hourlyRate').value = d.hourlyRate;
+      if (d.workHours)  document.getElementById('workHours').value  = d.workHours;
+      if (d.commuteMin) document.getElementById('commuteMin').value = d.commuteMin;
+      if (d.prepMin)    document.getElementById('prepMin').value    = d.prepMin;
+    } catch(e) {}
+  })();
+
+  function calc() {
+    var hourlyRate = parseFloat(document.getElementById('hourlyRate').value);
+    var workHours  = parseFloat(document.getElementById('workHours').value);
+    var commuteMin = parseFloat(document.getElementById('commuteMin').value) || 0;
+    var prepMin    = parseFloat(document.getElementById('prepMin').value)    || 0;
+
+    if (isNaN(hourlyRate) || hourlyRate <= 0) { showErr('名目時給を入力してください'); return; }
+    if (isNaN(workHours)  || workHours  <= 0) { showErr('実働時間を入力してください'); return; }
+
+    // 保存
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        hourlyRate: hourlyRate, workHours: workHours,
+        commuteMin: commuteMin, prepMin: prepMin
+      }));
+    } catch(e) {}
+
+    // 計算
+    var totalPayment    = hourlyRate * workHours;              // 総給与（円）
+    var commuteHours    = commuteMin / 60;
+    var prepHours       = prepMin / 60;
+    var totalHours      = workHours + commuteHours + prepHours; // 総拘束時間
+    var realRate        = totalPayment / totalHours;            // 実質時給
+    var ratio           = realRate / hourlyRate;                // 実質時給比率
+
+    var level = ratio >= 0.8 ? 'ok' : ratio >= 0.6 ? 'warn' : 'ng';
+    var badge = level === 'ok'   ? '問題なし'
+              : level === 'warn' ? '要注意'
+              :                    '大きく目減り';
+    var msg   = level === 'ok'
+              ? '名目時給の ' + pct(ratio) + '。拘束時間を加味しても余裕があります。'
+              : level === 'warn'
+              ? '名目時給の ' + pct(ratio) + '。移動・準備コストが大きめです。'
+              : '名目時給の ' + pct(ratio) + ' まで低下。条件の見直しを検討してください。';
+
+    showResult(level, badge, fmt(realRate) + ' 円 / 時間', msg);
+    showDetail([
+      ['名目時給',         fmt(hourlyRate)   + ' 円'],
+      ['実働時間',         workHours         + ' 時間'],
+      ['移動時間（往復）', commuteMin        + ' 分'],
+      ['準備時間',         prepMin           + ' 分'],
+      ['総拘束時間',       fmtH(totalHours)],
+      ['1日の給与総額',    fmt(totalPayment) + ' 円'],
+      ['実質時給',         fmt(realRate)     + ' 円', true],
+      ['名目比',           pct(ratio)],
+    ]);
+  }
+
+  function showResult(level, badge, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rb').textContent = badge;
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', 'エラー', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function pct(r) { return Math.round(r * 100) + '%'; }
+  function fmtH(h) {
+    var hh = Math.floor(h);
+    var mm = Math.round((h - hh) * 60);
+    return mm > 0 ? hh + ' 時間 ' + mm + ' 分' : hh + ' 時間';
+  }
+  </script>
+
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>

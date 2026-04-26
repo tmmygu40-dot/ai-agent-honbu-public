@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>廃棄込み粗利チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 2カラム入力 */
+    .field-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+    .field-row .field { flex: 1; margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 0.75rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.75rem;
+      font-size: 0.92rem; font-weight: 700;
+      background: #fff; color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+    }
+    .btn-add:hover { background: var(--accent-light); }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 比較一覧テーブル ── */
+    .list-wrap { overflow-x: auto; }
+    .list-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; min-width: 480px; }
+    .list-table th {
+      background: var(--bg); color: var(--text-sub); font-weight: 700;
+      padding: 0.5rem 0.5rem; text-align: right; border-bottom: 2px solid var(--border);
+      font-size: 0.75rem;
+    }
+    .list-table th:first-child { text-align: left; }
+    .list-table td {
+      padding: 0.55rem 0.5rem; border-bottom: 1px solid var(--border);
+      text-align: right; color: var(--text);
+    }
+    .list-table td:first-child { text-align: left; font-weight: 600; max-width: 100px; word-break: break-all; }
+    .list-table .col-ok   { color: var(--ok);   font-weight: 700; }
+    .list-table .col-warn { color: var(--warn); font-weight: 700; }
+    .list-table .col-ng   { color: var(--ng);   font-weight: 700; }
+    .btn-del {
+      background: none; border: 1.5px solid var(--border); border-radius: 6px;
+      color: var(--text-sub); font-size: 0.75rem; padding: 0.2rem 0.5rem;
+      cursor: pointer;
+    }
+    .btn-del:hover { border-color: var(--ng); color: var(--ng); }
+    .list-empty { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1.2rem 0; }
+
+    /* ── フッター ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>廃棄込み粗利チェッカー</h1>
+    <p class="subtitle">仕入れ値・売値・廃棄率を入力 → 廃棄コスト込みの実質粗利を即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="fname">商品名（任意）</label>
+      <input type="text" id="fname" placeholder="例：野菜Aセット">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="fcost">仕入れ値（円）</label>
+        <input type="number" id="fcost" placeholder="例: 80" min="0" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label for="fprice">売値（円）</label>
+        <input type="number" id="fprice" placeholder="例: 150" min="0" inputmode="decimal">
+      </div>
+    </div>
+    <div class="field">
+      <label for="floss">廃棄率（%）</label>
+      <input type="number" id="floss" placeholder="例: 20" min="0" max="99" inputmode="decimal">
+      <p class="hint">販売できずに廃棄する割合。廃棄なしの場合は 0 を入力してください。</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">粗利を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">廃棄込み粗利率</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 一覧に追加ボタン -->
+  <button class="btn-add" id="btnAdd" style="display:none" onclick="addToList()">＋ 比較一覧に追加</button>
+
+  <!-- 比較一覧カード -->
+  <div class="card" id="listCard">
+    <p class="card-title">比較一覧</p>
+    <div class="list-wrap">
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th>商品名</th>
+            <th>仕入れ値</th>
+            <th>売値</th>
+            <th>廃棄率</th>
+            <th>実効仕入れ</th>
+            <th>粗利額</th>
+            <th>粗利率</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+    <p class="list-empty" id="listEmpty">まだデータがありません。計算後「比較一覧に追加」で登録できます。</p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'haiki_gross_list_v1';
+  var listData = [];
+  var lastResult = null;
+
+  // ── localStorage ──
+  function saveList() {
+    localStorage.setItem(LS_KEY, JSON.stringify(listData));
+  }
+  function loadList() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (raw) listData = JSON.parse(raw);
+    } catch(e) { listData = []; }
+    renderList();
+  }
+
+  // ── 計算 ──
+  function calc() {
+    var cost  = parseFloat(document.getElementById('fcost').value);
+    var price = parseFloat(document.getElementById('fprice').value);
+    var loss  = parseFloat(document.getElementById('floss').value);
+    var name  = document.getElementById('fname').value.trim() || '商品';
+
+    if (isNaN(cost) || isNaN(price) || isNaN(loss)) {
+      showErr('仕入れ値・売値・廃棄率をすべて入力してください');
+      document.getElementById('btnAdd').style.display = 'none';
+      return;
+    }
+    if (loss < 0 || loss >= 100) {
+      showErr('廃棄率は 0〜99 の範囲で入力してください');
+      document.getElementById('btnAdd').style.display = 'none';
+      return;
+    }
+    if (price <= 0) {
+      showErr('売値は 0 より大きい値を入力してください');
+      document.getElementById('btnAdd').style.display = 'none';
+      return;
+    }
+
+    // 廃棄込み実効仕入れコスト = 仕入れ値 ÷ (1 − 廃棄率/100)
+    var effCost = cost / (1 - loss / 100);
+    var profit  = price - effCost;
+    var pct     = profit / price * 100;
+
+    var level = profit < 0 ? 'ng' : pct >= 20 ? 'ok' : 'warn';
+    var msg   = level === 'ok'   ? '粗利率20%以上。良好な水準です。'
+              : level === 'warn' ? '粗利率20%未満。仕入れ値・廃棄率・売値を見直しましょう。'
+              : '赤字です。売値を上げるか廃棄率を下げる必要があります。';
+
+    showResult(level, fmt1(pct) + '%', msg);
+    showDetail([
+      ['仕入れ値',           fmt0(cost)    + ' 円'],
+      ['廃棄率',             fmt1(loss)    + ' %'],
+      ['廃棄込み実効仕入れ', fmt0(effCost) + ' 円', false, true],
+      ['売値',               fmt0(price)   + ' 円'],
+      ['粗利額',             fmt0(profit)  + ' 円', true],
+      ['粗利率',             fmt1(pct)     + ' %',  true],
+    ]);
+
+    lastResult = { name: name, cost: cost, price: price, loss: loss, effCost: effCost, profit: profit, pct: pct };
+    document.getElementById('btnAdd').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    lastResult = null;
+  }
+
+  // ── フォーマット ──
+  function fmt0(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmt1(n) { return Math.round(n * 10) / 10; }
+
+  // ── 比較一覧 ──
+  function addToList() {
+    if (!lastResult) return;
+    listData.push({
+      id:      Date.now(),
+      name:    lastResult.name,
+      cost:    lastResult.cost,
+      price:   lastResult.price,
+      loss:    lastResult.loss,
+      effCost: lastResult.effCost,
+      profit:  lastResult.profit,
+      pct:     lastResult.pct
+    });
+    saveList();
+    renderList();
+    document.getElementById('btnAdd').style.display = 'none';
+    lastResult = null;
+  }
+
+  function delItem(id) {
+    listData = listData.filter(function(d){ return d.id !== id; });
+    saveList();
+    renderList();
+  }
+
+  function renderList() {
+    var tbody = document.getElementById('listBody');
+    var empty = document.getElementById('listEmpty');
+    if (listData.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = '';
+      return;
+    }
+    empty.style.display = 'none';
+    tbody.innerHTML = listData.map(function(d){
+      var cls = d.profit < 0 ? 'col-ng' : d.pct >= 20 ? 'col-ok' : 'col-warn';
+      return '<tr>'
+        + '<td>' + esc(d.name) + '</td>'
+        + '<td>' + fmt0(d.cost) + '</td>'
+        + '<td>' + fmt0(d.price) + '</td>'
+        + '<td>' + fmt1(d.loss) + '%</td>'
+        + '<td>' + fmt0(d.effCost) + '</td>'
+        + '<td>' + fmt0(d.profit) + '</td>'
+        + '<td class="' + cls + '">' + fmt1(d.pct) + '%</td>'
+        + '<td><button class="btn-del" onclick="delItem(' + d.id + ')">削除</button></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // 起動時読み込み
+  loadList();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>店舗紹介文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .char-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.5rem;
+      margin-top: 0.4rem;
+    }
+    .char-tag {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.82rem; cursor: pointer; color: var(--text-sub);
+      padding: 0.3rem 0;
+    }
+    .char-tag input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-area { display: none; }
+
+    .pattern-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 0.85rem;
+      max-width: 600px;
+    }
+    .pattern-label {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.06em;
+      color: var(--accent); margin-bottom: 0.6rem;
+    }
+    .pattern-text {
+      font-size: 0.92rem; line-height: 1.7; color: var(--text);
+      white-space: pre-wrap; word-break: break-all;
+      background: var(--bg); border-radius: 8px;
+      padding: 0.75rem 0.9rem; border: 1px solid var(--border);
+      margin-bottom: 0.6rem; min-height: 60px;
+    }
+    .btn-copy {
+      display: inline-block; padding: 0.42rem 1rem;
+      font-size: 0.82rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 8px;
+      cursor: pointer; transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:hover { background: #ffe0b2; }
+    .btn-copy.copied { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+
+    .history-card { max-width: 600px; margin: 0 auto 1rem; }
+    .history-item {
+      border-bottom: 1px solid var(--border);
+      padding: 0.7rem 0;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-meta { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .history-snippet { font-size: 0.85rem; color: var(--text); line-height: 1.5; }
+    .btn-restore {
+      font-size: 0.75rem; color: var(--accent); border: none;
+      background: none; cursor: pointer; padding: 0.2rem 0; text-decoration: underline;
+    }
+
+    .btn-clear {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 0.5rem; padding: 0.5rem 0.9rem;
+      font-size: 0.8rem; font-weight: 600;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 9px;
+      cursor: pointer;
+    }
+    .btn-clear:hover { border-color: var(--ng); color: var(--ng); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media print {
+      .btn-calc, .back-link, #fav-widget, .no-print, .btn-copy, .btn-clear { display: none !important; }
+      .card, .pattern-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>店舗紹介文ジェネレーター</h1>
+    <p class="subtitle">業種・強みを入力するだけで、GoogleマップやSNS向けの紹介文を即生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="shopName">店名・屋号</label>
+      <input type="text" id="shopName" placeholder="例: カフェ花まる">
+    </div>
+    <div class="field">
+      <label for="industry">業種</label>
+      <select id="industry">
+        <option value="">選択してください</option>
+        <option value="飲食店">飲食店（カフェ・レストラン・居酒屋など）</option>
+        <option value="美容・サロン">美容・サロン（美容院・エステ・ネイルなど）</option>
+        <option value="小売店">小売店（雑貨・アパレル・食品など）</option>
+        <option value="医療・介護">医療・介護（クリニック・歯科・整骨院など）</option>
+        <option value="不動産">不動産（売買・賃貸・管理）</option>
+        <option value="建設・リフォーム">建設・リフォーム</option>
+        <option value="IT・Web">IT・Web（制作・システム・デザイン）</option>
+        <option value="教育・スクール">教育・スクール（塾・習い事・語学）</option>
+        <option value="整体・マッサージ">整体・マッサージ・接骨院</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="area">エリア・所在地（任意）</label>
+      <input type="text" id="area" placeholder="例: 渋谷区・東京都・駅前など">
+    </div>
+    <div class="field">
+      <label for="strengths">強み・こだわり・アピールポイント</label>
+      <textarea id="strengths" placeholder="例: 国産食材にこだわり、落ち着いた雰囲気、スタッフが親切、駐車場完備"></textarea>
+      <p class="hint">複数ある場合は読点（、）や改行で区切ってください</p>
+    </div>
+    <div class="field">
+      <label for="target">ターゲット・お客様層（任意）</label>
+      <input type="text" id="target" placeholder="例: ファミリー向け、20〜30代女性、法人向けなど">
+    </div>
+  </div>
+
+  <!-- 特徴チェック -->
+  <div class="card">
+    <p class="card-title">特徴（当てはまるものをチェック）</p>
+    <div class="char-grid" id="charGrid">
+      <label class="char-tag"><input type="checkbox" value="予約制"> 予約制</label>
+      <label class="char-tag"><input type="checkbox" value="完全個室あり"> 完全個室</label>
+      <label class="char-tag"><input type="checkbox" value="駐車場完備"> 駐車場完備</label>
+      <label class="char-tag"><input type="checkbox" value="駅チカ"> 駅チカ</label>
+      <label class="char-tag"><input type="checkbox" value="女性スタッフ在籍"> 女性スタッフ</label>
+      <label class="char-tag"><input type="checkbox" value="子ども連れ歓迎"> 子連れ歓迎</label>
+      <label class="char-tag"><input type="checkbox" value="ペット可"> ペット可</label>
+      <label class="char-tag"><input type="checkbox" value="Wi-Fi完備"> Wi-Fi完備</label>
+      <label class="char-tag"><input type="checkbox" value="クレジットカード対応"> カード可</label>
+      <label class="char-tag"><input type="checkbox" value="当日予約OK"> 当日予約OK</label>
+      <label class="char-tag"><input type="checkbox" value="手ぶらでOK"> 手ぶらOK</label>
+      <label class="char-tag"><input type="checkbox" value="無料相談あり"> 無料相談</label>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">紹介文を生成する</button>
+
+  <!-- 生成結果 -->
+  <div class="result-area" id="resultArea">
+
+    <div class="pattern-card">
+      <p class="pattern-label">📍 Googleマップ用（口コミ・スポット紹介）</p>
+      <div class="pattern-text" id="text_google"></div>
+      <button class="btn-copy no-print" onclick="copyText('text_google', this)">コピーする</button>
+    </div>
+
+    <div class="pattern-card">
+      <p class="pattern-label">📸 Instagram用（ハッシュタグ付き）</p>
+      <div class="pattern-text" id="text_instagram"></div>
+      <button class="btn-copy no-print" onclick="copyText('text_instagram', this)">コピーする</button>
+    </div>
+
+    <div class="pattern-card">
+      <p class="pattern-label">📣 一般PR用（チラシ・HP・求人など）</p>
+      <div class="pattern-text" id="text_pr"></div>
+      <button class="btn-copy no-print" onclick="copyText('text_pr', this)">コピーする</button>
+    </div>
+
+  </div>
+
+  <!-- 生成履歴 -->
+  <div class="card history-card" id="historyCard" style="display:none">
+    <p class="card-title">生成履歴（最近5件）</p>
+    <div id="historyList"></div>
+  </div>
+  <button class="btn-clear no-print" id="clearBtn" style="display:none" onclick="clearHistory()">履歴を削除する</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var STORAGE_KEY = 'shopIntroGen_history_v1';
+
+  function getChecked() {
+    var items = [];
+    document.querySelectorAll('#charGrid input[type=checkbox]:checked').forEach(function(c) {
+      items.push(c.value);
+    });
+    return items;
+  }
+
+  function generate() {
+    var shopName  = document.getElementById('shopName').value.trim();
+    var industry  = document.getElementById('industry').value;
+    var area      = document.getElementById('area').value.trim();
+    var strengths = document.getElementById('strengths').value.trim();
+    var target    = document.getElementById('target').value.trim();
+    var features  = getChecked();
+
+    if (!industry) { alert('業種を選択してください'); return; }
+    if (!strengths) { alert('強み・こだわりを入力してください'); return; }
+
+    var nameStr   = shopName || industry;
+    var areaStr   = area ? '【' + area + 'の' + industry + '】' : '【' + industry + '】';
+    var areaShort = area ? area + 'の' : '';
+    var featStr   = features.length > 0 ? features.join('・') : '';
+    var targetStr = target ? target + 'の方に特におすすめです。' : '';
+
+    // Googleマップ用
+    var gText = areaStr + '\n\n'
+      + (shopName ? shopName + 'は、' : '') + areaShort + industry + 'です。\n'
+      + strengths + 'をお届けしています。\n'
+      + (featStr ? '\n' + featStr + '。\n' : '')
+      + (targetStr ? '\n' + targetStr + '\n' : '')
+      + '\nぜひお気軽にお越しください！';
+
+    // Instagram用
+    var igLines = [
+      '✨ ' + nameStr,
+      '',
+      strengths.replace(/、/g, '\n▶️ ').replace(/,/g, '\n▶️ '),
+      '',
+    ];
+    if (featStr) igLines.push('📌 ' + featStr, '');
+    if (targetStr) igLines.push('👥 ' + targetStr, '');
+    igLines.push('気になる方はプロフィールのリンクからどうぞ💁\n');
+
+    // ハッシュタグ
+    var tags = ['#' + industry.replace(/・.*/, ''), '#' + (area || '地域密着'), '#お近くの方へ'];
+    if (shopName) tags.push('#' + shopName);
+    features.slice(0, 3).forEach(function(f) { tags.push('#' + f.replace(/\s/g, '')); });
+    igLines.push(tags.join(' '));
+
+    var igText = igLines.join('\n');
+
+    // 一般PR用
+    var prText = '■ ' + nameStr + '\n\n'
+      + industry + 'をお探しの方へ、' + areaShort + nameStr + 'をご紹介します。\n\n'
+      + '【特徴・こだわり】\n' + strengths + '\n\n'
+      + (featStr ? '【サービス内容】\n' + featStr + '\n\n' : '')
+      + (targetStr ? '【こんな方におすすめ】\n' + targetStr + '\n\n' : '')
+      + '詳細はお気軽にお問い合わせください。';
+
+    document.getElementById('text_google').textContent    = gText;
+    document.getElementById('text_instagram').textContent = igText;
+    document.getElementById('text_pr').textContent        = prText;
+
+    document.getElementById('resultArea').style.display = 'block';
+
+    // 履歴保存
+    saveHistory({
+      date: formatDate(),
+      name: nameStr,
+      industry: industry,
+      google: gText,
+      instagram: igText,
+      pr: prText
+    });
+
+    document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copyText(id, btn) {
+    var text = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      var orig = btn.textContent;
+      btn.textContent = 'コピーしました！';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = orig;
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(function() {
+      // fallback
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = 'コピーしました！';
+      btn.classList.add('copied');
+      setTimeout(function() { btn.textContent = 'コピーする'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function formatDate() {
+    var d = new Date();
+    return d.getFullYear() + '/' + pad(d.getMonth()+1) + '/' + pad(d.getDate()) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+  function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+  function saveHistory(item) {
+    var list = loadHistory();
+    list.unshift(item);
+    if (list.length > 5) list = list.slice(0, 5);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    renderHistory(list);
+  }
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch(e) { return []; }
+  }
+
+  function renderHistory(list) {
+    var card = document.getElementById('historyCard');
+    var clearBtn = document.getElementById('clearBtn');
+    if (!list || list.length === 0) {
+      card.style.display = 'none';
+      clearBtn.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    clearBtn.style.display = 'block';
+    var html = list.map(function(item, idx) {
+      return '<div class="history-item">'
+        + '<div class="history-meta">' + item.date + '｜' + item.industry + '｜' + item.name + '</div>'
+        + '<div class="history-snippet">' + (item.google || '').slice(0, 60) + '...</div>'
+        + '<button class="btn-restore" onclick="restoreHistory(' + idx + ')">この履歴を再表示</button>'
+        + '</div>';
+    }).join('');
+    document.getElementById('historyList').innerHTML = html;
+  }
+
+  function restoreHistory(idx) {
+    var list = loadHistory();
+    var item = list[idx];
+    if (!item) return;
+    document.getElementById('text_google').textContent    = item.google || '';
+    document.getElementById('text_instagram').textContent = item.instagram || '';
+    document.getElementById('text_pr').textContent        = item.pr || '';
+    document.getElementById('resultArea').style.display = 'block';
+    document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function clearHistory() {
+    if (!confirm('生成履歴をすべて削除しますか？')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    renderHistory([]);
+  }
+
+  // 初期化
+  renderHistory(loadHistory());
+  </script>
+
+</body>
+</html>

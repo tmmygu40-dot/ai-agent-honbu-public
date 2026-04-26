@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>年金受給シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 660px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 660px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 660px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.6; }
+
+    /* ── 比較テーブル ── */
+    .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.comp { width: 100%; border-collapse: collapse; font-size: 0.84rem; min-width: 480px; }
+    table.comp thead tr { background: var(--accent-light); }
+    table.comp th {
+      padding: 0.55rem 0.5rem; text-align: center; font-weight: 700; font-size: 0.75rem;
+      color: var(--accent); border-bottom: 2px solid var(--accent); white-space: nowrap;
+    }
+    table.comp td {
+      padding: 0.5rem 0.5rem; text-align: center; border-bottom: 1px solid var(--border);
+      color: var(--text-sub);
+    }
+    table.comp tr.base-row td { font-weight: 800; color: var(--text); background: #fffbf5; }
+    table.comp tr.early td:nth-child(3) { color: var(--ng); }
+    table.comp tr.late  td:nth-child(3) { color: var(--ok); }
+    table.comp td.be-early { color: var(--warn); font-weight: 700; }
+    table.comp td.be-late  { color: var(--ok);   font-weight: 700; }
+    .tag {
+      display: inline-block; font-size: 0.65rem; font-weight: 700;
+      padding: 0.1rem 0.4rem; border-radius: 4px; margin-left: 0.3rem; vertical-align: middle;
+    }
+    .tag-e { background: var(--ng-bg); color: var(--ng); }
+    .tag-l { background: var(--ok-bg); color: var(--ok); }
+    .tag-s { background: var(--accent-light); color: var(--accent); }
+
+    /* ── 注釈 ── */
+    .note-box { font-size: 0.74rem; color: var(--text-sub); line-height: 1.7; margin-top: 0.8rem; }
+    .note-box li { margin-left: 1.2rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>年金受給シミュレーター</h1>
+    <p class="subtitle">繰り上げ・繰り下げの月額と損益分岐点を即比較</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="base">65歳時点の年金月額（見込み額）</label>
+      <input type="number" id="base" placeholder="例: 65000" min="1">
+      <p class="hint">ねんきんネットや年金定期便に記載の老齢基礎・厚生年金の合計額（円）</p>
+    </div>
+    <div class="field">
+      <label for="life">想定寿命（参考比較用）</label>
+      <input type="number" id="life" placeholder="例: 85" min="66" max="100" value="85">
+      <p class="hint">何歳まで生きると想定するか（損益分岐点との比較に使用）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="resultCard">
+    <p class="result-label">想定寿命ベースの最大受取額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 比較テーブルカード -->
+  <div class="card" id="tableCard" style="display:none">
+    <p class="card-title">受給開始年齢ごとの比較</p>
+    <div class="tbl-wrap">
+      <table class="comp">
+        <thead>
+          <tr>
+            <th>開始年齢</th>
+            <th>月額（円）</th>
+            <th>65歳比</th>
+            <th>損益分岐点<br><small>（65歳受給との比較）</small></th>
+            <th>想定寿命まで<br>の総受取（万円）</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <ul class="note-box">
+      <li>繰り上げ減額率：0.4%／月（2022年4月以降適用の新制度）</li>
+      <li>繰り下げ増額率：0.7%／月</li>
+      <li>損益分岐点は65歳受給（標準）との累計受取額が逆転する年齢</li>
+      <li>配偶者加給年金・遺族年金・税・社会保険料は考慮していません</li>
+    </ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var AGES = [60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75];
+
+  function monthlyAmount(base, startAge) {
+    var months = (startAge - 65) * 12;
+    if (months < 0) {
+      return base * (1 + 0.004 * months); // 繰り上げ減額
+    } else if (months > 0) {
+      return base * (1 + 0.007 * months); // 繰り下げ増額
+    }
+    return base;
+  }
+
+  // 65歳受給との損益分岐点（歳）を計算
+  function breakEven(base, startAge) {
+    var mo = monthlyAmount(base, startAge);
+    if (startAge === 65) return null;
+    // 65歳受給者との累計比較
+    // early: mo×12×(X-startAge) vs base×12×(X-65)  [X>65]
+    // late:  mo×12×(X-startAge) vs base×12×(X-65)  [X>startAge]
+    // common: mo×(X-startAge) = base×(X-65)
+    // mo·X - mo·startAge = base·X - base·65
+    // X(mo - base) = mo·startAge - base·65
+    // X = (mo·startAge - base·65) / (mo - base)
+    var denom = mo - base;
+    if (Math.abs(denom) < 0.001) return null;
+    var x = (mo * startAge - base * 65) / denom;
+    if (x < 65 || x > 120) return null;
+    return Math.ceil(x);
+  }
+
+  function totalReceived(monthly, startAge, lifeAge) {
+    if (lifeAge <= startAge) return 0;
+    return monthly * 12 * (lifeAge - startAge);
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmtMan(n) { return (Math.round(n / 10000)).toLocaleString('ja-JP'); }
+
+  function calc() {
+    var base = parseFloat(document.getElementById('base').value);
+    var life = parseInt(document.getElementById('life').value);
+    if (!base || base <= 0) { alert('65歳時点の年金月額を入力してください'); return; }
+    if (!life || life < 66) { alert('想定寿命は66歳以上で入力してください'); return; }
+
+    // localStorage保存
+    localStorage.setItem('pension_base', base);
+    localStorage.setItem('pension_life', life);
+
+    var tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+
+    var maxTotal = -1, bestAge = 65;
+
+    AGES.forEach(function(age) {
+      var mo = monthlyAmount(base, age);
+      var total = totalReceived(mo, age, life);
+      if (total > maxTotal) { maxTotal = total; bestAge = age; }
+    });
+
+    AGES.forEach(function(age) {
+      var mo = monthlyAmount(base, age);
+      var ratio = ((mo / base - 1) * 100).toFixed(1);
+      var be = breakEven(base, age);
+      var total = totalReceived(mo, age, life);
+      var isBase = (age === 65);
+      var isEarly = (age < 65);
+      var isBest = (age === bestAge);
+
+      var tr = document.createElement('tr');
+      tr.className = isBase ? 'base-row' : (isEarly ? 'early' : 'late');
+
+      var label = isBase ? '65歳<span class="tag tag-s">標準</span>'
+                : isEarly ? age + '歳<span class="tag tag-e">繰上</span>'
+                :           age + '歳<span class="tag tag-l">繰下</span>';
+      if (isBest) label += '<span class="tag tag-l">最大</span>';
+
+      var beStr = isBase ? '—（基準）'
+               : be ? be + '歳'
+               : '計算外';
+      var beClass = isEarly ? 'be-early' : 'be-late';
+
+      var ratioStr = isBase ? '±0%'
+                   : (isEarly ? '' : '+') + ratio + '%';
+
+      tr.innerHTML = '<td>' + label + '</td>'
+                   + '<td>' + fmt(Math.round(mo)) + '</td>'
+                   + '<td>' + ratioStr + '</td>'
+                   + '<td class="' + (isBase ? '' : beClass) + '">' + beStr + '</td>'
+                   + '<td>' + (total > 0 ? fmtMan(total) : '—') + '</td>';
+      tbody.appendChild(tr);
+    });
+
+    // 結論カード
+    var bestMo = monthlyAmount(base, bestAge);
+    var stdTotal = totalReceived(base, 65, life);
+    var diff = maxTotal - stdTotal;
+    var level = bestAge === 65 ? 'warn'
+              : bestAge > 65  ? 'ok' : 'ng';
+    var label = bestAge === 65 ? '標準（65歳）が最大'
+              : bestAge + '歳受給が最大';
+    var note = life + '歳時点の累計受取額：' + fmtMan(maxTotal) + '万円'
+             + (bestAge !== 65 ? '（65歳比 +' + fmtMan(diff) + '万円）' : '')
+             + '\n損益分岐点を超えて長生きするほど繰り下げが有利です。';
+
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = label;
+    document.getElementById('rn').textContent = note;
+    document.getElementById('tableCard').style.display = '';
+  }
+
+  // 復元
+  window.addEventListener('load', function() {
+    var b = localStorage.getItem('pension_base');
+    var l = localStorage.getItem('pension_life');
+    if (b) document.getElementById('base').value = b;
+    if (l) document.getElementById('life').value = l;
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

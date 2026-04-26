@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="12ヶ月の月別売上と月間固定費を入力するだけで、閑散期の資金不足額と毎月の積立目標を即算出。売上の季節波動に備えた資金計画を立てられる経営・個人事業向けシミュレーターです。">
+  <title>季節変動資金計画シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 月別入力グリッド ── */
+    .month-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem;
+    }
+    .month-item {
+      display: flex; flex-direction: column; gap: 0.3rem;
+    }
+    .month-item label {
+      font-size: 0.78rem; font-weight: 600; color: var(--text-sub);
+    }
+    .month-item input {
+      width: 100%; padding: 0.55rem 0.7rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      text-align: right;
+    }
+    .month-item input:focus { border-color: var(--accent); background: #fff; }
+    .month-item input.shortage { border-color: var(--ng); background: var(--ng-bg); }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ng-row td { color: var(--ng); }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>季節変動資金計画シミュレーター</h1>
+    <p class="subtitle">月別売上を入力して閑散期の資金不足と積立目標を即算出</p>
+  </header>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <!-- 固定費入力 -->
+  <div class="card">
+    <p class="card-title">基本設定</p>
+    <div class="field">
+      <label for="fixed-cost">月間固定費（円）</label>
+      <input type="number" id="fixed-cost" placeholder="例: 300000" min="0">
+      <p class="hint">家賃・人件費・リース料など毎月かかる費用の合計</p>
+    </div>
+  </div>
+
+  <!-- 月別売上入力 -->
+  <div class="card">
+    <p class="card-title">月別売上入力（前年実績・円）</p>
+    <p class="hint" style="margin-bottom:0.8rem;font-size:0.75rem;color:var(--text-sub);">2025年度の参考データとして入力してください。最新情報は実績値をご確認ください。</p>
+    <div class="month-grid" id="month-grid">
+      <!-- JS で生成 -->
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">閑散期の資金不足を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月積立目標</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳：閑散期月一覧 -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">閑散期の月別不足額</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 年間サマリー -->
+  <div class="card" id="summary" style="display:none">
+    <p class="card-title">年間サマリー</p>
+    <table class="detail-table"><tbody id="sb"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは経営・資金計画の目安として利用できます。実際の資金計画は税理士・中小企業診断士など専門家にご相談ください。参考：中小企業庁・経産省
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+
+  <script>
+  var MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+  // 月別入力フォームを生成
+  (function buildGrid() {
+    var grid = document.getElementById('month-grid');
+    MONTHS.forEach(function(m, i) {
+      var div = document.createElement('div');
+      div.className = 'month-item';
+      div.innerHTML = '<label for="m' + i + '">' + m + '</label>'
+        + '<input type="number" id="m' + i + '" placeholder="0" min="0">';
+      grid.appendChild(div);
+    });
+  })();
+
+  // localStorage から復元
+  (function loadStorage() {
+    var saved = localStorage.getItem('kisetsu_shikinseicho');
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      if (d.fixed) document.getElementById('fixed-cost').value = d.fixed;
+      if (d.sales) {
+        d.sales.forEach(function(v, i) {
+          var el = document.getElementById('m' + i);
+          if (el && v !== '') el.value = v;
+        });
+      }
+    } catch(e) {}
+  })();
+
+  // 入力変更時にlocalStorageへ自動保存
+  document.addEventListener('input', function() {
+    saveStorage();
+  });
+
+  function saveStorage() {
+    var sales = MONTHS.map(function(_, i) {
+      var el = document.getElementById('m' + i);
+      return el ? el.value : '';
+    });
+    localStorage.setItem('kisetsu_shikinseicho', JSON.stringify({
+      fixed: document.getElementById('fixed-cost').value,
+      sales: sales
+    }));
+  }
+
+  function calc() {
+    var fixed = parseFloat(document.getElementById('fixed-cost').value);
+    if (isNaN(fixed) || fixed < 0) {
+      showErr('月間固定費を入力してください');
+      return;
+    }
+
+    var salesArr = [];
+    var hasEmpty = false;
+    MONTHS.forEach(function(_, i) {
+      var v = parseFloat(document.getElementById('m' + i).value);
+      if (isNaN(v) || v < 0) { hasEmpty = true; salesArr.push(0); }
+      else salesArr.push(v);
+    });
+
+    if (hasEmpty) {
+      showErr('未入力の月は0として計算します。入力を確認してください');
+      // 続行（0として計算する）
+    }
+
+    // 閑散期（売上 < 固定費の月）を抽出
+    var shortageMonths = [];
+    var totalShortage = 0;
+    var boomMonths = 0;
+    var totalSales = 0;
+
+    salesArr.forEach(function(s, i) {
+      totalSales += s;
+      if (s < fixed) {
+        var shortage = fixed - s;
+        shortageMonths.push({ month: MONTHS[i], sales: s, shortage: shortage });
+        totalShortage += shortage;
+      } else {
+        boomMonths++;
+      }
+    });
+
+    // 不足月がない場合
+    if (shortageMonths.length === 0) {
+      showResultCard('ok',
+        '資金不足なし',
+        '全月の売上が固定費を上回っています',
+        '年間を通じて資金ショートのリスクはありません。余剰分を積立・投資に回せる好状態です。'
+      );
+      document.getElementById('detail').style.display = 'none';
+      buildSummary(salesArr, fixed, totalSales, totalShortage, shortageMonths.length, boomMonths, 0);
+      return;
+    }
+
+    // 積立目標 = 合計不足額 ÷ 繁忙月数（0の場合は12で割る）
+    var divisor = boomMonths > 0 ? boomMonths : 12;
+    var monthlyTarget = Math.ceil(totalShortage / divisor);
+
+    var level = shortageMonths.length >= 6 ? 'ng' : shortageMonths.length >= 3 ? 'warn' : 'warn';
+    var evalText = shortageMonths.length >= 6
+      ? '半年以上が閑散期。積立は早めに計画を'
+      : shortageMonths.length >= 3
+      ? '3ヶ月以上が閑散期。繁忙期中の積立が重要です'
+      : '閑散期は短め。計画的な積立で乗り切れます';
+
+    showResultCard(level,
+      fmt(monthlyTarget) + ' 円/月',
+      evalText,
+      '閑散期' + shortageMonths.length + 'ヶ月・合計不足額 ' + fmt(totalShortage) + ' 円を繁忙月（' + divisor + 'ヶ月）で積立'
+    );
+
+    // 不足月内訳
+    var rows = shortageMonths.map(function(r) {
+      return '<tr class="ng-row"><td>' + r.month + '（売上 ' + fmt(r.sales) + ' 円）</td>'
+        + '<td>-' + fmt(r.shortage) + ' 円</td></tr>';
+    });
+    rows.push('<tr class="hl"><td>合計不足額</td><td>' + fmt(totalShortage) + ' 円</td></tr>');
+    document.getElementById('db').innerHTML = rows.join('');
+    document.getElementById('detail').style.display = 'block';
+
+    buildSummary(salesArr, fixed, totalSales, totalShortage, shortageMonths.length, boomMonths, monthlyTarget);
+
+    // 閑散期の月にスタイルを付ける
+    shortageMonths.forEach(function(r) {
+      var idx = MONTHS.indexOf(r.month);
+      if (idx >= 0) {
+        var el = document.getElementById('m' + idx);
+        if (el) el.classList.add('shortage');
+      }
+    });
+    // 繁忙月のクラスを外す
+    salesArr.forEach(function(s, i) {
+      if (s >= fixed) {
+        var el = document.getElementById('m' + i);
+        if (el) el.classList.remove('shortage');
+      }
+    });
+  }
+
+  function buildSummary(salesArr, fixed, totalSales, totalShortage, shortageCount, boomMonths, monthlyTarget) {
+    var avgSales = Math.round(totalSales / 12);
+    var rows = [
+      ['年間総売上', fmt(totalSales) + ' 円'],
+      ['月平均売上', fmt(avgSales) + ' 円'],
+      ['月間固定費', fmt(fixed) + ' 円'],
+      ['閑散期月数', shortageCount + ' ヶ月'],
+      ['繁忙期月数', boomMonths + ' ヶ月'],
+      ['年間合計不足額', fmt(totalShortage) + ' 円', true],
+    ];
+    if (monthlyTarget > 0) {
+      rows.push(['月積立目標', fmt(monthlyTarget) + ' 円/月', true]);
+    }
+    document.getElementById('sb').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+        + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('summary').style.display = 'block';
+  }
+
+  function showResultCard(level, val, evalText, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('summary').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
