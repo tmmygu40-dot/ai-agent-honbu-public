@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="客単価・月間客数・固定費・原価率を入力すると、値上げ後の採算ライン（必要客数・利益額・利益率）を即試算。美容院・サロンの料金改定を数字で判断できる経営シミュレーターです。">
+  <title>美容院・サロン料金改定シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 比較行 ── */
+    .compare-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .compare-row .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-head td {
+      font-size: 0.75rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; padding-top: 1rem; background: var(--accent-light);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>✂️ 美容院・サロン料金改定シミュレーター</h1>
+    <p class="subtitle">値上げ後の採算ライン・必要客数・利益率を即試算</p>
+  </header>
+
+  <!-- 現在の状況 -->
+  <div class="card">
+    <p class="card-title">現在の状況</p>
+    <div class="compare-row">
+      <div class="field">
+        <label for="current-price">現在の客単価（円）</label>
+        <input type="number" id="current-price" placeholder="例: 6000" min="0">
+      </div>
+      <div class="field">
+        <label for="customers">月間客数（人）</label>
+        <input type="number" id="customers" placeholder="例: 80" min="0">
+      </div>
+    </div>
+    <div class="compare-row">
+      <div class="field">
+        <label for="fixed-cost">月間固定費（円）</label>
+        <input type="number" id="fixed-cost" placeholder="例: 200000" min="0">
+        <p class="hint">家賃・人件費・光熱費など</p>
+      </div>
+      <div class="field">
+        <label for="cost-rate">原価率（%）</label>
+        <input type="number" id="cost-rate" placeholder="例: 15" min="0" max="100">
+        <p class="hint">材料費・消耗品など変動費の割合</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 値上げ後の設定 -->
+  <div class="card">
+    <p class="card-title">値上げ後の設定</p>
+    <div class="field">
+      <label for="new-price">値上げ後の客単価（円）</label>
+      <input type="number" id="new-price" placeholder="例: 7000" min="0">
+      <p class="hint">値上げ幅は何円にする？</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算ラインを試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">採算ライン（必要客数）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">詳細内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、経産省・中小企業庁の価格転嫁支援情報や美容業界の一般的な経営指標を参考に目安として整理しています。最新の税率・制度は公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var LS_KEY = 'salon-price-sim-v1';
+
+  function save() {
+    var d = {
+      cp: document.getElementById('current-price').value,
+      cu: document.getElementById('customers').value,
+      fc: document.getElementById('fixed-cost').value,
+      cr: document.getElementById('cost-rate').value,
+      np: document.getElementById('new-price').value
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(d));
+  }
+
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!d) return;
+      if (d.cp) document.getElementById('current-price').value = d.cp;
+      if (d.cu) document.getElementById('customers').value = d.cu;
+      if (d.fc) document.getElementById('fixed-cost').value = d.fc;
+      if (d.cr) document.getElementById('cost-rate').value = d.cr;
+      if (d.np) document.getElementById('new-price').value = d.np;
+    } catch(e) {}
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmtDec(n, d) { return n.toFixed(d); }
+
+  function calc() {
+    var cp = parseFloat(document.getElementById('current-price').value);
+    var cu = parseFloat(document.getElementById('customers').value);
+    var fc = parseFloat(document.getElementById('fixed-cost').value);
+    var cr = parseFloat(document.getElementById('cost-rate').value);
+    var np = parseFloat(document.getElementById('new-price').value);
+
+    if ([cp, cu, fc, cr, np].some(isNaN)) {
+      showErr('すべて入力してください');
+      return;
+    }
+    if (cr < 0 || cr >= 100) {
+      showErr('原価率は 0〜99% で入力してください');
+      return;
+    }
+    if (np <= cp) {
+      showErr('値上げ後単価は現在の客単価より大きくしてください');
+      return;
+    }
+
+    save();
+
+    var varRate = cr / 100;
+
+    // 現在の利益計算
+    var currentRevenue = cp * cu;
+    var currentVarCost = currentRevenue * varRate;
+    var currentProfit  = currentRevenue - currentVarCost - fc;
+    var currentProfitRate = currentRevenue > 0 ? (currentProfit / currentRevenue * 100) : 0;
+
+    // 値上げ後の計算
+    var newRevenue     = np * cu;                        // 同客数での売上
+    var newVarCost     = newRevenue * varRate;
+    var newProfit      = newRevenue - newVarCost - fc;   // 同客数での利益
+    var newProfitRate  = newRevenue > 0 ? (newProfit / newRevenue * 100) : 0;
+
+    // 採算ライン（必要客数） = 固定費 ÷ (値上げ後単価 × (1 - 原価率))
+    var marginPerCustomer = np * (1 - varRate);
+    var breakEvenCustomers = marginPerCustomer > 0 ? fc / marginPerCustomer : Infinity;
+    var breakEvenCeil = Math.ceil(breakEvenCustomers);
+
+    // 値上げ幅
+    var priceUp = np - cp;
+    var priceUpRate = (priceUp / cp * 100);
+
+    // 採算判定
+    var diff = cu - breakEvenCustomers;
+    var level, evalMsg, noteMsg;
+    if (breakEvenCustomers <= cu * 0.8) {
+      level = 'ok';
+      evalMsg = '採算ラインに余裕あり。値上げしても安定経営できます';
+      noteMsg = '現在の客数を維持すれば、値上げ後も十分な利益が見込めます。';
+    } else if (breakEvenCustomers <= cu) {
+      level = 'warn';
+      evalMsg = '採算ラインに近い。客数維持が重要です';
+      noteMsg = '値上げ後は客数の減少に注意。小幅なリピーター対策を検討しましょう。';
+    } else {
+      level = 'ng';
+      evalMsg = '現在の客数では採算割れ。客数増加か固定費見直しが必要です';
+      noteMsg = '採算ラインを超えるには、あと ' + fmt(breakEvenCeil - cu) + ' 人の客数増加が必要です。';
+    }
+
+    // 結果カード
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = fmt(breakEvenCeil) + ' 人';
+    document.getElementById('re').textContent = evalMsg;
+    document.getElementById('rn').textContent = noteMsg;
+
+    // 内訳テーブル
+    var rows = [
+      { label: '▼ 現在', section: true },
+      ['客単価', fmt(cp) + ' 円'],
+      ['月間客数', fmt(cu) + ' 人'],
+      ['月間売上', fmt(currentRevenue) + ' 円'],
+      ['変動費（原価）', fmt(currentVarCost) + ' 円'],
+      ['固定費', fmt(fc) + ' 円'],
+      ['月間利益', fmt(currentProfit) + ' 円', true],
+      ['利益率', fmtDec(currentProfitRate, 1) + ' %'],
+      { label: '▼ 値上げ後（同客数 ' + fmt(cu) + ' 人の場合）', section: true },
+      ['値上げ後単価', fmt(np) + ' 円（＋' + fmt(priceUp) + '円 / ＋' + fmtDec(priceUpRate,1) + '%）'],
+      ['月間売上', fmt(newRevenue) + ' 円'],
+      ['変動費（原価）', fmt(newVarCost) + ' 円'],
+      ['固定費', fmt(fc) + ' 円'],
+      ['月間利益', fmt(newProfit) + ' 円', true],
+      ['利益率', fmtDec(newProfitRate, 1) + ' %'],
+      { label: '▼ 採算ライン', section: true },
+      ['損益分岐客数', fmt(breakEvenCeil) + ' 人', true],
+      ['現在との差', (diff >= 0 ? '＋' : '') + fmt(Math.round(diff)) + ' 人'],
+      ['1客あたり粗利（値上げ後）', fmt(marginPerCustomer) + ' 円'],
+    ];
+
+    var html = '';
+    rows.forEach(function(r) {
+      if (r.label) {
+        html += '<tr class="section-head"><td colspan="2">' + r.label + '</td></tr>';
+      } else {
+        html += '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+             + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+      }
+    });
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  window.addEventListener('DOMContentLoaded', load);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+</body>
+</html>
