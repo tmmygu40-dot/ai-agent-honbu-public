@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>入金催促メールジェネレーター</title>
+  <meta name="description" content="取引先への支払い催促メールを状況（初回・再催促・最終通告）と関係性（良好・通常・要注意）に応じてワンクリックで自動生成。件名と本文をそのままコピーして使えるビジネス向けメール作成ツールです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 選択グループ ── */
+    .select-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .select-group label {
+      flex: 1; min-width: 80px;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0.65rem 0.5rem;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer; text-align: center;
+      font-size: 0.85rem; font-weight: 600; color: var(--text-sub);
+      background: var(--bg);
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .select-group input[type="radio"] { display: none; }
+    .select-group input[type="radio"]:checked + label {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 生成結果 ── */
+    .result-section { display: none; }
+    .result-label-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.6rem;
+    }
+    .result-label-row .label { font-size: 0.82rem; font-weight: 700; color: var(--text-sub); }
+    .btn-copy {
+      padding: 0.4rem 1rem;
+      font-size: 0.82rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: 8px;
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy:active { background: var(--accent-light); }
+    .btn-copy.copied { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
+
+    .subject-box {
+      padding: 0.8rem 1rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 9px; font-size: 0.92rem;
+      font-weight: 600; color: var(--text);
+      margin-bottom: 0.8rem; word-break: break-all;
+    }
+    textarea#mail-body {
+      width: 100%; height: 380px;
+      padding: 0.9rem 1rem;
+      font-size: 0.88rem; line-height: 1.8;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      resize: vertical; outline: none;
+      transition: border-color 0.15s;
+      font-family: "Hiragino Sans", "Noto Sans JP", sans-serif;
+    }
+    textarea#mail-body:focus { border-color: var(--accent); background: #fff; }
+
+    .tone-badge {
+      display: inline-block; margin-top: 0.5rem;
+      padding: 0.2rem 0.7rem; border-radius: 20px;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em;
+    }
+    .tone-ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .tone-warn { background: var(--warn-bg);  color: var(--warn); }
+    .tone-ng   { background: var(--ng-bg);    color: var(--ng);   }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-section { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📧 入金催促メールジェネレーター</h1>
+    <p class="subtitle">状況と関係性を選ぶだけで催促メールを自動生成・即コピー</p>
+  </header>
+
+  <!-- 状況の選択 -->
+  <div class="card">
+    <p class="card-title">催促の状況</p>
+    <div class="select-group">
+      <input type="radio" name="situation" id="s1" value="first" checked>
+      <label for="s1">初回催促</label>
+      <input type="radio" name="situation" id="s2" value="second">
+      <label for="s2">2回目</label>
+      <input type="radio" name="situation" id="s3" value="final">
+      <label for="s3">最終通告</label>
+    </div>
+  </div>
+
+  <!-- 関係性の選択 -->
+  <div class="card">
+    <p class="card-title">取引先との関係性</p>
+    <div class="select-group">
+      <input type="radio" name="relation" id="r1" value="good" checked>
+      <label for="r1">良好</label>
+      <input type="radio" name="relation" id="r2" value="normal">
+      <label for="r2">通常</label>
+      <input type="radio" name="relation" id="r3" value="caution">
+      <label for="r3">要注意</label>
+    </div>
+  </div>
+
+  <!-- 送信者情報 -->
+  <div class="card">
+    <p class="card-title">送信者（自社）情報</p>
+    <div class="field">
+      <label for="my-company">自社名</label>
+      <input type="text" id="my-company" placeholder="例: 株式会社〇〇">
+    </div>
+    <div class="field">
+      <label for="my-name">担当者名</label>
+      <input type="text" id="my-name" placeholder="例: 山田 太郎">
+    </div>
+  </div>
+
+  <!-- 取引先情報 -->
+  <div class="card">
+    <p class="card-title">取引先情報</p>
+    <div class="field">
+      <label for="to-company">取引先会社名</label>
+      <input type="text" id="to-company" placeholder="例: 株式会社△△">
+    </div>
+    <div class="field">
+      <label for="to-name">担当者名（任意）</label>
+      <input type="text" id="to-name" placeholder="例: 鈴木 様">
+      <p class="hint">空欄の場合「ご担当者様」と表示されます</p>
+    </div>
+  </div>
+
+  <!-- 請求情報 -->
+  <div class="card">
+    <p class="card-title">請求情報</p>
+    <div class="field">
+      <label for="amount">請求金額</label>
+      <input type="text" id="amount" placeholder="例: 150,000円">
+    </div>
+    <div class="field">
+      <label for="invoice-date">請求日（締日）</label>
+      <input type="text" id="invoice-date" placeholder="例: 2026年3月31日">
+    </div>
+    <div class="field">
+      <label for="due-date">お支払期限</label>
+      <input type="text" id="due-date" placeholder="例: 2026年4月末日">
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">📝 メール文を生成する</button>
+
+  <!-- 生成結果 -->
+  <div class="card result-section" id="result-section">
+    <p class="card-title">生成結果 <span class="tone-badge" id="tone-badge"></span></p>
+
+    <div class="result-label-row">
+      <span class="label">件名</span>
+      <button class="btn-copy no-print" id="copy-subject-btn" onclick="copySubject()">コピー</button>
+    </div>
+    <div class="subject-box" id="subject-box"></div>
+
+    <div class="result-label-row">
+      <span class="label">本文</span>
+      <button class="btn-copy no-print" id="copy-body-btn" onclick="copyBody()">コピー</button>
+    </div>
+    <textarea id="mail-body" readonly></textarea>
+
+    <button class="btn-copy no-print" style="margin-top:1rem;width:100%;padding:0.7rem;" id="copy-all-btn" onclick="copyAll()">📋 件名＋本文をまとめてコピー</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 生成された文面はあくまで参考です。実際の取引状況・社内ルール・相手との関係性に合わせて内容を調整してご使用ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'nyukin-saisoku-gen-v1';
+
+  var TEMPLATES = {
+    first: {
+      good: {
+        tone: '柔らかい',
+        toneClass: 'tone-ok',
+        subject: function(d){ return '【ご確認のお願い】' + d.amount + ' ご入金の件（' + d.invoiceDate + '分）'; },
+        body: function(d){
+          return d.toCompany + '\n' + d.toName + '\n\nいつも大変お世話になっております。\n' + d.myCompany + 'の' + d.myName + 'でございます。\n\n誠に恐れ入りますが、' + d.invoiceDate + '付にてご請求させていただきました\n下記のご入金について、' + d.dueDate + 'が到来しておりますが、\n現時点でご入金の確認がとれておりません。\n\n　■ 請求金額：' + d.amount + '\n　■ 支払期限：' + d.dueDate + '\n\nお手続きのご確認をいただけますでしょうか。\n万が一、本メールと行き違いでご入金いただいておりました場合は、\n何卒ご容赦いただきますようお願い申し上げます。\n\nご不明な点がございましたら、お気軽にご連絡ください。\nどうぞよろしくお願いいたします。\n\n' + d.myCompany + '\n' + d.myName;
+        }
+      },
+      normal: {
+        tone: '通常',
+        toneClass: 'tone-warn',
+        subject: function(d){ return '【お支払いのご確認】' + d.invoiceDate + '分 ' + d.amount; },
+        body: function(d){
+          return d.toCompany + '\n' + d.toName + '\n\nお世話になっております。\n' + d.myCompany + 'の' + d.myName + 'です。\n\n' + d.invoiceDate + '付でご請求いたしました' + d.amount + 'について、\n支払期限（' + d.dueDate + '）を過ぎておりますが、\nご入金の確認がとれておりません。\n\nご確認のうえ、早急にご入金くださいますようお願い申し上げます。\n\n　■ 請求金額：' + d.amount + '\n　■ 支払期限：' + d.dueDate + '\n\nご不明な点等ありましたらご連絡ください。\n\n' + d.myCompany + '\n' + d.myName;
+        }
+      },
+      caution: {
+        tone: '要注意',
+        toneClass: 'tone-ng',
+        subject: function(d){ return '【至急】' + d.invoiceDate + '分 未入金のご確認（' + d.amount + '）'; },
+        body: function(d){
+          return d.toCompany + '\n' + d.toName + '\n\nお世話になっております。\n' + d.myCompany + 'の' + d.myName + 'でございます。\n\n' + d.invoiceDate + '付にてご請求いたしました' + d.amount + 'につきまして、\n支払期限（' + d.dueDate + '）を経過しておりますが、\n現在もご入金の確認がとれておりません。\n\n　■ 請求金額：' + d.amount + '\n　■ 支払期限：' + d.dueDate + '\n\n至急、入金予定日をご連絡いただきますよう、\nお願い申し上げます。\n\n' + d.myCompany + '\n' + d.myName;
+        }
+      }
+    },
+    second: {
+      good: {
+        tone: '柔らかい',
+        toneClass: 'tone-ok',
+        subject: function(d){ return '【再度ご確認】' + d.invoiceDate + '分 ご入金の件（' + d.amount + '）'; },
+        body: function(d){
+          return d.toCompany + '\n' + d.toName + '\n\nいつもお世話になっております。\n' + d.myCompany + 'の' + d.myName + 'でございます。\n\n先日もご連絡させていただきましたが、\n' + d.invoiceDate + '分のご請求（' + d.amount + '）について、\n恐れながら現時点でご入金の確認がとれておりません。\n\n　■ 請求金額：' + d.amount + '\n　■ 支払期限：' + d.dueDate + '\n\nご多忙の折、大変恐縮ではございますが、\nご確認・ご対応いただけますと幸いです。\n何かご事情がおありでしたら、ご相談いただければ幸いです。\n\n' + d.myCompany + '\n' + d.myName;
+        }
+      },
+      normal: {
+        tone: '通常',
+        toneClass: 'tone-warn',
+        subject: function(d){ return '【再催促】' + d.invoiceDate + '分 ' + d.amount + ' 未入金'; },
+        body: function(d){
+          return d.toCompany + '\n' + d.toName + '\n\nお世話になっております。\n' + d.myCompany + 'の' + d.myName + 'です。\n\n先日ご連絡差し上げましたが、' + d.invoiceDate + '分の\nご請求（' + d.amount + '）について、いまだご入金を\n確認できておりません。\n\n　■ 請求金額：' + d.amount + '\n　■ 支払期限：' + d.dueDate + '\n\n今週中にご入金いただきますよう、重ねてお願い申し上げます。\nご入金後はご一報いただけますと幸いです。\n\n' + d.myCompany + '\n' + d.myName;
+        }
+      },
+      caution: {
+        tone: '要注意',
+        toneClass: 'tone-ng',
+        subject: function(d){ return '【2回目催促・至急】' + d.invoiceDate + '分 ' + d.amount + ' 早急なご入金を'; },
+        body: function(d){
+          return d.toCompany + '\n' + d.toName + '\n\nお世話になっております。\n' + d.myCompany + 'の' + d.myName + 'でございます。\n\n先般よりご連絡しておりますが、' + d.invoiceDate + '付\nご請求分（' + d.amount + '）について、\n支払期限を大幅に超過しておりますが、\nご入金の確認がとれておりません。\n\n　■ 請求金額：' + d.amount + '\n　■ 支払期限：' + d.dueDate + '\n\n入金予定日および理由を、\n本メール受信後3営業日以内にご連絡いただきますよう、\nお願い申し上げます。\n\n' + d.myCompany + '\n' + d.myName;
+        }
+      }
+    },
+    final: {
+      good: {
+        tone: '柔らかい',
+        toneClass: 'tone-warn',
+        subject: function(d){ return '【最終ご確認】' + d.amount + ' ご入金について（' + d.invoiceDate + '分）'; },
+        body: function(d){
+          return d.toCompany + '\n' + d.toName + '\n\nいつもお世話になっております。\n' + d.myCompany + 'の' + d.myName + 'でございます。\n\nたびたびのご連絡となり、誠に恐縮でございますが、\n' + d.invoiceDate + '分のご請求（' + d.amount + '）について、\n現在もご入金の確認がとれておりません。\n\n　■ 請求金額：' + d.amount + '\n　■ 支払期限：' + d.dueDate + '\n\n何かご事情がおありでしたら、どうぞご連絡ください。\n今週中にご入金、もしくはご返答をいただけますよう、\n何卒よろしくお願いいたします。\n\n' + d.myCompany + '\n' + d.myName;
+        }
+      },
+      normal: {
+        tone: '通常',
+        toneClass: 'tone-ng',
+        subject: function(d){ return '【最終催促】' + d.invoiceDate + '分 ' + d.amount + ' ご入金のお願い'; },
+        body: function(d){
+          return d.toCompany + '\n' + d.toName + '\n\nお世話になっております。\n' + d.myCompany + 'の' + d.myName + 'です。\n\n複数回ご連絡いたしましたが、' + d.invoiceDate + '分の\nご請求（' + d.amount + '）について、いまだご入金が確認できておりません。\n\n　■ 請求金額：' + d.amount + '\n　■ 支払期限：' + d.dueDate + '\n\n本書到達後5営業日以内にご入金いただけない場合は、\n然るべき対応を取らざるを得なくなります。\n\n入金の見通しが立たない場合は、至急ご連絡ください。\n\n' + d.myCompany + '\n' + d.myName;
+        }
+      },
+      caution: {
+        tone: '要注意',
+        toneClass: 'tone-ng',
+        subject: function(d){ return '【最終通告】' + d.invoiceDate + '分 ' + d.amount + ' 法的措置への移行について'; },
+        body: function(d){
+          return d.toCompany + '\n' + d.toName + '\n\n' + d.myCompany + 'の' + d.myName + 'でございます。\n\n再三にわたりご請求申し上げてまいりましたが、\n' + d.invoiceDate + '付ご請求分（' + d.amount + '）について、\n現在もご入金の確認がとれておりません。\n\n　■ 請求金額：' + d.amount + '\n　■ 支払期限：' + d.dueDate + '\n\n本メールをもちまして最終催告とさせていただきます。\n本書到達後7日以内にご入金いただけない場合は、\n法的措置（支払督促・訴訟等）を含む措置を\n取らざるを得ない状況であることをお知らせいたします。\n\nなお、今後の連絡は書面にて行う予定です。\n\n' + d.myCompany + '\n' + d.myName;
+        }
+      }
+    }
+  };
+
+  function getSituation() {
+    return document.querySelector('input[name="situation"]:checked').value;
+  }
+  function getRelation() {
+    return document.querySelector('input[name="relation"]:checked').value;
+  }
+
+  function generate() {
+    var situation = getSituation();
+    var relation  = getRelation();
+    var myCompany = document.getElementById('my-company').value.trim() || '弊社';
+    var myName    = document.getElementById('my-name').value.trim() || '担当者名';
+    var toCompany = document.getElementById('to-company').value.trim() || '貴社';
+    var toNameRaw = document.getElementById('to-name').value.trim();
+    var toName    = toNameRaw ? toNameRaw : 'ご担当者様';
+    var amount    = document.getElementById('amount').value.trim() || '〇〇円';
+    var invoiceDate = document.getElementById('invoice-date').value.trim() || '〇月〇日';
+    var dueDate   = document.getElementById('due-date').value.trim() || '〇月〇日';
+
+    var d = { myCompany: myCompany, myName: myName, toCompany: toCompany, toName: toName,
+              amount: amount, invoiceDate: invoiceDate, dueDate: dueDate };
+
+    var tmpl = TEMPLATES[situation][relation];
+    var subject = tmpl.subject(d);
+    var body    = tmpl.body(d);
+
+    document.getElementById('subject-box').textContent = subject;
+    document.getElementById('mail-body').value = body;
+
+    var badge = document.getElementById('tone-badge');
+    badge.textContent = tmpl.tone;
+    badge.className = 'tone-badge ' + tmpl.toneClass;
+
+    var sec = document.getElementById('result-section');
+    sec.style.display = 'block';
+
+    // 状態リセット
+    resetCopyBtn('copy-subject-btn');
+    resetCopyBtn('copy-body-btn');
+    resetCopyBtn('copy-all-btn');
+
+    // 保存
+    saveToStorage(situation, relation, myCompany, myName, toCompany, toNameRaw, amount, invoiceDate, dueDate);
+
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copySubject() {
+    var text = document.getElementById('subject-box').textContent;
+    copyText(text, 'copy-subject-btn');
+  }
+  function copyBody() {
+    var text = document.getElementById('mail-body').value;
+    copyText(text, 'copy-body-btn');
+  }
+  function copyAll() {
+    var subject = document.getElementById('subject-box').textContent;
+    var body    = document.getElementById('mail-body').value;
+    var text = '件名: ' + subject + '\n\n' + body;
+    copyText(text, 'copy-all-btn');
+  }
+
+  function copyText(text, btnId) {
+    var btn = document.getElementById(btnId);
+    navigator.clipboard.writeText(text).then(function(){
+      btn.textContent = '✓ コピー済み';
+      btn.classList.add('copied');
+      setTimeout(function(){ resetCopyBtn(btnId); }, 2000);
+    }).catch(function(){
+      // fallback
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = '✓ コピー済み';
+      btn.classList.add('copied');
+      setTimeout(function(){ resetCopyBtn(btnId); }, 2000);
+    });
+  }
+  function resetCopyBtn(btnId) {
+    var btn = document.getElementById(btnId);
+    btn.classList.remove('copied');
+    if (btnId === 'copy-all-btn') btn.textContent = '📋 件名＋本文をまとめてコピー';
+    else btn.textContent = 'コピー';
+  }
+
+  function saveToStorage(sit, rel, myC, myN, toC, toN, amt, inv, due) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        situation: sit, relation: rel,
+        myCompany: myC, myName: myN,
+        toCompany: toC, toName: toN,
+        amount: amt, invoiceDate: inv, dueDate: due
+      }));
+    } catch(e) {}
+  }
+
+  function loadFromStorage() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      var sitRadio = document.querySelector('input[name="situation"][value="' + d.situation + '"]');
+      if (sitRadio) sitRadio.checked = true;
+      var relRadio = document.querySelector('input[name="relation"][value="' + d.relation + '"]');
+      if (relRadio) relRadio.checked = true;
+      if (d.myCompany) document.getElementById('my-company').value = d.myCompany;
+      if (d.myName)    document.getElementById('my-name').value    = d.myName;
+      if (d.toCompany) document.getElementById('to-company').value = d.toCompany;
+      if (d.toName)    document.getElementById('to-name').value    = d.toName;
+      if (d.amount)       document.getElementById('amount').value       = d.amount;
+      if (d.invoiceDate)  document.getElementById('invoice-date').value = d.invoiceDate;
+      if (d.dueDate)      document.getElementById('due-date').value     = d.dueDate;
+    } catch(e) {}
+  }
+
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
