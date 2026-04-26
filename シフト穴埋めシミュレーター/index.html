@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シフト穴埋めシミュレーター</title>
+  <meta name="description" content="急な欠員が出たとき、スタッフ名と出勤可否・担当可能時間帯を登録するだけで、カバーできる候補スタッフを即座に絞り込めるシフト穴埋め支援ツール。店長・マネージャーの緊急対応に。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── チェックボックスグループ ── */
+    .check-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.4rem; }
+    .check-group label {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.88rem; font-weight: 600; color: var(--text);
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 0.45rem 0.75rem;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+    }
+    .check-group input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; }
+    .check-group label:has(input:checked) { border-color: var(--accent); background: var(--accent-light); }
+
+    /* ── ボタン類 ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2); }
+
+    .btn-add {
+      padding: 0.6rem 1.2rem; font-size: 0.9rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      margin-top: 0.75rem; width: 100%;
+    }
+    .btn-secondary {
+      padding: 0.5rem 1rem; font-size: 0.82rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 8px;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── スタッフリスト ── */
+    .staff-list { margin-top: 0.75rem; }
+    .staff-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    .staff-item:last-child { border-bottom: none; }
+    .staff-item-info { flex: 1; }
+    .staff-name { font-size: 0.95rem; font-weight: 700; }
+    .staff-slots { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .staff-item-del {
+      background: none; border: none; color: var(--text-sub);
+      font-size: 1.1rem; cursor: pointer; padding: 0.2rem 0.4rem;
+    }
+    .staff-item-del:hover { color: var(--ng); }
+    .empty-msg { font-size: 0.85rem; color: var(--text-sub); text-align: center; padding: 1rem 0; }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.5rem; }
+    .result-eval { font-size: 1.1rem; font-weight: 800; margin-bottom: 0.75rem; }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── カバー候補リスト ── */
+    .cover-list { margin-top: 0.75rem; }
+    .cover-item {
+      display: flex; align-items: center; gap: 0.75rem;
+      padding: 0.7rem 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    .cover-item:last-child { border-bottom: none; }
+    .cover-rank {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      font-size: 0.78rem; font-weight: 900;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .cover-name { font-size: 0.95rem; font-weight: 700; }
+    .cover-slots { font-size: 0.75rem; color: var(--text-sub); }
+    .cover-tag {
+      margin-left: auto; font-size: 0.7rem; font-weight: 700;
+      padding: 0.2rem 0.5rem; border-radius: 6px;
+      background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok);
+    }
+    .cover-tag.partial { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-add, .btn-secondary, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🔄 シフト穴埋めシミュレーター</h1>
+    <p class="subtitle">欠員が出たら時間帯を入力するだけ — カバー候補を即リストアップ</p>
+  </header>
+
+  <!-- スタッフ登録カード -->
+  <div class="card">
+    <p class="card-title">STEP 1 ｜ スタッフ登録</p>
+    <div class="field">
+      <label for="staffName">スタッフ名</label>
+      <input type="text" id="staffName" placeholder="例: 田中">
+    </div>
+    <div class="field">
+      <label>出勤可能な時間帯（複数選択可）</label>
+      <div class="check-group" id="slotChecks">
+        <label><input type="checkbox" value="早番"> 早番（6〜14時）</label>
+        <label><input type="checkbox" value="中番"> 中番（10〜19時）</label>
+        <label><input type="checkbox" value="遅番"> 遅番（14〜22時）</label>
+        <label><input type="checkbox" value="フル"> フル（6〜22時）</label>
+      </div>
+      <p class="hint">複数選択した場合、いずれかの時間帯でカバー可能として扱います</p>
+    </div>
+    <button class="btn-add no-print" onclick="addStaff()">＋ スタッフを追加</button>
+
+    <!-- スタッフ一覧 -->
+    <div class="staff-list" id="staffList">
+      <p class="empty-msg" id="emptyMsg">スタッフを追加してください</p>
+    </div>
+    <div style="text-align:right;margin-top:0.5rem;" class="no-print">
+      <button class="btn-secondary" onclick="clearAllStaff()">全員クリア</button>
+    </div>
+  </div>
+
+  <!-- 欠員枠入力カード -->
+  <div class="card">
+    <p class="card-title">STEP 2 ｜ 欠員枠を入力</p>
+    <div class="field">
+      <label for="vacDate">欠員が出た日</label>
+      <input type="date" id="vacDate">
+    </div>
+    <div class="field">
+      <label for="vacSlot">必要な時間帯</label>
+      <select id="vacSlot">
+        <option value="">選択してください</option>
+        <option value="早番">早番（6〜14時）</option>
+        <option value="中番">中番（10〜19時）</option>
+        <option value="遅番">遅番（14〜22時）</option>
+        <option value="フル">フル（6〜22時）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="vacCount">必要人数</label>
+      <input type="number" id="vacCount" min="1" max="10" value="1" placeholder="1">
+      <p class="hint">何人分カバーが必要か</p>
+    </div>
+  </div>
+
+  <!-- 検索ボタン -->
+  <button class="btn-calc" onclick="findCover()">カバー候補を探す</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <p class="result-label">検索結果</p>
+    <p class="result-eval" id="resultEval"></p>
+    <div class="cover-list" id="coverList"></div>
+  </div>
+
+  <!-- サマリーカード -->
+  <div class="card" id="summaryCard" style="display:none">
+    <p class="card-title">サマリー</p>
+    <table class="detail-table"><tbody id="summaryBody"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールはシフト管理の参考補助ツールです。実際のシフト調整は本人への確認・労働基準法上の規定も合わせてご確認ください（参考：厚生労働省）。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'shift_filler_staffs';
+
+  // 時間帯の包含関係（フルはすべての時間帯をカバーできる）
+  var SLOT_COVERS = {
+    '早番': ['早番', 'フル'],
+    '中番': ['中番', 'フル'],
+    '遅番': ['遅番', 'フル'],
+    'フル': ['フル', '早番', '中番', '遅番']
+  };
+
+  var staffs = [];
+
+  function loadStaffs() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      staffs = raw ? JSON.parse(raw) : [];
+    } catch(e) { staffs = []; }
+    renderStaffList();
+  }
+
+  function saveStaffs() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(staffs));
+  }
+
+  function addStaff() {
+    var name = document.getElementById('staffName').value.trim();
+    if (!name) { alert('スタッフ名を入力してください'); return; }
+    var checks = document.querySelectorAll('#slotChecks input[type="checkbox"]:checked');
+    var slots = Array.from(checks).map(function(c){ return c.value; });
+    if (slots.length === 0) { alert('時間帯を1つ以上選択してください'); return; }
+
+    staffs.push({ id: Date.now(), name: name, slots: slots });
+    saveStaffs();
+    renderStaffList();
+
+    // リセット
+    document.getElementById('staffName').value = '';
+    document.querySelectorAll('#slotChecks input[type="checkbox"]').forEach(function(c){ c.checked = false; });
+  }
+
+  function deleteStaff(id) {
+    staffs = staffs.filter(function(s){ return s.id !== id; });
+    saveStaffs();
+    renderStaffList();
+  }
+
+  function clearAllStaff() {
+    if (!confirm('全スタッフを削除しますか？')) return;
+    staffs = [];
+    saveStaffs();
+    renderStaffList();
+  }
+
+  function renderStaffList() {
+    var el = document.getElementById('staffList');
+    var empty = document.getElementById('emptyMsg');
+    if (staffs.length === 0) {
+      el.innerHTML = '<p class="empty-msg" id="emptyMsg">スタッフを追加してください</p>';
+      return;
+    }
+    el.innerHTML = staffs.map(function(s){
+      return '<div class="staff-item">'
+        + '<div class="staff-item-info">'
+        + '<div class="staff-name">' + esc(s.name) + '</div>'
+        + '<div class="staff-slots">' + s.slots.join(' / ') + '</div>'
+        + '</div>'
+        + '<button class="staff-item-del no-print" onclick="deleteStaff(' + s.id + ')">✕</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function findCover() {
+    var dateVal  = document.getElementById('vacDate').value;
+    var slotVal  = document.getElementById('vacSlot').value;
+    var countVal = parseInt(document.getElementById('vacCount').value, 10) || 1;
+
+    if (!slotVal) { alert('必要な時間帯を選択してください'); return; }
+    if (staffs.length === 0) { alert('スタッフを登録してください'); return; }
+
+    // マッチングロジック：必要な時間帯をカバーできるスタッフを抽出
+    var needSlot = slotVal;
+    var candidates = staffs.filter(function(s){
+      // フルを持っていればすべてカバー可能
+      if (s.slots.indexOf('フル') !== -1) return true;
+      // 必要時間帯と完全一致
+      if (s.slots.indexOf(needSlot) !== -1) return true;
+      return false;
+    });
+
+    // 部分カバー候補（フルはないが近い時間帯を持つ）
+    var partial = staffs.filter(function(s){
+      if (candidates.indexOf(s) !== -1) return false;
+      // フルが必要なときに早番・中番・遅番のいずれかを持つ場合
+      return s.slots.length > 0;
+    });
+
+    var rc = document.getElementById('resultCard');
+    var el = document.getElementById('coverList');
+
+    var level, evalMsg;
+    if (candidates.length >= countVal) {
+      level = 'ok';
+      evalMsg = '✅ ' + countVal + '人分のカバーが可能です（候補 ' + candidates.length + '人）';
+    } else if (candidates.length > 0) {
+      level = 'warn';
+      evalMsg = '⚠️ 候補は ' + candidates.length + '人のみ（' + countVal + '人必要）';
+    } else {
+      level = 'ng';
+      evalMsg = '❌ カバー候補が見つかりません';
+    }
+
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('resultEval').textContent = evalMsg;
+
+    var html = '';
+    candidates.forEach(function(s, i){
+      html += '<div class="cover-item">'
+        + '<div class="cover-rank">' + (i+1) + '</div>'
+        + '<div><div class="cover-name">' + esc(s.name) + '</div>'
+        + '<div class="cover-slots">' + s.slots.join(' / ') + '</div></div>'
+        + '<span class="cover-tag">完全カバー可</span>'
+        + '</div>';
+    });
+    if (candidates.length === 0 && partial.length > 0) {
+      html += '<p style="font-size:0.82rem;color:var(--text-sub);margin-bottom:0.5rem;">※ 完全一致なし。近い時間帯を持つスタッフ：</p>';
+      partial.slice(0, 5).forEach(function(s, i){
+        html += '<div class="cover-item">'
+          + '<div class="cover-rank" style="background:var(--warn);">' + (i+1) + '</div>'
+          + '<div><div class="cover-name">' + esc(s.name) + '</div>'
+          + '<div class="cover-slots">' + s.slots.join(' / ') + '</div></div>'
+          + '<span class="cover-tag partial">要相談</span>'
+          + '</div>';
+      });
+    }
+    if (html === '') html = '<p class="empty-msg">候補なし</p>';
+    el.innerHTML = html;
+
+    // サマリー
+    var dateLabel = dateVal ? dateVal.replace(/-/g, '/') : '（日付未入力）';
+    document.getElementById('summaryBody').innerHTML = [
+      ['欠員日', dateLabel],
+      ['必要時間帯', needSlot],
+      ['必要人数', countVal + '人'],
+      ['登録スタッフ数', staffs.length + '人'],
+      ['カバー候補数', candidates.length + '人'],
+    ].map(function(r){
+      return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('summaryCard').style.display = 'block';
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // 今日の日付をデフォルト設定
+  (function(){
+    var today = new Date();
+    var yyyy = today.getFullYear();
+    var mm = String(today.getMonth()+1).padStart(2,'0');
+    var dd = String(today.getDate()).padStart(2,'0');
+    document.getElementById('vacDate').value = yyyy + '-' + mm + '-' + dd;
+    loadStaffs();
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
