@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>関税・仕入れ値上げ採算悪化診断アプリ</title>
+  <meta name="description" content="仕入れ値上げ率・月間仕入れ額・販売単価・月間販売数を入力するだけで、月次採算がいくら悪化するかを即診断。利益率変化・損益分岐点への影響も一目で確認できる経営判断サポートツールです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .red td:last-child { color: var(--ng); font-size: 1.05rem; }
+
+    /* ── セクション見出し ── */
+    .section-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+      color: var(--text-sub); text-transform: uppercase;
+      padding: 0.6rem 0.3rem 0.3rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0.3rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>関税・仕入れ値上げ採算悪化診断</h1>
+    <p class="subtitle">仕入れコスト上昇で月の採算がいくら悪化するかを即チェック</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">現状の数字を入力</p>
+    <div class="field">
+      <label for="purchase">月間仕入れ額（円）</label>
+      <input type="number" id="purchase" placeholder="例: 500000" min="0">
+      <p class="hint">関税・原材料費など変動費の合計</p>
+    </div>
+    <div class="field">
+      <label for="rate">仕入れ値上げ率（%）</label>
+      <input type="number" id="rate" placeholder="例: 15" min="0" max="200" step="0.1">
+      <p class="hint">関税込みの上昇率（例：15%値上がり → 15）</p>
+    </div>
+    <div class="field">
+      <label for="sales">月間売上（円）</label>
+      <input type="number" id="sales" placeholder="例: 1000000" min="0">
+      <p class="hint">販売単価 × 月間販売数の合計</p>
+    </div>
+    <div class="field">
+      <label for="fixed">月間固定費（円）</label>
+      <input type="number" id="fixed" placeholder="例: 200000" min="0">
+      <p class="hint">家賃・人件費・光熱費など（変動しない費用）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">採算悪化額を診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月次採算悪化額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">採算影響の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、経済産業省・中小企業庁・財務省の公開資料を参考に、月次採算への影響を目安として試算しています。実際の数値は各種条件により異なります。最新の関税率・制度は公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var KEYS = ['purchase','rate','sales','fixed'];
+
+  // localStorage 読み込み
+  (function(){
+    KEYS.forEach(function(k){
+      var v = localStorage.getItem('tariff_diag_' + k);
+      if (v !== null) document.getElementById(k).value = v;
+    });
+  })();
+
+  function calc() {
+    var purchase = parseFloat(document.getElementById('purchase').value);
+    var rate     = parseFloat(document.getElementById('rate').value);
+    var sales    = parseFloat(document.getElementById('sales').value);
+    var fixed    = parseFloat(document.getElementById('fixed').value);
+
+    if (isNaN(purchase) || isNaN(rate) || isNaN(sales) || isNaN(fixed)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (purchase < 0 || rate < 0 || sales < 0 || fixed < 0) {
+      showErr('0以上の数値を入力してください');
+      return;
+    }
+
+    // localStorage 保存
+    KEYS.forEach(function(k){
+      localStorage.setItem('tariff_diag_' + k, document.getElementById(k).value);
+    });
+
+    // 計算
+    var purchaseAfter  = purchase * (1 + rate / 100);
+    var costIncrease   = purchaseAfter - purchase;          // 仕入れコスト増加額
+
+    var profitBefore   = sales - purchase - fixed;          // 現在の月次利益
+    var profitAfter    = sales - purchaseAfter - fixed;     // 値上げ後の月次利益
+
+    var profitRateBefore = sales > 0 ? (profitBefore / sales * 100) : 0;
+    var profitRateAfter  = sales > 0 ? (profitAfter  / sales * 100) : 0;
+    var rateChange       = profitRateAfter - profitRateBefore;
+
+    // 損益分岐点（販売額ベース）
+    var grossMargin = sales > 0 ? (sales - purchase) / sales : 0;        // 現在の粗利率
+    var grossMarginAfter = sales > 0 ? (sales - purchaseAfter) / sales : 0;  // 値上げ後の粗利率
+    var bepBefore = grossMargin > 0 ? fixed / grossMargin : 0;
+    var bepAfter  = grossMarginAfter > 0 ? fixed / grossMarginAfter : 0;
+    var bepChange = bepAfter - bepBefore;
+
+    // レベル判定
+    var level;
+    if (profitAfter < 0) {
+      level = 'ng';
+    } else if (costIncrease / Math.max(Math.abs(profitBefore), 1) >= 0.3 || profitRateAfter < 5) {
+      level = 'warn';
+    } else {
+      level = 'ok';
+    }
+
+    var evalMsg = level === 'ok'
+      ? '利益は確保できています。念のため価格転嫁も検討を。'
+      : level === 'warn'
+      ? '利益が大きく圧迫されています。価格転嫁か経費削減が必要です。'
+      : '赤字に転落します。早急に価格転嫁または仕入れ先の見直しを。';
+
+    var noteMsg = '利益率：' + profitRateBefore.toFixed(1) + '% → ' + profitRateAfter.toFixed(1) + '%（' + (rateChange >= 0 ? '+' : '') + rateChange.toFixed(1) + '%）';
+
+    showResult(level, '▼ ' + fmt(costIncrease) + ' 円/月', evalMsg, noteMsg);
+
+    var rows = [
+      ['【現状】', '', false, true],
+      ['月間売上', fmt(sales) + ' 円', false],
+      ['仕入れコスト（現在）', fmt(purchase) + ' 円', false],
+      ['固定費', fmt(fixed) + ' 円', false],
+      ['月次利益（現在）', fmt(profitBefore) + ' 円', true],
+      ['利益率（現在）', profitRateBefore.toFixed(1) + ' %', false],
+      ['損益分岐点売上（現在）', fmt(bepBefore) + ' 円', false],
+      ['【値上げ後】', '', false, true],
+      ['仕入れコスト（値上げ後）', fmt(purchaseAfter) + ' 円', false],
+      ['コスト増加額', '+' + fmt(costIncrease) + ' 円', false, false, true],
+      ['月次利益（値上げ後）', fmt(profitAfter) + ' 円', true],
+      ['利益率（値上げ後）', profitRateAfter.toFixed(1) + ' %', false],
+      ['損益分岐点売上（値上げ後）', fmt(bepAfter) + ' 円', false],
+      ['損益分岐点の変化', '+' + fmt(bepChange) + ' 円必要', false, false, true],
+    ];
+    showDetail(rows);
+  }
+
+  function showResult(level, val, evalTxt, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalTxt;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      if (r[3] && r[0].indexOf('【') === 0) {
+        return '<tr><td colspan="2" class="section-label">' + r[0] + '</td></tr>';
+      }
+      var cls = r[2] ? ' class="hl"' : r[4] ? ' class="red"' : '';
+      return '<tr' + cls + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
