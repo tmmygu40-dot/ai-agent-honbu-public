@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>車コスト比較シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field .unit { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.2rem; text-align: right; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-head td {
+      font-size: 0.75rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.05em; padding-top: 0.9rem; padding-bottom: 0.3rem;
+      border-bottom: none;
+    }
+
+    .breakeven-box {
+      display: none; background: var(--accent-light);
+      border: 1.5px solid var(--accent); border-radius: var(--radius);
+      padding: 1rem 1.2rem; margin: 0 auto 1rem; max-width: 600px;
+      text-align: center;
+    }
+    .breakeven-box .be-label { font-size: 0.75rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; margin-bottom: 0.3rem; }
+    .breakeven-box .be-value { font-size: 1.6rem; font-weight: 900; color: var(--accent); }
+    .breakeven-box .be-note { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.3rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+    @media (max-width: 400px) { .two-col { grid-template-columns: 1fr; } }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>車コスト比較シミュレーター</h1>
+    <p class="subtitle">マイカー vs カーシェア — 年間コストを即比較して最適解を判定</p>
+  </header>
+
+  <!-- マイカー入力 -->
+  <div class="card">
+    <p class="card-title">🚗 マイカーの月間費用</p>
+    <div class="two-col">
+      <div class="field">
+        <label for="car_vehicle">車両代（月換算）</label>
+        <input type="number" id="car_vehicle" placeholder="例: 20000" min="0">
+        <p class="hint">購入価格÷利用年数÷12</p>
+      </div>
+      <div class="field">
+        <label for="car_insurance">自動車保険料</label>
+        <input type="number" id="car_insurance" placeholder="例: 7000" min="0">
+        <p class="hint">月換算（年額÷12）</p>
+      </div>
+      <div class="field">
+        <label for="car_tax">車検・税金（月換算）</label>
+        <input type="number" id="car_tax" placeholder="例: 8000" min="0">
+        <p class="hint">年間総額÷12</p>
+      </div>
+      <div class="field">
+        <label for="car_parking">駐車場代</label>
+        <input type="number" id="car_parking" placeholder="例: 15000" min="0">
+        <p class="hint">月額</p>
+      </div>
+      <div class="field">
+        <label for="car_gas">ガソリン代</label>
+        <input type="number" id="car_gas" placeholder="例: 8000" min="0">
+        <p class="hint">月額（実費）</p>
+      </div>
+      <div class="field">
+        <label for="car_other">その他維持費</label>
+        <input type="number" id="car_other" placeholder="例: 2000" min="0">
+        <p class="hint">洗車・消耗品など</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- カーシェア入力 -->
+  <div class="card">
+    <p class="card-title">🔑 カーシェアの月間費用</p>
+    <div class="two-col">
+      <div class="field">
+        <label for="cs_hours">月間利用時間</label>
+        <input type="number" id="cs_hours" placeholder="例: 10" min="0" step="0.5">
+        <p class="hint">時間/月</p>
+      </div>
+      <div class="field">
+        <label for="cs_rate">時間単価</label>
+        <input type="number" id="cs_rate" placeholder="例: 1000" min="0">
+        <p class="hint">円/時間</p>
+      </div>
+      <div class="field">
+        <label for="cs_km">月間走行距離</label>
+        <input type="number" id="cs_km" placeholder="例: 200" min="0">
+        <p class="hint">km/月</p>
+      </div>
+      <div class="field">
+        <label for="cs_km_rate">距離単価</label>
+        <input type="number" id="cs_km_rate" placeholder="例: 16" min="0" step="0.5">
+        <p class="hint">円/km（多くは16〜20円）</p>
+      </div>
+      <div class="field">
+        <label for="cs_monthly">月額基本料金</label>
+        <input type="number" id="cs_monthly" placeholder="例: 980" min="0">
+        <p class="hint">サービスの月会費</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">どちらがお得か判定する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label" id="rl">判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 損益分岐点 -->
+  <div class="breakeven-box" id="bebox">
+    <p class="be-label">損益分岐点</p>
+    <p class="be-value" id="be_val">—</p>
+    <p class="be-note" id="be_note"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳比較</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEYS = ['car_vehicle','car_insurance','car_tax','car_parking','car_gas','car_other',
+              'cs_hours','cs_rate','cs_km','cs_km_rate','cs_monthly'];
+
+  // localStorage 読み込み
+  window.addEventListener('DOMContentLoaded', function() {
+    var saved = JSON.parse(localStorage.getItem('car_cost_sim') || '{}');
+    KEYS.forEach(function(k) {
+      if (saved[k] !== undefined) document.getElementById(k).value = saved[k];
+    });
+  });
+
+  // 入力値変更時に保存
+  KEYS.forEach(function(k) {
+    document.getElementById(k).addEventListener('input', saveToStorage);
+  });
+
+  function saveToStorage() {
+    var data = {};
+    KEYS.forEach(function(k) { data[k] = document.getElementById(k).value; });
+    localStorage.setItem('car_cost_sim', JSON.stringify(data));
+  }
+
+  function g(id) { return parseFloat(document.getElementById(id).value) || 0; }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function calc() {
+    // マイカー月額
+    var car_vehicle  = g('car_vehicle');
+    var car_ins      = g('car_insurance');
+    var car_tax      = g('car_tax');
+    var car_parking  = g('car_parking');
+    var car_gas      = g('car_gas');
+    var car_other    = g('car_other');
+    var carMonthly   = car_vehicle + car_ins + car_tax + car_parking + car_gas + car_other;
+
+    // カーシェア月額
+    var cs_hours     = g('cs_hours');
+    var cs_rate      = g('cs_rate');
+    var cs_km        = g('cs_km');
+    var cs_km_rate   = g('cs_km_rate');
+    var cs_monthly   = g('cs_monthly');
+    var csTime       = cs_hours * cs_rate;
+    var csDist       = cs_km * cs_km_rate;
+    var csMonthly    = csTime + csDist + cs_monthly;
+
+    if (carMonthly === 0 && csMonthly === 0) {
+      showErr('費用を入力してください'); return;
+    }
+
+    var carYearly = carMonthly * 12;
+    var csYearly  = csMonthly * 12;
+    var diff      = carYearly - csYearly; // + = マイカーが高い
+
+    var level, label, evalText, note;
+    if (diff > 0) {
+      level    = 'ok';
+      label    = 'カーシェアがお得';
+      evalText = '年間 ' + fmt(diff) + ' 円 節約できます';
+      note     = '月々 ' + fmt(Math.round(diff / 12)) + ' 円の差です。カーシェアの方が経済的です。';
+    } else if (diff < 0) {
+      level    = 'ng';
+      label    = 'マイカーがお得';
+      evalText = '年間 ' + fmt(-diff) + ' 円 安くなります';
+      note     = '月々 ' + fmt(Math.round(-diff / 12)) + ' 円の差です。マイカーを持つ方が経済的です。';
+    } else {
+      level    = 'warn';
+      label    = 'ほぼ同コスト';
+      evalText = '年間コストはほぼ同じです';
+      note     = '生活スタイルや利便性で選ぶのがおすすめです。';
+    }
+
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rl').textContent = label;
+    document.getElementById('rv').textContent = diff !== 0 ? '年間 ' + fmt(Math.abs(diff)) + ' 円' : '±0円';
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = note;
+
+    // 損益分岐点（何時間/月使えばマイカーと同コストか）
+    var bebox = document.getElementById('bebox');
+    if (cs_rate > 0) {
+      // csMonthly(x) = csFixed + x * cs_rate + cs_km * cs_km_rate = carMonthly
+      // cs_monthly + x * cs_rate + csDist = carMonthly
+      var csFixed = cs_monthly + csDist;
+      var beHours = (carMonthly - csFixed) / cs_rate;
+      bebox.style.display = '';
+      if (beHours <= 0) {
+        document.getElementById('be_val').textContent = '既にマイカーの方が安い';
+        document.getElementById('be_note').textContent = 'カーシェア固定費だけでマイカー費用を超えています。';
+      } else if (beHours > 500) {
+        document.getElementById('be_val').textContent = '比較不能';
+        document.getElementById('be_note').textContent = 'カーシェアではマイカーコストに追いつけない条件です。';
+      } else {
+        document.getElementById('be_val').textContent = '月 ' + beHours.toFixed(1) + ' 時間';
+        document.getElementById('be_note').textContent =
+          'これ以上カーシェアを使うと、マイカーを持つ方が安くなります（走行距離は現在の設定値で固定）。';
+      }
+    } else {
+      bebox.style.display = 'none';
+    }
+
+    // 内訳
+    var rows = [
+      {head: '🚗 マイカー月間費用内訳'},
+      ['車両代（月換算）',   fmt(car_vehicle) + ' 円'],
+      ['自動車保険料',       fmt(car_ins)     + ' 円'],
+      ['車検・税金（月換算）', fmt(car_tax)   + ' 円'],
+      ['駐車場代',           fmt(car_parking) + ' 円'],
+      ['ガソリン代',         fmt(car_gas)     + ' 円'],
+      ['その他維持費',       fmt(car_other)   + ' 円'],
+      ['月間合計',           fmt(carMonthly)  + ' 円', true],
+      ['年間合計',           fmt(carYearly)   + ' 円', true],
+      {head: '🔑 カーシェア月間費用内訳'},
+      ['時間料金 (' + cs_hours + 'h × ' + fmt(cs_rate) + '円)', fmt(csTime)    + ' 円'],
+      ['距離料金 (' + cs_km + 'km × ' + cs_km_rate + '円)',       fmt(csDist)    + ' 円'],
+      ['月額基本料金',       fmt(cs_monthly)  + ' 円'],
+      ['月間合計',           fmt(csMonthly)   + ' 円', true],
+      ['年間合計',           fmt(csYearly)    + ' 円', true],
+    ];
+
+    var html = rows.map(function(r) {
+      if (r.head) {
+        return '<tr class="section-head"><td colspan="2">' + r.head + '</td></tr>';
+      }
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rl').textContent = 'エラー';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('bebox').style.display = 'none';
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

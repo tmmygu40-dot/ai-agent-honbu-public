@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>車警告灯逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --info: #1d4ed8;   --info-bg: #eff6ff;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 検索エリア ── */
+    .search-wrap {
+      max-width: 600px; margin: 0 auto 1rem; padding: 0 1rem;
+    }
+    .search-box {
+      width: 100%; padding: 0.75rem 1rem 0.75rem 2.5rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 10px; background: var(--card); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='%2378716c' viewBox='0 0 24 24'%3E%3Cpath d='M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z' stroke='%2378716c' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 0.7rem center;
+    }
+    .search-box:focus { border-color: var(--accent); }
+
+    /* ── カテゴリタブ ── */
+    .category-tabs {
+      max-width: 600px; margin: 0 auto 1rem; padding: 0 1rem;
+      display: flex; gap: 0.4rem; flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 0.4rem 0.8rem; font-size: 0.8rem; font-weight: 600;
+      border: 1.5px solid var(--border); border-radius: 20px;
+      background: var(--card); color: var(--text-sub);
+      cursor: pointer; transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .tab-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+
+    /* ── 警告灯グリッド ── */
+    .lights-grid {
+      max-width: 600px; margin: 0 auto; padding: 0 1rem;
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;
+    }
+    .light-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 0.9rem;
+      box-shadow: var(--shadow); cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      display: flex; flex-direction: column; align-items: flex-start;
+      gap: 0.4rem; position: relative;
+    }
+    .light-card:active { transform: translateY(2px); box-shadow: 0 1px 6px rgba(0,0,0,0.07); }
+    .light-card.fav::after {
+      content: "★"; position: absolute; top: 0.5rem; right: 0.6rem;
+      font-size: 0.9rem; color: var(--accent);
+    }
+
+    .light-icon {
+      width: 44px; height: 44px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; flex-shrink: 0;
+    }
+    .level-red    { background: var(--ng-bg);   border: 1.5px solid var(--ng);   }
+    .level-orange { background: var(--warn-bg);  border: 1.5px solid var(--warn);  }
+    .level-green  { background: var(--ok-bg);   border: 1.5px solid var(--ok);   }
+    .level-blue   { background: var(--info-bg);  border: 1.5px solid var(--info);  }
+
+    .light-name { font-size: 0.88rem; font-weight: 700; line-height: 1.3; }
+    .light-level-badge {
+      font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem;
+      border-radius: 20px; letter-spacing: 0.04em;
+    }
+    .badge-red    { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng);   }
+    .badge-orange { background: var(--warn-bg);  color: var(--warn);  border: 1px solid var(--warn);  }
+    .badge-green  { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok);   }
+    .badge-blue   { background: var(--info-bg);  color: var(--info);  border: 1px solid var(--info);  }
+
+    .no-result {
+      max-width: 600px; margin: 2rem auto; padding: 0 1rem;
+      text-align: center; color: var(--text-sub); font-size: 0.92rem;
+    }
+
+    /* ── モーダル ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5); z-index: 100;
+      align-items: flex-end; justify-content: center;
+      padding: 0;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--card); border-radius: 20px 20px 0 0;
+      padding: 1.5rem 1.2rem 2rem; width: 100%; max-width: 600px;
+      max-height: 85vh; overflow-y: auto;
+      animation: slideUp 0.2s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .modal-header {
+      display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.2rem;
+    }
+    .modal-close {
+      margin-left: auto; background: none; border: none;
+      font-size: 1.4rem; cursor: pointer; color: var(--text-sub);
+      padding: 0.2rem; line-height: 1;
+    }
+    .modal-title { font-size: 1.1rem; font-weight: 900; }
+
+    .modal-section { margin-bottom: 1rem; }
+    .modal-section-label {
+      font-size: 0.73rem; font-weight: 700; letter-spacing: 0.06em;
+      color: var(--accent); text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .modal-section-body {
+      font-size: 0.92rem; line-height: 1.7; color: var(--text);
+    }
+    .modal-action {
+      border-radius: 10px; padding: 0.8rem 1rem;
+      font-size: 0.88rem; line-height: 1.6;
+    }
+    .action-red    { background: var(--ng-bg);   border-left: 4px solid var(--ng);   color: var(--ng); font-weight: 600; }
+    .action-orange { background: var(--warn-bg);  border-left: 4px solid var(--warn);  color: var(--warn); font-weight: 600; }
+    .action-green  { background: var(--ok-bg);   border-left: 4px solid var(--ok);   color: var(--ok); font-weight: 600; }
+    .action-blue   { background: var(--info-bg);  border-left: 4px solid var(--info);  color: var(--info); font-weight: 600; }
+
+    .fav-btn {
+      display: block; width: 100%; margin-top: 1rem; padding: 0.75rem;
+      font-size: 0.92rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 10px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .fav-btn:hover { background: var(--accent); color: #fff; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 420px) {
+      .lights-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🚗 車警告灯逆引きアプリ</h1>
+    <p class="subtitle">警告灯の意味・緊急度・対処法をすぐ確認</p>
+  </header>
+
+  <div class="search-wrap">
+    <input class="search-box" type="text" id="searchBox" placeholder="警告灯名・キーワードで検索…" oninput="renderLights()">
+  </div>
+
+  <div class="category-tabs" id="categoryTabs"></div>
+
+  <div class="lights-grid" id="lightsGrid"></div>
+  <p class="no-result" id="noResult" style="display:none">該当する警告灯が見つかりませんでした</p>
+
+  <!-- モーダル -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <div class="light-icon" id="mIcon"></div>
+        <span class="modal-title" id="mTitle"></span>
+        <button class="modal-close" onclick="closeModalBtn()">✕</button>
+      </div>
+      <div class="modal-section">
+        <p class="modal-section-label">緊急度</p>
+        <div class="modal-action" id="mLevel"></div>
+      </div>
+      <div class="modal-section">
+        <p class="modal-section-label">意味・原因</p>
+        <p class="modal-section-body" id="mMeaning"></p>
+      </div>
+      <div class="modal-section">
+        <p class="modal-section-label">対処法</p>
+        <p class="modal-section-body" id="mAction"></p>
+      </div>
+      <button class="fav-btn" id="favBtn" onclick="toggleFav()">★ お気に入りに追加</button>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script src="../fav-widget.js"></script>
+
+  <script>
+  // ── データ定義 ──
+  var LIGHTS = [
+    // ── エンジン系 ──
+    {
+      id: 'engine-check',
+      category: 'エンジン系',
+      icon: '⚙️',
+      name: 'エンジン警告灯（チェックエンジン）',
+      level: 'orange',
+      levelText: '注意 — 早めに点検',
+      meaning: 'エンジン制御系や排気ガス系センサーの異常を検知しています。O2センサー・点火プラグ・燃料系などが原因のことが多いです。',
+      action: '走行は可能ですが、早めにディーラーや整備工場に持ち込んで診断してもらいましょう。点灯したまま長期間放置すると他の部品へのダメージが広がる場合があります。'
+    },
+    {
+      id: 'engine-temp',
+      category: 'エンジン系',
+      icon: '🌡️',
+      name: 'エンジン水温警告灯（オーバーヒート）',
+      level: 'red',
+      levelText: '危険 — すぐ安全な場所に停車',
+      meaning: 'エンジン冷却水の温度が異常に高くなっています（オーバーヒート）。冷却水不足・冷却ファン故障・ラジエーター詰まりなどが原因です。',
+      action: '直ちに安全な場所に停車しエンジンを止めてください。ボンネットは開けず、冷えるまで待ちます。冷却水が補充できる場合も熱いうちは触らないこと。ロードサービスへ連絡を。'
+    },
+    {
+      id: 'throttle',
+      category: 'エンジン系',
+      icon: '🔧',
+      name: 'スロットル警告灯（電子スロットル異常）',
+      level: 'orange',
+      levelText: '注意 — 早めに点検',
+      meaning: '電子制御スロットルシステムに異常があります。アクセルペダルセンサーやスロットルボディの不具合が考えられます。',
+      action: 'エンジンを再起動することで消えることもありますが、再点灯する場合はディーラーへ。出力低下や急加速困難になる場合があります。'
+    },
+    {
+      id: 'engine-oil-pressure',
+      category: '油圧・冷却系',
+      icon: '🛢️',
+      name: 'オイル警告灯（油圧低下）',
+      level: 'red',
+      levelText: '危険 — すぐ安全な場所に停車',
+      meaning: 'エンジンオイルの油圧が低下しています。オイル不足・オイルポンプ故障・オイル漏れなどが原因です。',
+      action: '直ちに安全な場所に停車しエンジンを止めてください。そのまま走行するとエンジンが焼き付いて重大な故障になります。オイル量を確認し、不足なら補充。異常なら整備工場へ連絡。'
+    },
+    {
+      id: 'oil-level',
+      category: '油圧・冷却系',
+      icon: '💧',
+      name: 'オイル残量警告灯',
+      level: 'orange',
+      levelText: '注意 — 早めに補充',
+      meaning: 'エンジンオイルの残量が少なくなっています。',
+      action: '早めにエンジンオイルを補充してください。規定量を超えた補充も禁物です。次の点検時にオイル交換も検討しましょう。'
+    },
+    // ── 電気系 ──
+    {
+      id: 'battery',
+      category: '電気系',
+      icon: '🔋',
+      name: 'バッテリー警告灯（充電系異常）',
+      level: 'red',
+      levelText: '危険 — 早めに対処',
+      meaning: 'バッテリーへの充電が正常に行われていません。オルタネーター（発電機）の故障・ベルト切れ・バッテリー寿命などが原因です。',
+      action: '点灯後は電気系統が徐々に機能しなくなります。すぐに走行を終え、ディーラーや整備工場へ。夜間・雨天は特に危険です。'
+    },
+    {
+      id: 'lamp-fail',
+      category: '電気系',
+      icon: '💡',
+      name: 'ランプ切れ警告灯',
+      level: 'orange',
+      levelText: '注意 — 早めに交換',
+      meaning: 'ヘッドライト・ブレーキランプ・テールランプなどのバルブ切れを検知しています。',
+      action: '車検に影響します。早めにバルブを交換するか、整備工場に依頼してください。特にブレーキランプ切れは後続車への危険になります。'
+    },
+    // ── ブレーキ系 ──
+    {
+      id: 'brake',
+      category: 'ブレーキ系',
+      icon: '🛑',
+      name: 'ブレーキ警告灯',
+      level: 'red',
+      levelText: '危険 — すぐ確認',
+      meaning: 'ブレーキ液不足・パーキングブレーキの解除忘れ・ブレーキ系統の異常を示します。',
+      action: 'まずパーキングブレーキが解除されているか確認。解除後も消えない場合はブレーキ液の残量を確認してください。不足なら走行禁止。ブレーキの効きが悪いと感じたら直ちに停車しロードサービスへ。'
+    },
+    {
+      id: 'abs',
+      category: 'ブレーキ系',
+      icon: '🔴',
+      name: 'ABS警告灯',
+      level: 'orange',
+      levelText: '注意 — 早めに点検',
+      meaning: 'アンチロックブレーキシステム（ABS）に異常があります。ABSが作動しないだけで通常ブレーキは効きます。',
+      action: '通常走行は可能ですが、急ブレーキ時にタイヤがロックする恐れがあります。早めに整備工場へ持ち込んでください。'
+    },
+    {
+      id: 'esc',
+      category: 'ブレーキ系',
+      icon: '🔶',
+      name: 'ESC/VSC警告灯（横滑り防止装置異常）',
+      level: 'orange',
+      levelText: '注意 — 早めに点検',
+      meaning: '横滑り防止装置（ESC/VSC/スタビリティコントロール）に異常があります。',
+      action: '走行は可能ですが、滑りやすい路面での安全性が低下します。早めに整備工場で点検してもらいましょう。'
+    },
+    // ── タイヤ系 ──
+    {
+      id: 'tpms',
+      category: 'タイヤ系',
+      icon: '🔵',
+      name: 'タイヤ空気圧警告灯（TPMS）',
+      level: 'orange',
+      levelText: '注意 — 早めに空気圧確認',
+      meaning: '1本以上のタイヤの空気圧が低下しています。パンクや自然漏れが原因の場合があります。',
+      action: '安全な場所に停車しタイヤの状態を確認してください。パンクの場合はスペアタイヤに交換するかロードサービスへ。問題なければガソリンスタンドで空気圧を適正値に調整してください。'
+    },
+    // ── 安全装置 ──
+    {
+      id: 'airbag',
+      category: '安全装置',
+      icon: '🛡️',
+      name: 'SRSエアバッグ警告灯',
+      level: 'orange',
+      levelText: '注意 — 早めに点検',
+      meaning: 'エアバッグシステムに異常があります。事故時にエアバッグが展開しない恐れがあります。',
+      action: '走行は可能ですが、衝突時の安全が確保できません。早めにディーラーや整備工場で点検してもらいましょう。'
+    },
+    {
+      id: 'seatbelt',
+      category: '安全装置',
+      icon: '🔐',
+      name: 'シートベルト未装着警告灯',
+      level: 'orange',
+      levelText: '注意 — シートベルトを着用',
+      meaning: 'シートベルトが装着されていない座席があります。',
+      action: '全員がシートベルトを正しく着用してください。法律で義務付けられており、事故時の安全のために必須です。'
+    },
+    {
+      id: 'door-open',
+      category: '安全装置',
+      icon: '🚪',
+      name: 'ドア開放警告灯',
+      level: 'orange',
+      levelText: '注意 — ドアを確認',
+      meaning: 'いずれかのドア（フード・トランク含む）が完全に閉まっていません。',
+      action: '停車してすべてのドアが確実に閉まっているか確認してください。走行中に開くと大変危険です。'
+    },
+    // ── その他 ──
+    {
+      id: 'fuel',
+      category: 'その他',
+      icon: '⛽',
+      name: '燃料残量警告灯',
+      level: 'orange',
+      levelText: '注意 — 早めに給油',
+      meaning: '燃料の残量が少なくなっています。点灯後の走行可能距離は車種によって異なりますが、一般的に30〜50km程度です。',
+      action: '近くのガソリンスタンドで給油してください。燃料を空にするとインジェクターや燃料ポンプが傷む原因になります。'
+    },
+    {
+      id: 'epb',
+      category: 'その他',
+      icon: '🅿️',
+      name: '電動パーキングブレーキ警告灯',
+      level: 'orange',
+      levelText: '注意 — 状態を確認',
+      meaning: '電動パーキングブレーキ（EPB）の作動中または異常を示します。',
+      action: 'パーキングブレーキ作動中の場合は解除してください。解除後も消えない場合は整備工場へ。'
+    },
+    {
+      id: 'power-steering',
+      category: 'その他',
+      icon: '🔩',
+      name: 'パワーステアリング警告灯',
+      level: 'orange',
+      levelText: '注意 — 早めに点検',
+      meaning: '電動パワーステアリング（EPS）に異常があります。ハンドルが重くなる場合があります。',
+      action: '走行は可能ですが、ハンドル操作が重くなります。早めに整備工場へ持ち込んでください。'
+    },
+    {
+      id: 'traction',
+      category: 'その他',
+      icon: '⚡',
+      name: 'トラクションコントロール警告灯',
+      level: 'green',
+      levelText: '情報 — 一時的な作動',
+      meaning: '点滅している場合は正常です（TCSが作動中）。点灯したままの場合はシステムの異常です。',
+      action: '点滅ならそのまま走行OK。点灯したままの場合は早めに整備工場へ持ち込んでください。'
+    },
+    {
+      id: 'highbeam',
+      category: 'その他',
+      icon: '🔦',
+      name: 'ハイビームインジケーター',
+      level: 'blue',
+      levelText: '情報 — ハイビーム点灯中',
+      meaning: 'ヘッドライトがハイビーム（上向き）で点灯しています。',
+      action: '対向車や先行車がいる場合はロービームに切り替えてください。ハイビームの使い方を誤ると道路交通法違反になります。'
+    },
+    {
+      id: '4wd',
+      category: 'その他',
+      icon: '🚙',
+      name: '4WD警告灯',
+      level: 'orange',
+      levelText: '注意 — 早めに点検',
+      meaning: '4WDシステムに異常があります。4WDが正常に作動しない恐れがあります。',
+      action: '2WDで走行は可能ですが、早めに整備工場で点検してもらいましょう。悪路走行は避けてください。'
+    },
+    {
+      id: 'hybrid-system',
+      category: 'エンジン系',
+      icon: '🔆',
+      name: 'ハイブリッドシステム警告灯',
+      level: 'red',
+      levelText: '危険 — すぐに点検',
+      meaning: 'ハイブリッドシステム（モーター・高電圧バッテリーなど）に重大な異常があります。',
+      action: '直ちに安全な場所に停車してください。高電圧システムなので自己判断で触らずディーラーへ連絡してください。'
+    },
+    {
+      id: 'ev-battery',
+      category: '電気系',
+      icon: '⚡',
+      name: 'EV/HVバッテリー残量警告灯',
+      level: 'orange',
+      levelText: '注意 — 早めに充電',
+      meaning: '電動車（EV・HV）の駆動用バッテリー残量が少なくなっています。',
+      action: '近くの充電スタンドまたはガソリンスタンド（HV）で充電・給油してください。走行可能距離を確認してから移動しましょう。'
+    },
+  ];
+
+  var CATEGORIES = ['すべて', 'エンジン系', '油圧・冷却系', '電気系', 'ブレーキ系', 'タイヤ系', '安全装置', 'その他'];
+  var currentCategory = 'すべて';
+  var currentLightId = null;
+  var favs = JSON.parse(localStorage.getItem('carlight_favs') || '[]');
+
+  // ── カテゴリタブ描画 ──
+  function renderTabs() {
+    var html = CATEGORIES.map(function(cat) {
+      return '<button class="tab-btn' + (cat === currentCategory ? ' active' : '') + '" onclick="selectCategory(\'' + cat + '\')">' + cat + '</button>';
+    }).join('');
+    document.getElementById('categoryTabs').innerHTML = html;
+  }
+
+  function selectCategory(cat) {
+    currentCategory = cat;
+    renderTabs();
+    renderLights();
+  }
+
+  // ── 警告灯グリッド描画 ──
+  function renderLights() {
+    var kw = document.getElementById('searchBox').value.trim().toLowerCase();
+    var filtered = LIGHTS.filter(function(l) {
+      var catMatch = currentCategory === 'すべて' || l.category === currentCategory;
+      var kwMatch = !kw || l.name.toLowerCase().indexOf(kw) >= 0 || l.meaning.toLowerCase().indexOf(kw) >= 0 || l.category.toLowerCase().indexOf(kw) >= 0;
+      return catMatch && kwMatch;
+    });
+
+    var noResult = document.getElementById('noResult');
+    var grid = document.getElementById('lightsGrid');
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '';
+      noResult.style.display = '';
+      return;
+    }
+    noResult.style.display = 'none';
+
+    grid.innerHTML = filtered.map(function(l) {
+      var isFav = favs.indexOf(l.id) >= 0;
+      return '<div class="light-card' + (isFav ? ' fav' : '') + '" onclick="openModal(\'' + l.id + '\')">'
+        + '<div class="light-icon level-' + l.level + '">' + l.icon + '</div>'
+        + '<span class="light-name">' + l.name + '</span>'
+        + '<span class="light-level-badge badge-' + l.level + '">' + l.levelText.split(' — ')[0] + '</span>'
+        + '</div>';
+    }).join('');
+  }
+
+  // ── モーダル ──
+  function openModal(id) {
+    var l = LIGHTS.find(function(x){ return x.id === id; });
+    if (!l) return;
+    currentLightId = id;
+
+    document.getElementById('mIcon').className = 'light-icon level-' + l.level;
+    document.getElementById('mIcon').textContent = l.icon;
+    document.getElementById('mTitle').textContent = l.name;
+
+    var levelEl = document.getElementById('mLevel');
+    levelEl.className = 'modal-action action-' + l.level;
+    levelEl.textContent = l.levelText;
+
+    document.getElementById('mMeaning').textContent = l.meaning;
+    document.getElementById('mAction').textContent = l.action;
+
+    var isFav = favs.indexOf(id) >= 0;
+    document.getElementById('favBtn').textContent = isFav ? '★ お気に入りから削除' : '★ お気に入りに追加';
+
+    document.getElementById('modalOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById('modalOverlay')) closeModalBtn();
+  }
+  function closeModalBtn() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+    currentLightId = null;
+  }
+
+  // ── お気に入り ──
+  function toggleFav() {
+    if (!currentLightId) return;
+    var idx = favs.indexOf(currentLightId);
+    if (idx >= 0) {
+      favs.splice(idx, 1);
+      document.getElementById('favBtn').textContent = '★ お気に入りに追加';
+    } else {
+      favs.push(currentLightId);
+      document.getElementById('favBtn').textContent = '★ お気に入りから削除';
+    }
+    localStorage.setItem('carlight_favs', JSON.stringify(favs));
+    renderLights();
+  }
+
+  // ── 初期化 ──
+  renderTabs();
+  renderLights();
+  </script>
+
+</body>
+</html>

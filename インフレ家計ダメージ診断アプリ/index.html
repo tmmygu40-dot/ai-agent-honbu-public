@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>インフレ家計ダメージ診断アプリ</title>
+  <meta name="description" content="食費・光熱費・ガソリンなど支出カテゴリ別に月額を入力するだけで、物価上昇による家計ダメージ額と節約すべき優先順位を即診断。2026年4月時点の品目別インフレ率を使って月いくら家計が痛んでいるかをすぐ把握できます。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── カテゴリ入力行 ── */
+    .cat-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.65rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .cat-row:last-child { border-bottom: none; }
+    .cat-name { flex: 1; font-size: 0.9rem; font-weight: 600; }
+    .cat-rate {
+      font-size: 0.72rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border-radius: 6px; padding: 0.2rem 0.45rem;
+      white-space: nowrap;
+    }
+    .cat-input {
+      width: 110px; padding: 0.55rem 0.7rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; text-align: right;
+      -webkit-appearance: none;
+    }
+    .cat-input:focus { border-color: var(--accent); background: #fff; }
+    .cat-unit { font-size: 0.8rem; color: var(--text-sub); white-space: nowrap; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .rank-badge {
+      display: inline-block; width: 22px; height: 22px; line-height: 22px;
+      text-align: center; border-radius: 50%;
+      font-size: 0.72rem; font-weight: 800;
+      background: var(--accent); color: #fff; margin-right: 0.4rem;
+    }
+    .rank-badge.rank1 { background: #e07b00; }
+    .rank-badge.rank2 { background: #b45309; }
+    .rank-badge.rank3 { background: #92400e; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>インフレ家計ダメージ診断アプリ</h1>
+    <p class="subtitle">支出カテゴリ別に月額を入力 → 物価上昇の影響額と節約優先順位を即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">支出カテゴリ別 月額入力（円）</p>
+    <div id="cat-list"></div>
+    <p style="font-size:0.72rem;color:var(--text-sub);margin-top:0.9rem;line-height:1.6;">
+      ※ 2026年4月時点の参考インフレ率を使用。使わない項目は空欄のままでOK。
+    </p>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">🔍 家計ダメージを診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月間インフレダメージ合計</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 優先順位カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">節約優先順位（ダメージ大→小）</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、総務省消費者物価指数・帝国データバンク・農林水産省などの公開データをもとに参考値として整理しています。実際の変動幅は品目・地域・購入先により異なります。最新情報は公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var CATS = [
+    { key: 'food',    name: '食費（食料品）',   rate: 0.08  },
+    { key: 'energy',  name: '光熱費（電気・ガス）', rate: 0.15 },
+    { key: 'gas',     name: 'ガソリン・燃料費', rate: 0.10  },
+    { key: 'eat_out', name: '外食費',           rate: 0.06  },
+    { key: 'daily',   name: '日用品・消耗品',   rate: 0.05  },
+    { key: 'clothes', name: '衣料・被服費',     rate: 0.03  },
+    { key: 'comms',   name: '通信費',           rate: 0.02  },
+    { key: 'medical', name: '医療・薬代',       rate: 0.03  },
+    { key: 'edu',     name: '教育・習い事費',   rate: 0.04  },
+    { key: 'other',   name: 'その他生活費',     rate: 0.05  },
+  ];
+
+  // 入力欄を生成
+  var list = document.getElementById('cat-list');
+  CATS.forEach(function(c) {
+    var row = document.createElement('div');
+    row.className = 'cat-row';
+    row.innerHTML =
+      '<span class="cat-name">' + c.name + '</span>' +
+      '<span class="cat-rate">+' + Math.round(c.rate * 100) + '%</span>' +
+      '<input class="cat-input" type="number" id="inp_' + c.key + '" placeholder="0" min="0">' +
+      '<span class="cat-unit">円/月</span>';
+    list.appendChild(row);
+  });
+
+  function calc() {
+    var results = [];
+    var total = 0;
+
+    CATS.forEach(function(c) {
+      var v = parseFloat(document.getElementById('inp_' + c.key).value);
+      if (!isNaN(v) && v > 0) {
+        var dmg = Math.round(v * c.rate);
+        total += dmg;
+        results.push({ name: c.name, base: v, rate: c.rate, dmg: dmg });
+      }
+    });
+
+    if (results.length === 0) {
+      showResult('ng', '⚠️', '未入力', '少なくとも1つのカテゴリに月額を入力してください。');
+      document.getElementById('detail').style.display = 'none';
+      return;
+    }
+
+    // 影響大→小順に並べる
+    results.sort(function(a, b) { return b.dmg - a.dmg; });
+
+    // 年間ダメージ
+    var annual = total * 12;
+
+    // レベル判定
+    var level = total < 3000 ? 'ok' : total < 8000 ? 'warn' : 'ng';
+    var evalMsg = total < 3000
+      ? '比較的ダメージは軽微です'
+      : total < 8000
+      ? '家計への影響が出始めています'
+      : '家計へのダメージが深刻です';
+    var note = '年間では約 ' + fmt(annual) + ' 円の負担増。' +
+               '最優先で見直すべきは「' + results[0].name + '」です。';
+
+    showResult(level, '月 −' + fmt(total) + ' 円', evalMsg, note);
+
+    // 内訳テーブル
+    var rows = results.map(function(r, i) {
+      var badge = i < 3
+        ? '<span class="rank-badge rank' + (i + 1) + '">' + (i + 1) + '</span>'
+        : '<span style="display:inline-block;width:22px;text-align:center;margin-right:0.4rem;font-size:0.82rem;color:var(--text-sub);">' + (i + 1) + '</span>';
+      var rateStr = '+' + Math.round(r.rate * 100) + '%';
+      return '<tr>' +
+        '<td>' + badge + r.name + '</td>' +
+        '<td style="text-align:center;color:var(--text-sub);font-size:0.8rem;">' + rateStr + '</td>' +
+        '<td>−' + fmt(r.dmg) + ' 円</td>' +
+        '</tr>';
+    });
+    rows.push(
+      '<tr class="hl"><td colspan="2" style="text-align:left;">合計 月間ダメージ</td><td>−' + fmt(total) + ' 円</td></tr>'
+    );
+    document.getElementById('db').innerHTML = rows.join('');
+    document.getElementById('detail').style.display = 'block';
+
+    saveLS();
+  }
+
+  function showResult(level, val, evalMsg, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalMsg || '';
+    document.getElementById('rn').textContent = note || '';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage 保存・読み込み
+  var LS_KEY = 'inflate_damage_v1';
+
+  function saveLS() {
+    var data = {};
+    CATS.forEach(function(c) {
+      var v = document.getElementById('inp_' + c.key).value;
+      if (v) data[c.key] = v;
+    });
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadLS() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      CATS.forEach(function(c) {
+        if (data[c.key]) {
+          document.getElementById('inp_' + c.key).value = data[c.key];
+        }
+      });
+    } catch(e) {}
+  }
+
+  loadLS();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

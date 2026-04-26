@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>車両燃料費チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 0.85rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.65rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+
+    /* ── ボタン ── */
+    .btn-primary {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-primary:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-add {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.55rem 1.1rem; font-size: 0.9rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: 9px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .summary-item {
+      background: var(--bg); border-radius: 10px; padding: 0.9rem 0.8rem; text-align: center;
+    }
+    .summary-item .si-label { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .summary-item .si-value { font-size: 1.35rem; font-weight: 900; color: var(--text); }
+    .summary-item .si-value.loss { color: var(--ng); }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 車両リスト ── */
+    .vehicle-list { display: none; }
+    .vehicle-item {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.1rem 1.1rem;
+      margin: 0 auto 0.75rem; max-width: 600px; box-shadow: var(--shadow);
+    }
+    .vehicle-item-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.75rem;
+    }
+    .vehicle-name { font-size: 1rem; font-weight: 800; }
+    .vehicle-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem;
+      border-radius: 20px; letter-spacing: 0.05em;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng);   }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.45rem 0.2rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--ng); font-size: 1rem; }
+
+    /* ── 全体サマリーカード ── */
+    .total-card {
+      background: var(--card); border: 2px solid var(--accent);
+      border-radius: var(--radius); padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px;
+    }
+    .total-card .card-title { color: var(--accent); }
+
+    /* ── 削除ボタン ── */
+    .btn-del {
+      background: none; border: none; cursor: pointer; color: var(--text-sub);
+      font-size: 1.1rem; padding: 0.2rem 0.4rem; border-radius: 6px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-del:hover { color: var(--ng); background: var(--ng-bg); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🚛 車両燃料費チェッカー</h1>
+    <p class="subtitle">月次燃料費と値上がり損失を車両ごとに即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">車両を追加</p>
+    <div class="field">
+      <label for="vName">車両名</label>
+      <input type="text" id="vName" placeholder="例：トラック1号・社用車・自家用車">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="vDist">月間走行距離 (km)</label>
+        <input type="number" id="vDist" placeholder="例：1500" min="0">
+      </div>
+      <div class="field">
+        <label for="vFuel">燃費 (km/L)</label>
+        <input type="number" id="vFuel" placeholder="例：12" min="0.1" step="0.1">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="vBase">基準単価 (円/L)</label>
+        <input type="number" id="vBase" placeholder="例：150" min="0">
+      </div>
+      <div class="field">
+        <label for="vNow">現在単価 (円/L)</label>
+        <input type="number" id="vNow" placeholder="例：175" min="0">
+      </div>
+    </div>
+    <button class="btn-add" onclick="addVehicle()">＋ 車両を追加</button>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-primary" onclick="calcAll()" id="btnCalc" style="display:none">まとめて計算する</button>
+
+  <!-- 車両リスト -->
+  <div class="vehicle-list" id="vehicleList"></div>
+
+  <!-- 全体サマリーカード -->
+  <div class="total-card" id="totalCard" style="display:none">
+    <p class="card-title">全車両 合計サマリー</p>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <table class="detail-table"><tbody id="totalBody"></tbody></table>
+  </div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月間値上がり損失（全車両合計）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var vehicles = [];
+
+  function loadData() {
+    try {
+      var saved = localStorage.getItem('vehicleFuelChecker');
+      if (saved) {
+        vehicles = JSON.parse(saved);
+        renderAll();
+      }
+    } catch(e) {}
+  }
+
+  function saveData() {
+    try {
+      localStorage.setItem('vehicleFuelChecker', JSON.stringify(vehicles));
+    } catch(e) {}
+  }
+
+  function addVehicle() {
+    var name = document.getElementById('vName').value.trim();
+    var dist = parseFloat(document.getElementById('vDist').value);
+    var fuel = parseFloat(document.getElementById('vFuel').value);
+    var base = parseFloat(document.getElementById('vBase').value);
+    var now  = parseFloat(document.getElementById('vNow').value);
+
+    if (!name) { alert('車両名を入力してください'); return; }
+    if (isNaN(dist) || dist <= 0) { alert('月間走行距離を入力してください'); return; }
+    if (isNaN(fuel) || fuel <= 0) { alert('燃費を入力してください'); return; }
+    if (isNaN(base) || base <= 0) { alert('基準単価を入力してください'); return; }
+    if (isNaN(now)  || now  <= 0) { alert('現在単価を入力してください'); return; }
+
+    vehicles.push({ id: Date.now(), name: name, dist: dist, fuel: fuel, base: base, now: now });
+    saveData();
+    clearForm();
+    renderAll();
+  }
+
+  function removeVehicle(id) {
+    vehicles = vehicles.filter(function(v){ return v.id !== id; });
+    saveData();
+    renderAll();
+  }
+
+  function clearForm() {
+    document.getElementById('vName').value = '';
+    document.getElementById('vDist').value = '';
+    document.getElementById('vFuel').value = '';
+    document.getElementById('vBase').value = '';
+    document.getElementById('vNow').value  = '';
+  }
+
+  function calcVehicle(v) {
+    var consumption = v.dist / v.fuel;           // 月間消費L
+    var costNow  = consumption * v.now;           // 現在の月間燃料費
+    var costBase = consumption * v.base;          // 基準の月間燃料費
+    var loss     = costNow - costBase;            // 損失（差分）
+    var lossRate = costBase > 0 ? (loss / costBase * 100) : 0;
+    return { consumption: consumption, costNow: costNow, costBase: costBase, loss: loss, lossRate: lossRate };
+  }
+
+  function renderAll() {
+    var list = document.getElementById('vehicleList');
+    var btnCalc = document.getElementById('btnCalc');
+
+    if (vehicles.length === 0) {
+      list.style.display = 'none';
+      btnCalc.style.display = 'none';
+      document.getElementById('totalCard').style.display = 'none';
+      document.getElementById('result').style.display = 'none';
+      document.getElementById('result').className = 'result-card';
+      return;
+    }
+
+    list.style.display = '';
+    btnCalc.style.display = '';
+
+    list.innerHTML = vehicles.map(function(v) {
+      var r = calcVehicle(v);
+      var level = r.loss <= 0 ? 'ok' : r.lossRate < 10 ? 'warn' : 'ng';
+      var badgeLabel = level === 'ok' ? '影響小' : level === 'warn' ? '要注意' : '大幅増加';
+
+      return '<div class="vehicle-item">'
+        + '<div class="vehicle-item-header">'
+        + '<span class="vehicle-name">🚗 ' + esc(v.name) + '</span>'
+        + '<div style="display:flex;align-items:center;gap:0.5rem">'
+        + '<span class="vehicle-badge badge-' + level + '">' + badgeLabel + '</span>'
+        + '<button class="btn-del" onclick="removeVehicle(' + v.id + ')" title="削除">✕</button>'
+        + '</div></div>'
+        + '<table class="detail-table"><tbody>'
+        + row('月間走行距離', fmt(v.dist) + ' km')
+        + row('燃費', v.fuel + ' km/L')
+        + row('月間消費量', fmt1(r.consumption) + ' L')
+        + row('基準単価', fmt(v.base) + ' 円/L → 月 ' + fmtY(r.costBase))
+        + row('現在単価', fmt(v.now) + ' 円/L → 月 ' + fmtY(r.costNow))
+        + '<tr class="hl"><td>月間値上がり損失</td><td>' + fmtY(r.loss) + (r.loss > 0 ? '（+' + r.lossRate.toFixed(1) + '%）' : '') + '</td></tr>'
+        + '</tbody></table>'
+        + '</div>';
+    }).join('');
+  }
+
+  function calcAll() {
+    if (vehicles.length === 0) return;
+
+    var totalCostNow  = 0;
+    var totalCostBase = 0;
+    var totalLoss     = 0;
+    var totalConsump  = 0;
+
+    vehicles.forEach(function(v) {
+      var r = calcVehicle(v);
+      totalCostNow  += r.costNow;
+      totalCostBase += r.costBase;
+      totalLoss     += r.loss;
+      totalConsump  += r.consumption;
+    });
+
+    var lossRate = totalCostBase > 0 ? (totalLoss / totalCostBase * 100) : 0;
+    var yearLoss = totalLoss * 12;
+
+    // サマリーグリッド
+    document.getElementById('summaryGrid').innerHTML =
+      summaryItem('月間燃料費（現在）', fmtY(totalCostNow), false) +
+      summaryItem('月間値上がり損失', fmtY(totalLoss), totalLoss > 0) +
+      summaryItem('年間損失見込み', fmtY(yearLoss), totalLoss > 0) +
+      summaryItem('月間消費量合計', fmt1(totalConsump) + ' L', false);
+
+    // 全体内訳テーブル
+    document.getElementById('totalBody').innerHTML =
+      row('車両台数', vehicles.length + ' 台') +
+      row('基準月間燃料費', fmtY(totalCostBase)) +
+      row('現在月間燃料費', fmtY(totalCostNow)) +
+      '<tr class="hl"><td>月間損失合計</td><td>' + fmtY(totalLoss) + '</td></tr>' +
+      row('コスト上昇率', lossRate.toFixed(1) + ' %') +
+      row('年間損失見込み', fmtY(yearLoss));
+
+    document.getElementById('totalCard').style.display = '';
+
+    // 結論カード
+    var level = totalLoss <= 0 ? 'ok' : lossRate < 10 ? 'warn' : 'ng';
+    var msg = level === 'ok'
+      ? '燃料コストは基準以下です。良好な水準です。'
+      : level === 'warn'
+      ? '燃料費が上昇しています。節燃や単価交渉を検討してください。'
+      : '燃料費が大幅に増加しています。早急な対策が必要です。';
+
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '月間 ' + fmtY(totalLoss);
+    document.getElementById('rn').textContent = msg + '（年間 ' + fmtY(yearLoss) + ' の損失見込み）';
+
+    rc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function summaryItem(label, val, isLoss) {
+    return '<div class="summary-item">'
+      + '<div class="si-label">' + label + '</div>'
+      + '<div class="si-value' + (isLoss ? ' loss' : '') + '">' + val + '</div>'
+      + '</div>';
+  }
+
+  function row(label, val) {
+    return '<tr><td>' + label + '</td><td>' + val + '</td></tr>';
+  }
+
+  function fmt(n)  { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmt1(n) { return n.toFixed(1); }
+  function fmtY(n) { return Math.round(n).toLocaleString('ja-JP') + ' 円'; }
+  function esc(s)  { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  loadData();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

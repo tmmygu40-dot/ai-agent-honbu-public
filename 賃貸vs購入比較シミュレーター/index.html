@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>賃貸 vs 購入 比較シミュレーター</title>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2カラム ── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .two-col:last-child { margin-bottom: 0; }
+    .two-col .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.7; white-space: pre-line; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .sep td { color: var(--border); font-size: 0.7rem; border-bottom: 1px solid var(--border); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 480px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>賃貸 vs 購入 比較シミュレーター</h1>
+    <p class="subtitle">何年住めば購入が得になるかをすぐ計算</p>
+  </header>
+
+  <!-- 賃貸条件 -->
+  <div class="card">
+    <p class="card-title">賃貸の条件</p>
+    <div class="two-col">
+      <div class="field">
+        <label for="rent">月家賃（万円）</label>
+        <input type="number" id="rent" placeholder="例: 8" step="0.1" min="0">
+      </div>
+      <div class="field">
+        <label for="rent_mgmt">管理費・共益費（万円/月）</label>
+        <input type="number" id="rent_mgmt" placeholder="例: 0.5" step="0.1" min="0" value="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- 購入条件 -->
+  <div class="card">
+    <p class="card-title">購入の条件</p>
+    <div class="two-col">
+      <div class="field">
+        <label for="price">物件価格（万円）</label>
+        <input type="number" id="price" placeholder="例: 3500" step="10" min="0">
+      </div>
+      <div class="field">
+        <label for="down">頭金（万円）</label>
+        <input type="number" id="down" placeholder="例: 700" step="10" min="0" value="0">
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label for="rate">住宅ローン金利（年率 %）</label>
+        <input type="number" id="rate" placeholder="例: 0.5" step="0.01" min="0" value="0.5">
+      </div>
+      <div class="field">
+        <label for="term">返済期間（年）</label>
+        <input type="number" id="term" placeholder="例: 35" step="1" min="1" max="50" value="35">
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label for="tax">固定資産税（万円/年）</label>
+        <input type="number" id="tax" placeholder="例: 12" step="0.1" min="0" value="0">
+        <p class="hint">目安：物件価格の約0.15〜0.2%</p>
+      </div>
+      <div class="field">
+        <label for="buy_mgmt">管理費・修繕積立金（万円/月）</label>
+        <input type="number" id="buy_mgmt" placeholder="例: 2" step="0.1" min="0" value="0">
+        <p class="hint">マンションの場合に入力</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 比較年数 -->
+  <div class="card">
+    <p class="card-title">比較年数</p>
+    <div class="field">
+      <label for="years">何年住む予定か（年）</label>
+      <input type="number" id="years" placeholder="例: 30" step="1" min="1" max="50" value="30">
+      <p class="hint">この年数での累積コストを比較します（最大50年）</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label" id="rl">判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳（<span id="detail-years"></span>年後）</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  function calc() {
+    var rent     = parseFloat(document.getElementById('rent').value);
+    var rentMgmt = parseFloat(document.getElementById('rent_mgmt').value) || 0;
+    var price    = parseFloat(document.getElementById('price').value);
+    var down     = parseFloat(document.getElementById('down').value) || 0;
+    var rate     = parseFloat(document.getElementById('rate').value) || 0;
+    var term     = parseInt(document.getElementById('term').value) || 35;
+    var tax      = parseFloat(document.getElementById('tax').value) || 0;
+    var buyMgmt  = parseFloat(document.getElementById('buy_mgmt').value) || 0;
+    var years    = parseInt(document.getElementById('years').value) || 30;
+
+    if (isNaN(rent) || isNaN(price)) {
+      showErr('家賃と物件価格を入力してください');
+      return;
+    }
+    if (down >= price) {
+      showErr('頭金が物件価格以上です。確認してください');
+      return;
+    }
+
+    // 万円 → 円
+    var rentM    = rent * 10000;
+    var rentMgmtM = rentMgmt * 10000;
+    var priceM   = price * 10000;
+    var downM    = down * 10000;
+    var taxM     = tax * 10000;
+    var buyMgmtM = buyMgmt * 10000;
+
+    var loanM        = priceM - downM;
+    var monthlyRate  = rate / 100 / 12;
+    var totalMonths  = term * 12;
+
+    // ローン月返済額（元利均等）
+    var loanPayment;
+    if (rate === 0 || monthlyRate === 0) {
+      loanPayment = totalMonths > 0 ? loanM / totalMonths : 0;
+    } else {
+      loanPayment = loanM * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)
+                  / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+    }
+
+    // n年後の累積コスト
+    function cumulativeRent(n) {
+      return (rentM + rentMgmtM) * 12 * n;
+    }
+
+    function cumulativeBuy(n) {
+      var loanYears = Math.min(n, term);
+      var loanTotal = loanPayment * 12 * loanYears;
+      var mgmtTotal = buyMgmtM * 12 * n;
+      var taxTotal  = taxM * n;
+      return downM + loanTotal + mgmtTotal + taxTotal;
+    }
+
+    // 損益分岐点（1〜50年で探す）
+    var breakeven = -1;
+    for (var y = 1; y <= 50; y++) {
+      if (cumulativeBuy(y) <= cumulativeRent(y)) {
+        breakeven = y;
+        break;
+      }
+    }
+
+    var rentTotal = cumulativeRent(years);
+    var buyTotal  = cumulativeBuy(years);
+    var diff = rentTotal - buyTotal; // 正なら購入が安い
+
+    var level, val, note;
+    if (diff > 0) {
+      level = 'ok';
+      val = '購入が得';
+      note = fmt(diff / 10000) + ' 万円ほど購入のほうが安くなります';
+    } else if (diff < 0) {
+      level = 'ng';
+      val = '賃貸が得';
+      note = fmt(Math.abs(diff) / 10000) + ' 万円ほど賃貸のほうが安くなります';
+    } else {
+      level = 'warn';
+      val = 'ほぼ同額';
+      note = 'どちらもほぼ同じコストです';
+    }
+
+    if (breakeven > 0) {
+      note += '\n損益分岐点：' + breakeven + '年目から購入が有利';
+    } else {
+      note += '\n50年以内では購入コストが賃貸コストを下回りません';
+    }
+
+    document.getElementById('rl').textContent = years + '年後の結論';
+    showResult(level, val, note);
+    document.getElementById('detail-years').textContent = years;
+    showDetail([
+      ['ローン月返済額', fmt(Math.round(loanPayment / 10000 * 10) / 10) + ' 万円'],
+      ['購入 月コスト（ローン+管理費）', fmt(Math.round((loanPayment + buyMgmtM) / 10000 * 10) / 10) + ' 万円'],
+      ['賃貸 月コスト（家賃+管理費）', fmt(Math.round((rentM + rentMgmtM) / 10000 * 10) / 10) + ' 万円'],
+      ['sep', ''],
+      ['賃貸 ' + years + '年間 累積コスト', fmt(rentTotal / 10000) + ' 万円'],
+      ['購入 ' + years + '年間 累積コスト', fmt(buyTotal / 10000) + ' 万円'],
+      [diff > 0 ? '購入のほうが安い' : diff < 0 ? '賃貸のほうが安い' : '差額', fmt(Math.abs(diff) / 10000) + ' 万円', true],
+    ]);
+
+    // localStorage に保存
+    try {
+      var data = {
+        rent: rent, rentMgmt: rentMgmt, price: price, down: down,
+        rate: rate, term: term, tax: tax, buyMgmt: buyMgmt, years: years
+      };
+      localStorage.setItem('rent_vs_buy', JSON.stringify(data));
+    } catch(e) {}
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      if (r[0] === 'sep') {
+        return '<tr class="sep"><td colspan="2">──────────────────</td></tr>';
+      }
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rl').textContent = 'エラー';
+    document.getElementById('rv').textContent = '入力確認';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) {
+    if (isNaN(n) || !isFinite(n)) return '—';
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+
+  // localStorage から復元
+  (function() {
+    try {
+      var d = JSON.parse(localStorage.getItem('rent_vs_buy'));
+      if (!d) return;
+      if (d.rent != null)    document.getElementById('rent').value = d.rent;
+      if (d.rentMgmt != null) document.getElementById('rent_mgmt').value = d.rentMgmt;
+      if (d.price != null)   document.getElementById('price').value = d.price;
+      if (d.down != null)    document.getElementById('down').value = d.down;
+      if (d.rate != null)    document.getElementById('rate').value = d.rate;
+      if (d.term != null)    document.getElementById('term').value = d.term;
+      if (d.tax != null)     document.getElementById('tax').value = d.tax;
+      if (d.buyMgmt != null) document.getElementById('buy_mgmt').value = d.buyMgmt;
+      if (d.years != null)   document.getElementById('years').value = d.years;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
