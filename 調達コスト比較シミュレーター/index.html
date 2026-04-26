@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>調達コスト比較シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 2カラムレイアウト ── */
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    @media (max-width: 480px) {
+      .field-row { grid-template-columns: 1fr; }
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 0.75rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* セクション区切り */
+    .section-divider {
+      display: flex; align-items: center; gap: 0.6rem;
+      margin: 0 auto 0.75rem; max-width: 600px;
+      font-size: 0.78rem; font-weight: 700; color: var(--text-sub);
+    }
+    .section-divider::before, .section-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); background: var(--accent-light); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-row td {
+      font-size: 0.75rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; padding-top: 0.8rem; padding-bottom: 0.3rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 比較バー ── */
+    .compare-bar-wrap { margin: 1rem 0 0.5rem; }
+    .compare-bar-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .compare-bar { height: 24px; background: #f0e8d8; border-radius: 6px; overflow: hidden; display: flex; }
+    .bar-import { background: #e07b00; transition: width 0.4s; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 0.68rem; font-weight: 700; color: #fff; }
+    .bar-domestic { background: #3b82f6; transition: width 0.4s; display: flex; align-items: center; padding-left: 6px; font-size: 0.68rem; font-weight: 700; color: #fff; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🌐 調達コスト比較シミュレーター</h1>
+    <p class="subtitle">関税・為替変動をふまえ、輸入 vs 国内調達どちらが得かを即判断</p>
+  </header>
+
+  <!-- 輸入コスト入力 -->
+  <div class="card">
+    <p class="card-title">🚢 輸入調達コスト</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="unitPrice">現地仕入れ価格（外貨/1個）</label>
+        <input type="number" id="unitPrice" placeholder="例: 10.00" step="0.01" min="0">
+      </div>
+      <div class="field">
+        <label for="currency">通貨</label>
+        <select id="currency">
+          <option value="USD">USD（米ドル）</option>
+          <option value="EUR">EUR（ユーロ）</option>
+          <option value="CNY">CNY（人民元）</option>
+          <option value="KRW">KRW（韓国ウォン）</option>
+          <option value="GBP">GBP（英ポンド）</option>
+          <option value="OTHER">その他</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="exchangeRate">為替レート（円 / 1外貨）</label>
+        <input type="number" id="exchangeRate" placeholder="例: 155.0" step="0.01" min="0">
+        <p class="hint">例: 1USD = 155円 → 155と入力</p>
+      </div>
+      <div class="field">
+        <label for="tariffRate">関税率（%）</label>
+        <input type="number" id="tariffRate" placeholder="例: 5.0" step="0.1" min="0" max="100">
+        <p class="hint">0%の場合は0と入力</p>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="importShipping">輸入送料・諸経費（円/1個）</label>
+        <input type="number" id="importShipping" placeholder="例: 200" step="1" min="0">
+        <p class="hint">通関料・輸送費など（合計）</p>
+      </div>
+      <div class="field">
+        <label for="qty">発注数量（個）</label>
+        <input type="number" id="qty" placeholder="例: 100" step="1" min="1" value="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- 国内調達入力 -->
+  <div class="card">
+    <p class="card-title">🏭 国内調達コスト</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="domesticPrice">国内仕入れ価格（円/1個）</label>
+        <input type="number" id="domesticPrice" placeholder="例: 2000" step="1" min="0">
+      </div>
+      <div class="field">
+        <label for="domesticShipping">国内送料・諸経費（円/1個）</label>
+        <input type="number" id="domesticShipping" placeholder="例: 100" step="1" min="0" value="0">
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">輸入 vs 国内 どちらが得か判断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判定結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+    <!-- 比較バー -->
+    <div class="compare-bar-wrap" id="barWrap" style="display:none">
+      <div class="compare-bar-label">
+        <span id="barLabelImport">輸入</span>
+        <span id="barLabelDomestic">国内</span>
+      </div>
+      <div class="compare-bar">
+        <div class="bar-import" id="barImport"></div>
+        <div class="bar-domestic" id="barDomestic"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">コスト内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'chotalComp_v1';
+
+  // 保存・読み込み
+  var IDS = ['unitPrice','currency','exchangeRate','tariffRate','importShipping','qty','domesticPrice','domesticShipping'];
+  function save() {
+    var d = {};
+    IDS.forEach(function(id){ d[id] = document.getElementById(id).value; });
+    try { localStorage.setItem(LS_KEY, JSON.stringify(d)); } catch(e){}
+  }
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      IDS.forEach(function(id){ if(d[id] !== undefined) document.getElementById(id).value = d[id]; });
+    } catch(e){}
+  }
+  IDS.forEach(function(id){ document.getElementById(id).addEventListener('change', save); });
+  window.addEventListener('load', load);
+
+  function calc() {
+    var unitPrice      = parseFloat(document.getElementById('unitPrice').value);
+    var exchangeRate   = parseFloat(document.getElementById('exchangeRate').value);
+    var tariffRate     = parseFloat(document.getElementById('tariffRate').value);
+    var importShipping = parseFloat(document.getElementById('importShipping').value) || 0;
+    var qty            = parseInt(document.getElementById('qty').value) || 1;
+    var domesticPrice  = parseFloat(document.getElementById('domesticPrice').value);
+    var domesticShip   = parseFloat(document.getElementById('domesticShipping').value) || 0;
+    var currency       = document.getElementById('currency').value;
+
+    if (isNaN(unitPrice) || unitPrice <= 0) { showErr('現地仕入れ価格を入力してください'); return; }
+    if (isNaN(exchangeRate) || exchangeRate <= 0) { showErr('為替レートを入力してください'); return; }
+    if (isNaN(tariffRate) || tariffRate < 0) { showErr('関税率を入力してください（0%の場合は0）'); return; }
+    if (isNaN(domesticPrice) || domesticPrice <= 0) { showErr('国内仕入れ価格を入力してください'); return; }
+
+    // 輸入コスト計算（1個あたり）
+    var unitPriceJPY  = unitPrice * exchangeRate;            // 外貨→円換算
+    var tariffAmt     = unitPriceJPY * (tariffRate / 100);   // 関税額
+    var importTotal1  = unitPriceJPY + tariffAmt + importShipping; // 1個あたり輸入コスト
+
+    // 国内コスト計算（1個あたり）
+    var domesticTotal1 = domesticPrice + domesticShip;
+
+    // 数量合計
+    var importTotalAll  = importTotal1 * qty;
+    var domesticTotalAll = domesticTotal1 * qty;
+
+    // 差額（正=輸入が安い、負=国内が安い）
+    var diff = domesticTotalAll - importTotalAll;
+    var diff1 = domesticTotal1 - importTotal1;
+
+    var level, verdict, evalMsg, noteMsg;
+
+    if (diff > 0) {
+      // 輸入が安い
+      level = 'ok';
+      verdict = '輸入調達が有利';
+      var pct = (diff / domesticTotalAll * 100).toFixed(1);
+      evalMsg = '国内より ' + fmt(diff) + ' 円 (' + pct + '%) お得';
+      noteMsg = '1個あたり ' + fmt(diff1) + ' 円、数量 ' + qty + ' 個で合計 ' + fmt(diff) + ' 円の差額です。';
+    } else if (diff < 0) {
+      // 国内が安い
+      level = 'warn';
+      verdict = '国内調達が有利';
+      var pct = (Math.abs(diff) / importTotalAll * 100).toFixed(1);
+      evalMsg = '輸入より ' + fmt(Math.abs(diff)) + ' 円 (' + pct + '%) お得';
+      noteMsg = '1個あたり ' + fmt(Math.abs(diff1)) + ' 円、数量 ' + qty + ' 個で合計 ' + fmt(Math.abs(diff)) + ' 円の差額です。';
+    } else {
+      level = 'warn';
+      verdict = 'コストは同じ';
+      evalMsg = '差額なし（0円）';
+      noteMsg = '輸入と国内のコストが同一です。品質・納期・リスクで判断してください。';
+    }
+
+    // 結論カード表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = verdict;
+    document.getElementById('re').textContent = evalMsg;
+    document.getElementById('rn').textContent = noteMsg;
+
+    // 比較バー
+    var total = importTotalAll + domesticTotalAll;
+    if (total > 0) {
+      var iPct = Math.round(importTotalAll / total * 100);
+      var dPct = 100 - iPct;
+      var barI = document.getElementById('barImport');
+      var barD = document.getElementById('barDomestic');
+      barI.style.width = iPct + '%';
+      barI.textContent = iPct > 10 ? '輸入' : '';
+      barD.style.width = dPct + '%';
+      barD.textContent = dPct > 10 ? '国内' : '';
+      document.getElementById('barLabelImport').textContent = '輸入 ' + fmt(importTotalAll) + '円';
+      document.getElementById('barLabelDomestic').textContent = '国内 ' + fmt(domesticTotalAll) + '円';
+      document.getElementById('barWrap').style.display = 'block';
+    }
+
+    // 内訳テーブル
+    var rows = [
+      { section: '🚢 輸入調達コスト（1個あたり）' },
+      ['現地価格（' + currency + ' ' + unitPrice + ' × 為替 ' + exchangeRate + '円）', fmt(unitPriceJPY) + ' 円'],
+      ['関税（' + tariffRate + '%）', fmt(tariffAmt) + ' 円'],
+      ['輸入送料・諸経費', fmt(importShipping) + ' 円'],
+      { hl: true, row: ['輸入コスト 1個あたり', fmt(importTotal1) + ' 円'] },
+      { hl: true, row: ['輸入コスト 合計（×' + qty + '個）', fmt(importTotalAll) + ' 円'] },
+      { section: '🏭 国内調達コスト（1個あたり）' },
+      ['国内仕入れ価格', fmt(domesticPrice) + ' 円'],
+      ['国内送料・諸経費', fmt(domesticShip) + ' 円'],
+      { hl: true, row: ['国内コスト 1個あたり', fmt(domesticTotal1) + ' 円'] },
+      { hl: true, row: ['国内コスト 合計（×' + qty + '個）', fmt(domesticTotalAll) + ' 円'] },
+      { section: '📊 比較結果' },
+      { hl: true, row: ['差額（絶対値）', fmt(Math.abs(diff)) + ' 円'] },
+      { hl: true, row: ['有利な調達先', verdict] },
+    ];
+
+    var html = '';
+    rows.forEach(function(r) {
+      if (r && r.section) {
+        html += '<tr class="section-row"><td colspan="2">' + r.section + '</td></tr>';
+      } else if (r && r.hl) {
+        html += '<tr class="hl"><td>' + r.row[0] + '</td><td>' + r.row[1] + '</td></tr>';
+      } else if (Array.isArray(r)) {
+        html += '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+      }
+    });
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = 'block';
+
+    save();
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('barWrap').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

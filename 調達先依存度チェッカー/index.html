@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>調達先依存度チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力グリッド ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .input-grid .field-full { grid-column: 1 / -1; }
+    .field { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-add {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── サマリーカード ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+    }
+    .summary-item {
+      border-radius: 10px;
+      padding: 0.8rem 0.5rem;
+      text-align: center;
+    }
+    .summary-item.ng   { background: var(--ng-bg);   border: 1.5px solid var(--ng);   }
+    .summary-item.warn { background: var(--warn-bg);  border: 1.5px solid var(--warn); }
+    .summary-item.ok   { background: var(--ok-bg);   border: 1.5px solid var(--ok);   }
+    .summary-count { font-size: 1.8rem; font-weight: 900; line-height: 1; }
+    .summary-item.ng   .summary-count { color: var(--ng);   }
+    .summary-item.warn .summary-count { color: var(--warn); }
+    .summary-item.ok   .summary-count { color: var(--ok);   }
+    .summary-label { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; font-weight: 600; }
+
+    /* ── 一覧 ── */
+    .list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+    .sort-label { font-size: 0.75rem; color: var(--text-sub); }
+    .item-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.85rem 0.75rem;
+      background: var(--bg);
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+      border-left: 4px solid var(--border);
+    }
+    .item-row.ng   { border-left-color: var(--ng);   background: var(--ng-bg);   }
+    .item-row.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+    .item-row.ok   { border-left-color: var(--ok);   background: var(--ok-bg);   }
+    .item-main { flex: 1; min-width: 0; }
+    .item-name { font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-sub  { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-rate { font-size: 1.15rem; font-weight: 900; min-width: 3.5rem; text-align: right; }
+    .item-row.ng   .item-rate { color: var(--ng);   }
+    .item-row.warn .item-rate { color: var(--warn); }
+    .item-row.ok   .item-rate { color: var(--ok);   }
+    .badge {
+      font-size: 0.68rem; font-weight: 700; padding: 0.2rem 0.5rem;
+      border-radius: 99px; white-space: nowrap;
+    }
+    .badge-ng   { background: var(--ng);   color: #fff; }
+    .badge-warn { background: var(--warn); color: #fff; }
+    .badge-ok   { background: var(--ok);   color: #fff; }
+    .btn-del {
+      background: none; border: 1.5px solid var(--border);
+      color: var(--text-sub); border-radius: 7px;
+      font-size: 0.78rem; padding: 0.3rem 0.55rem;
+      cursor: pointer; flex-shrink: 0;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-del:hover { background: var(--ng-bg); color: var(--ng); border-color: var(--ng); }
+
+    /* ── 空状態 ── */
+    .empty {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-sub);
+      font-size: 0.88rem;
+    }
+
+    /* ── 判定基準 ── */
+    .legend { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .legend-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; color: var(--text-sub); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>調達先依存度チェッカー</h1>
+    <p class="subtitle">品目ごとの依存率を登録してリスク分散の優先順位を確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">品目を登録</p>
+    <div class="input-grid">
+      <div class="field field-full">
+        <label for="item-name">品目名</label>
+        <input type="text" id="item-name" placeholder="例: 半導体A">
+      </div>
+      <div class="field">
+        <label for="supplier-name">調達先名</label>
+        <input type="text" id="supplier-name" placeholder="例: ○○商事">
+      </div>
+      <div class="field">
+        <label for="dep-rate">依存率（%）</label>
+        <input type="number" id="dep-rate" placeholder="例: 80" min="1" max="100" step="1">
+        <p class="hint">この調達先への依存割合</p>
+      </div>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--ng)"></div>70%以上 → 高リスク</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div>40〜69% → 中リスク</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--ok)"></div>40%未満 → 低リスク</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addItem()">登録する</button>
+
+  <!-- サマリーカード -->
+  <div class="card" id="summary-card" style="display:none">
+    <p class="card-title">リスクサマリー</p>
+    <div class="summary-grid">
+      <div class="summary-item ng">
+        <div class="summary-count" id="cnt-ng">0</div>
+        <div class="summary-label">高リスク</div>
+      </div>
+      <div class="summary-item warn">
+        <div class="summary-count" id="cnt-warn">0</div>
+        <div class="summary-label">中リスク</div>
+      </div>
+      <div class="summary-item ok">
+        <div class="summary-count" id="cnt-ok">0</div>
+        <div class="summary-label">低リスク</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 一覧カード -->
+  <div class="card">
+    <div class="list-header">
+      <p class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0">登録済み品目</p>
+      <span class="sort-label">リスクが高い順</span>
+    </div>
+    <div id="item-list">
+      <div class="empty">品目がまだ登録されていません。<br>上のフォームから追加してください。</div>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'tyoutatsu-izon-checker';
+  var items = [];
+
+  function load() {
+    try {
+      var d = localStorage.getItem(STORAGE_KEY);
+      if (d) items = JSON.parse(d);
+    } catch(e) { items = []; }
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+
+  function getRiskLevel(rate) {
+    if (rate >= 70) return 'ng';
+    if (rate >= 40) return 'warn';
+    return 'ok';
+  }
+
+  function getRiskLabel(level) {
+    if (level === 'ng')   return '高リスク';
+    if (level === 'warn') return '中リスク';
+    return '低リスク';
+  }
+
+  function getRiskPriority(level) {
+    if (level === 'ng')   return 0;
+    if (level === 'warn') return 1;
+    return 2;
+  }
+
+  function addItem() {
+    var name     = document.getElementById('item-name').value.trim();
+    var supplier = document.getElementById('supplier-name').value.trim();
+    var rate     = parseFloat(document.getElementById('dep-rate').value);
+
+    if (!name)             { alert('品目名を入力してください'); return; }
+    if (!supplier)         { alert('調達先名を入力してください'); return; }
+    if (isNaN(rate) || rate < 1 || rate > 100) { alert('依存率を1〜100で入力してください'); return; }
+
+    items.push({ id: Date.now(), name: name, supplier: supplier, rate: rate });
+    save();
+    render();
+
+    document.getElementById('item-name').value = '';
+    document.getElementById('supplier-name').value = '';
+    document.getElementById('dep-rate').value = '';
+    document.getElementById('item-name').focus();
+  }
+
+  function deleteItem(id) {
+    items = items.filter(function(it) { return it.id !== id; });
+    save();
+    render();
+  }
+
+  function render() {
+    // ソート: リスク高→依存率降順
+    var sorted = items.slice().sort(function(a, b) {
+      var pa = getRiskPriority(getRiskLevel(a.rate));
+      var pb = getRiskPriority(getRiskLevel(b.rate));
+      if (pa !== pb) return pa - pb;
+      return b.rate - a.rate;
+    });
+
+    // サマリー
+    var cntNg   = items.filter(function(it) { return getRiskLevel(it.rate) === 'ng';   }).length;
+    var cntWarn = items.filter(function(it) { return getRiskLevel(it.rate) === 'warn'; }).length;
+    var cntOk   = items.filter(function(it) { return getRiskLevel(it.rate) === 'ok';   }).length;
+
+    var summaryCard = document.getElementById('summary-card');
+    if (items.length > 0) {
+      summaryCard.style.display = '';
+      document.getElementById('cnt-ng').textContent   = cntNg;
+      document.getElementById('cnt-warn').textContent = cntWarn;
+      document.getElementById('cnt-ok').textContent   = cntOk;
+    } else {
+      summaryCard.style.display = 'none';
+    }
+
+    // 一覧
+    var listEl = document.getElementById('item-list');
+    if (sorted.length === 0) {
+      listEl.innerHTML = '<div class="empty">品目がまだ登録されていません。<br>上のフォームから追加してください。</div>';
+      return;
+    }
+
+    listEl.innerHTML = sorted.map(function(it, idx) {
+      var level = getRiskLevel(it.rate);
+      var label = getRiskLabel(level);
+      var priority = idx + 1;
+      return '<div class="item-row ' + level + '">'
+        + '<div class="item-main">'
+        + '<div class="item-name">優先度' + priority + '：' + escHtml(it.name) + '</div>'
+        + '<div class="item-sub">調達先：' + escHtml(it.supplier) + '</div>'
+        + '</div>'
+        + '<span class="badge badge-' + level + '">' + label + '</span>'
+        + '<div class="item-rate">' + it.rate + '%</div>'
+        + '<button class="btn-del" onclick="deleteItem(' + it.id + ')">削除</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  load();
+  render();
+
+  document.getElementById('dep-rate').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') addItem();
+  });
+  </script>
+
+</body>
+</html>

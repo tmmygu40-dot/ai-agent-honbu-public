@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>請求書ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 700px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 0.85rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input, .field textarea {
+      width: 100%; padding: 0.62rem 0.8rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field textarea { resize: vertical; min-height: 64px; }
+    .field-row { display: flex; gap: 0.7rem; }
+    .field-row .field { flex: 1; }
+
+    /* 品目テーブル（入力） */
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 0.8rem; font-size: 0.88rem; }
+    .items-table th {
+      font-size: 0.76rem; font-weight: 700; color: var(--text-sub);
+      padding: 0.4rem 0.4rem 0.6rem; border-bottom: 2px solid var(--border);
+      text-align: left; background: var(--bg);
+    }
+    .items-table td { padding: 0.3rem 0.3rem; vertical-align: middle; }
+    .items-table td input {
+      width: 100%; padding: 0.45rem 0.5rem;
+      font-size: 0.88rem; border: 1.5px solid var(--border);
+      border-radius: 7px; background: var(--bg); color: var(--text);
+      outline: none; font-family: inherit;
+    }
+    .items-table td input:focus { border-color: var(--accent); background: #fff; }
+    .items-table .col-amt { text-align: right; font-weight: 600; padding-right: 0.5rem; white-space: nowrap; color: var(--text-sub); }
+    .btn-remove {
+      background: none; border: none; color: #ccc; font-size: 1rem; cursor: pointer;
+      padding: 0.25rem 0.4rem; border-radius: 5px; transition: color 0.1s;
+    }
+    .btn-remove:hover { color: #b91c1c; }
+    .btn-add-row {
+      background: var(--bg); border: 1.5px dashed var(--border);
+      color: var(--text-sub); font-size: 0.82rem; font-weight: 600;
+      border-radius: 9px; padding: 0.5rem 1rem; cursor: pointer;
+      width: 100%; transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-add-row:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ボタン */
+    .btn-row { display: flex; gap: 0.7rem; max-width: 700px; margin: 0 auto 1.2rem; }
+    .btn-print {
+      flex: 1; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-print:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+
+    /* 請求書プレビュー */
+    .preview-wrap {
+      max-width: 700px; margin: 0 auto 1rem;
+      background: #fff; border: 1.5px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      padding: 2.5rem 2.8rem;
+    }
+    .inv-title { font-size: 1.6rem; font-weight: 900; text-align: center; margin-bottom: 1.8rem; letter-spacing: 0.15em; }
+    .inv-meta { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; }
+    .inv-to h3 { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.2rem; }
+    .inv-to .to-name { font-size: 1.15rem; font-weight: 800; border-bottom: 2.5px solid var(--text); padding-bottom: 0.35rem; min-width: 160px; }
+    .inv-to .to-sub { font-size: 0.82rem; color: var(--text-sub); margin-top: 0.35rem; }
+    .inv-from { text-align: right; font-size: 0.82rem; color: var(--text-sub); line-height: 1.7; }
+    .inv-from .from-name { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.1rem; }
+    .inv-from .from-addr { white-space: pre-line; }
+    .inv-date-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-sub); }
+    .inv-subject-row { margin-bottom: 1.5rem; }
+    .inv-subject-row .s-label { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.2rem; }
+    .inv-subject-row .s-val { font-size: 1.05rem; font-weight: 700; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+
+    /* 品目テーブル（プレビュー） */
+    .inv-items { width: 100%; border-collapse: collapse; margin-bottom: 1.2rem; font-size: 0.88rem; }
+    .inv-items thead th {
+      background: #f5f0e8; border: 1px solid var(--border);
+      padding: 0.5rem 0.7rem; font-size: 0.8rem; font-weight: 700;
+      text-align: left;
+    }
+    .inv-items tbody td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; }
+    .inv-items tbody td.r { text-align: right; }
+
+    /* 合計 */
+    .inv-totals { margin-left: auto; width: 52%; min-width: 200px; }
+    .inv-totals table { width: 100%; border-collapse: collapse; }
+    .inv-totals td { padding: 0.4rem 0.6rem; font-size: 0.88rem; border-bottom: 1px solid var(--border); }
+    .inv-totals td:last-child { text-align: right; font-weight: 600; }
+    .inv-totals .total-row td { font-size: 1.05rem; font-weight: 800; color: var(--accent); border-top: 2px solid var(--text); border-bottom: none; }
+
+    .inv-bank {
+      margin-top: 1.8rem; padding: 0.9rem 1rem;
+      background: #f5f0e8; border-radius: 8px;
+    }
+    .inv-bank .b-label { font-size: 0.75rem; color: var(--text-sub); font-weight: 700; margin-bottom: 0.3rem; }
+    .inv-bank .b-val { font-size: 0.85rem; white-space: pre-line; line-height: 1.7; }
+
+    .inv-notes { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .inv-notes .n-label { font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .inv-notes .n-val { font-size: 0.85rem; white-space: pre-line; line-height: 1.6; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* 印刷 */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .no-print, .app-header, .back-link, #fav-widget, #related-widget { display: none !important; }
+      .preview-wrap {
+        box-shadow: none; border: none; max-width: 100%;
+        border-radius: 0; padding: 0; margin: 0;
+      }
+      .inv-items thead th { background: #eee; }
+      .inv-bank { background: #f5f5f5; }
+      @page { margin: 15mm; size: A4 portrait; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header no-print">
+    <h1>請求書ジェネレーター</h1>
+    <p class="subtitle">取引先名・品目・金額を入力して印刷できる請求書を即作成</p>
+  </header>
+
+  <!-- 発行者情報 -->
+  <div class="card no-print">
+    <p class="card-title">発行者情報（ブラウザに保存されます）</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="fromName">会社名・氏名</label>
+        <input type="text" id="fromName" placeholder="例: 株式会社〇〇 / 山田 太郎" oninput="updatePreview(); saveIssuer()">
+      </div>
+      <div class="field">
+        <label for="fromTel">電話番号</label>
+        <input type="text" id="fromTel" placeholder="例: 03-0000-0000" oninput="updatePreview(); saveIssuer()">
+      </div>
+    </div>
+    <div class="field">
+      <label for="fromAddr">住所・メールアドレスなど</label>
+      <textarea id="fromAddr" placeholder="例: 東京都〇〇区〇〇1-2-3&#10;info@example.com" oninput="updatePreview(); saveIssuer()"></textarea>
+    </div>
+    <div class="field">
+      <label for="bankInfo">振込先情報</label>
+      <textarea id="bankInfo" placeholder="例: ○○銀行 △△支店&#10;普通 1234567&#10;口座名義: 〇〇カイシャ" oninput="updatePreview(); saveIssuer()"></textarea>
+    </div>
+  </div>
+
+  <!-- 請求書情報 -->
+  <div class="card no-print">
+    <p class="card-title">請求書情報</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="toName">請求先（取引先名）</label>
+        <input type="text" id="toName" placeholder="例: 株式会社△△ 御中" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label for="invoiceDate">発行日</label>
+        <input type="date" id="invoiceDate" oninput="updatePreview()">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="invoiceNo">請求書番号</label>
+        <input type="text" id="invoiceNo" placeholder="例: 2026-001" oninput="updatePreview()">
+      </div>
+      <div class="field">
+        <label for="dueDate">お支払い期限</label>
+        <input type="date" id="dueDate" oninput="updatePreview()">
+      </div>
+    </div>
+    <div class="field">
+      <label for="subject">件名</label>
+      <input type="text" id="subject" placeholder="例: 〇〇業務委託費 ご請求" oninput="updatePreview()">
+    </div>
+  </div>
+
+  <!-- 品目 -->
+  <div class="card no-print">
+    <p class="card-title">品目</p>
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>品目・内容</th>
+          <th style="width:70px">数量</th>
+          <th style="width:115px">単価（円）</th>
+          <th style="width:95px;text-align:right">金額</th>
+          <th style="width:32px"></th>
+        </tr>
+      </thead>
+      <tbody id="itemsBody"></tbody>
+    </table>
+    <button class="btn-add-row" onclick="addRow()">＋ 品目を追加</button>
+  </div>
+
+  <!-- 備考 -->
+  <div class="card no-print">
+    <p class="card-title">備考（任意）</p>
+    <div class="field">
+      <textarea id="notes" placeholder="例: 上記の通りご請求申し上げます。何卒よろしくお願い申し上げます。" oninput="updatePreview()"></textarea>
+    </div>
+  </div>
+
+  <!-- ボタン -->
+  <div class="btn-row no-print">
+    <button class="btn-print" onclick="window.print()">🖨 印刷 / PDF保存</button>
+  </div>
+
+  <!-- ─── 請求書プレビュー ─── -->
+  <div class="preview-wrap" id="preview">
+    <div class="inv-title">請　求　書</div>
+
+    <div class="inv-meta">
+      <div class="inv-to">
+        <h3>請求先</h3>
+        <div class="to-name" id="pToName">　</div>
+        <div class="to-sub">御中</div>
+      </div>
+      <div class="inv-from">
+        <div class="from-name" id="pFromName"></div>
+        <div class="from-addr" id="pFromAddr"></div>
+        <div id="pFromTel"></div>
+      </div>
+    </div>
+
+    <div class="inv-date-row">
+      <div id="pNo" style="font-weight:600"></div>
+      <div id="pDate">発行日：</div>
+    </div>
+
+    <div class="inv-subject-row">
+      <div class="s-label">件　名</div>
+      <div class="s-val" id="pSubject">　</div>
+    </div>
+
+    <table class="inv-items">
+      <thead>
+        <tr>
+          <th style="width:42%">品目・内容</th>
+          <th style="width:11%;text-align:right">数量</th>
+          <th style="width:22%;text-align:right">単価（円）</th>
+          <th style="width:22%;text-align:right">金額（円）</th>
+        </tr>
+      </thead>
+      <tbody id="previewItems"></tbody>
+    </table>
+
+    <div class="inv-totals">
+      <table>
+        <tr><td>小　計</td><td id="pSubtotal">0 円</td></tr>
+        <tr><td>消費税（10%）</td><td id="pTax">0 円</td></tr>
+        <tr class="total-row"><td>合　計</td><td id="pTotal">0 円</td></tr>
+        <tr><td style="font-size:0.78rem;color:#78716c">お支払期限</td><td id="pDueDate" style="font-size:0.82rem">　</td></tr>
+      </table>
+    </div>
+
+    <div class="inv-bank" id="pBankWrap" style="display:none">
+      <div class="b-label">振込先</div>
+      <div class="b-val" id="pBank"></div>
+    </div>
+
+    <div class="inv-notes" id="pNotesWrap" style="display:none">
+      <div class="n-label">備　考</div>
+      <div class="n-val" id="pNotes"></div>
+    </div>
+  </div>
+
+  <a class="back-link no-print" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ─── 品目行管理 ───
+  var rowId = 0;
+
+  function addRow(name, qty, price) {
+    var id = rowId++;
+    var tr = document.createElement('tr');
+    tr.id = 'row-' + id;
+    tr.innerHTML =
+      '<td><input type="text" placeholder="品目・内容" value="' + esc(name || '') + '" oninput="updatePreview()"></td>' +
+      '<td><input type="number" placeholder="1" min="0" value="' + (qty != null ? qty : '') + '" oninput="recalcRow(' + id + '); updatePreview()"></td>' +
+      '<td><input type="number" placeholder="0" min="0" value="' + (price != null ? price : '') + '" oninput="recalcRow(' + id + '); updatePreview()"></td>' +
+      '<td class="col-amt" id="amt-' + id + '">—</td>' +
+      '<td><button class="btn-remove" onclick="removeRow(' + id + ')" title="削除">✕</button></td>';
+    document.getElementById('itemsBody').appendChild(tr);
+    if (qty && price) recalcRow(id);
+  }
+
+  function removeRow(id) {
+    var el = document.getElementById('row-' + id);
+    if (el) el.remove();
+    updatePreview();
+  }
+
+  function recalcRow(id) {
+    var tr = document.getElementById('row-' + id);
+    if (!tr) return;
+    var inputs = tr.querySelectorAll('input');
+    var qty = parseFloat(inputs[1].value) || 0;
+    var price = parseFloat(inputs[2].value) || 0;
+    var amt = qty * price;
+    var amtEl = document.getElementById('amt-' + id);
+    if (amtEl) amtEl.textContent = (qty && price) ? fmt(amt) + ' 円' : '—';
+  }
+
+  function getItems() {
+    var items = [];
+    var trs = document.querySelectorAll('#itemsBody tr');
+    trs.forEach(function(tr) {
+      var inputs = tr.querySelectorAll('input');
+      if (!inputs.length) return;
+      var name = inputs[0].value.trim();
+      var qty = parseFloat(inputs[1].value) || 0;
+      var price = parseFloat(inputs[2].value) || 0;
+      if (name || qty || price) {
+        items.push({ name: name || '—', qty: qty, price: price, amount: qty * price });
+      }
+    });
+    return items;
+  }
+
+  // ─── プレビュー更新 ───
+  function updatePreview() {
+    setText('pFromName', v('fromName'));
+    document.getElementById('pFromAddr').textContent = v('fromAddr');
+    setText('pFromTel', v('fromTel') ? '☎ ' + v('fromTel') : '');
+    setText('pToName', v('toName') || '　');
+    setText('pDate', '発行日：' + (v('invoiceDate') ? fmtDate(v('invoiceDate')) : '　'));
+    setText('pNo', v('invoiceNo') ? '請求書 No. ' + v('invoiceNo') : '');
+    setText('pDueDate', v('dueDate') ? fmtDate(v('dueDate')) : '　');
+    setText('pSubject', v('subject') || '　');
+
+    var items = getItems();
+    var tbody = document.getElementById('previewItems');
+    tbody.innerHTML = '';
+    var subtotal = 0;
+
+    items.forEach(function(item) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + esc(item.name) + '</td>' +
+        '<td class="r">' + (item.qty || '') + '</td>' +
+        '<td class="r">' + (item.price ? fmt(item.price) : '') + '</td>' +
+        '<td class="r">' + (item.amount ? fmt(item.amount) : '') + '</td>';
+      tbody.appendChild(tr);
+      subtotal += item.amount;
+    });
+
+    // 空行（最低5行表示）
+    for (var i = items.length; i < 5; i++) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>&nbsp;</td><td></td><td></td><td></td>';
+      tbody.appendChild(tr);
+    }
+
+    var tax = Math.floor(subtotal * 0.1);
+    var total = subtotal + tax;
+    setText('pSubtotal', fmt(subtotal) + ' 円');
+    setText('pTax', fmt(tax) + ' 円');
+    setText('pTotal', fmt(total) + ' 円');
+
+    var bank = v('bankInfo');
+    var bankWrap = document.getElementById('pBankWrap');
+    document.getElementById('pBank').textContent = bank;
+    bankWrap.style.display = bank ? 'block' : 'none';
+
+    var notes = v('notes');
+    var notesWrap = document.getElementById('pNotesWrap');
+    document.getElementById('pNotes').textContent = notes;
+    notesWrap.style.display = notes ? 'block' : 'none';
+  }
+
+  // ─── localStorage（発行者情報のみ保存） ───
+  function saveIssuer() {
+    try {
+      localStorage.setItem('invoiceGen_issuer', JSON.stringify({
+        fromName: v('fromName'),
+        fromAddr: v('fromAddr'),
+        fromTel:  v('fromTel'),
+        bankInfo: v('bankInfo')
+      }));
+    } catch(e) {}
+  }
+
+  function loadIssuer() {
+    try {
+      var d = JSON.parse(localStorage.getItem('invoiceGen_issuer') || '{}');
+      if (d.fromName) setVal('fromName', d.fromName);
+      if (d.fromAddr) setVal('fromAddr', d.fromAddr);
+      if (d.fromTel)  setVal('fromTel',  d.fromTel);
+      if (d.bankInfo) setVal('bankInfo', d.bankInfo);
+    } catch(e) {}
+  }
+
+  // ─── ユーティリティ ───
+  function v(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+  function setVal(id, val) { var el = document.getElementById(id); if (el) el.value = val; }
+  function setText(id, txt) { var el = document.getElementById(id); if (el) el.textContent = txt; }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmtDate(s) {
+    if (!s) return '';
+    var parts = s.split('-');
+    return parseInt(parts[0]) + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+  }
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ─── 初期化 ───
+  (function() {
+    var today = new Date();
+    var ymd = today.getFullYear() + '-'
+      + String(today.getMonth()+1).padStart(2,'0') + '-'
+      + String(today.getDate()).padStart(2,'0');
+    setVal('invoiceDate', ymd);
+
+    addRow(); addRow(); addRow();
+
+    loadIssuer();
+    updatePreview();
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;" class="no-print">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor"
+       target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a>
+  </p>
+</body>
+</html>

@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>設備トラブル逆引きガイド</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* カテゴリグリッド */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+      margin: 0 auto 1rem;
+      max-width: 600px;
+      padding: 0 1rem;
+    }
+    .cat-btn {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.8rem 0.4rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cat-btn .icon { font-size: 1.4rem; display: block; margin-bottom: 0.3rem; }
+    .cat-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .cat-btn.active { border-color: var(--accent); background: var(--accent-light); color: var(--accent); font-weight: 800; }
+
+    /* 症状リスト */
+    .symptom-list {
+      list-style: none;
+      padding: 0;
+    }
+    .symptom-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.8rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .symptom-item:last-child { border-bottom: none; }
+    .symptom-item:hover { background: var(--accent-light); }
+    .symptom-name { font-size: 0.95rem; font-weight: 600; }
+    .symptom-level {
+      font-size: 0.7rem; font-weight: 700;
+      padding: 0.2rem 0.5rem; border-radius: 99px;
+      white-space: nowrap; margin-left: 0.5rem;
+    }
+    .level-high { background: var(--ng-bg); color: var(--ng); }
+    .level-mid  { background: var(--warn-bg); color: var(--warn); }
+    .level-low  { background: var(--ok-bg); color: var(--ok); }
+
+    /* 詳細パネル */
+    .detail-panel {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .detail-panel.show { display: block; }
+    .detail-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .detail-title { font-size: 1.05rem; font-weight: 800; flex: 1; }
+    .fav-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 1.4rem; line-height: 1; margin-left: 0.6rem;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .section-title {
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+      margin: 1rem 0 0.5rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .check-list, .step-list { list-style: none; padding: 0; }
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      padding: 0.45rem 0;
+      font-size: 0.9rem;
+      border-bottom: 1px solid #f5f0e8;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-mark { color: var(--warn); font-weight: 700; flex-shrink: 0; margin-top: 0.05rem; }
+
+    .step-item {
+      display: flex; align-items: flex-start; gap: 0.7rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f5f0e8;
+    }
+    .step-item:last-child { border-bottom: none; }
+    .step-num {
+      background: var(--accent); color: #fff;
+      font-size: 0.72rem; font-weight: 800;
+      width: 1.4rem; height: 1.4rem;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 0.1rem;
+    }
+    .step-text { font-size: 0.9rem; line-height: 1.5; }
+
+    .contact-tag {
+      display: inline-block;
+      background: var(--ng-bg); color: var(--ng);
+      font-size: 0.72rem; font-weight: 700;
+      padding: 0.25rem 0.6rem; border-radius: 99px;
+      margin-top: 0.8rem;
+    }
+
+    /* お気に入りセクション */
+    .fav-section {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .fav-section.has-fav { display: block; }
+    .fav-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+    .fav-item:last-child { border-bottom: none; }
+    .fav-item-name { font-size: 0.88rem; font-weight: 600; }
+    .fav-item-cat { font-size: 0.72rem; color: var(--text-sub); }
+    .fav-del { background: none; border: none; cursor: pointer; color: var(--text-sub); font-size: 1rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .section-label {
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--text-sub); letter-spacing: 0.06em;
+      margin: 0 auto 0.5rem; max-width: 600px;
+      padding: 0 1rem;
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>設備トラブル逆引きガイド</h1>
+    <p class="subtitle">症状を選ぶだけで点検ポイントと対応手順を即表示</p>
+  </header>
+
+  <!-- お気に入り -->
+  <div class="fav-section" id="favSection">
+    <p class="card-title">お気に入り</p>
+    <ul class="check-list" id="favList"></ul>
+  </div>
+
+  <!-- カテゴリ選択 -->
+  <p class="section-label">① 設備カテゴリを選ぶ</p>
+  <div class="cat-grid" id="catGrid"></div>
+
+  <!-- 症状選択 -->
+  <div class="card" id="symptomCard" style="display:none">
+    <p class="card-title" id="symptomCardTitle">症状を選ぶ</p>
+    <ul class="symptom-list" id="symptomList"></ul>
+  </div>
+
+  <!-- 詳細パネル -->
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+      <p class="detail-title" id="detailTitle"></p>
+      <button class="fav-btn" id="favBtn" onclick="toggleFav()" title="お気に入り">☆</button>
+    </div>
+    <p class="section-title">▼ 点検ポイント</p>
+    <ul class="check-list" id="checkList"></ul>
+    <p class="section-title">▼ 対応手順</p>
+    <ol class="step-list" id="stepList"></ol>
+    <div id="contactArea"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var DATA = {
+    "電気設備": {
+      icon: "⚡",
+      items: [
+        {
+          name: "ブレーカーが落ちる・頻繁にトリップする",
+          level: "high",
+          checks: [
+            "どのブレーカー（主幹 / 分岐）が落ちているか確認する",
+            "落ちたタイミングに使っていた機器を特定する",
+            "同一回路に接続されている機器の合計アンペアを確認する",
+            "漏電ブレーカーが落ちている場合は漏電の可能性を確認する"
+          ],
+          steps: [
+            "全ての電気機器の電源をいったんオフにする",
+            "落ちたブレーカーのみをオンに戻す",
+            "機器を1台ずつ電源を入れながらブレーカーが落ちる機器を特定する",
+            "特定できた場合は該当機器の修理・交換を検討する",
+            "繰り返し落ちる場合は電気工事業者へ相談する"
+          ],
+          contact: true
+        },
+        {
+          name: "コンセント・スイッチが動かない",
+          level: "mid",
+          checks: [
+            "対応するブレーカーが落ちていないか確認する",
+            "テスターで電圧が来ているか確認する（可能であれば）",
+            "コンセントや器具の焦げ・変色・異臭がないか確認する",
+            "アース線が必要な機器の場合はアース接続を確認する"
+          ],
+          steps: [
+            "ブレーカーボックスで対応の分岐ブレーカーを確認・リセットする",
+            "他のコンセントで正常に動くか試す",
+            "焦げ・異臭がある場合は使用を中止し電気工事業者へ連絡する",
+            "問題なければコンセントや器具自体の交換を依頼する"
+          ],
+          contact: false
+        },
+        {
+          name: "照明がつかない・ちらつく",
+          level: "low",
+          checks: [
+            "電球・蛍光灯の寿命を確認する",
+            "対応のブレーカーが落ちていないか確認する",
+            "照明器具のスイッチ・プルスイッチの接触不良を確認する",
+            "LED照明の場合は調光器との互換性を確認する"
+          ],
+          steps: [
+            "電球・ランプを交換してみる",
+            "同じ回路の他の照明が正常か確認する",
+            "ブレーカーをリセットして再試行する",
+            "改善しない場合は照明器具本体の交換または電気工事業者へ依頼する"
+          ],
+          contact: false
+        },
+        {
+          name: "漏電の疑い（漏電ブレーカーが落ちる）",
+          level: "high",
+          checks: [
+            "漏電ブレーカーが落ちているか確認する",
+            "最近水がかかった機器・濡れた場所の機器がないか確認する",
+            "分岐ブレーカーを1つずつオフにして漏電回路を特定する",
+            "焦げ臭・焼け焦げ・異常発熱がないか目視確認する"
+          ],
+          steps: [
+            "全分岐ブレーカーをオフにする",
+            "漏電ブレーカーをオンに戻す",
+            "分岐ブレーカーを1つずつオンにして漏電ブレーカーが落ちる回路を特定する",
+            "特定した回路の機器をすべて抜いて同様に確認し漏電機器を特定する",
+            "漏電機器は使用中止・修理依頼。配線からの漏電は必ず電気工事業者へ連絡する"
+          ],
+          contact: true
+        },
+        {
+          name: "電気設備から異音・焦げ臭がする",
+          level: "high",
+          checks: [
+            "分電盤・コンセント・スイッチまわりに焦げ跡・変色がないか確認する",
+            "発熱・溶けている箇所がないか触れずに目視確認する",
+            "異音がする機器・場所を特定する"
+          ],
+          steps: [
+            "直ちに該当回路のブレーカーをオフにする",
+            "焦げ・発熱がある場合は消火器の準備をしつつ電気工事業者へ緊急連絡する",
+            "火災の危険がある場合は119番に通報する"
+          ],
+          contact: true
+        }
+      ]
+    },
+    "給排水": {
+      icon: "🚿",
+      items: [
+        {
+          name: "水が出ない・水圧が低い",
+          level: "mid",
+          checks: [
+            "元栓・止水栓が閉まっていないか確認する",
+            "近隣で断水情報がないか確認する（水道局のHP・行政情報）",
+            "フィルター・ストレーナーが詰まっていないか確認する",
+            "複数箇所で水が出ないか一箇所だけか確認する"
+          ],
+          steps: [
+            "元栓・止水栓の開閉状態を確認し開いていなければ開ける",
+            "水道局の断水情報を確認する",
+            "一箇所だけ水圧が低い場合はフィルター清掃を行う",
+            "改善しない場合は水道業者へ連絡する"
+          ],
+          contact: false
+        },
+        {
+          name: "排水が詰まっている",
+          level: "mid",
+          checks: [
+            "どのエリアの排水が詰まっているか（キッチン・浴室・トイレ・排水桝）特定する",
+            "詰まりの場所が一箇所か複数箇所（建物全体）かを確認する",
+            "排水桝のフタを開けて汚水が溜まっていないか確認する"
+          ],
+          steps: [
+            "ラバーカップ（スッポン）でキッチン・洗面・浴室排水を試みる",
+            "市販のパイプクリーナーを使用して数時間待つ",
+            "排水桝が詰まっている場合は業者に高圧洗浄を依頼する",
+            "改善しない場合は排水管工事業者へ連絡する"
+          ],
+          contact: false
+        },
+        {
+          name: "水漏れ・蛇口からの漏れ",
+          level: "mid",
+          checks: [
+            "漏れている場所（蛇口・パッキン・接合部・壁内部）を特定する",
+            "止水栓を閉めて水が止まるか確認する",
+            "漏れの量・速さ（ポタポタ か どばどば）を確認する",
+            "壁内部・床下からの漏れでないか確認する"
+          ],
+          steps: [
+            "止水栓を閉めて漏れを一時停止する",
+            "蛇口のパッキン交換が可能な場合は交換する（コマパッキン・Oリング）",
+            "接合部の締め増しを試みる（過度に締め込み過ぎない）",
+            "壁内・床下からの漏れや改善しない場合は水道業者へ連絡する"
+          ],
+          contact: false
+        },
+        {
+          name: "トイレが詰まっている・流れが悪い",
+          level: "mid",
+          checks: [
+            "何を流したか確認する（ペーパー以外の異物投入の可能性）",
+            "ラバーカップで対応できるか確認する",
+            "タンク内の水量・フロートバルブの動作を確認する",
+            "排水桝が詰まっていないか確認する"
+          ],
+          steps: [
+            "水を追加で流さずラバーカップを使って詰まりを解消する",
+            "異物投入の場合は無理に流さず業者へ連絡する",
+            "流れが悪い場合はトイレ用洗剤・クリーナーを試す",
+            "解消しない場合はトイレ修理業者へ依頼する"
+          ],
+          contact: false
+        },
+        {
+          name: "水道から異臭・濁りがある",
+          level: "mid",
+          checks: [
+            "近隣でも同様の症状がないか確認する",
+            "一時的なものか継続しているか確認する",
+            "蛇口のフィルター・浄水器フィルターの汚れを確認する"
+          ],
+          steps: [
+            "しばらく水を流し続けて改善するか確認する",
+            "フィルター・浄水器の交換を行う",
+            "改善しない場合は水道局へ連絡する"
+          ],
+          contact: false
+        }
+      ]
+    },
+    "空調": {
+      icon: "❄️",
+      items: [
+        {
+          name: "エアコンが冷えない・暖まらない",
+          level: "mid",
+          checks: [
+            "フィルターが詰まっていないか確認する（月1清掃が目安）",
+            "室外機の周囲に障害物がないか・霜がついていないか確認する",
+            "設定温度と室温の差が適切か確認する",
+            "リモコンの電池・設定モードを確認する"
+          ],
+          steps: [
+            "フィルターを取り外して掃除機で吸塵・水洗いして乾燥させる",
+            "室外機まわりの荷物・落ち葉・雪を除去する",
+            "本体のリセット（コンセント抜き挿し）を試みる",
+            "改善しない場合はエアコンメーカー・業者へ点検依頼する"
+          ],
+          contact: false
+        },
+        {
+          name: "エアコンから異音がする",
+          level: "mid",
+          checks: [
+            "どこから音がするか（室内機・室外機・配管）特定する",
+            "音の種類（カタカタ・ブーン・キュルキュル・水音）を確認する",
+            "フィルターや異物が内部に入り込んでいないか確認する"
+          ],
+          steps: [
+            "運転を一時停止して様子を見る",
+            "フィルター・ルーバーの確認と取り付け直しを行う",
+            "室外機まわりに振動を引き起こす物がないか除去する",
+            "異音が続く場合はメーカーサービスへ点検依頼する"
+          ],
+          contact: false
+        },
+        {
+          name: "エアコンから水漏れする",
+          level: "mid",
+          checks: [
+            "どこから水が出ているか（室内機の吹き出し口・配管接続部）確認する",
+            "ドレンホースが詰まっていないか屋外側の排出口を確認する",
+            "フィルターが極度に汚れていないか確認する"
+          ],
+          steps: [
+            "ドレンホースの先端をバキューム（口・ポンプ）で吸い詰まりを除去する",
+            "フィルターを清掃する",
+            "改善しない場合はドレンホース交換または業者へ依頼する"
+          ],
+          contact: false
+        },
+        {
+          name: "換気扇が動かない・異音がする",
+          level: "low",
+          checks: [
+            "電源スイッチ・ブレーカーを確認する",
+            "フィルター・グリルに油汚れ・ホコリが詰まっていないか確認する",
+            "異音の種類（ガラガラ・ブーン・軋み）を確認する"
+          ],
+          steps: [
+            "グリル・フィルターを取り外して洗浄する",
+            "油汚れはアルカリ洗剤を使用して洗浄する",
+            "洗浄後に動作確認。改善しない場合は換気扇本体の交換を検討する"
+          ],
+          contact: false
+        }
+      ]
+    },
+    "機械設備": {
+      icon: "⚙️",
+      items: [
+        {
+          name: "エレベーターが止まっている・動かない",
+          level: "high",
+          checks: [
+            "かご内に人が閉じ込められていないか確認する",
+            "エレベーター管理会社の緊急連絡先を確認する",
+            "地震・停電が発生していないか確認する",
+            "制御盤のブレーカー・エラー表示を確認する"
+          ],
+          steps: [
+            "かご内に人がいる場合は直ちに管理会社緊急連絡先へ連絡する",
+            "地震後は専門業者の点検完了まで使用禁止とする",
+            "停電復旧後も自動復帰しない場合は管理会社へ連絡する",
+            "使用禁止の貼り紙を出入口に掲示する"
+          ],
+          contact: true
+        },
+        {
+          name: "ポンプが動かない・異音がする",
+          level: "mid",
+          checks: [
+            "電源・ブレーカーを確認する",
+            "吸込口・吐出口のバルブが閉じていないか確認する",
+            "圧力計の値が正常範囲か確認する",
+            "エア噛み（空運転）が起きていないか確認する"
+          ],
+          steps: [
+            "電源・ブレーカーの確認・リセットを行う",
+            "バルブの開閉状態を正常に戻す",
+            "エア抜きコックからエアを抜く",
+            "改善しない場合は設備業者へ点検依頼する"
+          ],
+          contact: false
+        },
+        {
+          name: "給湯器のお湯が出ない・エラー表示",
+          level: "mid",
+          checks: [
+            "リモコンのエラーコードを確認する（型番ごとにコードが異なる）",
+            "ガス元栓が開いているか確認する",
+            "給湯器の凍結防止機能が作動していないか確認する（冬季）",
+            "追い焚き配管のフィルターが詰まっていないか確認する"
+          ],
+          steps: [
+            "リモコンのエラーコードをメモしてメーカーサポートに照会する",
+            "ガス元栓・止水栓を確認して正しく開く",
+            "凍結の場合は自然解凍を待つ（熱湯をかけない）",
+            "エラーが解消しない場合はメーカーまたは施工業者へ連絡する"
+          ],
+          contact: false
+        },
+        {
+          name: "自動ドアが動かない・誤作動する",
+          level: "mid",
+          checks: [
+            "電源・ブレーカーを確認する",
+            "センサーに汚れ・異物が付着していないか確認する",
+            "手動解除スイッチの状態を確認する",
+            "ガイドレールに異物・障害物がないか確認する"
+          ],
+          steps: [
+            "手動解除に切り替えて通行を確保する",
+            "センサー周辺の清掃を行う",
+            "ガイドレールの障害物を除去する",
+            "改善しない場合は自動ドア業者へ点検依頼する"
+          ],
+          contact: false
+        }
+      ]
+    },
+    "建物": {
+      icon: "🏠",
+      items: [
+        {
+          name: "雨漏りがある",
+          level: "high",
+          checks: [
+            "雨漏りが発生している場所（天井・壁・窓まわり）を特定する",
+            "上階・屋上のどこから水が侵入しているか推測する",
+            "雨漏りの量・範囲を確認する"
+          ],
+          steps: [
+            "バケツ・タオルで応急措置を行い、二次被害（家財・電気設備）を防ぐ",
+            "雨漏り箇所の写真を撮影・記録する",
+            "電気設備への浸水がある場合はブレーカーをオフにする",
+            "防水業者または建物管理業者へ点検・補修を依頼する"
+          ],
+          contact: true
+        },
+        {
+          name: "窓・ドアが閉まらない・開かない",
+          level: "low",
+          checks: [
+            "建付けがズレているか確認する（ネジ緩み・建物の傾き）",
+            "蝶番・レールに汚れ・錆がないか確認する",
+            "地震後の建物変形による可能性を確認する"
+          ],
+          steps: [
+            "蝶番のネジを締め直す",
+            "レールに潤滑剤（CRC等）を塗布する",
+            "建付け調整が必要な場合はリフォーム業者へ依頼する",
+            "地震後の変形が疑われる場合は建物診断業者へ相談する"
+          ],
+          contact: false
+        },
+        {
+          name: "壁・床にひびが入った",
+          level: "mid",
+          checks: [
+            "ひびの長さ・幅・深さを確認する（0.3mm以上は要注意）",
+            "ひびが進行中（拡大中）か安定しているか確認する",
+            "地震後・地盤沈下などによる可能性を確認する"
+          ],
+          steps: [
+            "ひびの端にマーキングをして進行状況を記録する",
+            "雨水が侵入しそうな場合はシーリング材で応急処置する",
+            "0.3mm以上または進行中のひびは専門家に診断を依頼する"
+          ],
+          contact: false
+        },
+        {
+          name: "外壁・屋上の劣化・剥がれ",
+          level: "mid",
+          checks: [
+            "剥がれの箇所・面積を確認する",
+            "下地（コンクリート・モルタル）まで傷んでいないか確認する",
+            "雨水侵入につながる可能性がないか確認する"
+          ],
+          steps: [
+            "落下の危険がある場合は立入禁止エリアを設定する",
+            "写真で記録し業者に診断を依頼する",
+            "防水・外壁工事業者に補修を依頼する"
+          ],
+          contact: true
+        }
+      ]
+    },
+    "その他": {
+      icon: "🔧",
+      items: [
+        {
+          name: "不審な異音・振動がする",
+          level: "mid",
+          checks: [
+            "音・振動の発生場所を特定する",
+            "いつから・どんな状況で発生するか記録する",
+            "配管・ダクト・機械の固定部品が緩んでいないか確認する"
+          ],
+          steps: [
+            "発生状況・音の特徴を記録する（動画も有効）",
+            "固定部品のネジ・ボルトを確認して締め直す",
+            "原因が特定できない場合は設備業者または建物管理者へ相談する"
+          ],
+          contact: false
+        },
+        {
+          name: "悪臭がする",
+          level: "mid",
+          checks: [
+            "臭いの発生場所・種類（下水・ガス・腐敗・焦げ）を確認する",
+            "ガス臭の場合は窓を開けてガス会社へ連絡する（最優先）",
+            "排水トラップが乾燥して下水臭が上がっていないか確認する"
+          ],
+          steps: [
+            "ガス臭の場合は火気厳禁・換気・ガス会社緊急連絡（0120-919-000等）",
+            "下水臭の場合は排水トラップに水を注ぎ封水を復活させる",
+            "腐敗臭の場合は食品・廃棄物の確認と清掃を行う",
+            "改善しない場合は設備業者へ調査を依頼する"
+          ],
+          contact: true
+        },
+        {
+          name: "セキュリティ設備（カメラ・インターホン）が動かない",
+          level: "low",
+          checks: [
+            "電源・ブレーカーを確認する",
+            "配線の接続が外れていないか確認する",
+            "モニター・録画装置の電源を確認する"
+          ],
+          steps: [
+            "電源・ブレーカーの確認・リセットを行う",
+            "配線の接続を確認する",
+            "改善しない場合は設備業者へ点検依頼する"
+          ],
+          contact: false
+        }
+      ]
+    }
+  };
+
+  var currentCat = null;
+  var currentItem = null;
+  var favs = JSON.parse(localStorage.getItem('setsubi-favs') || '[]');
+
+  function init() {
+    var grid = document.getElementById('catGrid');
+    Object.keys(DATA).forEach(function(cat) {
+      var btn = document.createElement('button');
+      btn.className = 'cat-btn';
+      btn.id = 'cat-' + cat;
+      btn.innerHTML = '<span class="icon">' + DATA[cat].icon + '</span>' + cat;
+      btn.onclick = function() { selectCat(cat); };
+      grid.appendChild(btn);
+    });
+    renderFavs();
+  }
+
+  function selectCat(cat) {
+    currentCat = cat;
+    document.querySelectorAll('.cat-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.getElementById('cat-' + cat).classList.add('active');
+
+    var card = document.getElementById('symptomCard');
+    card.style.display = '';
+    document.getElementById('symptomCardTitle').textContent = DATA[cat].icon + ' ' + cat + ' ─ 症状を選ぶ';
+
+    var list = document.getElementById('symptomList');
+    list.innerHTML = '';
+    DATA[cat].items.forEach(function(item, idx) {
+      var li = document.createElement('li');
+      li.className = 'symptom-item';
+      var levelLabel = item.level === 'high' ? '緊急度：高' : item.level === 'mid' ? '緊急度：中' : '緊急度：低';
+      var levelClass = item.level === 'high' ? 'level-high' : item.level === 'mid' ? 'level-mid' : 'level-low';
+      li.innerHTML = '<span class="symptom-name">' + item.name + '</span>'
+                   + '<span class="symptom-level ' + levelClass + '">' + levelLabel + '</span>';
+      li.onclick = function() { selectSymptom(cat, idx); };
+      list.appendChild(li);
+    });
+
+    document.getElementById('detailPanel').classList.remove('show');
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function selectSymptom(cat, idx) {
+    currentItem = { cat: cat, idx: idx };
+    var item = DATA[cat].items[idx];
+
+    document.getElementById('detailTitle').textContent = item.name;
+    updateFavBtn();
+
+    var checkList = document.getElementById('checkList');
+    checkList.innerHTML = item.checks.map(function(c) {
+      return '<li class="check-item"><span class="check-mark">▶</span><span>' + c + '</span></li>';
+    }).join('');
+
+    var stepList = document.getElementById('stepList');
+    stepList.innerHTML = item.steps.map(function(s, i) {
+      return '<li class="step-item"><span class="step-num">' + (i+1) + '</span><span class="step-text">' + s + '</span></li>';
+    }).join('');
+
+    var contactArea = document.getElementById('contactArea');
+    contactArea.innerHTML = item.contact
+      ? '<span class="contact-tag">⚠️ 専門業者への連絡が必要な可能性があります</span>'
+      : '';
+
+    var panel = document.getElementById('detailPanel');
+    panel.classList.add('show');
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function toggleFav() {
+    if (!currentItem) return;
+    var key = currentItem.cat + '::' + currentItem.idx;
+    var idx = favs.indexOf(key);
+    if (idx === -1) {
+      favs.push(key);
+    } else {
+      favs.splice(idx, 1);
+    }
+    localStorage.setItem('setsubi-favs', JSON.stringify(favs));
+    updateFavBtn();
+    renderFavs();
+  }
+
+  function updateFavBtn() {
+    if (!currentItem) return;
+    var key = currentItem.cat + '::' + currentItem.idx;
+    document.getElementById('favBtn').textContent = favs.indexOf(key) !== -1 ? '★' : '☆';
+  }
+
+  function renderFavs() {
+    var section = document.getElementById('favSection');
+    var list = document.getElementById('favList');
+    if (favs.length === 0) {
+      section.classList.remove('has-fav');
+      return;
+    }
+    section.classList.add('has-fav');
+    list.innerHTML = '';
+    favs.forEach(function(key) {
+      var parts = key.split('::');
+      var cat = parts[0]; var idx = parseInt(parts[1]);
+      if (!DATA[cat] || !DATA[cat].items[idx]) return;
+      var item = DATA[cat].items[idx];
+      var li = document.createElement('li');
+      li.className = 'fav-item';
+      li.innerHTML = '<div><div class="fav-item-name">' + item.name + '</div>'
+                   + '<div class="fav-item-cat">' + DATA[cat].icon + ' ' + cat + '</div></div>'
+                   + '<button class="fav-del" onclick="removeFav(\'' + key + '\',event)">✕</button>';
+      li.onclick = function() { selectCat(cat); selectSymptom(cat, idx); };
+      list.appendChild(li);
+    });
+  }
+
+  function removeFav(key, e) {
+    e.stopPropagation();
+    var idx = favs.indexOf(key);
+    if (idx !== -1) favs.splice(idx, 1);
+    localStorage.setItem('setsubi-favs', JSON.stringify(favs));
+    if (currentItem && currentItem.cat + '::' + currentItem.idx === key) updateFavBtn();
+    renderFavs();
+  }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
