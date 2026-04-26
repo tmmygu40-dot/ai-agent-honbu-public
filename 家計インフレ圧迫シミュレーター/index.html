@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="食費・光熱費・住居費などの月間支出と物価上昇率を入力するだけで、家計への月次追加負担額・年間影響額をカテゴリ別内訳付きで即試算。インフレが家計を月いくら圧迫するか一目でわかるシミュレーターです。">
+  <title>家計インフレ圧迫シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8; --card: #ffffff; --border: #e8ddd0;
+      --accent: #e07b00; --accent-light: #fff8ee;
+      --text: #1c1917; --text-sub: #78716c;
+      --ok: #15803d; --ok-bg: #f0fdf4;
+      --warn: #b45309; --warn-bg: #fffbeb;
+      --ng: #b91c1c; --ng-bg: #fef2f2;
+      --radius: 14px; --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 0 0 3rem; }
+    .app-header { background: var(--card); border-bottom: 3px solid var(--accent); padding: 1.2rem 1.2rem 1rem; margin-bottom: 1.5rem; }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card { background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.2rem; box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px; }
+    .card-title { font-size: 0.78rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+
+    /* 支出入力グリッド */
+    .expense-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    @media (max-width: 460px) { .expense-grid { grid-template-columns: 1fr; } }
+    .exp-field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .exp-field input { width: 100%; padding: 0.65rem 0.8rem; font-size: 0.95rem; border: 1.5px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--text); outline: none; transition: border-color 0.15s; }
+    .exp-field input:focus { border-color: var(--accent); background: #fff; }
+    .total-row { display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); font-size: 0.9rem; }
+    .total-row span { font-weight: 700; color: var(--accent); font-size: 1.1rem; }
+
+    /* 上昇率選択 */
+    .rate-buttons { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .rate-btn { padding: 0.45rem 0.9rem; font-size: 0.88rem; font-weight: 700; border: 2px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-sub); cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent; }
+    .rate-btn.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .rate-slider-wrap { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem; }
+    .rate-slider-wrap input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .rate-display { font-size: 1.1rem; font-weight: 900; color: var(--accent); min-width: 3rem; text-align: right; }
+
+    /* 計算ボタン */
+    .btn-calc { display: block; width: 100%; max-width: 600px; margin: 0 auto 1.2rem; padding: 1rem; font-size: 1.05rem; font-weight: 800; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); cursor: pointer; box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25); transition: transform 0.1s, box-shadow 0.1s; -webkit-tap-highlight-color: transparent; }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2); }
+
+    /* 結論カード */
+    .result-card { display: none; border: 2px solid var(--border); border-radius: var(--radius); padding: 1.4rem 1.2rem; box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px; text-align: center; background: var(--card); }
+    .result-card.warn { border-color: var(--warn); background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);   background: var(--ng-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.3rem; }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng); }
+    .result-eval { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* 年間サマリー */
+    .annual-band { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+    .annual-item { flex: 1; background: var(--ng-bg); border: 1.5px solid var(--ng); border-radius: 10px; padding: 0.75rem 0.5rem; text-align: center; }
+    .annual-label { font-size: 0.7rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .annual-value { font-size: 1.15rem; font-weight: 900; color: var(--ng); }
+
+    /* 内訳テーブル */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; }
+    .detail-table .hl td:last-child { color: var(--ng); font-size: 1.05rem; }
+
+    /* 対策カード */
+    .tips-list { list-style: none; }
+    .tips-list li { padding: 0.55rem 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; line-height: 1.5; }
+    .tips-list li:last-child { border-bottom: none; }
+    .tips-list li::before { content: "✓ "; color: var(--ok); font-weight: 700; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    .btn-pdf { display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem; font-size: 0.85rem; font-weight: 700; background: var(--card); color: var(--text-sub); border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; max-width: 600px; width: 100%; transition: border-color 0.15s, color 0.15s; }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>家計インフレ圧迫シミュレーター</h1>
+    <p class="subtitle">物価上昇率を選ぶだけで月次不足額・年間影響を即試算</p>
+  </header>
+
+  <!-- 支出入力 -->
+  <div class="card">
+    <p class="card-title">月間支出を入力（円）</p>
+    <div class="expense-grid">
+      <div class="exp-field">
+        <label for="e-food">🛒 食費</label>
+        <input type="number" id="e-food" placeholder="例: 60000" min="0" inputmode="decimal">
+      </div>
+      <div class="exp-field">
+        <label for="e-util">💡 光熱費（電気・ガス・水道）</label>
+        <input type="number" id="e-util" placeholder="例: 15000" min="0" inputmode="decimal">
+      </div>
+      <div class="exp-field">
+        <label for="e-rent">🏠 住居費（家賃・ローン等）</label>
+        <input type="number" id="e-rent" placeholder="例: 80000" min="0" inputmode="decimal">
+      </div>
+      <div class="exp-field">
+        <label for="e-trans">🚃 交通費・ガソリン</label>
+        <input type="number" id="e-trans" placeholder="例: 12000" min="0" inputmode="decimal">
+      </div>
+      <div class="exp-field">
+        <label for="e-daily">🧴 日用品・消耗品</label>
+        <input type="number" id="e-daily" placeholder="例: 10000" min="0" inputmode="decimal">
+      </div>
+      <div class="exp-field">
+        <label for="e-other">📦 その他（外食・娯楽等）</label>
+        <input type="number" id="e-other" placeholder="例: 20000" min="0" inputmode="decimal">
+      </div>
+    </div>
+    <div class="total-row">
+      <span style="color:var(--text-sub);font-weight:600;font-size:0.88rem;">月間支出合計</span>
+      <span id="total-disp">0 円</span>
+    </div>
+  </div>
+
+  <!-- 上昇率選択 -->
+  <div class="card">
+    <p class="card-title">物価上昇率を選択</p>
+    <div class="rate-buttons" id="rate-buttons">
+      <button class="rate-btn" onclick="setRate(1)">+1%</button>
+      <button class="rate-btn" onclick="setRate(2)">+2%</button>
+      <button class="rate-btn active" onclick="setRate(3)">+3%</button>
+      <button class="rate-btn" onclick="setRate(5)">+5%</button>
+      <button class="rate-btn" onclick="setRate(7)">+7%</button>
+      <button class="rate-btn" onclick="setRate(10)">+10%</button>
+    </div>
+    <div class="rate-slider-wrap">
+      <span style="font-size:0.78rem;color:var(--text-sub);">1%</span>
+      <input type="range" id="rate-slider" min="1" max="10" step="0.5" value="3" oninput="onSlider(this.value)">
+      <span style="font-size:0.78rem;color:var(--text-sub);">10%</span>
+      <span class="rate-display" id="rate-disp">3.0%</span>
+    </div>
+    <p style="font-size:0.74rem;color:var(--text-sub);margin-top:0.5rem;">※ 総務省CPI（消費者物価指数）2024年実績：前年比約3%</p>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">影響額を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月次の追加負担</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 年間サマリー -->
+  <div class="card" id="annual-card" style="display:none">
+    <p class="card-title">年間への影響</p>
+    <div class="annual-band">
+      <div class="annual-item">
+        <p class="annual-label">年間追加負担</p>
+        <p class="annual-value" id="annual-val">—</p>
+      </div>
+      <div class="annual-item" style="border-color:var(--warn);background:var(--warn-bg);">
+        <p class="annual-label">3年累計</p>
+        <p class="annual-value" style="color:var(--warn)" id="annual3-val">—</p>
+      </div>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text-sub);line-height:1.6;">
+      ※ 収入が増えない場合、上記の金額分だけ生活水準が下がる試算です。
+    </p>
+  </div>
+
+  <!-- カテゴリ別内訳 -->
+  <div class="card" id="detail-card" style="display:none">
+    <p class="card-title">カテゴリ別 追加負担（月次）</p>
+    <table class="detail-table"><tbody id="detail-body"></tbody></table>
+  </div>
+
+  <!-- 対策提案 -->
+  <div class="card" id="tips-card" style="display:none">
+    <p class="card-title">インフレへの対策ヒント</p>
+    <ul class="tips-list" id="tips-list"></ul>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 物価上昇率の参考：総務省「消費者物価指数（CPI）」。このツールは目安として使いやすく整理しています。実際の価格上昇は品目・地域・時期により異なります。最新情報は総務省統計局等の公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'kakeibo_inflate_v1';
+  var currentRate = 3;
+
+  // 品目ごとの物価上昇感応度（食費・光熱費は高め、住居は低め）
+  var SENSITIVITY = {
+    food:  1.4,   // 食費は全体の1.4倍の感応度
+    util:  1.6,   // 光熱費は1.6倍
+    rent:  0.3,   // 家賃は上がりにくい（0.3倍）
+    trans: 1.2,   // 交通費・ガソリン
+    daily: 1.1,   // 日用品
+    other: 0.9,   // その他は平均より若干低め
+  };
+
+  var TIPS_MAP = {
+    low: [
+      'ポイント還元率の高いクレジットカードに統一する',
+      '食費：まとめ買い・業務スーパー活用で1割削減を目指す',
+      'サブスク・固定費を年1回見直す',
+      '光熱費：電力・ガス会社の乗り換えを検討する',
+    ],
+    mid: [
+      '食費：自炊比率を上げ、外食を週1回減らす',
+      '光熱費：太陽光・省エネ家電への切り替えを検討する',
+      '副収入（副業・投資）で収入源を増やす',
+      '固定費（保険・通信）を見直して月3,000円以上削減を目指す',
+      'iDeCo・NISAでインフレに負けない資産形成を始める',
+    ],
+    high: [
+      '今すぐ固定費を総点検し、不要なサービスを全廃する',
+      '食費の見直し：献立計画・ロスゼロ・特売活用を徹底する',
+      '光熱費：使用量を10%削減できる節電・節ガス対策を実施する',
+      '収入アップ：昇給交渉・転職・副業を本格的に検討する',
+      'iDeCo・NISAで資産をインフレヘッジする',
+      '住居費：引越し・住宅ローン借換え・家賃交渉を検討する',
+    ],
+  };
+
+  function setRate(r) {
+    currentRate = r;
+    document.getElementById('rate-slider').value = r;
+    document.getElementById('rate-disp').textContent = r.toFixed(1) + '%';
+    document.querySelectorAll('.rate-btn').forEach(function(b) { b.classList.remove('active'); });
+    var btns = document.querySelectorAll('.rate-btn');
+    var map = {1:0, 2:1, 3:2, 5:3, 7:4, 10:5};
+    if (map[r] !== undefined) btns[map[r]].classList.add('active');
+  }
+
+  function onSlider(v) {
+    currentRate = parseFloat(v);
+    document.getElementById('rate-disp').textContent = parseFloat(v).toFixed(1) + '%';
+    document.querySelectorAll('.rate-btn').forEach(function(b) { b.classList.remove('active'); });
+    var presets = [1, 2, 3, 5, 7, 10];
+    var idx = presets.indexOf(Math.round(currentRate));
+    if (idx >= 0) document.querySelectorAll('.rate-btn')[idx].classList.add('active');
+  }
+
+  function getExpenses() {
+    return {
+      food:  parseFloat(document.getElementById('e-food').value)  || 0,
+      util:  parseFloat(document.getElementById('e-util').value)  || 0,
+      rent:  parseFloat(document.getElementById('e-rent').value)  || 0,
+      trans: parseFloat(document.getElementById('e-trans').value) || 0,
+      daily: parseFloat(document.getElementById('e-daily').value) || 0,
+      other: parseFloat(document.getElementById('e-other').value) || 0,
+    };
+  }
+
+  function updateTotal() {
+    var ex = getExpenses();
+    var total = ex.food + ex.util + ex.rent + ex.trans + ex.daily + ex.other;
+    document.getElementById('total-disp').textContent = fmt(total) + ' 円';
+  }
+
+  // 入力イベント
+  ['e-food','e-util','e-rent','e-trans','e-daily','e-other'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', updateTotal);
+  });
+
+  function calc() {
+    var ex = getExpenses();
+    var total = ex.food + ex.util + ex.rent + ex.trans + ex.daily + ex.other;
+    if (total <= 0) { showErr('支出を1つ以上入力してください'); return; }
+
+    var rate = currentRate / 100;
+
+    // カテゴリ別追加負担
+    var cats = [
+      { label: '🛒 食費',           key: 'food',  val: ex.food  },
+      { label: '💡 光熱費',         key: 'util',  val: ex.util  },
+      { label: '🏠 住居費',         key: 'rent',  val: ex.rent  },
+      { label: '🚃 交通費・ガソリン', key: 'trans', val: ex.trans },
+      { label: '🧴 日用品',         key: 'daily', val: ex.daily },
+      { label: '📦 その他',         key: 'other', val: ex.other },
+    ].filter(function(c) { return c.val > 0; });
+
+    var monthlyExtra = 0;
+    var rows = cats.map(function(c) {
+      var extra = Math.round(c.val * rate * SENSITIVITY[c.key]);
+      monthlyExtra += extra;
+      return { label: c.label, orig: c.val, extra: extra };
+    });
+    var annualExtra = monthlyExtra * 12;
+    var annual3     = monthlyExtra * 36;
+
+    // 判定
+    var pct = (monthlyExtra / total * 100).toFixed(1);
+    var level, eval_, note;
+    if (pct >= 7) {
+      level = 'ng'; eval_ = '家計への圧迫が深刻です';
+      note  = '月収入が変わらない場合、生活水準の維持が困難になる可能性があります。今すぐ固定費の見直しと収入アップを検討してください。';
+    } else if (pct >= 4) {
+      level = 'warn'; eval_ = '家計への影響がかなり大きいです';
+      note  = '支出の削減と収入の確保を早めに対策することをおすすめします。';
+    } else {
+      level = 'warn'; eval_ = '家計に影響が出ています';
+      note  = '小さな節約の積み重ねと、インフレに強い資産形成で対抗しましょう。';
+    }
+
+    // 表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = 'block';
+    document.getElementById('rv').textContent = '+' + fmt(monthlyExtra) + ' 円 / 月';
+    document.getElementById('re').textContent = eval_ + '（支出の約' + pct + '%増）';
+    document.getElementById('rn').textContent = note;
+
+    // 年間
+    document.getElementById('annual-val').textContent  = '+' + fmt(annualExtra) + ' 円';
+    document.getElementById('annual3-val').textContent = '+' + fmt(annual3) + ' 円';
+    document.getElementById('annual-card').style.display = 'block';
+
+    // 内訳
+    var tbHtml = rows.map(function(r) {
+      return '<tr><td>' + r.label + '</td>'
+           + '<td style="color:var(--text-sub)">' + fmt(r.orig) + ' 円</td>'
+           + '<td style="color:var(--ng);font-weight:700">+' + fmt(r.extra) + ' 円</td></tr>';
+    }).join('');
+    tbHtml += '<tr class="hl"><td>合計追加負担</td><td></td><td style="color:var(--ng)">+' + fmt(monthlyExtra) + ' 円 / 月</td></tr>';
+    document.getElementById('detail-body').innerHTML = tbHtml;
+    document.getElementById('detail-card').style.display = 'block';
+
+    // 対策
+    var tipsKey = pct >= 7 ? 'high' : pct >= 4 ? 'mid' : 'low';
+    document.getElementById('tips-list').innerHTML = TIPS_MAP[tipsKey].map(function(t) {
+      return '<li>' + t + '</li>';
+    }).join('');
+    document.getElementById('tips-card').style.display = 'block';
+
+    // localStorage保存
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        food: ex.food, util: ex.util, rent: ex.rent,
+        trans: ex.trans, daily: ex.daily, other: ex.other,
+        rate: currentRate
+      }));
+    } catch(e) {}
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('annual-card').style.display = 'none';
+    document.getElementById('detail-card').style.display = 'none';
+    document.getElementById('tips-card').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // 起動時復元
+  (function(){
+    try {
+      var s = localStorage.getItem(STORAGE_KEY);
+      if (!s) return;
+      var d = JSON.parse(s);
+      if (d.food  !== undefined) document.getElementById('e-food').value  = d.food;
+      if (d.util  !== undefined) document.getElementById('e-util').value  = d.util;
+      if (d.rent  !== undefined) document.getElementById('e-rent').value  = d.rent;
+      if (d.trans !== undefined) document.getElementById('e-trans').value = d.trans;
+      if (d.daily !== undefined) document.getElementById('e-daily').value = d.daily;
+      if (d.other !== undefined) document.getElementById('e-other').value = d.other;
+      if (d.rate)  setRate(d.rate);
+      updateTotal();
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
