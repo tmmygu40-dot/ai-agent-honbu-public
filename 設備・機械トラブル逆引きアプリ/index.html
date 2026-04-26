@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>設備・機械トラブル逆引きアプリ</title>
+  <meta name="description" content="設備や機械の症状を選ぶだけで、原因候補と応急対処法をすぐ表示。空調・電気設備・機械・配管・PC・車両など6カテゴリをカバーした現場向けトラブル逆引きアプリです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card); border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem; margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem; font-size: 1rem;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2); }
+
+    /* ── 原因リスト ── */
+    .cause-block { margin-bottom: 1.2rem; }
+    .cause-block:last-child { margin-bottom: 0; }
+    .cause-title {
+      font-size: 0.88rem; font-weight: 800; color: var(--text);
+      margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;
+    }
+    .priority-badge {
+      font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem;
+      border-radius: 10px;
+    }
+    .priority-high { background: var(--ng-bg); color: var(--ng); border: 1px solid #fca5a5; }
+    .priority-mid  { background: var(--warn-bg); color: var(--warn); border: 1px solid #fcd34d; }
+    .priority-low  { background: var(--ok-bg); color: var(--ok); border: 1px solid #bbf7d0; }
+
+    .action-list { list-style: none; padding: 0; }
+    .action-list li {
+      display: flex; gap: 0.65rem; align-items: flex-start;
+      padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; line-height: 1.6; color: var(--text-sub);
+    }
+    .action-list li:last-child { border-bottom: none; }
+    .action-list li::before { content: "▶"; color: var(--accent); flex-shrink: 0; font-size: 0.72rem; margin-top: 0.3rem; }
+
+    /* ── 警告カード ── */
+    .warn-card {
+      background: var(--warn-bg); border: 1.5px solid var(--warn);
+      border-radius: var(--radius); padding: 1rem 1.2rem; margin: 0 auto 1rem; max-width: 600px;
+      font-size: 0.88rem; line-height: 1.7; color: var(--warn);
+    }
+    .warn-card strong { display: block; font-size: 0.82rem; font-weight: 800; margin-bottom: 0.4rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .warn-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>設備・機械トラブル逆引きアプリ</h1>
+    <p class="subtitle">症状を選ぶだけ。原因候補と応急対処法を即表示</p>
+  </header>
+
+  <div class="card">
+    <p class="card-title">症状を選択</p>
+    <div class="field">
+      <label for="category">設備・機械カテゴリ</label>
+      <select id="category" onchange="updateSymptoms()">
+        <option value="hvac">空調・換気設備</option>
+        <option value="elec">電気・電源設備</option>
+        <option value="machine">生産機械・工作機械</option>
+        <option value="pipe">配管・給排水設備</option>
+        <option value="pc">PC・OA機器</option>
+        <option value="vehicle">車両・フォークリフト</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="symptom">症状</label>
+      <select id="symptom"></select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="lookup()">原因・対処法を調べる</button>
+
+  <div class="warn-card" id="warnCard" style="display:none">
+    <strong>⚠️ 安全上の注意</strong>
+    <span id="warnText"></span>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <p class="card-title" id="resultTitle">原因候補と応急対処法</p>
+    <div id="resultList"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    🔧 このアプリは一般的なトラブルシューティングの目安です。感電・火災・爆発の危険がある場合は作業を中止し、専門業者へご連絡ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var SYMPTOMS = {
+    hvac: [
+      '冷えない・暖まらない',
+      '異音がする（ガタガタ・ピーピー）',
+      '水漏れがある',
+      '異臭がする',
+      '電源が入らない',
+      '風が弱い・出ない',
+    ],
+    elec: [
+      'ブレーカーが落ちる',
+      '漏電が疑われる',
+      'コンセント・スイッチが使えない',
+      '電圧が不安定',
+      '照明がチラつく・消える',
+      '機器が誤作動する',
+    ],
+    machine: [
+      '異音・振動が大きい',
+      '精度が出ない・寸法ずれ',
+      '停止・電源が落ちる',
+      '動作が遅い・途中で止まる',
+      'オイル・液体漏れ',
+      '発熱・焦げ臭い',
+    ],
+    pipe: [
+      '水漏れ・滲み',
+      '詰まり・流れが悪い',
+      '異音（ハンマリング・水音）',
+      '水圧が低い',
+      '異臭・変色した水',
+      '凍結している',
+    ],
+    pc: [
+      '起動しない・フリーズ',
+      '動作が遅い',
+      '画面が映らない',
+      'ネットワークに繋がらない',
+      '異音・過熱している',
+      'データが消えた・開けない',
+    ],
+    vehicle: [
+      'エンジンがかからない',
+      '異音（ゴトゴト・キーキー）',
+      'ブレーキの効きが悪い',
+      'オイル・液体が漏れている',
+      '警告灯が点灯している',
+      'バッテリーが上がった',
+    ],
+  };
+
+  var DATA = {
+    hvac: {
+      '冷えない・暖まらない': {
+        warn: null,
+        causes: [
+          { title: 'フィルター詰まり', priority: 'high', actions: ['フィルターを取り外して清掃・水洗いする', '乾燥させてから再装着する', '交換目安を過ぎている場合は新品に交換'] },
+          { title: '設定温度・モードの確認', priority: 'mid', actions: ['設定温度が適切か確認（冷房20℃以下・暖房30℃以上になっていないか）', 'モード（冷房/暖房/送風）が正しく設定されているか確認'] },
+          { title: '室外機の障害・汚れ', priority: 'mid', actions: ['室外機周囲1m以内に障害物がないか確認・除去', '室外機のフィンが汚れている場合は専用洗浄スプレーで清掃', '直射日光や熱気が室外機に当たっている場合は遮熱対策'] },
+          { title: '冷媒ガス不足', priority: 'low', actions: ['ガス不足の場合は自己対処不可。専門業者に冷媒充填を依頼する'] },
+        ],
+      },
+      '異音がする（ガタガタ・ピーピー）': {
+        warn: null,
+        causes: [
+          { title: 'フィルター・カバーの緩み', priority: 'high', actions: ['フィルターやカバーが正しくセットされているか確認・締め直す', '異物（虫・埃の塊など）が内部に入り込んでいないか確認'] },
+          { title: 'ファン・ベルトの異常', priority: 'mid', actions: ['ピーピー音はベルト摩耗の可能性が高い。専門業者に点検依頼', 'ガタガタ音はファン翼の変形・破損。目視確認後に専門業者へ'] },
+          { title: 'ドレンパンへの水溜まり', priority: 'low', actions: ['ドレンパン（水受け皿）に水が溜まっていないか確認', '溜まっている場合はドレンホースの詰まりを確認・除去'] },
+        ],
+      },
+      '水漏れがある': {
+        warn: '電気製品の下への水漏れは感電・漏電の危険があります。電源を落としてから対処してください。',
+        causes: [
+          { title: 'ドレンホースの詰まり', priority: 'high', actions: ['室外のドレンホース先端を確認し、詰まりを除去する', '専用のポンプやブロワーで逆側から吸引して詰まりを解消'] },
+          { title: 'フィルター詰まりによる結露過多', priority: 'mid', actions: ['フィルターを清掃して結露量を正常に戻す'] },
+          { title: 'ドレンパンの割れ・ズレ', priority: 'low', actions: ['ドレンパンの位置ズレを確認・修正する', '割れている場合は専門業者に交換依頼'] },
+        ],
+      },
+      '異臭がする': {
+        warn: '焦げ臭い場合は直ちに電源を切り、使用を中止してください。',
+        causes: [
+          { title: '内部のカビ・汚れ', priority: 'high', actions: ['市販の空調クリーナーで内部を清掃する', 'カビ臭が強い場合は専門業者によるエアコンクリーニングを依頼'] },
+          { title: '焦げ臭・電気系異常', priority: 'high', actions: ['直ちに電源を切り、コンセントを抜く', '再使用せず専門業者に点検依頼'] },
+          { title: '外気・排水からの臭い', priority: 'low', actions: ['ドレンホースからの臭い逆流の場合はトラップ（水封）が切れている可能性', '定期的に水を流してトラップを維持する'] },
+        ],
+      },
+      '電源が入らない': {
+        warn: null,
+        causes: [
+          { title: 'ブレーカー・電源確認', priority: 'high', actions: ['専用ブレーカーが落ちていないか確認・投入', 'コンセントへの差込みを確認', 'タイマー設定がONになっていないか確認'] },
+          { title: 'リモコン電池切れ', priority: 'high', actions: ['リモコンの電池を新品に交換して再試行'] },
+          { title: '内部保護機能の作動', priority: 'mid', actions: ['本体リセット（コンセントを抜いて10秒後に再投入）を試みる', '改善しない場合は専門業者に点検依頼'] },
+        ],
+      },
+      '風が弱い・出ない': {
+        warn: null,
+        causes: [
+          { title: 'フィルター極度の目詰まり', priority: 'high', actions: ['フィルターを取り外し、清掃または交換する'] },
+          { title: 'ファンモーター異常', priority: 'mid', actions: ['異音を伴う場合はファンモーターの故障の可能性。専門業者に点検依頼'] },
+          { title: '設定・モードの確認', priority: 'low', actions: ['風量設定が「弱」になっていないか確認', '自動運転の場合は手動で風量を上げて確認'] },
+        ],
+      },
+    },
+
+    elec: {
+      'ブレーカーが落ちる': {
+        warn: '何度もブレーカーが落ちる場合は電気系統に異常があります。無理に投入せず電気工事士に相談してください。',
+        causes: [
+          { title: '過負荷（電気の使いすぎ）', priority: 'high', actions: ['同一回路の電気機器を減らして再投入する', '大電力機器（エアコン・電子レンジ等）を別回路に分散する'] },
+          { title: '漏電', priority: 'high', actions: ['漏電ブレーカーが落ちている場合は漏電の可能性。配電盤の漏電ブレーカーを確認', '機器を一つずつ外しながら漏電箇所を特定する', '特定できない場合は電気工事士に依頼'] },
+          { title: 'ブレーカー本体の劣化', priority: 'low', actions: ['20年以上経過したブレーカーは劣化による誤作動の可能性。電気工事士に点検依頼'] },
+        ],
+      },
+      '漏電が疑われる': {
+        warn: '感電・火災の危険があります。素手で触れず、直ちに主幹ブレーカーを落とし電気工事士に連絡してください。',
+        causes: [
+          { title: '配線・絶縁の劣化', priority: 'high', actions: ['主幹ブレーカーを落とす', '電気工事士に漏電調査を依頼する', '原因特定まで当該回路の使用を中止する'] },
+          { title: '機器本体の絶縁不良', priority: 'high', actions: ['疑わしい機器のコンセントを抜く', '機器メーカーまたは修理業者に点検依頼'] },
+        ],
+      },
+      'コンセント・スイッチが使えない': {
+        warn: null,
+        causes: [
+          { title: '安全ブレーカーの落ち', priority: 'high', actions: ['配電盤の該当回路のブレーカーを確認・投入する'] },
+          { title: 'コンセント・スイッチ本体の故障', priority: 'mid', actions: ['他のコンセントで機器が動作するか確認', '本体故障の場合は電気工事士に交換依頼（DIYは電気工事士資格が必要）'] },
+          { title: '接触不良・差込み不足', priority: 'low', actions: ['コンセントへの差込みを一度抜き差しして確認', 'プラグの変形・腐食がないか目視確認'] },
+        ],
+      },
+      '電圧が不安定': {
+        warn: '精密機器や医療機器がある場合は直ちに電源を切ってください。',
+        causes: [
+          { title: '電力会社側の問題', priority: 'high', actions: ['近隣も停電・電圧異常の場合は電力会社に連絡する'] },
+          { title: '構内配線の容量不足', priority: 'mid', actions: ['大電力機器使用時のみ不安定な場合は電気工事士に配線増設を相談'] },
+          { title: 'UPS・電源装置の異常', priority: 'low', actions: ['UPS使用の場合はバッテリー劣化の可能性。バッテリー交換を検討'] },
+        ],
+      },
+      '照明がチラつく・消える': {
+        warn: null,
+        causes: [
+          { title: '球切れ・LED寿命', priority: 'high', actions: ['電球・LEDランプを交換する（電源オフ後に作業）'] },
+          { title: '照明器具の接触不良', priority: 'mid', actions: ['電球を一度抜き差しして接触を確認する', '改善しない場合は器具本体の故障の可能性。電気工事士に相談'] },
+          { title: '安定器・ドライバーの劣化', priority: 'low', actions: ['蛍光灯の場合、安定器の劣化によるチラツキが多い。器具交換（LED化）を検討'] },
+        ],
+      },
+      '機器が誤作動する': {
+        warn: null,
+        causes: [
+          { title: '電源ノイズ・瞬低', priority: 'high', actions: ['UPS（無停電電源装置）やノイズフィルターを導入する', '大電力機器と同一回路を使用していないか確認'] },
+          { title: 'アース不良', priority: 'mid', actions: ['機器のアース線が正しく接続されているか確認', '未接続の場合は電気工事士にアース工事を依頼'] },
+          { title: '機器本体の異常', priority: 'low', actions: ['一度電源をオフにしてリセットを試みる', '繰り返す場合はメーカーに点検依頼'] },
+        ],
+      },
+    },
+
+    machine: {
+      '異音・振動が大きい': {
+        warn: '金属摩耗片が飛散する恐れがあります。必ず安全眼鏡・保護具を着用して点検してください。',
+        causes: [
+          { title: 'ベアリング・軸受けの摩耗', priority: 'high', actions: ['機械を停止して冷却後、ベアリング周辺を点検', '異常な発熱がある場合は即時停止し専門業者に依頼', 'ベアリング交換を計画的に実施する'] },
+          { title: '固定ボルト・取付けの緩み', priority: 'high', actions: ['機械を停止した状態で全ボルトの締付けを確認・増し締め', '繰り返し緩む場合はロックワッシャー・ネジロック剤を使用'] },
+          { title: '潤滑油不足・劣化', priority: 'mid', actions: ['潤滑油量（オイルゲージ）を確認し、不足の場合は補給', '劣化が疑われる場合は規定量・規定グレードで全量交換'] },
+        ],
+      },
+      '精度が出ない・寸法ずれ': {
+        warn: null,
+        causes: [
+          { title: '工具・刃具の摩耗', priority: 'high', actions: ['刃具（バイト・エンドミル等）を新品または再研磨品に交換', '切削速度・送り速度を見直す'] },
+          { title: 'ワーク固定不良', priority: 'high', actions: ['チャック・バイス等の締付け力を確認・増し締め', 'ワークのセット・基準面を再確認する'] },
+          { title: '機械の熱変形', priority: 'mid', actions: ['十分なウォームアップ運転（30分〜1時間）を実施してから加工を開始する', '加工中の温度変化を記録し、補正加工を検討'] },
+          { title: 'ボールねじ・ガイドの摩耗', priority: 'low', actions: ['バックラッシュ量を測定し、許容値超えの場合は専門業者に調整・交換依頼'] },
+        ],
+      },
+      '停止・電源が落ちる': {
+        warn: null,
+        causes: [
+          { title: '過負荷・保護回路作動', priority: 'high', actions: ['アラーム表示を確認して原因コードを記録する', '負荷を軽減して再起動を試みる', '繰り返す場合はメーカー・専門業者に点検依頼'] },
+          { title: '電源・ブレーカーの問題', priority: 'high', actions: ['専用ブレーカーが落ちていないか確認・投入', '電源電圧が規定範囲内か確認'] },
+          { title: '過熱による保護停止', priority: 'mid', actions: ['冷却ファン・フィルターの目詰まりを確認・清掃', '周囲温度が高い場合は換気を改善する'] },
+        ],
+      },
+      '動作が遅い・途中で止まる': {
+        warn: null,
+        causes: [
+          { title: 'プログラム・シーケンスの問題', priority: 'high', actions: ['PLCやNCプログラムにエラーがないか確認', 'バックアップからプログラムを再ロードする'] },
+          { title: 'センサー・リミットスイッチの異常', priority: 'mid', actions: ['各センサーの入力信号をモニタリング画面で確認', 'センサーの汚れ・位置ずれを確認・調整する'] },
+          { title: '油圧・空圧の不足', priority: 'mid', actions: ['油圧は圧力ゲージで規定値確認・ポンプ点検', '空圧は配管漏れ・コンプレッサー圧を確認する'] },
+        ],
+      },
+      'オイル・液体漏れ': {
+        warn: '床への油漏れは転倒・引火の危険があります。漏れ箇所の周囲を養生し、火気を使用しないでください。',
+        causes: [
+          { title: 'パッキン・オイルシールの劣化', priority: 'high', actions: ['機械を停止して漏れ箇所を特定する', 'パッキン・オイルシールを規定品に交換する', '漏れた油はすぐに清掃・回収し廃油として処理する'] },
+          { title: '配管・継手の緩み', priority: 'high', actions: ['配管継手の締付けを確認・増し締め', '亀裂がある場合は配管交換'] },
+          { title: 'オイル量の過充填', priority: 'low', actions: ['オイル量が規定上限を超えていないか確認', '過充填の場合は適正量まで抜き取る'] },
+        ],
+      },
+      '発熱・焦げ臭い': {
+        warn: '焦げ臭がある場合は直ちに電源を切り、消火器を準備してください。自己対処が困難な場合は119番に連絡してください。',
+        causes: [
+          { title: '電気系統の異常・ショート', priority: 'high', actions: ['直ちに主電源を切る', 'コントロールボックス内の焦げ・溶融を目視確認（電源オフ状態で）', '電気系修理は専門業者に依頼する'] },
+          { title: '潤滑不足による摩擦熱', priority: 'high', actions: ['潤滑油・グリスの量と劣化を確認', '補給または全量交換を実施する', '改善しない場合は軸受けの損傷を疑い専門業者に依頼'] },
+          { title: '冷却系統の異常', priority: 'mid', actions: ['冷却水量・流量を確認', '冷却ファンの回転を確認', '詰まりがある場合は清掃・フィルター交換'] },
+        ],
+      },
+    },
+
+    pipe: {
+      '水漏れ・滲み': {
+        warn: '電気設備近くの水漏れは感電の危険があります。まず電源を切ってから対処してください。',
+        causes: [
+          { title: 'パッキン・シールテープの劣化', priority: 'high', actions: ['止水栓（元栓）を閉める', 'パッキンを規定サイズ品に交換する', '配管ネジ部はシールテープを巻き直して締め直す'] },
+          { title: '配管・継手のひび・腐食', priority: 'high', actions: ['止水栓を閉めて漏れ箇所を乾燥させて特定する', '応急処置として防水テープで養生し、専門業者に修理依頼'] },
+          { title: '結露による水滴', priority: 'low', actions: ['配管に結露防止テープ（保温材）を巻く', '換気を改善して湿度を下げる'] },
+        ],
+      },
+      '詰まり・流れが悪い': {
+        warn: null,
+        causes: [
+          { title: 'ゴミ・油脂の堆積', priority: 'high', actions: ['市販のパイプクリーナー（液体洗浄剤）を投入して30分放置後に流す', 'ラバーカップ（吸引器）で詰まりを吸引除去する', '奥深くの詰まりはワイヤー式の排水管清掃機で除去'] },
+          { title: 'ストレーナー・フィルターの目詰まり', priority: 'mid', actions: ['給水管のストレーナーを取り外して清掃する', 'フィルターを定期的に交換する'] },
+          { title: '配管の勾配不良・変形', priority: 'low', actions: ['排水管の勾配（1/100程度）が確保されているか確認', '問題がある場合は配管工事業者に依頼'] },
+        ],
+      },
+      '異音（ハンマリング・水音）': {
+        warn: null,
+        causes: [
+          { title: 'ウォーターハンマー（水撃）', priority: 'high', actions: ['バルブ・蛇口をゆっくり開閉する習慣をつける', '水撃防止器（ハンマーアレスター）の設置を検討', '固定バンドが緩んでいる場合は増し締めする'] },
+          { title: '配管の熱膨張・収縮', priority: 'mid', actions: ['お湯使用直後に音がする場合は熱膨張が原因（正常範囲内の場合あり）', '過度の場合は配管固定金具の調整を検討'] },
+          { title: 'エア噛み', priority: 'low', actions: ['蛇口を全開にして空気を抜く', '改善しない場合はエア抜きバルブの確認・開放'] },
+        ],
+      },
+      '水圧が低い': {
+        warn: null,
+        causes: [
+          { title: 'ストレーナーの目詰まり', priority: 'high', actions: ['給水栓・バルブ近傍のストレーナーを清掃する'] },
+          { title: '元栓・止水栓が絞られている', priority: 'high', actions: ['元栓・止水栓が全開になっているか確認・全開にする'] },
+          { title: '配管の腐食・スケール堆積', priority: 'mid', actions: ['古い配管の場合は内部スケール堆積の可能性。専門業者に配管洗浄または更新を依頼'] },
+          { title: '水道本管側の問題', priority: 'low', actions: ['近隣でも水圧低下がある場合は水道局に問い合わせる'] },
+        ],
+      },
+      '異臭・変色した水': {
+        warn: '茶色・黒色の水が出る場合は飲用・食品調理への使用を直ちに中止してください。',
+        causes: [
+          { title: '配管の錆・腐食', priority: 'high', actions: ['茶色い水は配管内部の錆が原因。しばらく水を流して改善するか確認', '改善しない場合は水道局または配管業者に連絡'] },
+          { title: '貯水槽・受水槽の汚染', priority: 'high', actions: ['貯水槽がある場合は清掃・点検を専門業者に依頼', '水質検査を実施する'] },
+          { title: '塩素臭・カビ臭', priority: 'mid', actions: ['浄水器・活性炭フィルターの取付けを検討', 'カビ臭が強い場合は受水槽のカビ繁殖を疑い専門業者に点検依頼'] },
+        ],
+      },
+      '凍結している': {
+        warn: '急激な加熱は配管破裂の危険があります。熱湯を直接かけないでください。',
+        causes: [
+          { title: '露出配管の凍結', priority: 'high', actions: ['配管にタオルを巻き、40〜50℃程度のぬるま湯を少しずつかける', 'ドライヤーを使う場合は中温で一か所に集中させず動かしながら加温', '凍結予防に配管保温材（保温テープ）を巻く'] },
+          { title: '凍結防止帯の故障', priority: 'mid', actions: ['凍結防止帯（ヒーター）の電源と作動を確認する', '故障の場合は交換する'] },
+        ],
+      },
+    },
+
+    pc: {
+      '起動しない・フリーズ': {
+        warn: null,
+        causes: [
+          { title: '電源・ケーブルの接続確認', priority: 'high', actions: ['電源ケーブル・タップの接続を確認', 'バッテリー駆動の場合は充電状態を確認', 'Windowsの場合はシャットダウン後に起動し直す（完全シャットダウン：Shiftを押しながらシャットダウン）'] },
+          { title: 'メモリ・ストレージの問題', priority: 'mid', actions: ['起動時のビープ音パターンを確認してメーカーサイトで原因を特定', 'デスクトップはメモリの抜き差しを試みる', 'SSD/HDDの故障の場合はデータバックアップ優先で専門業者に依頼'] },
+          { title: 'OSの破損・更新トラブル', priority: 'mid', actions: ['Windowsの回復オプション（F8/F11起動）でスタートアップ修復を試みる', 'それでも回復しない場合はOSの再インストールを検討'] },
+        ],
+      },
+      '動作が遅い': {
+        warn: null,
+        causes: [
+          { title: 'ストレージ容量不足', priority: 'high', actions: ['ディスク使用量を確認（Cドライブは20%以上空きを確保）', '不要ファイル・アプリを削除する', 'ディスククリーンアップを実行する'] },
+          { title: '常駐プログラム・マルウェア', priority: 'high', actions: ['タスクマネージャーでCPU・メモリ使用率の高いプロセスを確認・終了', 'セキュリティソフトでフルスキャンを実施する'] },
+          { title: 'メモリ不足', priority: 'mid', actions: ['メモリ使用率が常時80%以上なら増設を検討', '不要なブラウザタブ・アプリを閉じる'] },
+          { title: 'ハードウェアの過熱', priority: 'mid', actions: ['排気口の埃を清掃する（エアダスターを使用）', 'ノートPCは冷却台の使用を検討'] },
+        ],
+      },
+      '画面が映らない': {
+        warn: null,
+        causes: [
+          { title: 'ケーブル・接続の問題', priority: 'high', actions: ['映像ケーブル（HDMI/DisplayPort等）を抜き差しする', '別のケーブル・ポートで試す', '外部モニターの場合は入力切替を確認'] },
+          { title: '省電力・スリープ状態', priority: 'high', actions: ['電源ボタンを短押し、またはキーボード・マウスを操作してスリープ解除', 'ノートPCは画面輝度が0になっていないか確認（Fn＋輝度キー）'] },
+          { title: 'グラフィックドライバーの異常', priority: 'mid', actions: ['セーフモードで起動してグラフィックドライバーを更新または再インストール'] },
+        ],
+      },
+      'ネットワークに繋がらない': {
+        warn: null,
+        causes: [
+          { title: 'Wi-Fiルーター・スイッチの再起動', priority: 'high', actions: ['ルーター・スイッチの電源を一度切って30秒後に再投入する', 'PCのネットワーク設定で「接続のトラブルシューティング」を実行'] },
+          { title: 'ネットワーク設定の異常', priority: 'high', actions: ['IPアドレスが自動取得（DHCP）になっているか確認', 'コマンドプロンプトで「ipconfig /release」→「ipconfig /renew」を実行'] },
+          { title: 'ネットワークアダプターの異常', priority: 'mid', actions: ['デバイスマネージャーでネットワークアダプターにエラーがないか確認', 'ドライバーの更新または再インストールを試みる'] },
+        ],
+      },
+      '異音・過熱している': {
+        warn: '焦げ臭がする場合は直ちに電源を切り、コンセントを抜いてください。',
+        causes: [
+          { title: 'ファン・排熱口の詰まり', priority: 'high', actions: ['排気口にエアダスターを吹いて埃を除去する', 'ノートPCの場合は底面の排熱口が塞がっていないか確認'] },
+          { title: 'HDD/SSDの物理的故障', priority: 'high', actions: ['「カリカリ」「カコン」音はHDD故障のサイン。直ちにデータをバックアップ', 'CrystalDiskInfo等でストレージの健全性を確認する'] },
+          { title: '冷却グリスの乾燥', priority: 'low', actions: ['長期使用（5年以上）のPCはCPUグリスの乾燥が疑われる', '専門業者またはメーカーにグリス塗り替えを依頼'] },
+        ],
+      },
+      'データが消えた・開けない': {
+        warn: 'データ復旧は早急な対応が重要です。新しいデータの書き込みを避け、専門業者への依頼を検討してください。',
+        causes: [
+          { title: 'ごみ箱・一時削除', priority: 'high', actions: ['ごみ箱を確認して復元を試みる', 'Windowsなら「以前のバージョン」機能で復元できる場合がある'] },
+          { title: 'ファイルシステムの破損', priority: 'high', actions: ['コマンドプロンプトで「chkdsk C: /f」を実行してファイルシステムを修復', '修復後もファイルが見えない場合は復元ソフト（Recuva等）を試みる'] },
+          { title: 'ストレージ故障', priority: 'high', actions: ['ストレージ故障の場合は自己対処でデータ消失リスクが高まる', 'データ復旧専門業者（DataRecovery等）に依頼することを強く推奨'] },
+        ],
+      },
+    },
+
+    vehicle: {
+      'エンジンがかからない': {
+        warn: null,
+        causes: [
+          { title: 'バッテリー上がり', priority: 'high', actions: ['ジャンプスターターまたは他車からジャンピングケーブルで始動を試みる', '充電後も上がる場合はバッテリーを交換する（目安：3〜5年）'] },
+          { title: '燃料切れ', priority: 'high', actions: ['燃料メーターを確認。切れている場合は燃料を補給する', 'ディーゼルの場合はエア抜き作業が必要な場合あり'] },
+          { title: 'セルモーター・スターターの故障', priority: 'mid', actions: ['「カチカチ」音がする場合はセルモーターまたはスターターリレーの故障の可能性', 'ディーラー・整備業者に点検依頼'] },
+          { title: 'セキュリティ・イモビライザー作動', priority: 'low', actions: ['純正キーを使用して再度試みる', 'キーの電池交換を試みる'] },
+        ],
+      },
+      '異音（ゴトゴト・キーキー）': {
+        warn: '走行中に急激な異音・振動が生じた場合は安全な場所に停車してください。',
+        causes: [
+          { title: 'ブレーキパッドの摩耗（キーキー音）', priority: 'high', actions: ['ブレーキパッドの残量を目視確認（残り2mm以下で交換）', '整備工場でブレーキパッド交換を依頼する'] },
+          { title: 'タイヤ・ホイールの異常', priority: 'high', actions: ['タイヤの釘刺さり・サイドウォール損傷を目視確認', 'ホイールナットの緩みを確認（増し締め）', 'タイヤ空気圧を確認して規定値に調整'] },
+          { title: 'エンジン内部の異常（ゴトゴト音）', priority: 'mid', actions: ['エンジンオイルの量と状態を確認・補給', '低速でゴトゴト音がする場合はエンジンマウントの劣化の可能性', '走行に支障があれば即時整備工場へ'] },
+        ],
+      },
+      'ブレーキの効きが悪い': {
+        warn: '制動距離が明らかに長い場合は走行を中止し、ロードサービスを呼んでください。',
+        causes: [
+          { title: 'ブレーキパッド・ディスクの摩耗', priority: 'high', actions: ['ブレーキパッドの残量を確認する', '摩耗している場合は即時整備工場でパッド・ディスク交換'] },
+          { title: 'ブレーキフルードの劣化・漏れ', priority: 'high', actions: ['ブレーキフルードのリザーバータンクの量と色を確認', '量が減っている場合は漏れの可能性あり。整備工場で点検'] },
+          { title: 'ブレーキの熱劣化（フェード）', priority: 'mid', actions: ['長い下り坂での連続ブレーキ後に発生しやすい', 'エンジンブレーキを活用してブレーキを冷却する', '冷却後に回復する場合は正常範囲'] },
+        ],
+      },
+      'オイル・液体が漏れている': {
+        warn: '駐車場に液体が漏れている場合、ガソリン漏れは引火の危険があります。火気厳禁で即時整備工場へ連絡してください。',
+        causes: [
+          { title: 'エンジンオイル漏れ（黒〜茶色）', priority: 'high', actions: ['エンジン下部からの漏れを確認', 'ガスケット・オイルシールの劣化の可能性', '整備工場でシール交換を依頼する'] },
+          { title: 'クーラント漏れ（緑・ピンク・黄色）', priority: 'high', actions: ['冷却水量を確認（エンジン冷間時）', '走行中にオーバーヒートの兆候があれば即停車', '整備工場で点検・修理依頼'] },
+          { title: 'ウォッシャー液・雨水', priority: 'low', actions: ['無色透明の水はウォッシャー液または結露水の可能性が高く、通常は問題なし', '頻度が多い場合はウォッシャーノズルの漏れを確認'] },
+        ],
+      },
+      '警告灯が点灯している': {
+        warn: '赤色の警告灯（エンジン・ブレーキ・油圧）が点灯した場合は走行を中止し、ロードサービスに連絡してください。',
+        causes: [
+          { title: 'エンジン警告灯（オレンジ）', priority: 'high', actions: ['走行可能だが早めに整備工場で診断機（OBD）で故障コードを読み取る', 'アクセルレスポンスが悪い場合は安全な場所に停車してロードサービスへ'] },
+          { title: 'オイル圧力警告灯（赤）', priority: 'high', actions: ['直ちに安全な場所に停車してエンジンを止める', 'エンジンオイルの量を確認して補給', '改善しない場合はロードサービスを呼ぶ'] },
+          { title: 'バッテリー警告灯（赤）', priority: 'high', actions: ['オルタネーターまたはバッテリーの異常の可能性', '不要な電装品をオフにして最短ルートで整備工場へ向かう'] },
+          { title: 'タイヤ空気圧警告灯（TPMS）', priority: 'mid', actions: ['全タイヤの空気圧を確認して規定値に補充する（スタンドのエアゲージ利用）', 'パンクの場合はスペアタイヤに交換またはロードサービスへ'] },
+        ],
+      },
+      'バッテリーが上がった': {
+        warn: null,
+        causes: [
+          { title: '電装品の消し忘れ・暗電流過多', priority: 'high', actions: ['ライト・ハザード・室内灯の消し忘れを確認', 'ジャンプスターターまたは他車で始動する', 'エンジンをかけたまま20〜30分以上走行して充電する'] },
+          { title: 'バッテリー寿命', priority: 'high', actions: ['バッテリーが3〜5年以上経過している場合は交換を検討', 'ホームセンター・カー用品店で交換可能'] },
+          { title: '充電系統の故障', priority: 'mid', actions: ['走行中にバッテリー警告灯が点灯する場合はオルタネーター故障の可能性', '整備工場で充電系統の点検を依頼する'] },
+        ],
+      },
+    },
+  };
+
+  function updateSymptoms() {
+    var cat = document.getElementById('category').value;
+    var symptoms = SYMPTOMS[cat];
+    var sel = document.getElementById('symptom');
+    sel.innerHTML = symptoms.map(function(s) {
+      return '<option value="' + s + '">' + s + '</option>';
+    }).join('');
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('warnCard').style.display = 'none';
+  }
+
+  function lookup() {
+    var cat     = document.getElementById('category').value;
+    var symptom = document.getElementById('symptom').value;
+    var entry   = DATA[cat][symptom];
+    if (!entry) return;
+
+    // 警告
+    if (entry.warn) {
+      document.getElementById('warnText').textContent = entry.warn;
+      document.getElementById('warnCard').style.display = 'block';
+    } else {
+      document.getElementById('warnCard').style.display = 'none';
+    }
+
+    // 結果
+    var catName = document.getElementById('category').options[document.getElementById('category').selectedIndex].text;
+    document.getElementById('resultTitle').textContent = '原因候補と応急対処法（' + catName + '：' + symptom + '）';
+
+    var html = entry.causes.map(function(c) {
+      var badge = c.priority === 'high' ? '<span class="priority-badge priority-high">可能性高</span>'
+                : c.priority === 'mid'  ? '<span class="priority-badge priority-mid">可能性中</span>'
+                                        : '<span class="priority-badge priority-low">可能性低</span>';
+      var actions = c.actions.map(function(a) {
+        return '<li>' + a + '</li>';
+      }).join('');
+      return '<div class="cause-block">'
+        + '<div class="cause-title">' + badge + c.title + '</div>'
+        + '<ul class="action-list">' + actions + '</ul>'
+        + '</div>';
+    }).join('');
+
+    document.getElementById('resultList').innerHTML = html;
+    var card = document.getElementById('resultCard');
+    card.style.display = 'block';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    saveSettings();
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem('equip_trouble_cat', document.getElementById('category').value);
+      localStorage.setItem('equip_trouble_sym', document.getElementById('symptom').value);
+    } catch(e) {}
+  }
+  function loadSettings() {
+    try {
+      var c = localStorage.getItem('equip_trouble_cat');
+      var s = localStorage.getItem('equip_trouble_sym');
+      if (c) {
+        document.getElementById('category').value = c;
+        updateSymptoms();
+      }
+      if (s) document.getElementById('symptom').value = s;
+    } catch(e) {}
+  }
+
+  updateSymptoms();
+  loadSettings();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -249,3 +249,4 @@ commit: dea0c02
 [2026-04-26_125823] SCAN apps=値引き交渉採算シミュレーター total=0 exit=0
 [2026-04-26_130944] SCAN apps=クレーム対応手順逆引きアプリ total=0 exit=0
 [2026-04-26_132000] SCAN apps=中小企業補助金逆引きアプリ total=0 exit=0
+[2026-04-26_133238] SCAN apps=設備・機械トラブル逆引きアプリ total=0 exit=0
