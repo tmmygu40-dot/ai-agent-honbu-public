@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>太陽光採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 入力グループ（円表示付き） ── */
+    .input-wrap { position: relative; }
+    .input-wrap input { padding-right: 2.8rem; }
+    .input-wrap .unit {
+      position: absolute; right: 0.9rem; top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.88rem; color: var(--text-sub); pointer-events: none;
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 回収進捗バー ── */
+    .payback-bar-wrap {
+      margin: 1rem 0 0.3rem;
+    }
+    .payback-bar-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.3rem;
+    }
+    .payback-bar-bg {
+      height: 12px; background: var(--border);
+      border-radius: 999px; overflow: hidden;
+    }
+    .payback-bar-fill {
+      height: 100%; border-radius: 999px;
+      transition: width 0.4s ease;
+      background: var(--ok);
+    }
+    .warn .payback-bar-fill { background: var(--warn); }
+    .ng   .payback-bar-fill { background: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>☀️ 太陽光採算チェッカー</h1>
+    <p class="subtitle">初期費用と月々の節約額から「元が取れる年数」を即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">設置費用</p>
+    <div class="field">
+      <label for="cost">設置費用（初期費用）</label>
+      <div class="input-wrap">
+        <input type="number" id="cost" placeholder="例: 1000000" min="0" inputmode="numeric">
+        <span class="unit">円</span>
+      </div>
+      <p class="hint">パネル・工事・機器込みの総額を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="subsidy">補助金・助成金（受け取れる場合）</label>
+      <div class="input-wrap">
+        <input type="number" id="subsidy" placeholder="例: 100000（なければ 0）" min="0" inputmode="numeric">
+        <span class="unit">円</span>
+      </div>
+      <p class="hint">国・自治体の補助金合計。なければ 0 を入力</p>
+    </div>
+  </div>
+
+  <!-- 節約カード -->
+  <div class="card">
+    <p class="card-title">月々の節約・収入</p>
+    <div class="field">
+      <label for="saving">月間の電気代節約額</label>
+      <div class="input-wrap">
+        <input type="number" id="saving" placeholder="例: 8000" min="0" inputmode="numeric">
+        <span class="unit">円/月</span>
+      </div>
+      <p class="hint">太陽光発電により減る電気代の目安（業者試算や実測値）</p>
+    </div>
+    <div class="field">
+      <label for="sellin">月間売電収入（FITがある場合）</label>
+      <div class="input-wrap">
+        <input type="number" id="sellin" placeholder="例: 3000（なければ 0）" min="0" inputmode="numeric">
+        <span class="unit">円/月</span>
+      </div>
+      <p class="hint">余剰電力の売電収入。なければ 0 を入力</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">元が取れる年数を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">回収期間</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+    <div class="payback-bar-wrap" id="barWrap" style="display:none">
+      <div class="payback-bar-label">
+        <span>0年</span><span id="barMid"></span><span>25年</span>
+      </div>
+      <div class="payback-bar-bg">
+        <div class="payback-bar-fill" id="barFill" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var FIELDS = ['cost','subsidy','saving','sellin'];
+
+  // localStorage 復元
+  FIELDS.forEach(function(id) {
+    var v = localStorage.getItem('solar_' + id);
+    if (v !== null) document.getElementById(id).value = v;
+  });
+
+  // 入力変更時に保存
+  FIELDS.forEach(function(id) {
+    document.getElementById(id).addEventListener('input', function() {
+      localStorage.setItem('solar_' + id, this.value);
+    });
+  });
+
+  function calc() {
+    var cost    = parseFloat(document.getElementById('cost').value)    || 0;
+    var subsidy = parseFloat(document.getElementById('subsidy').value) || 0;
+    var saving  = parseFloat(document.getElementById('saving').value)  || 0;
+    var sellin  = parseFloat(document.getElementById('sellin').value)  || 0;
+
+    if (!cost || cost <= 0) { showErr('設置費用を入力してください'); return; }
+    var monthlyBenefit = saving + sellin;
+    if (monthlyBenefit <= 0) { showErr('月間節約額または売電収入を入力してください'); return; }
+
+    var realCost = Math.max(cost - subsidy, 0);
+    var months   = realCost / monthlyBenefit;
+    var years    = months / 12;
+    var yInt     = Math.floor(years);
+    var mRem     = Math.round((years - yInt) * 12);
+
+    // 表示テキスト
+    var displayText = '';
+    if (yInt > 0 && mRem > 0) {
+      displayText = yInt + '年 ' + mRem + 'ヶ月';
+    } else if (yInt > 0) {
+      displayText = yInt + '年';
+    } else {
+      displayText = mRem + 'ヶ月';
+    }
+
+    // OK/WARN/NG 判定（太陽光の標準的な寿命は25〜30年）
+    var level, note;
+    if (years <= 10) {
+      level = 'ok';
+      note  = '投資回収が早く、採算性が高いです。寿命25年なら' + fmt(Math.round((25 * 12 - months) * monthlyBenefit)) + '円の純利益が見込めます。';
+    } else if (years <= 20) {
+      level = 'warn';
+      note  = 'パネル寿命（25年）内に元が取れます。メンテ費用も考慮して判断しましょう。';
+    } else if (years <= 25) {
+      level = 'warn';
+      note  = 'ギリギリ元が取れる水準です。補助金の追加取得や節約額の見直しを検討してください。';
+    } else {
+      level = 'ng';
+      note  = 'パネルの標準寿命（25年）内に元が取れない計算です。設置費用の値引き交渉や補助金の活用を検討してください。';
+    }
+
+    // 結果表示
+    showResult(level, displayText, note);
+
+    // バー表示（最大25年 = 300ヶ月で100%）
+    var pct = Math.min(months / 300 * 100, 100);
+    var rc = document.getElementById('result');
+    var barFill = document.getElementById('barFill');
+    var barWrap = document.getElementById('barWrap');
+    barFill.style.width = pct.toFixed(1) + '%';
+    document.getElementById('barMid').textContent = displayText;
+    barWrap.style.display = '';
+
+    // 内訳
+    showDetail([
+      ['設置費用（総額）',       fmt(cost) + ' 円'],
+      ['補助金・助成金',         '- ' + fmt(subsidy) + ' 円'],
+      ['実質初期費用',           fmt(realCost) + ' 円'],
+      ['月間電気代節約',         fmt(saving) + ' 円/月'],
+      ['月間売電収入',           fmt(sellin) + ' 円/月'],
+      ['月間トータル効果',       fmt(monthlyBenefit) + ' 円/月'],
+      ['年間トータル効果',       fmt(monthlyBenefit * 12) + ' 円/年'],
+      ['回収期間',               displayText, true],
+    ]);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('barWrap').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

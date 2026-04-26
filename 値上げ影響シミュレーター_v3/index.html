@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>値上げ影響シミュレーター v3 | 顧客離脱リスク診断</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ラジオ感度ボタン */
+    .sensitivity-group { display: flex; gap: 0.5rem; }
+    .sensitivity-group label {
+      flex: 1; text-align: center;
+      padding: 0.6rem 0.3rem; border: 1.5px solid var(--border);
+      border-radius: 9px; cursor: pointer; font-size: 0.88rem; font-weight: 600;
+      color: var(--text-sub); background: var(--bg); transition: all 0.15s;
+    }
+    .sensitivity-group input[type="radio"] { display: none; }
+    .sensitivity-group input[type="radio"]:checked + label {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* アドバイスカード */
+    .advice-card {
+      display: none; background: var(--card);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 1.25rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .advice-list { list-style: none; padding: 0; }
+    .advice-list li {
+      padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; line-height: 1.6; color: var(--text);
+    }
+    .advice-list li:last-child { border-bottom: none; }
+    .advice-list li::before { content: "▶ "; color: var(--accent); font-weight: 700; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📈 値上げ影響シミュレーター</h1>
+    <p class="subtitle">客単価・来店頻度から顧客離脱リスクと売上変化を即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">現状を入力</p>
+    <div class="field">
+      <label for="unitPrice">客単価（円/来店）</label>
+      <input type="number" id="unitPrice" placeholder="例: 2000" min="0">
+      <p class="hint">1回の来店あたりの平均売上</p>
+    </div>
+    <div class="field">
+      <label for="monthlyVisits">月間来店客数（人/月）</label>
+      <input type="number" id="monthlyVisits" placeholder="例: 300" min="0">
+      <p class="hint">1ヶ月の延べ来店人数</p>
+    </div>
+    <div class="field">
+      <label for="increaseRate">値上げ率（%）</label>
+      <input type="number" id="increaseRate" placeholder="例: 10" min="0" max="100" step="0.1">
+      <p class="hint">値上げ後の価格 ÷ 現在の価格 − 1</p>
+    </div>
+    <div class="field">
+      <label>価格感度（顧客の値段への敏感さ）</label>
+      <div class="sensitivity-group">
+        <input type="radio" name="sensitivity" id="sensLow"  value="low"  checked>
+        <label for="sensLow">低い</label>
+        <input type="radio" name="sensitivity" id="sensMid"  value="mid">
+        <label for="sensMid">普通</label>
+        <input type="radio" name="sensitivity" id="sensHigh" value="high">
+        <label for="sensHigh">高い</label>
+      </div>
+      <p class="hint">常連・こだわり層→低い　価格比較で来る客→高い</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">離脱リスクを診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">顧客離脱リスク</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 売上影響カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">売上影響試算</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- アドバイスカード -->
+  <div class="advice-card" id="adviceCard">
+    <p class="card-title">対策アドバイス</p>
+    <ul class="advice-list" id="adviceList"></ul>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'neage_sim_v3';
+
+  // 起動時に保存値を復元
+  (function() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      if (d.unitPrice)      document.getElementById('unitPrice').value      = d.unitPrice;
+      if (d.monthlyVisits)  document.getElementById('monthlyVisits').value  = d.monthlyVisits;
+      if (d.increaseRate)   document.getElementById('increaseRate').value   = d.increaseRate;
+      if (d.sensitivity) {
+        var el = document.querySelector('input[name="sensitivity"][value="' + d.sensitivity + '"]');
+        if (el) el.checked = true;
+      }
+    } catch(e) {}
+  })();
+
+  function calc() {
+    var unitPrice     = parseFloat(document.getElementById('unitPrice').value);
+    var monthlyVisits = parseFloat(document.getElementById('monthlyVisits').value);
+    var increaseRate  = parseFloat(document.getElementById('increaseRate').value);
+    var sensitivity   = document.querySelector('input[name="sensitivity"]:checked').value;
+
+    if (isNaN(unitPrice) || isNaN(monthlyVisits) || isNaN(increaseRate)) {
+      showErr('すべての数値を入力してください');
+      return;
+    }
+    if (unitPrice <= 0 || monthlyVisits <= 0 || increaseRate <= 0) {
+      showErr('0より大きい値を入力してください');
+      return;
+    }
+
+    // localStorage 保存
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({ unitPrice: unitPrice, monthlyVisits: monthlyVisits, increaseRate: increaseRate, sensitivity: sensitivity }));
+    } catch(e) {}
+
+    // 価格弾力性係数（低:0.3 / 普通:0.65 / 高:1.2）
+    var elasticity = sensitivity === 'low' ? 0.3 : sensitivity === 'mid' ? 0.65 : 1.2;
+
+    // 想定離脱率（%）: 値上げ率 × 弾力性 / 100 × 100 = 値上げ率 × 弾力性
+    var churnRate = Math.min(increaseRate * elasticity, 80); // 最大80%
+
+    // リスクスコア（0〜100）
+    var riskScore = Math.min(Math.round(churnRate * 1.25), 100);
+
+    // 判定
+    var level, levelLabel, evalText;
+    if (riskScore < 20) {
+      level = 'ok';
+      levelLabel = '低リスク';
+      evalText = '値上げを進めやすい状況です';
+    } else if (riskScore < 50) {
+      level = 'warn';
+      levelLabel = '中リスク';
+      evalText = '一部の顧客離脱が見込まれます';
+    } else {
+      level = 'ng';
+      levelLabel = '高リスク';
+      evalText = '大幅な客離れに注意が必要です';
+    }
+
+    // 売上計算
+    var currentSales  = unitPrice * monthlyVisits;
+    var newUnitPrice  = unitPrice * (1 + increaseRate / 100);
+    var newVisits     = monthlyVisits * (1 - churnRate / 100);
+    var newSales      = newUnitPrice * newVisits;
+    var salesChange   = newSales - currentSales;
+    var salesChangePct = currentSales > 0 ? (salesChange / currentSales * 100) : 0;
+
+    showResult(level,
+      riskScore + ' / 100',
+      evalText,
+      '離脱率目安 ' + churnRate.toFixed(1) + '% ／ リスクスコア ' + riskScore
+    );
+
+    showDetail([
+      ['客単価（現在）',   fmt(unitPrice) + ' 円'],
+      ['客単価（値上げ後）', fmt(newUnitPrice) + ' 円'],
+      ['月間来店客数（現在）', fmt(monthlyVisits) + ' 人'],
+      ['月間来店客数（値上げ後）', fmt(newVisits) + ' 人 (-' + churnRate.toFixed(1) + '%)'],
+      ['月間売上（現在）',  fmt(currentSales) + ' 円'],
+      ['月間売上（値上げ後）', fmt(newSales) + ' 円', true],
+      ['売上変化額', (salesChange >= 0 ? '+' : '') + fmt(salesChange) + ' 円'],
+      ['売上変化率', (salesChangePct >= 0 ? '+' : '') + salesChangePct.toFixed(1) + '%'],
+    ]);
+
+    showAdvice(level, increaseRate, churnRate);
+  }
+
+  function showResult(level, val, evalTxt, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalTxt;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showAdvice(level, increaseRate, churnRate) {
+    var advices = [];
+    if (level === 'ok') {
+      advices = [
+        '段階的な値上げ（例: 2〜3回に分けて）で顧客の抵抗感を軽減できます',
+        '値上げの理由を丁寧に伝えることで顧客の理解が得やすくなります',
+        '常連顧客向けに事前告知・お礼クーポンを用意すると離脱防止になります',
+      ];
+    } else if (level === 'warn') {
+      advices = [
+        '値上げ幅を ' + Math.max(increaseRate - 3, 1).toFixed(0) + '〜' + (increaseRate - 1).toFixed(0) + '% に下げると離脱率をさらに抑えられます',
+        'セット販売・まとめ買い割引で客単価を維持しつつ来店頻度を上げましょう',
+        '価格感度が高い顧客向けにポイント還元・スタンプカードを導入すると効果的です',
+        '値上げと同時にサービス品質・付加価値を見直し、「それでも来る理由」を作りましょう',
+      ];
+    } else {
+      advices = [
+        '値上げ幅を ' + Math.max(Math.round(increaseRate * 0.5), 1) + '%以下に抑えることを強く推奨します',
+        '値上げより原価削減・仕入れ先見直しで利益改善を先に検討してください',
+        '高単価・高付加価値の「プレミアムメニュー/商品」を追加して客単価を上げる方法が有効です',
+        '常連顧客（上位20%）を守ることを最優先に、VIP向け特典・価格維持プランを設けましょう',
+        '競合他社の値上げ動向を確認し、市場全体のタイミングに合わせると離脱を最小化できます',
+      ];
+    }
+
+    var ul = document.getElementById('adviceList');
+    ul.innerHTML = advices.map(function(a){ return '<li>' + a + '</li>'; }).join('');
+    document.getElementById('adviceCard').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('adviceCard').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

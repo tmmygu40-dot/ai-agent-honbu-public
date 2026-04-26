@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>労働条件変更通知書ジェネレーター</title>
+  <meta name="description" content="変更内容（給与・勤務時間・勤務場所・雇用形態・その他）を選んで入力するだけで、従業員への労働条件変更通知書を即生成。コピー・PDF保存にも対応した無料ツールです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 変更項目チェックボックスグループ ── */
+    .change-items { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem; }
+    .change-items label {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.45rem 0.75rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 20px; cursor: pointer; font-size: 0.85rem;
+      font-weight: 600; color: var(--text-sub);
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+      user-select: none;
+    }
+    .change-items label input[type="checkbox"] { display: none; }
+    .change-items label:has(input:checked) {
+      border-color: var(--accent); background: var(--accent-light); color: var(--accent);
+    }
+
+    /* ── 変更前後入力グループ ── */
+    .change-group {
+      display: none;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin-top: 0.75rem;
+      background: var(--bg);
+    }
+    .change-group.active { display: block; }
+    .change-group-title {
+      font-size: 0.8rem; font-weight: 700; color: var(--accent);
+      margin-bottom: 0.75rem;
+    }
+    .before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    @media (max-width: 400px) { .before-after { grid-template-columns: 1fr; } }
+    .before-after .field { margin-bottom: 0; }
+    .before-after .field label { font-size: 0.75rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果エリア ── */
+    .result-area {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .result-area .card-title { margin-bottom: 0.75rem; }
+    #output-text {
+      width: 100%; min-height: 320px;
+      padding: 0.9rem; font-size: 0.88rem;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      font-family: inherit; line-height: 1.8;
+      resize: vertical; outline: none;
+    }
+    #output-text:focus { border-color: var(--accent); background: #fff; }
+    .btn-copy {
+      display: block; width: 100%; margin-top: 0.75rem; padding: 0.72rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 1.5px solid var(--ok); border-radius: 9px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: #d1fae5; }
+    .copy-msg { font-size: 0.78rem; color: var(--ok); text-align: center; margin-top: 0.4rem; min-height: 1.2em; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-area { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>労働条件変更通知書ジェネレーター</h1>
+    <p class="subtitle">変更内容を選んで入力するだけで通知書を自動生成</p>
+  </header>
+
+  <!-- 基本情報カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="company">会社名</label>
+      <input type="text" id="company" placeholder="例: 株式会社○○">
+    </div>
+    <div class="field">
+      <label for="employee">従業員氏名</label>
+      <input type="text" id="employee" placeholder="例: 山田 太郎">
+    </div>
+    <div class="field">
+      <label for="notify-date">通知日</label>
+      <input type="date" id="notify-date">
+    </div>
+    <div class="field">
+      <label for="effective-date">変更発効日</label>
+      <input type="date" id="effective-date">
+    </div>
+  </div>
+
+  <!-- 変更項目選択カード -->
+  <div class="card">
+    <p class="card-title">変更する項目を選ぶ</p>
+    <div class="change-items">
+      <label><input type="checkbox" value="salary" onchange="toggleGroup('salary',this.checked)">💰 給与</label>
+      <label><input type="checkbox" value="hours" onchange="toggleGroup('hours',this.checked)">🕐 勤務時間</label>
+      <label><input type="checkbox" value="location" onchange="toggleGroup('location',this.checked)">📍 勤務場所</label>
+      <label><input type="checkbox" value="employment" onchange="toggleGroup('employment',this.checked)">📋 雇用形態</label>
+      <label><input type="checkbox" value="other" onchange="toggleGroup('other',this.checked)">📝 その他</label>
+    </div>
+
+    <!-- 給与 -->
+    <div class="change-group" id="group-salary">
+      <p class="change-group-title">💰 給与の変更</p>
+      <div class="before-after">
+        <div class="field"><label>変更前</label><input type="text" id="salary-before" placeholder="例: 月給 250,000円"></div>
+        <div class="field"><label>変更後</label><input type="text" id="salary-after" placeholder="例: 月給 270,000円"></div>
+      </div>
+      <div class="field" style="margin-top:0.75rem;">
+        <label>変更理由（任意）</label>
+        <input type="text" id="salary-reason" placeholder="例: 定期昇給・職務変更に伴う">
+      </div>
+    </div>
+
+    <!-- 勤務時間 -->
+    <div class="change-group" id="group-hours">
+      <p class="change-group-title">🕐 勤務時間の変更</p>
+      <div class="before-after">
+        <div class="field"><label>変更前</label><input type="text" id="hours-before" placeholder="例: 9:00〜18:00"></div>
+        <div class="field"><label>変更後</label><input type="text" id="hours-after" placeholder="例: 8:00〜17:00"></div>
+      </div>
+      <div class="field" style="margin-top:0.75rem;">
+        <label>変更理由（任意）</label>
+        <input type="text" id="hours-reason" placeholder="例: 業務体制変更に伴う">
+      </div>
+    </div>
+
+    <!-- 勤務場所 -->
+    <div class="change-group" id="group-location">
+      <p class="change-group-title">📍 勤務場所の変更</p>
+      <div class="before-after">
+        <div class="field"><label>変更前</label><input type="text" id="location-before" placeholder="例: 東京本社"></div>
+        <div class="field"><label>変更後</label><input type="text" id="location-after" placeholder="例: 大阪支店"></div>
+      </div>
+      <div class="field" style="margin-top:0.75rem;">
+        <label>変更理由（任意）</label>
+        <input type="text" id="location-reason" placeholder="例: 事業拡大に伴う配置転換">
+      </div>
+    </div>
+
+    <!-- 雇用形態 -->
+    <div class="change-group" id="group-employment">
+      <p class="change-group-title">📋 雇用形態の変更</p>
+      <div class="before-after">
+        <div class="field"><label>変更前</label><input type="text" id="employment-before" placeholder="例: パートタイム"></div>
+        <div class="field"><label>変更後</label><input type="text" id="employment-after" placeholder="例: 正社員"></div>
+      </div>
+      <div class="field" style="margin-top:0.75rem;">
+        <label>変更理由（任意）</label>
+        <input type="text" id="employment-reason" placeholder="例: 業務実績を評価し正規雇用へ転換">
+      </div>
+    </div>
+
+    <!-- その他 -->
+    <div class="change-group" id="group-other">
+      <p class="change-group-title">📝 その他の変更</p>
+      <div class="field">
+        <label>変更項目名</label>
+        <input type="text" id="other-name" placeholder="例: 年次有給休暇付与日数">
+      </div>
+      <div class="before-after">
+        <div class="field"><label>変更前</label><input type="text" id="other-before" placeholder="例: 年10日"></div>
+        <div class="field"><label>変更後</label><input type="text" id="other-after" placeholder="例: 年15日"></div>
+      </div>
+      <div class="field" style="margin-top:0.75rem;">
+        <label>変更理由（任意）</label>
+        <input type="text" id="other-reason" placeholder="例: 就業規則改定に伴う">
+      </div>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">📄 通知書を生成する</button>
+
+  <!-- 結果 -->
+  <div class="result-area" id="result-area">
+    <p class="card-title">生成された通知書</p>
+    <textarea id="output-text" readonly></textarea>
+    <button class="btn-copy" onclick="copyText()">📋 テキストをコピー</button>
+    <p class="copy-msg" id="copy-msg"></p>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、労働基準法・労働契約法などの法令に基づく一般的な書式を参考に作成しています。実際の通知書は状況に応じて専門家（社会保険労務士・弁護士）にご確認ください。厚生労働省の公表モデル書式も参考にしてください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var KEYS = {
+    company: 'rckGen_company',
+    employee: 'rckGen_employee',
+    notifyDate: 'rckGen_notifyDate',
+    effectiveDate: 'rckGen_effectiveDate',
+    salaryBefore: 'rckGen_salaryBefore', salaryAfter: 'rckGen_salaryAfter', salaryReason: 'rckGen_salaryReason',
+    hoursBefore: 'rckGen_hoursBefore', hoursAfter: 'rckGen_hoursAfter', hoursReason: 'rckGen_hoursReason',
+    locationBefore: 'rckGen_locationBefore', locationAfter: 'rckGen_locationAfter', locationReason: 'rckGen_locationReason',
+    employmentBefore: 'rckGen_employmentBefore', employmentAfter: 'rckGen_employmentAfter', employmentReason: 'rckGen_employmentReason',
+    otherName: 'rckGen_otherName', otherBefore: 'rckGen_otherBefore', otherAfter: 'rckGen_otherAfter', otherReason: 'rckGen_otherReason',
+    checkedItems: 'rckGen_checkedItems'
+  };
+
+  function toggleGroup(id, on) {
+    var g = document.getElementById('group-' + id);
+    if (on) { g.classList.add('active'); } else { g.classList.remove('active'); }
+    saveChecked();
+  }
+
+  function generate() {
+    var company = v('company');
+    var employee = v('employee');
+    var notifyDate = fmtDate(v('notify-date'));
+    var effectiveDate = fmtDate(v('effective-date'));
+    var changes = [];
+
+    if (isChecked('salary')) {
+      changes.push(buildChange('給与', v('salary-before'), v('salary-after'), v('salary-reason')));
+    }
+    if (isChecked('hours')) {
+      changes.push(buildChange('勤務時間', v('hours-before'), v('hours-after'), v('hours-reason')));
+    }
+    if (isChecked('location')) {
+      changes.push(buildChange('勤務場所', v('location-before'), v('location-after'), v('location-reason')));
+    }
+    if (isChecked('employment')) {
+      changes.push(buildChange('雇用形態', v('employment-before'), v('employment-after'), v('employment-reason')));
+    }
+    if (isChecked('other')) {
+      var name = v('other-name') || 'その他';
+      changes.push(buildChange(name, v('other-before'), v('other-after'), v('other-reason')));
+    }
+
+    if (!company) { alert('会社名を入力してください'); return; }
+    if (!employee) { alert('従業員氏名を入力してください'); return; }
+    if (changes.length === 0) { alert('変更する項目を1つ以上選択してください'); return; }
+
+    var sep = '━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+    var lines = [];
+    lines.push('労働条件変更通知書');
+    lines.push('');
+    lines.push(notifyDate ? notifyDate + '' : '　　　年　　月　　日');
+    lines.push('');
+    lines.push(employee + ' 殿');
+    lines.push('');
+    lines.push(sep);
+    lines.push('');
+    lines.push('　　　　会社名：' + (company || '　　　　　　　　　'));
+    lines.push('');
+    lines.push(sep);
+    lines.push('');
+    lines.push('下記のとおり、労働条件を変更することをお知らせいたします。');
+    lines.push('');
+    lines.push('変更発効日：' + (effectiveDate || '　　　年　　月　　日'));
+    lines.push('');
+    changes.forEach(function(c, i) {
+      lines.push('■ 変更' + (i + 1) + '：' + c.name);
+      lines.push('　変更前：' + (c.before || '—'));
+      lines.push('　変更後：' + (c.after || '—'));
+      if (c.reason) { lines.push('　変更理由：' + c.reason); }
+      lines.push('');
+    });
+    lines.push(sep);
+    lines.push('');
+    lines.push('以上の変更につきまして、ご不明な点がございましたら');
+    lines.push('人事担当者までお問い合わせください。');
+    lines.push('');
+    lines.push('　　　　　　　　　　　　　　　　以上');
+
+    var out = lines.join('\n');
+    document.getElementById('output-text').value = out;
+    document.getElementById('result-area').style.display = 'block';
+    document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    saveAll();
+  }
+
+  function buildChange(name, before, after, reason) {
+    return { name: name, before: before, after: after, reason: reason };
+  }
+
+  function copyText() {
+    var t = document.getElementById('output-text');
+    t.select();
+    try {
+      document.execCommand('copy');
+      document.getElementById('copy-msg').textContent = 'コピーしました！';
+    } catch(e) {
+      navigator.clipboard.writeText(t.value).then(function() {
+        document.getElementById('copy-msg').textContent = 'コピーしました！';
+      }).catch(function() {
+        document.getElementById('copy-msg').textContent = 'コピーに失敗しました。手動でコピーしてください。';
+      });
+    }
+    setTimeout(function() { document.getElementById('copy-msg').textContent = ''; }, 3000);
+  }
+
+  function fmtDate(d) {
+    if (!d) return '';
+    var parts = d.split('-');
+    if (parts.length !== 3) return d;
+    return parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+  }
+
+  function isChecked(id) {
+    var cb = document.querySelector('.change-items input[value="' + id + '"]');
+    return cb && cb.checked;
+  }
+
+  function v(id) { return (document.getElementById(id) || {}).value || ''; }
+
+  /* localStorage */
+  function saveAll() {
+    var s = localStorage;
+    s.setItem(KEYS.company, v('company'));
+    s.setItem(KEYS.employee, v('employee'));
+    s.setItem(KEYS.notifyDate, v('notify-date'));
+    s.setItem(KEYS.effectiveDate, v('effective-date'));
+    s.setItem(KEYS.salaryBefore, v('salary-before'));
+    s.setItem(KEYS.salaryAfter, v('salary-after'));
+    s.setItem(KEYS.salaryReason, v('salary-reason'));
+    s.setItem(KEYS.hoursBefore, v('hours-before'));
+    s.setItem(KEYS.hoursAfter, v('hours-after'));
+    s.setItem(KEYS.hoursReason, v('hours-reason'));
+    s.setItem(KEYS.locationBefore, v('location-before'));
+    s.setItem(KEYS.locationAfter, v('location-after'));
+    s.setItem(KEYS.locationReason, v('location-reason'));
+    s.setItem(KEYS.employmentBefore, v('employment-before'));
+    s.setItem(KEYS.employmentAfter, v('employment-after'));
+    s.setItem(KEYS.employmentReason, v('employment-reason'));
+    s.setItem(KEYS.otherName, v('other-name'));
+    s.setItem(KEYS.otherBefore, v('other-before'));
+    s.setItem(KEYS.otherAfter, v('other-after'));
+    s.setItem(KEYS.otherReason, v('other-reason'));
+    saveChecked();
+  }
+
+  function saveChecked() {
+    var checked = [];
+    document.querySelectorAll('.change-items input[type="checkbox"]').forEach(function(cb) {
+      if (cb.checked) checked.push(cb.value);
+    });
+    localStorage.setItem(KEYS.checkedItems, JSON.stringify(checked));
+  }
+
+  function loadAll() {
+    var s = localStorage;
+    setVal('company', s.getItem(KEYS.company));
+    setVal('employee', s.getItem(KEYS.employee));
+    setVal('notify-date', s.getItem(KEYS.notifyDate));
+    setVal('effective-date', s.getItem(KEYS.effectiveDate));
+    setVal('salary-before', s.getItem(KEYS.salaryBefore));
+    setVal('salary-after', s.getItem(KEYS.salaryAfter));
+    setVal('salary-reason', s.getItem(KEYS.salaryReason));
+    setVal('hours-before', s.getItem(KEYS.hoursBefore));
+    setVal('hours-after', s.getItem(KEYS.hoursAfter));
+    setVal('hours-reason', s.getItem(KEYS.hoursReason));
+    setVal('location-before', s.getItem(KEYS.locationBefore));
+    setVal('location-after', s.getItem(KEYS.locationAfter));
+    setVal('location-reason', s.getItem(KEYS.locationReason));
+    setVal('employment-before', s.getItem(KEYS.employmentBefore));
+    setVal('employment-after', s.getItem(KEYS.employmentAfter));
+    setVal('employment-reason', s.getItem(KEYS.employmentReason));
+    setVal('other-name', s.getItem(KEYS.otherName));
+    setVal('other-before', s.getItem(KEYS.otherBefore));
+    setVal('other-after', s.getItem(KEYS.otherAfter));
+    setVal('other-reason', s.getItem(KEYS.otherReason));
+
+    var checked = JSON.parse(s.getItem(KEYS.checkedItems) || '[]');
+    checked.forEach(function(id) {
+      var cb = document.querySelector('.change-items input[value="' + id + '"]');
+      if (cb) { cb.checked = true; toggleGroup(id, true); }
+    });
+  }
+
+  function setVal(id, val) {
+    if (!val) return;
+    var el = document.getElementById(id);
+    if (el) el.value = val;
+  }
+
+  window.addEventListener('DOMContentLoaded', loadAll);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>売掛金回収遅延 資金繰り影響チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.15rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.9rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── アドバイスカード ── */
+    .advice-card {
+      display: none;
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      margin: 0 auto 1rem; max-width: 600px;
+      font-size: 0.88rem; line-height: 1.7;
+    }
+    .advice-card.ok   { background: var(--ok-bg);   border: 1.5px solid var(--ok);   color: var(--ok);   }
+    .advice-card.warn { background: var(--warn-bg); border: 1.5px solid var(--warn); color: var(--warn); }
+    .advice-card.ng   { background: var(--ng-bg);   border: 1.5px solid var(--ng);   color: var(--ng);   }
+    .advice-title { font-weight: 800; font-size: 0.82rem; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+    .advice-list { padding-left: 1.2em; }
+    .advice-list li { margin-bottom: 0.3rem; color: var(--text); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 履歴カード ── */
+    .history-list { list-style: none; }
+    .history-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item .hi-label { color: var(--text-sub); flex: 1; }
+    .history-item .hi-val { font-weight: 700; color: var(--text); margin-right: 0.5rem; }
+    .history-item .hi-del { background: none; border: none; cursor: pointer; color: var(--text-sub); font-size: 1rem; padding: 0 0.2rem; }
+    .history-item .hi-del:hover { color: var(--ng); }
+
+    .btn-clear {
+      display: block; width: 100%; margin-top: 0.75rem;
+      padding: 0.5rem; font-size: 0.82rem; font-weight: 700;
+      background: none; border: 1.5px solid var(--border); border-radius: 9px;
+      color: var(--text-sub); cursor: pointer;
+    }
+    .btn-clear:hover { border-color: var(--ng); color: var(--ng); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .no-history { font-size: 0.82rem; color: var(--text-sub); text-align: center; padding: 0.5rem 0; }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>売掛金回収遅延 資金繰り影響チェッカー</h1>
+    <p class="subtitle">遅延日数を入力するだけで影響額とリスクをすぐ確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="amount">売掛金額（円）</label>
+      <input type="number" id="amount" placeholder="例: 1000000" min="0">
+      <p class="hint">回収できていない金額を入力してください</p>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="delay">遅延日数（日）</label>
+        <input type="number" id="delay" placeholder="例: 30" min="1">
+      </div>
+      <div class="field">
+        <label for="rate">年利率（%）</label>
+        <input type="number" id="rate" placeholder="3.0" step="0.1" min="0" value="3.0">
+        <p class="hint">法定利率：3%</p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="cashflow">月間資金繰り額（円）※任意</label>
+      <input type="number" id="cashflow" placeholder="例: 2000000（空欄でもOK）" min="0">
+      <p class="hint">月の資金繰り規模を入れると圧迫率も計算します</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">資金繰り影響を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">リスク判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- アドバイスカード -->
+  <div class="advice-card" id="advice">
+    <p class="advice-title" id="advice-title"></p>
+    <ul class="advice-list" id="advice-list"></ul>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">資金繰り影響の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="history-card">
+    <p class="card-title">計算履歴</p>
+    <ul class="history-list" id="history-list">
+      <li class="no-history" id="no-history">まだ履歴がありません</li>
+    </ul>
+    <button class="btn-clear" onclick="clearHistory()">履歴をすべて削除</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'urikake_history';
+
+  // リスク判定
+  function getRiskLevel(days) {
+    if (days < 30) return 'ok';
+    if (days <= 90) return 'warn';
+    return 'ng';
+  }
+
+  function getRiskLabel(level) {
+    return { ok: '低リスク', warn: '中リスク', ng: '高リスク' }[level];
+  }
+
+  function getAdvice(level) {
+    var map = {
+      ok: {
+        title: '低リスク（30日未満）— 早期対応で解決できます',
+        list: [
+          '催促メール・電話で状況を確認する',
+          '支払い予定日を相手に確認・記録しておく',
+          '念のため社内の売掛金台帳を更新する',
+        ]
+      },
+      warn: {
+        title: '中リスク（30〜90日）— 積極的な回収行動が必要です',
+        list: [
+          '書面（内容証明郵便）で請求を正式に行う',
+          '支払い計画書を相手と合意・締結する',
+          '相手の財務状況・信用情報を調査する',
+          '取引条件の見直し（前払い・保証金）を検討する',
+        ]
+      },
+      ng: {
+        title: '高リスク（90日超）— 法的手段の検討が必要です',
+        list: [
+          '弁護士または法務部門に相談する',
+          '支払督促・少額訴訟など法的措置を検討する',
+          '貸倒れとして会計処理する準備を始める',
+          '同一顧客への今後の取引条件を厳格化する',
+          '信用保証協会・取引信用保険の活用を確認する',
+        ]
+      }
+    };
+    return map[level];
+  }
+
+  function calc() {
+    var amount = parseFloat(document.getElementById('amount').value);
+    var delay  = parseFloat(document.getElementById('delay').value);
+    var rate   = parseFloat(document.getElementById('rate').value);
+    var cf     = parseFloat(document.getElementById('cashflow').value);
+
+    if (isNaN(amount) || amount <= 0) { alert('売掛金額を入力してください'); return; }
+    if (isNaN(delay)  || delay  < 1)  { alert('遅延日数を1日以上入力してください'); return; }
+    if (isNaN(rate)   || rate   < 0)  { alert('年利率を入力してください'); return; }
+
+    // 遅延損害金 = 売掛金額 × 年利率 / 365 × 遅延日数
+    var damage = amount * (rate / 100) / 365 * delay;
+    // 総影響額 = 売掛金額 + 遅延損害金
+    var total  = amount + damage;
+    var level  = getRiskLevel(delay);
+    var label  = getRiskLabel(level);
+
+    // 結論カード
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = label;
+    document.getElementById('rn').textContent =
+      '遅延損害金：' + fmt(Math.round(damage)) + ' 円　／　回収すべき総額：' + fmt(Math.round(total)) + ' 円';
+
+    // アドバイスカード
+    var adv = getAdvice(level);
+    var ac = document.getElementById('advice');
+    ac.className = 'advice-card ' + level;
+    ac.style.display = '';
+    document.getElementById('advice-title').textContent = adv.title;
+    document.getElementById('advice-list').innerHTML = adv.list.map(function(t){ return '<li>' + t + '</li>'; }).join('');
+
+    // 内訳
+    var rows = [
+      ['売掛金額',   fmt(Math.round(amount)) + ' 円'],
+      ['遅延日数',   delay + ' 日'],
+      ['年利率',     rate.toFixed(1) + ' %'],
+      ['遅延損害金（概算）', fmt(Math.round(damage)) + ' 円'],
+      ['回収すべき総額', fmt(Math.round(total)) + ' 円', true],
+    ];
+    if (!isNaN(cf) && cf > 0) {
+      var pct = (amount / cf * 100).toFixed(1);
+      rows.push(['月間資金繰りへの圧迫率', pct + ' %']);
+    }
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+
+    // 履歴保存
+    saveHistory({
+      date: new Date().toLocaleDateString('ja-JP'),
+      amount: amount,
+      delay: delay,
+      damage: Math.round(damage),
+      level: level,
+      label: label,
+    });
+  }
+
+  // 履歴
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+  function saveHistory(item) {
+    var hist = loadHistory();
+    hist.unshift(item);
+    if (hist.length > 20) hist = hist.slice(0, 20);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(hist));
+    renderHistory();
+  }
+  function clearHistory() {
+    if (!confirm('履歴をすべて削除しますか？')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    renderHistory();
+  }
+  function renderHistory() {
+    var hist = loadHistory();
+    var ul = document.getElementById('history-list');
+    var noHist = document.getElementById('no-history');
+    if (hist.length === 0) {
+      ul.innerHTML = '';
+      ul.appendChild(noHist);
+      noHist.style.display = '';
+      return;
+    }
+    noHist.style.display = 'none';
+    ul.innerHTML = hist.map(function(h, i) {
+      return '<li class="history-item">'
+        + '<span class="hi-label">' + h.date + '　' + fmt(h.amount) + '円 / ' + h.delay + '日</span>'
+        + '<span class="hi-val">' + h.label + '</span>'
+        + '<button class="hi-del" onclick="deleteHistory(' + i + ')" title="削除">✕</button>'
+        + '</li>';
+    }).join('');
+  }
+  function deleteHistory(i) {
+    var hist = loadHistory();
+    hist.splice(i, 1);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(hist));
+    renderHistory();
+  }
+
+  function fmt(n) { return n.toLocaleString('ja-JP'); }
+
+  // 初期化
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

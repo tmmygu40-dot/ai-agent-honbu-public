@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="備蓄食材と賞味期限を登録すると、今すぐ作れるレシピを逆引き表示。賞味期限切れ前に使い切る献立計画に役立つ備蓄食料管理アプリ。2026年4月時点の参考データ。">
+  <title>備蓄食料レシピ逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-add {
+      display: block; width: 100%;
+      padding: 0.72rem 1rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      margin-top: 0.75rem;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-sm {
+      padding: 0.3rem 0.75rem; font-size: 0.78rem; font-weight: 600;
+      background: var(--bg); color: var(--text-sub);
+      border: 1px solid var(--border); border-radius: 7px; cursor: pointer;
+    }
+    .btn-sm:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── 食材一覧 ── */
+    .food-list { list-style: none; }
+    .food-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.65rem 0.4rem; border-bottom: 1px solid var(--border);
+      gap: 0.5rem;
+    }
+    .food-item:last-child { border-bottom: none; }
+    .food-name { font-size: 0.95rem; font-weight: 600; flex: 1; }
+    .food-exp {
+      font-size: 0.78rem; padding: 0.2rem 0.6rem; border-radius: 20px;
+      font-weight: 600; white-space: nowrap;
+    }
+    .food-exp.ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .food-exp.warn { background: var(--warn-bg);  color: var(--warn); }
+    .food-exp.ng   { background: var(--ng-bg);    color: var(--ng);   }
+    .food-days { font-size: 0.72rem; color: var(--text-sub); margin-left: 0.2rem; }
+    .empty-msg { font-size: 0.88rem; color: var(--text-sub); text-align: center; padding: 1.2rem 0; }
+
+    /* ── レシピカード ── */
+    .recipe-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .recipe-card {
+      border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 0.9rem 1rem; background: var(--bg);
+    }
+    .recipe-card.can-make { border-color: var(--ok); background: var(--ok-bg); }
+    .recipe-card.partial  { border-color: var(--warn); background: var(--warn-bg); }
+    .recipe-name { font-size: 0.98rem; font-weight: 700; margin-bottom: 0.35rem; }
+    .recipe-card.can-make .recipe-name { color: var(--ok); }
+    .recipe-card.partial  .recipe-name { color: var(--warn); }
+    .recipe-badge {
+      display: inline-block; font-size: 0.7rem; font-weight: 700;
+      padding: 0.1rem 0.5rem; border-radius: 20px; margin-bottom: 0.4rem;
+    }
+    .recipe-card.can-make .recipe-badge { background: var(--ok); color: #fff; }
+    .recipe-card.partial  .recipe-badge { background: var(--warn); color: #fff; }
+    .recipe-ingredients { font-size: 0.8rem; color: var(--text-sub); line-height: 1.6; }
+    .ing-ok  { color: var(--ok); font-weight: 600; }
+    .ing-miss { color: var(--ng); font-weight: 600; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-add, .btn-sm, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .recipe-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🥫 備蓄食料レシピ逆引きアプリ</h1>
+    <p class="subtitle">食材と賞味期限を登録 → 今すぐ作れるレシピを即表示</p>
+  </header>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <!-- 食材登録 -->
+  <div class="card">
+    <p class="card-title">食材を登録する</p>
+    <div class="field">
+      <label for="foodName">食材名</label>
+      <input type="text" id="foodName" list="foodSuggestions" placeholder="例: ツナ缶、パスタ、米">
+      <datalist id="foodSuggestions">
+        <option value="米">
+        <option value="パスタ">
+        <option value="うどん（乾麺）">
+        <option value="そうめん">
+        <option value="そば（乾麺）">
+        <option value="インスタントラーメン">
+        <option value="パン（食パン）">
+        <option value="ホットケーキミックス">
+        <option value="ツナ缶">
+        <option value="サバ缶（水煮）">
+        <option value="サバ缶（みそ煮）">
+        <option value="いわし缶">
+        <option value="コーン缶">
+        <option value="トマト缶（ホール）">
+        <option value="トマト缶（カット）">
+        <option value="豆缶（ミックス）">
+        <option value="大豆缶">
+        <option value="カレールー">
+        <option value="レトルトカレー">
+        <option value="レトルトパスタソース">
+        <option value="めんつゆ">
+        <option value="醤油">
+        <option value="みりん">
+        <option value="酒（料理酒）">
+        <option value="砂糖">
+        <option value="塩">
+        <option value="油（サラダ油）">
+        <option value="酢">
+        <option value="マヨネーズ">
+        <option value="ケチャップ">
+        <option value="みそ">
+        <option value="わかめ（乾燥）">
+        <option value="ひじき（乾燥）">
+        <option value="切り干し大根">
+        <option value="麩">
+        <option value="乾燥野菜ミックス">
+        <option value="卵">
+        <option value="じゃがいも">
+        <option value="玉ねぎ">
+        <option value="にんにく（チューブ）">
+        <option value="しょうが（チューブ）">
+      </datalist>
+      <p class="hint">上の候補から選ぶかキーボードで直接入力できます</p>
+    </div>
+    <div class="field">
+      <label for="foodExp">賞味期限</label>
+      <input type="date" id="foodExp">
+    </div>
+    <button class="btn-add" onclick="addFood()">＋ 食材を追加</button>
+  </div>
+
+  <!-- 食材一覧 -->
+  <div class="card">
+    <p class="card-title">食材一覧（賞味期限が近い順）</p>
+    <ul class="food-list" id="foodList">
+      <li class="empty-msg">まだ食材が登録されていません</li>
+    </ul>
+  </div>
+
+  <!-- レシピ逆引きボタン -->
+  <button class="btn-calc" onclick="findRecipes()">🍳 今すぐ作れるレシピを探す</button>
+
+  <!-- レシピ結果 -->
+  <div class="card" id="recipeSection" style="display:none">
+    <p class="card-title">レシピ逆引き結果</p>
+    <div class="recipe-list" id="recipeList"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、一般的な備蓄食材と簡易レシピを参考に作成した目安ツールです（2026年4月時点）。レシピや食材の使用可否は実際の状態でご確認ください。最新の食品安全情報は農林水産省・消費者庁の公式情報をご参照ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  /* ── レシピデータ（内蔵） ── */
+  var RECIPES = [
+    { name: 'ツナ缶おにぎり',       req: ['米','ツナ缶'],                          opt: ['醤油','塩'] },
+    { name: 'サバ缶ご飯',           req: ['米','サバ缶（水煮）'],                   opt: ['醤油','塩'] },
+    { name: 'いわし缶ご飯',         req: ['米','いわし缶'],                         opt: ['醤油'] },
+    { name: 'ひじきご飯（混ぜ）',   req: ['米','ひじき（乾燥）'],                   opt: ['醤油','みりん','砂糖'] },
+    { name: 'レトルトカレーライス',  req: ['米','レトルトカレー'],                   opt: [] },
+    { name: '卵かけご飯',           req: ['米','卵'],                               opt: ['醤油'] },
+    { name: 'コーン炒め飯',         req: ['米','コーン缶','卵'],                    opt: ['醤油','塩','油（サラダ油）'] },
+    { name: 'ツナチャーハン',        req: ['米','ツナ缶','卵'],                      opt: ['醤油','塩','油（サラダ油）'] },
+    { name: 'ツナパスタ',            req: ['パスタ','ツナ缶'],                       opt: ['塩','油（サラダ油）'] },
+    { name: 'トマトパスタ',          req: ['パスタ','トマト缶（カット）'],            opt: ['塩','油（サラダ油）','にんにく（チューブ）'] },
+    { name: 'サバ缶トマトパスタ',    req: ['パスタ','サバ缶（水煮）','トマト缶（カット）'], opt: ['塩','油（サラダ油）'] },
+    { name: 'レトルトパスタソース',  req: ['パスタ','レトルトパスタソース'],          opt: [] },
+    { name: 'かけうどん',            req: ['うどん（乾麺）','めんつゆ'],             opt: [] },
+    { name: 'ツナうどん',            req: ['うどん（乾麺）','めんつゆ','ツナ缶'],    opt: [] },
+    { name: 'そうめん',              req: ['そうめん','めんつゆ'],                   opt: [] },
+    { name: 'ツナそうめん',          req: ['そうめん','めんつゆ','ツナ缶'],          opt: [] },
+    { name: 'そばサラダ',            req: ['そば（乾麺）','めんつゆ','ツナ缶'],      opt: ['酢'] },
+    { name: 'インスタントラーメン',  req: ['インスタントラーメン'],                  opt: ['卵'] },
+    { name: 'インスタントラーメン+卵',req: ['インスタントラーメン','卵'],            opt: [] },
+    { name: 'みそ汁（わかめ）',      req: ['みそ','わかめ（乾燥）'],                 opt: [] },
+    { name: 'みそ汁（麩）',          req: ['みそ','麩'],                             opt: [] },
+    { name: 'みそ汁（じゃがいも）',  req: ['みそ','じゃがいも'],                     opt: [] },
+    { name: 'ひじき煮',              req: ['ひじき（乾燥）','醤油'],                 opt: ['みりん','砂糖','油（サラダ油）'] },
+    { name: '切り干し大根煮',        req: ['切り干し大根','醤油'],                   opt: ['みりん','砂糖'] },
+    { name: 'トマトスープ',          req: ['トマト缶（ホール）','塩'],               opt: ['油（サラダ油）','にんにく（チューブ）'] },
+    { name: 'トマトスープ（カット缶）', req: ['トマト缶（カット）','塩'],            opt: ['油（サラダ油）'] },
+    { name: '豆サラダ',              req: ['豆缶（ミックス）','塩','酢','油（サラダ油）'], opt: [] },
+    { name: '大豆サラダ',            req: ['大豆缶','塩','酢','油（サラダ油）'],     opt: [] },
+    { name: 'サバカレー',            req: ['米','サバ缶（水煮）','カレールー'],       opt: ['玉ねぎ'] },
+    { name: '玉ねぎスープ',          req: ['玉ねぎ','塩','油（サラダ油）'],          opt: [] },
+    { name: 'じゃがいもの煮物',      req: ['じゃがいも','醤油'],                    opt: ['みりん','砂糖'] },
+    { name: 'マヨコーントースト',     req: ['パン（食パン）','コーン缶','マヨネーズ'], opt: [] },
+    { name: 'ケチャップトースト',     req: ['パン（食パン）','ケチャップ'],           opt: [] },
+    { name: 'ホットケーキ',          req: ['ホットケーキミックス','卵'],             opt: [] },
+    { name: '乾燥野菜スープ',        req: ['乾燥野菜ミックス','塩'],                 opt: ['醤油'] },
+    { name: 'ツナみそ汁',            req: ['みそ','ツナ缶'],                         opt: ['わかめ（乾燥）'] },
+    { name: 'サバ缶みそ汁',          req: ['みそ','サバ缶（みそ煮）'],               opt: ['わかめ（乾燥）'] },
+    { name: 'コーン缶スープ',        req: ['コーン缶','塩'],                         opt: ['マヨネーズ'] },
+  ];
+
+  /* ── localStorage ── */
+  var STORAGE_KEY = '備蓄食料レシピ逆引き_foods';
+
+  function loadFoods() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+    catch(e) { return []; }
+  }
+  function saveFoods(foods) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(foods));
+  }
+
+  /* ── 日数計算 ── */
+  function daysUntilExpiry(expStr) {
+    var now = new Date(); now.setHours(0,0,0,0);
+    var exp = new Date(expStr);
+    return Math.floor((exp - now) / 86400000);
+  }
+
+  function expiryClass(days) {
+    if (days < 0)  return 'ng';
+    if (days <= 7) return 'ng';
+    if (days <= 30) return 'warn';
+    return 'ok';
+  }
+
+  function expiryLabel(days) {
+    if (days < 0)  return '期限切れ';
+    if (days === 0) return '今日まで';
+    return 'あと' + days + '日';
+  }
+
+  /* ── 食材追加 ── */
+  function addFood() {
+    var name = document.getElementById('foodName').value.trim();
+    var exp  = document.getElementById('foodExp').value;
+    if (!name) { alert('食材名を入力してください'); return; }
+    if (!exp)  { alert('賞味期限を入力してください'); return; }
+    var foods = loadFoods();
+    foods.push({ name: name, exp: exp, id: Date.now() });
+    saveFoods(foods);
+    document.getElementById('foodName').value = '';
+    document.getElementById('foodExp').value  = '';
+    renderFoodList();
+  }
+
+  /* ── 食材削除 ── */
+  function deleteFood(id) {
+    var foods = loadFoods().filter(function(f) { return f.id !== id; });
+    saveFoods(foods);
+    renderFoodList();
+  }
+
+  /* ── 食材一覧描画 ── */
+  function renderFoodList() {
+    var foods = loadFoods();
+    var list  = document.getElementById('foodList');
+    if (foods.length === 0) {
+      list.innerHTML = '<li class="empty-msg">まだ食材が登録されていません</li>';
+      return;
+    }
+    foods.sort(function(a, b) {
+      return new Date(a.exp) - new Date(b.exp);
+    });
+    list.innerHTML = foods.map(function(f) {
+      var days  = daysUntilExpiry(f.exp);
+      var cls   = expiryClass(days);
+      var label = expiryLabel(days);
+      return '<li class="food-item">'
+        + '<span class="food-name">' + esc(f.name) + '</span>'
+        + '<span class="food-exp ' + cls + '">' + esc(f.exp) + ' <span class="food-days">(' + label + ')</span></span>'
+        + '<button class="btn-sm no-print" onclick="deleteFood(' + f.id + ')">削除</button>'
+        + '</li>';
+    }).join('');
+  }
+
+  /* ── レシピ逆引き ── */
+  function findRecipes() {
+    var foods = loadFoods();
+    if (foods.length === 0) {
+      alert('食材を登録してから検索してください');
+      return;
+    }
+    var inv = foods.map(function(f) { return f.name; });
+
+    var results = [];
+    RECIPES.forEach(function(r) {
+      var matchedReq = r.req.filter(function(ing) {
+        return inv.some(function(fn) { return fn === ing; });
+      });
+      var missingReq = r.req.filter(function(ing) {
+        return !inv.some(function(fn) { return fn === ing; });
+      });
+      if (matchedReq.length === r.req.length) {
+        results.push({ recipe: r, type: 'can-make', matched: matchedReq, missing: [] });
+      } else if (matchedReq.length >= 1) {
+        results.push({ recipe: r, type: 'partial', matched: matchedReq, missing: missingReq });
+      }
+    });
+
+    results.sort(function(a, b) {
+      if (a.type === 'can-make' && b.type !== 'can-make') return -1;
+      if (b.type === 'can-make' && a.type !== 'can-make') return 1;
+      return b.matched.length - a.matched.length;
+    });
+
+    var sec  = document.getElementById('recipeSection');
+    var list = document.getElementById('recipeList');
+
+    if (results.length === 0) {
+      list.innerHTML = '<p class="empty-msg">マッチするレシピが見つかりませんでした。<br>食材を追加してから再度お試しください。</p>';
+    } else {
+      var canMake = results.filter(function(r) { return r.type === 'can-make'; });
+      var partial = results.filter(function(r) { return r.type === 'partial'; });
+      var html = '';
+      if (canMake.length > 0) {
+        html += '<p style="font-size:0.82rem;font-weight:700;color:var(--ok);margin-bottom:0.5rem;">✅ 今すぐ作れる（' + canMake.length + '品）</p>';
+        canMake.forEach(function(item) {
+          html += renderRecipeCard(item);
+        });
+      }
+      if (partial.length > 0) {
+        html += '<p style="font-size:0.82rem;font-weight:700;color:var(--warn);margin:1rem 0 0.5rem;">🔶 一部の食材がある（' + partial.length + '品）</p>';
+        partial.slice(0, 10).forEach(function(item) {
+          html += renderRecipeCard(item);
+        });
+      }
+      list.innerHTML = html;
+    }
+
+    sec.style.display = 'block';
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderRecipeCard(item) {
+    var r = item.recipe;
+    var badge = item.type === 'can-make' ? '今すぐ作れる' : '食材一部あり';
+    var ingHtml = r.req.map(function(ing) {
+      var have = item.matched.indexOf(ing) >= 0;
+      return '<span class="' + (have ? 'ing-ok' : 'ing-miss') + '">' + esc(ing) + '</span>';
+    }).join(' / ');
+    if (r.opt.length > 0) {
+      ingHtml += ' <span style="color:var(--text-sub);">（あれば: ' + r.opt.slice(0,3).map(esc).join('・') + '）</span>';
+    }
+    return '<div class="recipe-card ' + item.type + '">'
+      + '<span class="recipe-badge">' + badge + '</span><br>'
+      + '<span class="recipe-name">' + esc(r.name) + '</span>'
+      + '<p class="recipe-ingredients">食材: ' + ingHtml + '</p>'
+      + '</div>';
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ── 初期描画 ── */
+  renderFoodList();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

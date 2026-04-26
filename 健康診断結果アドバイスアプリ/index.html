@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="血圧・血糖・コレステロール・BMIなどの健康診断数値を入力すると、改善すべき生活習慣を優先順位付きで即表示。要受診・要改善・経過観察の3段階で分かりやすく整理します。">
+  <title>健康診断結果アドバイスアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力グリッド ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem 1rem;
+    }
+    @media (max-width: 400px) {
+      .input-grid { grid-template-columns: 1fr; }
+    }
+    .field { }
+    .field label {
+      display: block; font-size: 0.78rem; font-weight: 600;
+      color: var(--text-sub); margin-bottom: 0.28rem;
+    }
+    .field label .unit { font-weight: 400; font-size: 0.72rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.6rem 0.75rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field-full { grid-column: 1 / -1; }
+
+    /* ── section見出し ── */
+    .section-head {
+      grid-column: 1 / -1;
+      font-size: 0.75rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.05em; text-transform: uppercase;
+      padding: 0.6rem 0 0.3rem;
+      border-top: 1px solid var(--border);
+      margin-top: 0.4rem;
+    }
+    .section-head:first-of-type { border-top: none; margin-top: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.2rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── アドバイスリスト ── */
+    .advice-list { list-style: none; }
+    .advice-item {
+      padding: 0.9rem 0.2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .advice-item:last-child { border-bottom: none; }
+    .advice-header {
+      display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.45rem;
+    }
+    .badge {
+      display: inline-block; font-size: 0.68rem; font-weight: 800;
+      padding: 0.15rem 0.5rem; border-radius: 20px; letter-spacing: 0.04em;
+    }
+    .badge-a { background: var(--ng-bg); color: var(--ng); border: 1px solid var(--ng); }
+    .badge-b { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .badge-c { background: #f0f9ff; color: #0369a1; border: 1px solid #0369a1; }
+    .item-name { font-size: 0.9rem; font-weight: 700; }
+    .item-value { font-size: 0.78rem; color: var(--text-sub); margin-left: auto; }
+    .advice-text { font-size: 0.82rem; color: var(--text-sub); line-height: 1.6; }
+    .advice-actions {
+      display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.5rem;
+    }
+    .tag {
+      font-size: 0.72rem; padding: 0.2rem 0.55rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 20px; color: var(--text-sub);
+    }
+
+    /* ── 凡例 ── */
+    .legend {
+      display: flex; gap: 0.8rem; flex-wrap: wrap;
+      font-size: 0.72rem; color: var(--text-sub);
+      margin-bottom: 0.8rem;
+    }
+    .legend span { display: flex; align-items: center; gap: 0.3rem; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.45rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:nth-child(2) { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table td:nth-child(3) { text-align: right; font-size: 0.72rem; color: var(--text-sub); padding-left: 0.4rem; }
+    .detail-table .val-ng td:nth-child(2) { color: var(--ng); }
+    .detail-table .val-warn td:nth-child(2) { color: var(--warn); }
+    .detail-table .val-ok td:nth-child(2) { color: var(--ok); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>健康診断結果アドバイスアプリ</h1>
+    <p class="subtitle">数値を入力 → 改善すべき生活習慣を優先順位付きで即表示</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">健康診断の数値を入力（空欄はスキップ）</p>
+    <div class="input-grid">
+
+      <div class="field field-full">
+        <label for="gender">性別（クレアチニン基準値に使用）</label>
+        <select id="gender">
+          <option value="m">男性</option>
+          <option value="f">女性</option>
+        </select>
+      </div>
+
+      <p class="section-head">血圧</p>
+      <div class="field">
+        <label for="sbp">収縮期血圧<span class="unit">（上）mmHg</span></label>
+        <input type="number" id="sbp" placeholder="例: 125" min="50" max="250">
+      </div>
+      <div class="field">
+        <label for="dbp">拡張期血圧<span class="unit">（下）mmHg</span></label>
+        <input type="number" id="dbp" placeholder="例: 80" min="30" max="180">
+      </div>
+
+      <p class="section-head">血糖・HbA1c</p>
+      <div class="field">
+        <label for="glu">空腹時血糖<span class="unit"> mg/dL</span></label>
+        <input type="number" id="glu" placeholder="例: 95" min="40" max="600">
+      </div>
+      <div class="field">
+        <label for="hba1c">HbA1c<span class="unit"> %</span></label>
+        <input type="number" id="hba1c" placeholder="例: 5.4" step="0.1" min="3" max="20">
+      </div>
+
+      <p class="section-head">脂質</p>
+      <div class="field">
+        <label for="ldl">LDLコレステロール<span class="unit"> mg/dL</span></label>
+        <input type="number" id="ldl" placeholder="例: 110" min="20" max="500">
+      </div>
+      <div class="field">
+        <label for="hdl">HDLコレステロール<span class="unit"> mg/dL</span></label>
+        <input type="number" id="hdl" placeholder="例: 65" min="10" max="200">
+      </div>
+      <div class="field">
+        <label for="tg">中性脂肪<span class="unit"> mg/dL</span></label>
+        <input type="number" id="tg" placeholder="例: 120" min="20" max="2000">
+      </div>
+
+      <p class="section-head">体格</p>
+      <div class="field">
+        <label for="bmi">BMI</label>
+        <input type="number" id="bmi" placeholder="例: 23.5" step="0.1" min="10" max="60">
+      </div>
+
+      <p class="section-head">肝機能</p>
+      <div class="field">
+        <label for="ast">AST（GOT）<span class="unit"> IU/L</span></label>
+        <input type="number" id="ast" placeholder="例: 25" min="0" max="2000">
+      </div>
+      <div class="field">
+        <label for="alt">ALT（GPT）<span class="unit"> IU/L</span></label>
+        <input type="number" id="alt" placeholder="例: 25" min="0" max="2000">
+      </div>
+      <div class="field">
+        <label for="ggt">γ-GT（γ-GTP）<span class="unit"> IU/L</span></label>
+        <input type="number" id="ggt" placeholder="例: 30" min="0" max="2000">
+      </div>
+
+      <p class="section-head">腎機能・尿酸</p>
+      <div class="field">
+        <label for="cr">クレアチニン<span class="unit"> mg/dL</span></label>
+        <input type="number" id="cr" placeholder="例: 0.85" step="0.01" min="0.1" max="20">
+      </div>
+      <div class="field">
+        <label for="ua">尿酸<span class="unit"> mg/dL</span></label>
+        <input type="number" id="ua" placeholder="例: 5.5" step="0.1" min="0.5" max="20">
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">アドバイスを見る</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- アドバイスカード -->
+  <div class="card" id="adviceCard" style="display:none">
+    <p class="card-title">改善ポイント（優先順位順）</p>
+    <div class="legend">
+      <span><span class="badge badge-a">A</span> 要受診・早急対応</span>
+      <span><span class="badge badge-b">B</span> 要改善・生活見直し</span>
+      <span><span class="badge badge-c">C</span> 経過観察</span>
+    </div>
+    <ul class="advice-list" id="adviceList"></ul>
+  </div>
+
+  <!-- 全項目チェック表 -->
+  <div class="card" id="checkCard" style="display:none">
+    <p class="card-title">全項目チェック表</p>
+    <table class="detail-table"><tbody id="checkBody"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 基準値は厚生労働省・日本人間ドック学会・日本医師会などの公表データを参考にした目安です。診断・治療は必ず医療機関にご相談ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 定義 ──────────────────────────────────────────
+  var ITEMS = [
+    {
+      id: 'sbp', name: '収縮期血圧（上）', unit: 'mmHg',
+      check: function(v) {
+        if (v >= 140) return 'ng';
+        if (v >= 130) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 <130 / 境界 130-139 / 高血圧 ≥140',
+      advice: {
+        ng: '高血圧（要受診）。減塩（目標6g/日未満）・節酒・禁煙・有酸素運動を優先。',
+        warn: '血圧やや高め。減塩・体重管理・有酸素運動（ウォーキング30分/日）を始めましょう。',
+      },
+      tags: { ng: ['減塩', '節酒', '禁煙', '有酸素運動', '受診'], warn: ['減塩', '体重管理', '運動'] }
+    },
+    {
+      id: 'dbp', name: '拡張期血圧（下）', unit: 'mmHg',
+      check: function(v) {
+        if (v >= 90) return 'ng';
+        if (v >= 85) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 <85 / 境界 85-89 / 高血圧 ≥90',
+      advice: {
+        ng: '拡張期血圧が高い（要受診）。減塩・節酒・ストレス管理を優先してください。',
+        warn: '拡張期血圧やや高め。減塩・リラクゼーション・適度な運動を意識しましょう。',
+      },
+      tags: { ng: ['減塩', '節酒', 'ストレス管理', '受診'], warn: ['減塩', '運動', '睡眠改善'] }
+    },
+    {
+      id: 'glu', name: '空腹時血糖', unit: 'mg/dL',
+      check: function(v) {
+        if (v >= 126) return 'ng';
+        if (v >= 100) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 <100 / 境界 100-125 / 糖尿病疑い ≥126',
+      advice: {
+        ng: '糖尿病疑い（要受診）。精密検査を受け、糖質制限・食事順序（野菜→たんぱく質→炭水化物）を実践。',
+        warn: '血糖やや高め（糖尿病予備群）。食後のウォーキング・早食い防止・甘い飲料を控えましょう。',
+      },
+      tags: { ng: ['糖質制限', '食事順序', '運動', '受診'], warn: ['食後ウォーキング', '早食い禁止', '甘味料制限'] }
+    },
+    {
+      id: 'hba1c', name: 'HbA1c', unit: '%',
+      check: function(v) {
+        if (v >= 6.5) return 'ng';
+        if (v >= 5.6) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 <5.6% / 境界 5.6-6.4% / 糖尿病疑い ≥6.5%',
+      advice: {
+        ng: 'HbA1c高値（要受診）。直近1〜2ヶ月の血糖コントロール不良。医療機関での精密検査を。',
+        warn: 'HbA1cやや高め。食後血糖の上昇を防ぐため、食事の順序と量に気をつけましょう。',
+      },
+      tags: { ng: ['血糖管理', '受診', '食事改善'], warn: ['食事順序', '糖質調整', '運動'] }
+    },
+    {
+      id: 'ldl', name: 'LDLコレステロール', unit: 'mg/dL',
+      check: function(v) {
+        if (v >= 140) return 'ng';
+        if (v >= 120) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 <120 / 境界 120-139 / 高値 ≥140',
+      advice: {
+        ng: 'LDL高値（動脈硬化リスク上昇）。飽和脂肪酸（肉の脂身・バター）を減らし、青魚・食物繊維を増やしましょう。',
+        warn: 'LDLやや高め。揚げ物・加工肉を控え、野菜・海藻・豆類を増やしましょう。',
+      },
+      tags: { ng: ['飽和脂肪制限', '青魚', '食物繊維'], warn: ['揚げ物制限', '野菜増加'] }
+    },
+    {
+      id: 'hdl', name: 'HDLコレステロール', unit: 'mg/dL',
+      check: function(v) {
+        if (v < 40) return 'ng';
+        if (v < 60) return 'warn';
+        return 'ok';
+      },
+      ref: '低リスク ≥60 / 要注意 40-59 / 低値 <40',
+      advice: {
+        ng: 'HDL低値（動脈硬化リスク）。有酸素運動（ウォーキング・水泳）・禁煙・節酒が最も効果的です。',
+        warn: 'HDLやや低め。運動習慣を始め、禁煙・適度な飲酒量にとどめましょう。',
+      },
+      tags: { ng: ['有酸素運動', '禁煙', '節酒'], warn: ['運動習慣', '禁煙', '節酒'] }
+    },
+    {
+      id: 'tg', name: '中性脂肪', unit: 'mg/dL',
+      check: function(v) {
+        if (v >= 300) return 'ng';
+        if (v >= 150) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 <150 / 境界 150-299 / 高値 ≥300',
+      advice: {
+        ng: '中性脂肪高値（要受診検討）。アルコール・糖質（白米・菓子・果物の取りすぎ）を減らし、運動を増やしましょう。',
+        warn: '中性脂肪やや高め。お酒・甘い物・白米の量を見直し、有酸素運動を加えましょう。',
+      },
+      tags: { ng: ['節酒', '糖質制限', '運動', '受診検討'], warn: ['節酒', '糖質調整', '有酸素運動'] }
+    },
+    {
+      id: 'bmi', name: 'BMI', unit: '',
+      check: function(v) {
+        if (v >= 30 || v < 18.5) return 'ng';
+        if (v >= 25 || v < 20) return 'warn';
+        return 'ok';
+      },
+      ref: '標準 18.5-24.9 / 過体重 25-29.9 / 肥満 ≥30 / 低体重 <18.5',
+      advice: {
+        ng: function(v) {
+          if (v < 18.5) return '低体重（要注意）。栄養バランスを見直し、必要カロリーを確保しましょう。';
+          return '肥満（要受診検討）。摂取カロリーを見直し、1日30分以上の有酸素運動を目標にしましょう。';
+        },
+        warn: function(v) {
+          if (v < 20) return 'BMIやや低め。偏った食事制限をやめ、たんぱく質を十分に取りましょう。';
+          return 'BMIやや高め（過体重）。食事量・間食を見直し、通勤や移動で歩く量を増やしましょう。';
+        },
+      },
+      tags: {
+        ng: function(v) { return v < 18.5 ? ['食事改善', '栄養バランス'] : ['カロリー制限', '有酸素運動', '受診検討']; },
+        warn: function(v) { return v < 20 ? ['たんぱく質摂取', '食事改善'] : ['食事見直し', '歩く量増加']; }
+      }
+    },
+    {
+      id: 'ast', name: 'AST（GOT）', unit: 'IU/L',
+      check: function(v) {
+        if (v > 50) return 'ng';
+        if (v > 30) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 ≤30 / 要改善 31-50 / 高値 >50',
+      advice: {
+        ng: 'AST高値（肝機能低下・要受診）。節酒・脂肪肝改善（体重管理）・過労防止を優先してください。',
+        warn: 'ASTやや高め。節酒・体重管理・バランスの良い食事を心がけましょう。',
+      },
+      tags: { ng: ['節酒', '体重管理', '受診'], warn: ['節酒', '体重管理', '食事改善'] }
+    },
+    {
+      id: 'alt', name: 'ALT（GPT）', unit: 'IU/L',
+      check: function(v) {
+        if (v > 50) return 'ng';
+        if (v > 30) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 ≤30 / 要改善 31-50 / 高値 >50',
+      advice: {
+        ng: 'ALT高値（脂肪肝・肝炎の可能性・要受診）。アルコールを休肝日設定し、肥満があれば体重を5%減らしましょう。',
+        warn: 'ALTやや高め（脂肪肝の初期サイン）。節酒・体重管理・糖質・脂質を控えた食事を始めましょう。',
+      },
+      tags: { ng: ['節酒', '体重5%減', '受診'], warn: ['節酒', '糖質制限', '体重管理'] }
+    },
+    {
+      id: 'ggt', name: 'γ-GT（γ-GTP）', unit: 'IU/L',
+      check: function(v) {
+        if (v > 100) return 'ng';
+        if (v > 50) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 ≤50 / 要改善 51-100 / 高値 >100',
+      advice: {
+        ng: 'γ-GT高値（アルコール性・胆管系疾患の可能性・要受診）。禁酒または大幅な節酒を今すぐ始めましょう。',
+        warn: 'γ-GTやや高め。飲酒量を減らし、週2日以上の休肝日を設けましょう。',
+      },
+      tags: { ng: ['禁酒・節酒', '受診'], warn: ['節酒', '休肝日設定'] }
+    },
+    {
+      id: 'cr', name: 'クレアチニン', unit: 'mg/dL',
+      check: function(v, gender) {
+        var limit = gender === 'f' ? 0.79 : 1.07;
+        if (v > limit * 1.3) return 'ng';
+        if (v > limit) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 男性≤1.07 / 女性≤0.79 mg/dL',
+      advice: {
+        ng: 'クレアチニン高値（腎機能低下の可能性・要受診）。水分をこまめに取り、たんぱく質・塩分を控えめにしましょう。',
+        warn: 'クレアチニンやや高め（腎機能注意）。水分補給を意識し、塩分・たんぱく質の過剰摂取を避けましょう。',
+      },
+      tags: { ng: ['水分補給', 'たんぱく質制限', '減塩', '受診'], warn: ['水分補給', '減塩', '受診検討'] }
+    },
+    {
+      id: 'ua', name: '尿酸', unit: 'mg/dL',
+      check: function(v) {
+        if (v > 8.0) return 'ng';
+        if (v > 7.0) return 'warn';
+        return 'ok';
+      },
+      ref: '正常 ≤7.0 / 高値 7.1-8.0 / 痛風リスク >8.0',
+      advice: {
+        ng: '尿酸高値（痛風・腎臓病リスク・要受診検討）。1日2L以上の水分補給・プリン体の多い食品（内臓・魚卵）を控えましょう。',
+        warn: '尿酸やや高め（高尿酸血症）。水分補給を増やし、ビール・内臓肉を控え、適度な運動を始めましょう。',
+      },
+      tags: { ng: ['水分2L以上', 'プリン体制限', '節酒', '受診検討'], warn: ['水分補給', 'ビール制限', '有酸素運動'] }
+    },
+  ];
+
+  var PRIORITY = { ng: 0, warn: 1, ok: 2 };
+
+  // ── メイン計算 ─────────────────────────────────────
+  function calc() {
+    var gender = document.getElementById('gender').value;
+    var results = [];
+    var inputCount = 0;
+
+    ITEMS.forEach(function(item) {
+      var el = document.getElementById(item.id);
+      var raw = el.value.trim();
+      if (raw === '') return;
+      var v = parseFloat(raw);
+      if (isNaN(v)) return;
+      inputCount++;
+
+      var level = typeof item.check === 'function'
+        ? item.check(v, gender)
+        : 'ok';
+
+      var adviceText = '';
+      var tags = [];
+      if (level !== 'ok' && item.advice[level]) {
+        adviceText = typeof item.advice[level] === 'function'
+          ? item.advice[level](v)
+          : item.advice[level];
+        var rawTags = item.tags[level];
+        tags = typeof rawTags === 'function' ? rawTags(v) : (rawTags || []);
+      }
+
+      results.push({
+        id: item.id, name: item.name, unit: item.unit,
+        value: v, level: level, ref: item.ref,
+        advice: adviceText, tags: tags
+      });
+    });
+
+    if (inputCount === 0) {
+      showResult('ng', '⚠️ 未入力', '1つ以上の数値を入力してください。');
+      document.getElementById('adviceCard').style.display = 'none';
+      document.getElementById('checkCard').style.display = 'none';
+      return;
+    }
+
+    // ソート: ng → warn → ok
+    results.sort(function(a, b) { return PRIORITY[a.level] - PRIORITY[b.level]; });
+
+    var ngCount = results.filter(function(r) { return r.level === 'ng'; }).length;
+    var warnCount = results.filter(function(r) { return r.level === 'warn'; }).length;
+
+    var overallLevel, overallVal, overallNote;
+    if (ngCount > 0) {
+      overallLevel = 'ng';
+      overallVal = '要受診 ' + ngCount + '項目';
+      overallNote = '早急に医療機関への受診をおすすめします。' + (warnCount > 0 ? 'また、' + warnCount + '項目で生活習慣の改善が必要です。' : '');
+    } else if (warnCount > 0) {
+      overallLevel = 'warn';
+      overallVal = '要改善 ' + warnCount + '項目';
+      overallNote = '生活習慣を見直すことで改善が期待できます。以下のアドバイスを参考にしてください。';
+    } else {
+      overallLevel = 'ok';
+      overallVal = '入力項目 すべて正常範囲';
+      overallNote = '入力された項目は基準値の範囲内でした。引き続き健康的な生活を続けましょう。';
+    }
+
+    showResult(overallLevel, overallVal, overallNote);
+    renderAdvice(results);
+    renderCheck(results);
+    saveToStorage();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function renderAdvice(results) {
+    var filtered = results.filter(function(r) { return r.level !== 'ok'; });
+    var ac = document.getElementById('adviceCard');
+    if (filtered.length === 0) { ac.style.display = 'none'; return; }
+    ac.style.display = 'block';
+
+    var html = '';
+    filtered.forEach(function(r, i) {
+      var badgeClass = r.level === 'ng' ? 'badge-a' : 'badge-b';
+      var badgeText = r.level === 'ng' ? 'A 要受診' : 'B 要改善';
+      var tagsHtml = r.tags.map(function(t) {
+        return '<span class="tag">' + t + '</span>';
+      }).join('');
+      var dispVal = r.unit ? r.value + ' ' + r.unit : r.value;
+      html += '<li class="advice-item">'
+        + '<div class="advice-header">'
+        + '<span class="badge ' + badgeClass + '">' + badgeText + '</span>'
+        + '<span class="item-name">' + r.name + '</span>'
+        + '<span class="item-value">' + dispVal + '</span>'
+        + '</div>'
+        + '<p class="advice-text">' + r.advice + '</p>'
+        + (tagsHtml ? '<div class="advice-actions">' + tagsHtml + '</div>' : '')
+        + '</li>';
+    });
+    document.getElementById('adviceList').innerHTML = html;
+  }
+
+  function renderCheck(results) {
+    var cc = document.getElementById('checkCard');
+    cc.style.display = 'block';
+    var html = '';
+    results.forEach(function(r) {
+      var cls = r.level === 'ng' ? 'val-ng' : r.level === 'warn' ? 'val-warn' : 'val-ok';
+      var mark = r.level === 'ng' ? '✕' : r.level === 'warn' ? '△' : '○';
+      var dispVal = r.unit ? r.value + ' ' + r.unit : r.value;
+      html += '<tr class="' + cls + '">'
+        + '<td>' + r.name + '</td>'
+        + '<td>' + dispVal + '</td>'
+        + '<td>' + mark + '</td>'
+        + '</tr>';
+    });
+    document.getElementById('checkBody').innerHTML = html;
+  }
+
+  // ── localStorage ────────────────────────────────────
+  var LS_KEY = 'kenkoshindan_v1';
+
+  function saveToStorage() {
+    var data = { gender: document.getElementById('gender').value };
+    ITEMS.forEach(function(item) {
+      data[item.id] = document.getElementById(item.id).value;
+    });
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadFromStorage() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.gender) document.getElementById('gender').value = data.gender;
+      ITEMS.forEach(function(item) {
+        if (data[item.id] !== undefined) {
+          document.getElementById(item.id).value = data[item.id];
+        }
+      });
+    } catch(e) {}
+  }
+
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

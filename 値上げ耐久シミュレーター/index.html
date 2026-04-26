@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>値上げ耐久シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 入力グリッド ── */
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .field-row .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.4rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.85rem; color: var(--text-sub); line-height: 1.6; }
+    .result-sub { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.5rem; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .detail-table th {
+      padding: 0.45rem 0.4rem; color: var(--text-sub);
+      font-weight: 700; font-size: 0.72rem; letter-spacing: 0.04em;
+      border-bottom: 2px solid var(--border); text-align: right;
+    }
+    .detail-table th:first-child { text-align: left; }
+    .detail-table td { padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border); text-align: right; }
+    .detail-table td:first-child { text-align: left; font-weight: 600; }
+    .detail-table tr:last-child td { border-bottom: none; }
+    .detail-table tr.break-row { background: var(--accent-light); font-weight: 700; }
+    .detail-table tr.break-row td { color: var(--accent); }
+    .detail-table .profit-pos { color: var(--ok); font-weight: 700; }
+    .detail-table .profit-neg { color: var(--ng); font-weight: 700; }
+    .detail-table .profit-zero { color: var(--warn); font-weight: 700; }
+
+    /* ── 現状サマリ ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.6rem; margin-bottom: 0;
+    }
+    .summary-item { text-align: center; }
+    .summary-item .s-label { font-size: 0.7rem; color: var(--text-sub); margin-bottom: 0.2rem; }
+    .summary-item .s-val { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+    .summary-item .s-val.ok { color: var(--ok); }
+    .summary-item .s-val.ng { color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>値上げ耐久シミュレーター</h1>
+    <p class="subtitle">客数が何%減っても黒字を維持できるかを即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">現在の状況</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="price">現在の客単価（円）</label>
+        <input type="number" id="price" placeholder="例: 1200" min="0">
+      </div>
+      <div class="field">
+        <label for="customers">月間客数（人）</label>
+        <input type="number" id="customers" placeholder="例: 300" min="0">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="varRate">変動費率（%）</label>
+        <input type="number" id="varRate" placeholder="例: 35" min="0" max="100">
+        <p class="hint">売上に対する原材料費・仕入れ費の割合</p>
+      </div>
+      <div class="field">
+        <label for="fixed">月間固定費（円）</label>
+        <input type="number" id="fixed" placeholder="例: 200000" min="0">
+        <p class="hint">家賃・人件費・光熱費など</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">値上げ後の設定</p>
+    <div class="field">
+      <label for="newPrice">値上げ後の客単価（円）</label>
+      <input type="number" id="newPrice" placeholder="例: 1400" min="0">
+      <p class="hint">値上げ後の1人あたり平均単価</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">許容できる客数減少率（損益分岐点）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+    <p class="result-sub" id="rs"></p>
+  </div>
+
+  <!-- 現状比較カード -->
+  <div class="card" id="summary-card" style="display:none">
+    <p class="card-title">値上げ前後 比較</p>
+    <div class="summary-grid" id="summary-grid"></div>
+  </div>
+
+  <!-- シナリオテーブルカード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">客数減少シナリオ別 利益試算</p>
+    <div style="overflow-x:auto">
+      <table class="detail-table">
+        <thead>
+          <tr>
+            <th>客数減少率</th>
+            <th>月間客数</th>
+            <th>売上</th>
+            <th>粗利</th>
+            <th>営業利益</th>
+          </tr>
+        </thead>
+        <tbody id="scenario-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'neage_taikyu_v1';
+
+  // ── ロード時に復元 ──
+  (function(){
+    try {
+      var s = localStorage.getItem(LS_KEY);
+      if (!s) return;
+      var d = JSON.parse(s);
+      if (d.price)     document.getElementById('price').value     = d.price;
+      if (d.customers) document.getElementById('customers').value = d.customers;
+      if (d.varRate)   document.getElementById('varRate').value   = d.varRate;
+      if (d.fixed)     document.getElementById('fixed').value     = d.fixed;
+      if (d.newPrice)  document.getElementById('newPrice').value  = d.newPrice;
+    } catch(e) {}
+  })();
+
+  function calc() {
+    var price     = parseFloat(document.getElementById('price').value);
+    var customers = parseFloat(document.getElementById('customers').value);
+    var varRate   = parseFloat(document.getElementById('varRate').value);
+    var fixed     = parseFloat(document.getElementById('fixed').value);
+    var newPrice  = parseFloat(document.getElementById('newPrice').value);
+
+    if ([price, customers, varRate, fixed, newPrice].some(isNaN)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (varRate < 0 || varRate >= 100) {
+      showErr('変動費率は 0〜99 の範囲で入力してください');
+      return;
+    }
+    if (newPrice <= price) {
+      showErr('値上げ後の単価は現在の単価より高くしてください');
+      return;
+    }
+
+    // localStorage 保存
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        price: price, customers: customers,
+        varRate: varRate, fixed: fixed, newPrice: newPrice
+      }));
+    } catch(e) {}
+
+    var margin = 1 - varRate / 100;  // 粗利率
+
+    // 現在の営業利益
+    var curSales  = price * customers;
+    var curGross  = curSales * margin;
+    var curProfit = curGross - fixed;
+
+    // 値上げ後の損益分岐点客数
+    var breakEvenCustomers = fixed / (newPrice * margin);
+    var maxDropRate = (customers - breakEvenCustomers) / customers * 100;
+
+    // 結論カードの判定
+    var level, note, sub;
+    if (maxDropRate <= 0) {
+      level = 'ng';
+      note  = '現状でも赤字、または値上げだけでは損益分岐を超えられません。';
+      sub   = '固定費の削減や追加の集客施策が必要です。';
+    } else if (maxDropRate < 10) {
+      level = 'warn';
+      note  = '許容範囲が狭く、少しの客数減少で赤字転落するリスクがあります。';
+      sub   = '値上げ額や固定費の見直しを検討してください。';
+    } else if (maxDropRate < 25) {
+      level = 'ok';
+      note  = 'ある程度の客数減少には耐えられます。';
+      sub   = '値上げを実施しつつ、客数の動向を注視してください。';
+    } else {
+      level = 'ok';
+      note  = '値上げ後も大きな客数減少に耐えられます。';
+      sub   = '積極的に値上げを検討できる状況です。';
+    }
+
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = maxDropRate <= 0
+      ? '余裕なし' : maxDropRate.toFixed(1) + '% まで';
+    document.getElementById('rn').textContent = note;
+    document.getElementById('rs').textContent = sub;
+
+    // 現状比較
+    var newSalesBase  = newPrice * customers;
+    var newGrossBase  = newSalesBase * margin;
+    var newProfitBase = newGrossBase - fixed;
+    var sg = document.getElementById('summary-grid');
+    sg.innerHTML = [
+      ['現在の月間売上',  fmt(curSales)  + ' 円', ''],
+      ['値上げ後の月上限', fmt(newSalesBase) + ' 円', ''],
+      ['現在の営業利益',  fmt(curProfit) + ' 円', curProfit >= 0 ? 'ok' : 'ng'],
+      ['値上げ後の利益',  fmt(newProfitBase) + ' 円', newProfitBase >= 0 ? 'ok' : 'ng'],
+    ].map(function(r){
+      return '<div class="summary-item"><p class="s-label">' + r[0] + '</p>'
+           + '<p class="s-val ' + r[2] + '">' + r[1] + '</p></div>';
+    }).join('');
+    document.getElementById('summary-card').style.display = '';
+
+    // シナリオテーブル（0%〜-50% 5%刻み、損益分岐も挿入）
+    var rows = [];
+    var breakInserted = false;
+    for (var d = 0; d <= 50; d += 5) {
+      var cust   = customers * (1 - d / 100);
+      var sales  = newPrice * cust;
+      var gross  = sales * margin;
+      var profit = gross - fixed;
+
+      // 損益分岐行を挿入
+      if (!breakInserted && maxDropRate > 0 && d > 0 && (d - 5) < maxDropRate && maxDropRate <= d) {
+        var bCust   = breakEvenCustomers;
+        var bSales  = newPrice * bCust;
+        var bGross  = bSales * margin;
+        rows.push({ rate: maxDropRate.toFixed(1) + '%（損益分岐）', cust: bCust, sales: bSales, gross: bGross, profit: 0, isBreak: true });
+        breakInserted = true;
+      }
+
+      rows.push({ rate: '-' + d + '%', cust: cust, sales: sales, gross: gross, profit: profit, isBreak: false });
+    }
+
+    var tbody = document.getElementById('scenario-body');
+    tbody.innerHTML = rows.map(function(r){
+      var cls = r.isBreak ? ' class="break-row"' : '';
+      var pCls = r.profit > 500 ? 'profit-pos' : r.profit < -500 ? 'profit-neg' : 'profit-zero';
+      return '<tr' + cls + '>'
+           + '<td>' + r.rate + '</td>'
+           + '<td>' + Math.round(r.cust).toLocaleString('ja-JP') + '人</td>'
+           + '<td>' + fmt(r.sales) + '円</td>'
+           + '<td>' + fmt(r.gross) + '円</td>'
+           + '<td class="' + pCls + '">' + fmt(r.profit) + '円</td>'
+           + '</tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('rs').textContent = '';
+    document.getElementById('summary-card').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>備蓄必要量チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 横並び2カラム ── */
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ok-row td:last-child { color: var(--ok); }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+
+    /* ── 品目別カード ── */
+    .item-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    .item-box {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.8rem 0.9rem;
+      text-align: center;
+    }
+    .item-box.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .item-box.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .item-box.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .item-name { font-size: 0.75rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .item-status { font-size: 0.95rem; font-weight: 900; }
+    .item-box.ok   .item-status { color: var(--ok);   }
+    .item-box.warn .item-status { color: var(--warn); }
+    .item-box.ng   .item-status { color: var(--ng);   }
+    .item-detail { font-size: 0.7rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🏠 備蓄必要量チェッカー</h1>
+    <p class="subtitle">家族構成と目標日数から食料・水の必要量と不足分を即計算</p>
+  </header>
+
+  <!-- 家族構成カード -->
+  <div class="card">
+    <p class="card-title">家族構成</p>
+    <div class="row2">
+      <div class="field">
+        <label for="adults">大人（成人）</label>
+        <input type="number" id="adults" placeholder="例: 2" min="0" value="">
+        <p class="hint">15〜64歳</p>
+      </div>
+      <div class="field">
+        <label for="children">子ども</label>
+        <input type="number" id="children" placeholder="例: 1" min="0" value="">
+        <p class="hint">15歳未満</p>
+      </div>
+    </div>
+    <div class="row2" style="margin-top:0.75rem">
+      <div class="field">
+        <label for="elderly">高齢者</label>
+        <input type="number" id="elderly" placeholder="例: 0" min="0" value="">
+        <p class="hint">65歳以上</p>
+      </div>
+      <div class="field">
+        <label for="days">目標備蓄日数</label>
+        <input type="number" id="days" placeholder="例: 7" min="1" value="">
+        <p class="hint">推奨：3〜7日以上</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 現在の備蓄カード -->
+  <div class="card">
+    <p class="card-title">現在の備蓄量（0でも入力してください）</p>
+    <div class="field">
+      <label for="stock_water">飲料水（L）</label>
+      <input type="number" id="stock_water" placeholder="例: 12" min="0" step="0.5">
+      <p class="hint">ペットボトル・ウォータータンクなど</p>
+    </div>
+    <div class="field">
+      <label for="stock_food">主食（g）</label>
+      <input type="number" id="stock_food" placeholder="例: 3000" min="0">
+      <p class="hint">米・乾麺・パスタ・パンなど（乾燥重量）</p>
+    </div>
+    <div class="field">
+      <label for="stock_retort">レトルト・缶詰（食分）</label>
+      <input type="number" id="stock_retort" placeholder="例: 10" min="0">
+      <p class="hint">1食分 = カレー1袋・缶詰1缶など</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">備蓄量をチェックする</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 品目別カード -->
+  <div class="card" id="itemsCard" style="display:none">
+    <p class="card-title">品目別チェック</p>
+    <div class="item-grid" id="itemGrid"></div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">必要量の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'bichiku_checker_v1';
+
+  // 1人1日あたりの必要量
+  var NEED = {
+    water:  { adult: 2.0,  child: 1.5, elderly: 1.5 }, // L/日
+    food:   { adult: 400,  child: 250, elderly: 300 },  // g/日（乾燥主食）
+    cal:    { adult: 2000, child: 1500, elderly: 1800 } // kcal/日
+  };
+  // レトルト1食分のカロリー・食料グラム換算
+  var RETORT_CAL  = 300;   // kcal/食
+  var RETORT_FOOD = 150;   // g/食（主食換算）
+
+  function calc() {
+    var adults   = parseFloat(document.getElementById('adults').value)   || 0;
+    var children = parseFloat(document.getElementById('children').value) || 0;
+    var elderly  = parseFloat(document.getElementById('elderly').value)  || 0;
+    var days     = parseFloat(document.getElementById('days').value);
+
+    var stockWater  = parseFloat(document.getElementById('stock_water').value)  || 0;
+    var stockFood   = parseFloat(document.getElementById('stock_food').value)   || 0;
+    var stockRetort = parseFloat(document.getElementById('stock_retort').value) || 0;
+
+    if (isNaN(days) || days <= 0) { showErr('目標備蓄日数を入力してください'); return; }
+    if (adults + children + elderly <= 0) { showErr('家族の人数を入力してください'); return; }
+
+    // 必要量計算
+    var needWater = (adults * NEED.water.adult + children * NEED.water.child + elderly * NEED.water.elderly) * days;
+    var needFood  = (adults * NEED.food.adult  + children * NEED.food.child  + elderly * NEED.food.elderly)  * days; // g
+    var needCal   = (adults * NEED.cal.adult   + children * NEED.cal.child   + elderly * NEED.cal.elderly)   * days; // kcal
+
+    // 現在の備蓄量
+    var haveWater = stockWater;
+    var haveFood  = stockFood + stockRetort * RETORT_FOOD; // g
+    var haveCal   = (stockFood / 100 * 350) + stockRetort * RETORT_CAL; // g主食は100gあたり350kcal換算
+
+    // 不足分
+    var lackWater = Math.max(0, needWater - haveWater);
+    var lackFood  = Math.max(0, needFood  - haveFood);
+    var lackCal   = Math.max(0, needCal   - haveCal);
+
+    // 充足率
+    var rateWater = needWater > 0 ? haveWater / needWater : 1;
+    var rateFood  = needFood  > 0 ? haveFood  / needFood  : 1;
+    var rateCal   = needCal   > 0 ? haveCal   / needCal   : 1;
+
+    var deficitCount = [rateWater, rateFood, rateCal].filter(function(r){ return r < 1; }).length;
+
+    // 総合判定
+    var level, verdict, note;
+    var minRate = Math.min(rateWater, rateFood, rateCal);
+    if (minRate >= 1) {
+      level = 'ok';
+      verdict = '備蓄 充足';
+      note = days + '日分の備蓄が確保できています。定期的に確認・補充を続けましょう。';
+    } else if (minRate >= 0.5 && deficitCount <= 2) {
+      level = 'warn';
+      verdict = 'やや不足';
+      note = '不足している品目があります。不足分を補充して ' + days + '日分を目指しましょう。';
+    } else {
+      level = 'ng';
+      verdict = '大幅不足';
+      note = '備蓄が大きく不足しています。最低 3 日分から始めて段階的に増やしましょう。';
+    }
+
+    showResult(level, verdict, note);
+
+    // 品目別表示
+    var items = [
+      { name: '飲料水', need: fmt1(needWater) + 'L', have: fmt1(haveWater) + 'L', lack: lackWater > 0 ? 'あと ' + fmt1(lackWater) + 'L 必要' : '充足', rate: rateWater },
+      { name: '主食', need: fmtG(needFood), have: fmtG(haveFood), lack: lackFood > 0 ? 'あと ' + fmtG(lackFood) + ' 必要' : '充足', rate: rateFood },
+      { name: 'カロリー', need: fmt0(needCal) + 'kcal', have: fmt0(haveCal) + 'kcal', lack: lackCal > 0 ? 'あと ' + fmt0(lackCal) + 'kcal' : '充足', rate: rateCal }
+    ];
+
+    var grid = document.getElementById('itemGrid');
+    grid.innerHTML = items.map(function(it) {
+      var cls = it.rate >= 1 ? 'ok' : it.rate >= 0.5 ? 'warn' : 'ng';
+      var icon = it.rate >= 1 ? '✅' : it.rate >= 0.5 ? '⚠️' : '❌';
+      return '<div class="item-box ' + cls + '">'
+           + '<div class="item-name">' + it.name + '</div>'
+           + '<div class="item-status">' + icon + ' ' + it.lack + '</div>'
+           + '<div class="item-detail">必要: ' + it.need + '<br>現在: ' + it.have + '</div>'
+           + '</div>';
+    }).join('');
+    document.getElementById('itemsCard').style.display = '';
+
+    // 内訳テーブル
+    var total = adults + children + elderly;
+    showDetail([
+      ['対象人数', total + '人'],
+      ['目標日数', days + '日'],
+      ['── 必要量 ──', ''],
+      ['飲料水', fmt1(needWater) + ' L'],
+      ['主食（乾燥）', fmtG(needFood)],
+      ['カロリー合計', fmt0(needCal) + ' kcal'],
+      ['── 現在の備蓄 ──', ''],
+      ['飲料水', fmt1(haveWater) + ' L'],
+      ['主食（乾燥換算）', fmtG(haveFood)],
+      ['カロリー換算', fmt0(haveCal) + ' kcal'],
+    ]);
+
+    // localStorage 保存
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        adults: adults, children: children, elderly: elderly, days: days,
+        stock_water: stockWater, stock_food: stockFood, stock_retort: stockRetort
+      }));
+    } catch(e) {}
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      var hl = r[2] ? ' class="hl"' : '';
+      return '<tr' + hl + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️ 入力エラー', msg);
+    document.getElementById('itemsCard').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt0(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmt1(n) { return (Math.round(n * 10) / 10).toLocaleString('ja-JP'); }
+  function fmtG(g) {
+    if (g >= 1000) return (Math.round(g / 100) / 10).toLocaleString('ja-JP') + ' kg';
+    return Math.round(g) + ' g';
+  }
+
+  // 復元
+  (function() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+      if (!d) return;
+      ['adults','children','elderly','days','stock_water','stock_food','stock_retort'].forEach(function(k) {
+        var el = document.getElementById(k);
+        if (el && d[k] !== undefined && d[k] !== null) el.value = d[k];
+      });
+    } catch(e) {}
+  })();
+  </script>
+</body>
+</html>

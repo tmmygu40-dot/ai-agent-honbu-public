@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="食材・日用品の消費期限と在庫数を登録するだけで、今週使うべきものと補充が必要な品目を一覧表示。備蓄のムダをなくしてローテーションを最適化できる管理アプリです。">
+  <title>備蓄ローテーション管理</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 0.9rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field-row { display: flex; gap: 0.6rem; }
+    .field-row .field { flex: 1; margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── サマリーチップ ── */
+    .summary-bar { display: flex; gap: 0.6rem; flex-wrap: wrap; }
+    .summary-chip {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.35rem 0.7rem; border-radius: 20px;
+      font-size: 0.78rem; font-weight: 700;
+      border: 1.5px solid var(--border); background: var(--bg); color: var(--text-sub);
+    }
+    .chip-ng   { border-color: var(--ng);   color: var(--ng);   background: var(--ng-bg);   }
+    .chip-warn { border-color: var(--warn);  color: var(--warn); background: var(--warn-bg); }
+    .chip-low  { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+    .chip-ok   { border-color: var(--ok);   color: var(--ok);   background: var(--ok-bg);   }
+
+    /* ── フィルタータブ ── */
+    .filter-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+    .filter-tab {
+      padding: 0.3rem 0.8rem; border-radius: 20px;
+      border: 1.5px solid var(--border); font-size: 0.78rem; font-weight: 700;
+      cursor: pointer; background: var(--bg); color: var(--text-sub);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .filter-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    /* ── アイテム行 ── */
+    .item-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .item-row {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.75rem 0.8rem; border-radius: 10px;
+      border: 1.5px solid var(--border); background: #fafaf8;
+    }
+    .item-row.ng   { background: var(--ng-bg);   border-color: var(--ng);   }
+    .item-row.warn { background: var(--warn-bg);  border-color: var(--warn); }
+    .item-row.ok   { background: var(--ok-bg);   border-color: var(--ok);   }
+    .item-row.low  { outline: 2px dashed var(--accent); outline-offset: -2px; }
+
+    .item-badge {
+      display: inline-block; padding: 0.16rem 0.45rem; border-radius: 6px;
+      font-size: 0.68rem; font-weight: 700; white-space: nowrap;
+    }
+    .badge-ng   { background: var(--ng);    color: #fff; }
+    .badge-warn { background: var(--warn);  color: #fff; }
+    .badge-ok   { background: var(--ok);    color: #fff; }
+    .badge-low  { background: var(--accent); color: #fff; }
+
+    .item-badges { display: flex; flex-direction: column; gap: 0.25rem; align-items: flex-start; flex-shrink: 0; }
+    .item-info { flex: 1; min-width: 0; }
+    .item-name { font-size: 0.95rem; font-weight: 700; }
+    .item-meta { font-size: 0.74rem; color: var(--text-sub); margin-top: 0.12rem; }
+    .expiry-ng   { color: var(--ng);   font-weight: 700; }
+    .expiry-warn { color: var(--warn); font-weight: 700; }
+    .expiry-ok   { color: var(--ok);   font-weight: 600; }
+
+    .item-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+    .btn-use, .btn-del {
+      padding: 0.28rem 0.5rem; border-radius: 7px;
+      border: 1px solid var(--border); font-size: 0.72rem; font-weight: 700;
+      cursor: pointer; background: var(--card); color: var(--text-sub);
+      white-space: nowrap;
+    }
+    .btn-use:hover { border-color: var(--ok);  color: var(--ok);  background: var(--ok-bg); }
+    .btn-del:hover { border-color: var(--ng);  color: var(--ng);  background: var(--ng-bg); }
+
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.88rem; padding: 1.5rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link {
+      display: block; text-align: center; margin-top: 2rem;
+      font-size: 0.82rem; color: var(--text-sub); text-decoration: none;
+    }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <a class="back-link" href="../index.html" style="margin-top:0;margin-bottom:0.6rem;text-align:left;font-size:0.78rem;">← アプリ一覧に戻る</a>
+    <h1>🥫 備蓄ローテーション管理</h1>
+    <p class="subtitle">消費期限を登録 → 今週使うべきもの・補充タイミングを即確認</p>
+  </header>
+
+  <!-- 品目登録カード -->
+  <div class="card">
+    <p class="card-title">品目を登録</p>
+    <div class="field-row">
+      <div class="field" style="flex:2">
+        <label for="item-name">品名</label>
+        <input type="text" id="item-name" placeholder="例: ツナ缶">
+      </div>
+      <div class="field" style="flex:1">
+        <label for="item-cat">カテゴリ</label>
+        <select id="item-cat">
+          <option value="食材">食材</option>
+          <option value="飲料">飲料</option>
+          <option value="日用品">日用品</option>
+          <option value="医薬品">医薬品</option>
+          <option value="その他">その他</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row" style="margin-top:0.9rem">
+      <div class="field">
+        <label for="item-expiry">消費期限</label>
+        <input type="date" id="item-expiry">
+      </div>
+      <div class="field">
+        <label for="item-qty">数量</label>
+        <input type="number" id="item-qty" placeholder="例: 3" min="1" value="1">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="addItem()">＋ 登録する</button>
+
+  <!-- 状態サマリー -->
+  <div class="card" id="summary-card" style="display:none">
+    <p class="card-title">今の状態</p>
+    <div class="summary-bar" id="summary-bar"></div>
+  </div>
+
+  <!-- 今週使うべきもの -->
+  <div class="card" id="urgent-card" style="display:none">
+    <p class="card-title">⚠️ 今週使うべきもの</p>
+    <div class="item-list" id="urgent-list"></div>
+  </div>
+
+  <!-- 全一覧 -->
+  <div class="card">
+    <p class="card-title">📦 備蓄一覧</p>
+    <div class="filter-tabs">
+      <button class="filter-tab active" id="tab-all"   onclick="setFilter('all')">すべて</button>
+      <button class="filter-tab"        id="tab-食材"  onclick="setFilter('食材')">食材</button>
+      <button class="filter-tab"        id="tab-飲料"  onclick="setFilter('飲料')">飲料</button>
+      <button class="filter-tab"        id="tab-日用品" onclick="setFilter('日用品')">日用品</button>
+      <button class="filter-tab"        id="tab-医薬品" onclick="setFilter('医薬品')">医薬品</button>
+      <button class="filter-tab"        id="tab-その他" onclick="setFilter('その他')">その他</button>
+    </div>
+    <div class="item-list" id="all-list">
+      <p class="empty-msg">まだ品目が登録されていません</p>
+    </div>
+  </div>
+
+  <p style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 入力データはお使いのブラウザ内（localStorage）にのみ保存されます。消費期限は参考表示です。食品・医薬品は個別パッケージの表示を必ずご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'bichiku_rotation_v1';
+  var items = [];
+  var currentFilter = 'all';
+
+  function load() {
+    try { items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { items = []; }
+  }
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+
+  function getStatus(expiry) {
+    if (!expiry) return { level: 'none', label: '期限なし', days: 9999 };
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var d = new Date(expiry); d.setHours(0, 0, 0, 0);
+    var diff = Math.floor((d - today) / 86400000);
+    if (diff < 0)  return { level: 'ng',   label: '期限切れ',       days: diff };
+    if (diff === 0) return { level: 'ng',  label: '今日まで',        days: diff };
+    if (diff <= 7) return { level: 'warn', label: diff + '日後',     days: diff };
+    return             { level: 'ok',  label: diff + '日後',         days: diff };
+  }
+
+  function fmtDate(str) {
+    if (!str) return '—';
+    var parts = str.split('-');
+    return parts[1] + '月' + parts[2] + '日';
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderItem(item) {
+    var st = getStatus(item.expiry);
+    var isLow = item.qty <= 1;
+    var rowCls = (st.level === 'ng' || st.level === 'warn' || st.level === 'ok') ? st.level : '';
+    if (isLow) rowCls += ' low';
+
+    var statusBadge = '';
+    if (st.level === 'ng')   statusBadge = '<span class="item-badge badge-ng">期限切れ</span>';
+    else if (st.level === 'warn') statusBadge = '<span class="item-badge badge-warn">今週中</span>';
+
+    var lowBadge = isLow ? '<span class="item-badge badge-low">要補充</span>' : '';
+
+    var expiryDisp = item.expiry
+      ? fmtDate(item.expiry) + '（' + st.label + '）'
+      : '期限なし';
+    var expiryCls = st.level === 'ng' ? 'expiry-ng'
+                 : st.level === 'warn' ? 'expiry-warn'
+                 : st.level === 'ok'  ? 'expiry-ok' : '';
+
+    return '<div class="item-row ' + rowCls + '">'
+      + '<div class="item-badges">' + statusBadge + lowBadge + '</div>'
+      + '<div class="item-info">'
+      + '<div class="item-name">' + esc(item.name)
+      + ' <span style="font-size:0.72rem;color:var(--text-sub);font-weight:400">×' + item.qty + '</span></div>'
+      + '<div class="item-meta">' + esc(item.category)
+      + ' ｜ <span class="' + expiryCls + '">' + expiryDisp + '</span></div>'
+      + '</div>'
+      + '<div class="item-actions">'
+      + '<button class="btn-use" onclick="useItem(\'' + item.id + '\')">使った</button>'
+      + '<button class="btn-del" onclick="delItem(\'' + item.id + '\')">削除</button>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function render() {
+    // 期限順ソート（期限なしは末尾）
+    var sorted = items.slice().sort(function(a, b) {
+      var da = a.expiry ? new Date(a.expiry) : new Date('9999-12-31');
+      var db = b.expiry ? new Date(b.expiry) : new Date('9999-12-31');
+      return da - db;
+    });
+
+    // 今週使うべきもの（期限切れ or 7日以内）
+    var urgent = sorted.filter(function(it) {
+      var st = getStatus(it.expiry);
+      return st.level === 'ng' || st.level === 'warn';
+    });
+    var urgentCard = document.getElementById('urgent-card');
+    if (urgent.length > 0) {
+      urgentCard.style.display = 'block';
+      document.getElementById('urgent-list').innerHTML = urgent.map(renderItem).join('');
+    } else {
+      urgentCard.style.display = 'none';
+    }
+
+    // サマリー
+    var summaryCard = document.getElementById('summary-card');
+    if (sorted.length > 0) {
+      summaryCard.style.display = 'block';
+      var expired = sorted.filter(function(it) { return getStatus(it.expiry).level === 'ng'; });
+      var soonExp = sorted.filter(function(it) { return getStatus(it.expiry).level === 'warn'; });
+      var lowStk  = sorted.filter(function(it) { return it.qty <= 1; });
+      var chips = '';
+      if (expired.length) chips += '<div class="summary-chip chip-ng">⛔ 期限切れ ' + expired.length + '件</div>';
+      if (soonExp.length) chips += '<div class="summary-chip chip-warn">⚠️ 今週中 ' + soonExp.length + '件</div>';
+      if (lowStk.length)  chips += '<div class="summary-chip chip-low">🛒 要補充 ' + lowStk.length + '件</div>';
+      if (!chips) chips = '<div class="summary-chip chip-ok">✅ 問題なし</div>';
+      document.getElementById('summary-bar').innerHTML = chips;
+    } else {
+      summaryCard.style.display = 'none';
+    }
+
+    // 全一覧（フィルター適用）
+    var filtered = currentFilter === 'all'
+      ? sorted
+      : sorted.filter(function(it) { return it.category === currentFilter; });
+    var allList = document.getElementById('all-list');
+    allList.innerHTML = filtered.length
+      ? filtered.map(renderItem).join('')
+      : '<p class="empty-msg">品目がありません</p>';
+  }
+
+  function addItem() {
+    var name = document.getElementById('item-name').value.trim();
+    if (!name) { alert('品名を入力してください'); return; }
+    var cat    = document.getElementById('item-cat').value;
+    var expiry = document.getElementById('item-expiry').value;
+    var qty    = parseInt(document.getElementById('item-qty').value, 10) || 1;
+    items.push({ id: String(Date.now()), name: name, category: cat, expiry: expiry, qty: qty });
+    save();
+    document.getElementById('item-name').value  = '';
+    document.getElementById('item-expiry').value = '';
+    document.getElementById('item-qty').value   = '1';
+    render();
+  }
+
+  function useItem(id) {
+    var idx = -1;
+    for (var i = 0; i < items.length; i++) { if (items[i].id === id) { idx = i; break; } }
+    if (idx < 0) return;
+    if (items[idx].qty > 1) {
+      items[idx].qty--;
+      save(); render();
+    } else {
+      if (confirm('"' + items[idx].name + '" を使い切りました。一覧から削除しますか？')) {
+        items.splice(idx, 1);
+      } else {
+        items[idx].qty = 0;
+      }
+      save(); render();
+    }
+  }
+
+  function delItem(id) {
+    items = items.filter(function(it) { return it.id !== id; });
+    save(); render();
+  }
+
+  function setFilter(f) {
+    currentFilter = f;
+    var tabs = ['all', '食材', '飲料', '日用品', '医薬品', 'その他'];
+    for (var i = 0; i < tabs.length; i++) {
+      var el = document.getElementById('tab-' + tabs[i]);
+      if (el) el.className = 'filter-tab' + (tabs[i] === f ? ' active' : '');
+    }
+    render();
+  }
+
+  load();
+  render();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

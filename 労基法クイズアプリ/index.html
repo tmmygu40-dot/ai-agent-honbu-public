@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>労基法クイズアプリ</title>
+  <meta name="description" content="職場のあるある場面を選ぶだけで合法・違法を即判定。残業・有給・賃金・解雇など全20問で労働基準法の基礎知識をサクッと確認できる労基法クイズアプリです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* 進捗バー */
+    .progress-wrap { max-width: 600px; margin: 0 auto 0.8rem; padding: 0 1rem; }
+    .progress-info { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .progress-bar { height: 6px; background: var(--border); border-radius: 10px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 10px; transition: width 0.3s; }
+
+    /* クイズカード */
+    .quiz-no { font-size: 0.72rem; color: var(--text-sub); font-weight: 700; letter-spacing: 0.08em; margin-bottom: 0.6rem; }
+    .quiz-scenario {
+      font-size: 1rem; font-weight: 700; line-height: 1.65;
+      color: var(--text); margin-bottom: 1.4rem;
+    }
+    .quiz-category {
+      display: inline-block; font-size: 0.72rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1px solid var(--accent); border-radius: 20px;
+      padding: 0.15rem 0.65rem; margin-bottom: 0.8rem;
+    }
+
+    /* 合法・違法ボタン */
+    .choice-row { display: flex; gap: 0.8rem; }
+    .btn-choice {
+      flex: 1; padding: 0.9rem 0.5rem;
+      font-size: 1.1rem; font-weight: 900;
+      border: 2px solid var(--border); border-radius: var(--radius);
+      background: var(--card); cursor: pointer;
+      transition: transform 0.1s, border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-choice:active { transform: translateY(2px); }
+    .btn-choice.legal   { border-color: var(--ok);   color: var(--ok);   }
+    .btn-choice.illegal { border-color: var(--ng);    color: var(--ng);   }
+    .btn-choice.legal:hover   { background: var(--ok-bg); }
+    .btn-choice.illegal:hover { background: var(--ng-bg); }
+    .btn-choice:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-choice.selected-ok   { background: var(--ok-bg);  border-color: var(--ok);  }
+    .btn-choice.selected-ng   { background: var(--ng-bg);  border-color: var(--ng);  }
+
+    /* 判定結果 */
+    .result-area { display: none; margin-top: 1.2rem; }
+    .verdict-banner {
+      border-radius: 10px; padding: 0.9rem 1rem;
+      font-size: 1.1rem; font-weight: 900;
+      display: flex; align-items: center; gap: 0.6rem;
+      margin-bottom: 0.9rem;
+    }
+    .verdict-banner.correct { background: var(--ok-bg);   color: var(--ok);   border: 1.5px solid var(--ok);  }
+    .verdict-banner.wrong   { background: var(--ng-bg);   color: var(--ng);   border: 1.5px solid var(--ng);  }
+    .verdict-main { font-size: 0.88rem; font-weight: 700; color: var(--text); line-height: 1.55; margin-bottom: 0.6rem; }
+    .verdict-law {
+      font-size: 0.78rem; color: var(--text-sub);
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.5rem 0.75rem; line-height: 1.5;
+    }
+    .verdict-answer-badge {
+      display: inline-block; font-size: 0.78rem; font-weight: 700;
+      border-radius: 20px; padding: 0.15rem 0.65rem; margin-bottom: 0.5rem;
+    }
+    .badge-legal   { background: var(--ok-bg);  color: var(--ok);  border: 1px solid var(--ok); }
+    .badge-illegal { background: var(--ng-bg);  color: var(--ng);  border: 1px solid var(--ng); }
+
+    /* 次へボタン */
+    .btn-next {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.95rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      display: none;
+    }
+    .btn-next:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* スコアカード */
+    .score-card { display: none; }
+    .score-big { font-size: 3rem; font-weight: 900; color: var(--accent); text-align: center; line-height: 1; margin: 0.6rem 0 0.3rem; }
+    .score-sub { font-size: 0.85rem; color: var(--text-sub); text-align: center; margin-bottom: 1rem; }
+    .score-comment { font-size: 1rem; font-weight: 700; text-align: center; color: var(--text); margin-bottom: 1.2rem; line-height: 1.5; }
+    .btn-retry {
+      display: block; width: 100%; padding: 0.9rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00; margin-bottom: 0.8rem;
+    }
+    .btn-shuffle {
+      display: block; width: 100%; padding: 0.8rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: var(--radius);
+      cursor: pointer;
+    }
+
+    /* 履歴 */
+    .history-list { font-size: 0.82rem; }
+    .history-item {
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+    }
+    .history-item:last-child { border-bottom: none; }
+    .h-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .h-dot.ok  { background: var(--ok); }
+    .h-dot.ng  { background: var(--ng); }
+    .h-text { line-height: 1.4; color: var(--text-sub); }
+    .h-text b { color: var(--text); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-next, .btn-retry, .btn-shuffle, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⚖️ 労基法クイズアプリ</h1>
+    <p class="subtitle">職場のあるある場面が合法か違法か、直感で答えて即確認</p>
+  </header>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <!-- 進捗 -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-info">
+      <span id="progressText">1 / 20 問</span>
+      <span id="scoreText">正解 0 問</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:5%"></div></div>
+  </div>
+
+  <!-- クイズカード -->
+  <div class="card" id="quizCard">
+    <div class="quiz-no" id="quizNo">問題 1</div>
+    <span class="quiz-category" id="quizCat">残業</span>
+    <p class="quiz-scenario" id="quizScenario">読み込み中...</p>
+    <div class="choice-row">
+      <button class="btn-choice legal"   id="btnLegal"   onclick="answer('legal')">✅ 合法</button>
+      <button class="btn-choice illegal" id="btnIllegal" onclick="answer('illegal')">❌ 違法</button>
+    </div>
+    <div class="result-area" id="resultArea">
+      <div class="verdict-banner" id="verdictBanner"></div>
+      <span class="verdict-answer-badge" id="answerBadge"></span>
+      <p class="verdict-main" id="verdictMain"></p>
+      <div class="verdict-law" id="verdictLaw"></div>
+    </div>
+  </div>
+
+  <!-- 次へボタン -->
+  <button class="btn-next" id="btnNext" onclick="nextQ()">次の問題へ →</button>
+
+  <!-- スコアカード -->
+  <div class="card score-card" id="scoreCard">
+    <p class="card-title">クイズ完了！</p>
+    <p class="score-big" id="scoreBig">0</p>
+    <p class="score-sub" id="scoreSub">/ 20 問正解</p>
+    <p class="score-comment" id="scoreComment"></p>
+    <button class="btn-retry" onclick="startQuiz(false)">もう一度（同じ順番）</button>
+    <button class="btn-shuffle" onclick="startQuiz(true)">🔀 シャッフルして再挑戦</button>
+  </div>
+
+  <!-- 回答履歴 -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">今回の回答</p>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <p style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 2024年度時点の労働基準法・労働契約法等を参考にした目安情報です。実際のケースは状況により異なります。最新情報・詳細は厚生労働省・労働局へご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+
+  <script>
+  var QUESTIONS = [
+    {
+      cat: '残業',
+      scenario: '36協定を締結していない会社で、月に50時間の残業を社員に命じた。',
+      answer: 'illegal',
+      main: '36協定（労使協定）なしに法定労働時間（1日8時間・週40時間）を超えて働かせることは違法です。36協定があっても月45時間・年360時間が原則上限です。',
+      law: '労働基準法 第36条（時間外・休日労働の協定）'
+    },
+    {
+      cat: '割増賃金',
+      scenario: '時間外労働1時間に対して、通常賃金の25%増しで残業代を支払った。',
+      answer: 'legal',
+      main: '法定時間外労働（1日8時間超・週40時間超）の割増率は25%以上が原則です（月60時間超は50%以上）。25%以上であれば合法です。',
+      law: '労働基準法 第37条（時間外、休日及び深夜の割増賃金）'
+    },
+    {
+      cat: '休憩',
+      scenario: '1日9時間勤務の社員に、休憩を30分しか与えなかった。',
+      answer: 'illegal',
+      main: '労働時間が6時間を超える場合は45分以上、8時間を超える場合は1時間以上の休憩を与えなければなりません。9時間勤務なら1時間以上の休憩が必要です。',
+      law: '労働基準法 第34条（休憩）'
+    },
+    {
+      cat: '休日',
+      scenario: '社員に毎週1日は必ず休日を与えた。',
+      answer: 'legal',
+      main: '使用者は少なくとも毎週1日（または4週間で4日以上）の休日を与えなければなりません。毎週1日与えているので合法です。',
+      law: '労働基準法 第35条（休日）'
+    },
+    {
+      cat: '有給休暇',
+      scenario: '入社して6ヶ月経ち、8割以上出勤していた社員の有給休暇申請を全て拒否した。',
+      answer: 'illegal',
+      main: '6ヶ月継続勤務かつ全労働日の8割以上出勤した社員には10日間の有給休暇が発生します。「時季変更権」はありますが、全て拒否することはできません。',
+      law: '労働基準法 第39条（年次有給休暇）'
+    },
+    {
+      cat: '有給休暇',
+      scenario: '社員が有給休暇を取得したため、その日分の賃金を減額した。',
+      answer: 'illegal',
+      main: '有給休暇は取得日も通常通りの賃金（または標準報酬・平均賃金等）を支払わなければなりません。有給取得を理由とした賃金カットは違法です。',
+      law: '労働基準法 第39条第9項（不利益取扱いの禁止）'
+    },
+    {
+      cat: '賃金',
+      scenario: '給料日に、社員本人ではなくその配偶者の口座へ賃金を振り込んだ（本人同意なし）。',
+      answer: 'illegal',
+      main: '賃金は「直接」「本人に」「全額」「毎月1回以上」「一定の期日に」支払わなければなりません。本人の同意がない第三者への支払いは違法です。',
+      law: '労働基準法 第24条（賃金の支払）'
+    },
+    {
+      cat: '最低賃金',
+      scenario: '東京都で時給900円でアルバイトを雇った。（東京都最低賃金は1,163円・2024年時点）',
+      answer: 'illegal',
+      main: '地域別最低賃金を下回る賃金で労働させることは違法です。東京都の最低賃金は1,163円（2024年10月〜）であるため、時給900円は違反となります。',
+      law: '最低賃金法 第4条（最低賃金の効力）'
+    },
+    {
+      cat: '解雇',
+      scenario: '会社都合で社員を即日解雇し、解雇予告手当（30日分の平均賃金）を支払った。',
+      answer: 'legal',
+      main: '解雇する場合は30日前に予告するか、30日分以上の平均賃金（解雇予告手当）を支払えば即日解雇も可能です。手当を支払っているので合法です。',
+      law: '労働基準法 第20条（解雇の予告）'
+    },
+    {
+      cat: '解雇',
+      scenario: '産休中の社員を「休みが多くて困る」という理由で解雇した。',
+      answer: 'illegal',
+      main: '産前産後休業中およびその後30日間は解雇が禁止されています。この期間中の解雇は理由を問わず無効となります。',
+      law: '労働基準法 第19条（解雇制限）'
+    },
+    {
+      cat: '労働契約',
+      scenario: '口頭だけで雇用契約を結び、労働条件を書面で交付しなかった。',
+      answer: 'illegal',
+      main: '労働基準法により、賃金・労働時間・休日等の主要労働条件は書面（または電磁的方法）で明示する義務があります。口頭のみでは違法です。',
+      law: '労働基準法 第15条（労働条件の明示）'
+    },
+    {
+      cat: '深夜労働',
+      scenario: '深夜（22時〜翌5時）に勤務した社員に対して、通常賃金の25%増しで賃金を支払った。',
+      answer: 'legal',
+      main: '深夜労働（22時〜翌5時）には25%以上の割増賃金が必要です。25%増しで支払っているため合法です。',
+      law: '労働基準法 第37条第4項（深夜業の割増賃金）'
+    },
+    {
+      cat: '産前産後',
+      scenario: '出産予定日の4週間前から産前休業を申請した社員に就業させた。',
+      answer: 'illegal',
+      main: '産前休業は出産予定日の6週間前（多胎の場合は14週間前）から取得できます。申請があった場合は就業させてはなりません（産後8週間は原則就業禁止）。',
+      law: '労働基準法 第65条（産前産後）'
+    },
+    {
+      cat: '労働時間',
+      scenario: '1日の労働時間が8時間以内の社員には、割増賃金を支払わなかった。',
+      answer: 'legal',
+      main: '法定労働時間は1日8時間・週40時間です。8時間以内の場合は時間外労働に当たらないため、割増賃金の支払い義務はありません（所定労働時間超でも法定内は不要）。',
+      law: '労働基準法 第32条（労働時間）'
+    },
+    {
+      cat: '賃金控除',
+      scenario: '社員が業務中に物を壊したため、修理代全額（5万円）を給与から天引きした（社員の同意なし）。',
+      answer: 'illegal',
+      main: '賃金は全額払いが原則です。損害賠償を賃金から一方的に控除することはできません。損害賠償は別途民事上の手続きで行う必要があります。',
+      law: '労働基準法 第24条（賃金の全額払い）'
+    },
+    {
+      cat: '研修',
+      scenario: '会社が強制参加とした社内研修（業務時間外）について、給与を支払わなかった。',
+      answer: 'illegal',
+      main: '参加が業務上義務付けられている研修・教育訓練は「労働時間」に該当します。時間外に強制参加させる場合は賃金の支払いが必要です。',
+      law: '労働基準法 第11条（賃金）・労働時間の解釈通達'
+    },
+    {
+      cat: '有給5日',
+      scenario: '年10日以上の有給が付与された社員に対して、1年間で4日しか有給を取得させなかった。',
+      answer: 'illegal',
+      main: '2019年4月から、年10日以上の有給が付与された社員に対し、年5日以上の有給休暇を取得させることが使用者に義務付けられています。',
+      law: '労働基準法 第39条第7項（年次有給休暇の取得義務）'
+    },
+    {
+      cat: '休日労働',
+      scenario: '法定休日に出勤させた社員に、通常賃金の35%増しで賃金を支払った。',
+      answer: 'legal',
+      main: '法定休日労働に対する割増賃金は35%以上です。35%増しで支払っているため合法です（振替休日を与えた場合は不要な場合もある）。',
+      law: '労働基準法 第37条（休日労働の割増賃金）'
+    },
+    {
+      cat: '試用期間',
+      scenario: '試用期間中の社員を採用後14日以内に解雇した（予告・手当なし）。',
+      answer: 'legal',
+      main: '試用期間中の社員を採用後14日以内に解雇する場合は、解雇予告・解雇予告手当が不要です。ただし採用後14日を超えると通常の解雇規制が適用されます。',
+      law: '労働基準法 第21条（解雇予告の適用除外）'
+    },
+    {
+      cat: '労働時間',
+      scenario: '1ヶ月単位の変形労働時間制を導入し、法令の手続きを経ずに週50時間働かせた。',
+      answer: 'illegal',
+      main: '変形労働時間制は就業規則への記載・労働者への周知・所轄労働基準監督署への届出等、法定の手続きが必要です。手続きなしの適用は違法です。',
+      law: '労働基準法 第32条の2（1ヶ月単位の変形労働時間制）'
+    }
+  ];
+
+  var current = 0;
+  var score = 0;
+  var order = [];
+  var answered = false;
+  var history = [];
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function startQuiz(doShuffle) {
+    current = 0; score = 0; answered = false; history = [];
+    order = doShuffle ? shuffle(QUESTIONS.map(function(_,i){return i;})) : QUESTIONS.map(function(_,i){return i;});
+    document.getElementById('scoreCard').style.display = 'none';
+    document.getElementById('historyCard').style.display = 'none';
+    document.getElementById('quizCard').style.display = '';
+    document.getElementById('progressWrap').style.display = '';
+    document.getElementById('btnNext').style.display = 'none';
+    renderQ();
+  }
+
+  function renderQ() {
+    var q = QUESTIONS[order[current]];
+    var total = QUESTIONS.length;
+    document.getElementById('quizNo').textContent = '問題 ' + (current + 1);
+    document.getElementById('quizCat').textContent = q.cat;
+    document.getElementById('quizScenario').textContent = q.scenario;
+    document.getElementById('resultArea').style.display = 'none';
+    document.getElementById('btnNext').style.display = 'none';
+    var bl = document.getElementById('btnLegal');
+    var bi = document.getElementById('btnIllegal');
+    bl.disabled = false; bi.disabled = false;
+    bl.className = 'btn-choice legal';
+    bi.className = 'btn-choice illegal';
+    answered = false;
+
+    // 進捗
+    document.getElementById('progressText').textContent = (current + 1) + ' / ' + total + ' 問';
+    document.getElementById('scoreText').textContent = '正解 ' + score + ' 問';
+    document.getElementById('progressFill').style.width = ((current / total) * 100) + '%';
+  }
+
+  function answer(choice) {
+    if (answered) return;
+    answered = true;
+    var q = QUESTIONS[order[current]];
+    var correct = (choice === q.answer);
+    if (correct) score++;
+    history.push({ q: q, choice: choice, correct: correct });
+
+    var bl = document.getElementById('btnLegal');
+    var bi = document.getElementById('btnIllegal');
+    bl.disabled = true; bi.disabled = true;
+
+    if (choice === 'legal')   bl.className = 'btn-choice legal selected-ok';
+    if (choice === 'illegal') bi.className = 'btn-choice illegal selected-ng';
+
+    // 判定表示
+    var banner = document.getElementById('verdictBanner');
+    banner.className = 'verdict-banner ' + (correct ? 'correct' : 'wrong');
+    banner.textContent = correct ? '⭕ 正解！' : '❌ 不正解';
+
+    var badge = document.getElementById('answerBadge');
+    if (q.answer === 'legal') {
+      badge.className = 'verdict-answer-badge badge-legal';
+      badge.textContent = '✅ 正しい答え：合法';
+    } else {
+      badge.className = 'verdict-answer-badge badge-illegal';
+      badge.textContent = '❌ 正しい答え：違法';
+    }
+
+    document.getElementById('verdictMain').textContent = q.main;
+    document.getElementById('verdictLaw').textContent = '📖 ' + q.law;
+    document.getElementById('resultArea').style.display = 'block';
+
+    var btnNext = document.getElementById('btnNext');
+    if (current + 1 < QUESTIONS.length) {
+      btnNext.textContent = '次の問題へ →';
+    } else {
+      btnNext.textContent = '結果を見る';
+    }
+    btnNext.style.display = 'block';
+
+    saveHistory();
+  }
+
+  function nextQ() {
+    current++;
+    if (current >= QUESTIONS.length) {
+      showScore();
+    } else {
+      renderQ();
+    }
+  }
+
+  function showScore() {
+    document.getElementById('quizCard').style.display = 'none';
+    document.getElementById('progressWrap').style.display = 'none';
+    document.getElementById('btnNext').style.display = 'none';
+
+    var total = QUESTIONS.length;
+    document.getElementById('scoreBig').textContent = score;
+    document.getElementById('scoreSub').textContent = '/ ' + total + ' 問正解';
+
+    var pct = score / total;
+    var comment = pct >= 0.9 ? '素晴らしい！労基法マスターです💪'
+                : pct >= 0.7 ? '良い結果！もう少しで完璧です🔥'
+                : pct >= 0.5 ? '半分以上正解！復習でさらに強くなれます📚'
+                : '難しかったですね。解説を読んでもう一度挑戦しましょう！';
+    document.getElementById('scoreComment').textContent = comment;
+
+    var sc = document.getElementById('scoreCard');
+    sc.style.display = 'block';
+
+    // 履歴表示
+    var html = history.map(function(h, i) {
+      return '<div class="history-item">'
+        + '<span class="h-dot ' + (h.correct ? 'ok' : 'ng') + '"></span>'
+        + '<span class="h-text"><b>問' + (i+1) + '【' + h.q.cat + '】</b> '
+        + (h.correct ? '正解' : '不正解（正：' + (h.q.answer === 'legal' ? '合法' : '違法') + '）') + '<br>'
+        + h.q.scenario.substring(0, 40) + (h.q.scenario.length > 40 ? '…' : '')
+        + '</span></div>';
+    }).join('');
+    document.getElementById('historyList').innerHTML = html;
+    document.getElementById('historyCard').style.display = 'block';
+
+    // 進捗バー 100%
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('progressText').textContent = total + ' / ' + total + ' 問';
+    document.getElementById('scoreText').textContent = '正解 ' + score + ' 問';
+    document.getElementById('progressWrap').style.display = 'block';
+
+    saveHistory();
+  }
+
+  function saveHistory() {
+    try {
+      var data = {
+        date: new Date().toISOString(),
+        score: score,
+        total: QUESTIONS.length,
+        history: history.map(function(h) {
+          return { cat: h.q.cat, correct: h.correct };
+        })
+      };
+      localStorage.setItem('roukiQuizLastResult', JSON.stringify(data));
+    } catch(e) {}
+  }
+
+  // 初期化
+  startQuiz(false);
+  </script>
+
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>売上依存リスク診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh; padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card); border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem; margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem; font-size: 1rem;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text); outline: none;
+      transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+
+    /* 顧客一覧 */
+    .customer-list { margin-top: 0.5rem; }
+    .customer-item {
+      display: flex; align-items: center; gap: 0.6rem;
+      padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border);
+    }
+    .customer-item:last-child { border-bottom: none; }
+    .customer-info { flex: 1; min-width: 0; }
+    .customer-name { font-size: 0.95rem; font-weight: 700; color: var(--text); }
+    .customer-meta { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .risk-badge {
+      font-size: 0.72rem; font-weight: 800; padding: 0.25rem 0.6rem;
+      border-radius: 6px; white-space: nowrap; flex-shrink: 0;
+    }
+    .risk-badge.ok   { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok); }
+    .risk-badge.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .risk-badge.ng   { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng); }
+    .btn-del {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text-sub); font-size: 0.78rem; padding: 0.2rem 0.5rem;
+      cursor: pointer; flex-shrink: 0;
+    }
+    .btn-del:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* 結論カード */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg); }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok); }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng); }
+    .result-eval { font-size: 1.05rem; font-weight: 700; line-height: 1.4; margin-top: 0.5rem; margin-bottom: 0.6rem; }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* アクションリスト */
+    .action-list { list-style: none; padding: 0; margin: 0; }
+    .action-list li {
+      padding: 0.6rem 0.5rem; border-bottom: 1px solid var(--border);
+      font-size: 0.85rem; line-height: 1.5; color: var(--text);
+    }
+    .action-list li:last-child { border-bottom: none; }
+    .action-list li::before { content: "→ "; color: var(--accent); font-weight: 700; }
+
+    /* 全体サマリー */
+    .summary-bar {
+      display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem;
+    }
+    .summary-chip {
+      flex: 1; min-width: 100px; padding: 0.6rem 0.5rem; text-align: center;
+      border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg);
+    }
+    .summary-chip .chip-label { font-size: 0.7rem; color: var(--text-sub); font-weight: 600; }
+    .summary-chip .chip-value { font-size: 1.3rem; font-weight: 900; margin-top: 0.2rem; }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1rem 0; }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+    @media (max-width: 480px) { .row2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>売上依存リスク診断アプリ</h1>
+    <p class="subtitle">顧客別売上比率・取引年数・支払い状況から依存リスクを即診断</p>
+  </header>
+
+  <!-- 顧客入力カード -->
+  <div class="card">
+    <p class="card-title">顧客情報を入力</p>
+    <div class="field">
+      <label>顧客名（会社名など）</label>
+      <input type="text" id="custName" placeholder="例：株式会社〇〇">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>売上比率（%）</label>
+        <input type="number" id="salesRatio" placeholder="例: 35" min="0" max="100">
+        <p class="hint">この顧客が全売上に占める割合</p>
+      </div>
+      <div class="field">
+        <label>取引年数（年）</label>
+        <input type="number" id="tradingYears" placeholder="例: 3" min="0" max="100">
+      </div>
+    </div>
+    <div class="field">
+      <label>支払い状況</label>
+      <select id="payStatus">
+        <option value="good">良好（遅延なし）</option>
+        <option value="delay">遅延あり（1〜2回程度）</option>
+        <option value="bad">問題あり（頻繁な遅延・トラブル）</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="addCustomer()">＋ この顧客を登録して診断</button>
+
+  <!-- 登録顧客一覧 -->
+  <div class="card" id="listCard" style="display:none">
+    <p class="card-title">登録顧客一覧</p>
+    <div class="customer-list" id="customerList"></div>
+  </div>
+
+  <!-- 全体サマリー -->
+  <div class="result-card" id="summaryCard">
+    <p class="result-label">全体の依存リスク総評</p>
+    <p class="result-value" id="summaryValue">—</p>
+    <p class="result-eval" id="summaryEval"></p>
+    <p class="result-note" id="summaryNote"></p>
+  </div>
+
+  <!-- 内訳テーブル -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">リスクスコア内訳（最高リスク顧客）</p>
+    <table class="detail-table"><tbody id="detailBody"></tbody></table>
+  </div>
+
+  <!-- 推奨アクション -->
+  <div class="card" id="actionCard" style="display:none">
+    <p class="card-title">推奨アクション</p>
+    <ul class="action-list" id="actionList"></ul>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var customers = [];
+  var STORAGE_KEY = 'sales_dependency_risk_v1';
+
+  // 初期化
+  (function init() {
+    try {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) { customers = JSON.parse(saved); renderAll(); }
+    } catch(e) {}
+  })();
+
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(customers)); } catch(e) {}
+  }
+
+  function calcScore(ratio, years, pay) {
+    var s = 0;
+    // 売上比率スコア
+    if (ratio >= 50) s += 50;
+    else if (ratio >= 30) s += 35;
+    else if (ratio >= 20) s += 20;
+    else if (ratio >= 10) s += 10;
+    else s += 3;
+    // 取引年数スコア（短いほど高リスク）
+    if (years < 1) s += 20;
+    else if (years < 3) s += 14;
+    else if (years < 5) s += 8;
+    else s += 2;
+    // 支払いスコア
+    if (pay === 'bad') s += 30;
+    else if (pay === 'delay') s += 15;
+    return s;
+  }
+
+  function getLevel(score) {
+    if (score >= 65) return 'ng';
+    if (score >= 35) return 'warn';
+    return 'ok';
+  }
+
+  function getLevelLabel(level) {
+    if (level === 'ng')   return '高リスク';
+    if (level === 'warn') return '中リスク';
+    return '低リスク';
+  }
+
+  function addCustomer() {
+    var name   = document.getElementById('custName').value.trim();
+    var ratio  = parseFloat(document.getElementById('salesRatio').value);
+    var years  = parseFloat(document.getElementById('tradingYears').value);
+    var pay    = document.getElementById('payStatus').value;
+
+    if (!name) { alert('顧客名を入力してください'); return; }
+    if (isNaN(ratio) || ratio < 0 || ratio > 100) { alert('売上比率は0〜100の数値で入力してください'); return; }
+    if (isNaN(years) || years < 0) { alert('取引年数を入力してください'); return; }
+
+    var score = calcScore(ratio, years, pay);
+    customers.push({ name: name, ratio: ratio, years: years, pay: pay, score: score, id: Date.now() });
+    save();
+    renderAll();
+
+    // フォームクリア
+    document.getElementById('custName').value = '';
+    document.getElementById('salesRatio').value = '';
+    document.getElementById('tradingYears').value = '';
+    document.getElementById('payStatus').value = 'good';
+  }
+
+  function removeCustomer(id) {
+    customers = customers.filter(function(c){ return c.id !== id; });
+    save();
+    renderAll();
+  }
+
+  function payLabel(pay) {
+    if (pay === 'bad') return '支払い問題あり';
+    if (pay === 'delay') return '遅延あり';
+    return '支払い良好';
+  }
+
+  function renderAll() {
+    var list = document.getElementById('customerList');
+    var listCard = document.getElementById('listCard');
+
+    if (customers.length === 0) {
+      listCard.style.display = 'none';
+      document.getElementById('summaryCard').style.display = 'none';
+      document.getElementById('detailCard').style.display = 'none';
+      document.getElementById('actionCard').style.display = 'none';
+      return;
+    }
+
+    listCard.style.display = '';
+    list.innerHTML = customers.map(function(c) {
+      var level = getLevel(c.score);
+      return '<div class="customer-item">'
+        + '<div class="customer-info">'
+        + '<div class="customer-name">' + esc(c.name) + '</div>'
+        + '<div class="customer-meta">売上比率 ' + c.ratio + '% ／ 取引' + c.years + '年 ／ ' + payLabel(c.pay) + ' ／ スコア:' + c.score + '</div>'
+        + '</div>'
+        + '<span class="risk-badge ' + level + '">' + getLevelLabel(level) + '</span>'
+        + '<button class="btn-del" onclick="removeCustomer(' + c.id + ')">削除</button>'
+        + '</div>';
+    }).join('');
+
+    // 全体サマリー（最高スコア顧客基準）
+    var maxC = customers.reduce(function(a, b){ return a.score > b.score ? a : b; });
+    var totalRatio = customers.reduce(function(s, c){ return s + c.ratio; }, 0);
+    var ngCount   = customers.filter(function(c){ return getLevel(c.score) === 'ng'; }).length;
+    var warnCount = customers.filter(function(c){ return getLevel(c.score) === 'warn'; }).length;
+
+    var overallLevel;
+    if (ngCount > 0) overallLevel = 'ng';
+    else if (warnCount > 0) overallLevel = 'warn';
+    else overallLevel = 'ok';
+
+    var sc = document.getElementById('summaryCard');
+    sc.className = 'result-card ' + overallLevel;
+    sc.style.display = '';
+    document.getElementById('summaryValue').textContent = getLevelLabel(overallLevel);
+    document.getElementById('summaryEval').textContent
+      = overallLevel === 'ng'   ? '特定顧客への過度な依存が確認されました。分散が急務です。'
+      : overallLevel === 'warn' ? '依存リスクが一部あります。顧客分散を検討してください。'
+      : '依存リスクは低い水準です。引き続き管理を続けましょう。';
+    document.getElementById('summaryNote').textContent
+      = '登録顧客: ' + customers.length + '社 ／ 売上比率合計: ' + totalRatio.toFixed(1) + '% ／ '
+      + '高リスク: ' + ngCount + '社 ／ 中リスク: ' + warnCount + '社';
+
+    // 内訳（最高スコア顧客）
+    var payScoreMap = { good: 0, delay: 15, bad: 30 };
+    var dc = document.getElementById('detailCard');
+    dc.style.display = '';
+    document.getElementById('detailBody').innerHTML = [
+      ['対象顧客', esc(maxC.name)],
+      ['売上比率', maxC.ratio + '%'],
+      ['取引年数', maxC.years + '年'],
+      ['支払い状況', payLabel(maxC.pay)],
+      ['リスクスコア', maxC.score + ' / 100', true],
+    ].map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+
+    // 推奨アクション
+    var actions = [];
+    if (ngCount > 0 || maxC.ratio >= 30) {
+      actions.push('売上比率30%以上の顧客がいます。新規顧客開拓・既存顧客の分散を優先してください。');
+    }
+    if (maxC.pay === 'bad') {
+      actions.push('支払いに問題がある顧客は、取引条件の見直しや与信管理を強化してください。');
+    } else if (maxC.pay === 'delay') {
+      actions.push('遅延がある顧客は、支払いサイクルの短縮交渉や前払い化を検討してください。');
+    }
+    if (maxC.years < 2) {
+      actions.push('取引歴が浅い顧客は急な取引停止リスクがあります。関係強化・契約整備を進めましょう。');
+    }
+    if (totalRatio > 80) {
+      actions.push('登録顧客への売上集中度が高すぎます（合計' + totalRatio.toFixed(0) + '%）。特定顧客依存からの脱却が必要です。');
+    }
+    if (actions.length === 0) {
+      actions.push('現状のリスクは低水準です。定期的なモニタリングを継続してください。');
+      actions.push('新規顧客の開拓を続け、各顧客の売上比率が20%以内に収まることを目指しましょう。');
+    }
+
+    var ac = document.getElementById('actionCard');
+    ac.style.display = '';
+    document.getElementById('actionList').innerHTML = actions.map(function(a){
+      return '<li>' + esc(a) + '</li>';
+    }).join('');
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

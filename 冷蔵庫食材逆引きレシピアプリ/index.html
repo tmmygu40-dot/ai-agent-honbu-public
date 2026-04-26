@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="冷蔵庫にある食材をチェックするだけで、今日使い切れるレシピを即提案。食材を選んで「レシピを探す」ボタンを押すだけで今夜の献立が決まる、食材逆引きレシピアプリです。">
+  <title>冷蔵庫食材逆引きレシピアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── カテゴリ見出し ── */
+    .cat-head {
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.05em; margin: 1rem 0 0.5rem;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .cat-head:first-of-type { margin-top: 0; }
+
+    /* ── 食材グリッド ── */
+    .ingredient-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.4rem;
+    }
+    @media (max-width: 400px) {
+      .ingredient-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .ing-label {
+      display: flex; align-items: center; gap: 0.45rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 0.55rem 0.6rem;
+      cursor: pointer; user-select: none;
+      font-size: 0.82rem; font-weight: 500; color: var(--text);
+      transition: border-color 0.12s, background 0.12s;
+    }
+    .ing-label input[type="checkbox"] { width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+    .ing-label input[type="checkbox"]:checked ~ .ing-name {
+      font-weight: 700; color: var(--accent);
+    }
+    .ing-label:has(input:checked) {
+      border-color: var(--accent); background: var(--accent-light);
+    }
+    .selected-count {
+      font-size: 0.78rem; color: var(--text-sub); margin-bottom: 0.8rem;
+    }
+    .selected-count span { color: var(--accent); font-weight: 700; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 0.6rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.65rem;
+      font-size: 0.88rem; font-weight: 600; color: var(--text-sub);
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 10px; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── レシピ結果エリア ── */
+    #result-area { max-width: 600px; margin: 0 auto; }
+
+    .result-header {
+      font-size: 0.82rem; color: var(--text-sub);
+      margin-bottom: 0.8rem; padding: 0 0.2rem;
+    }
+    .result-header strong { color: var(--accent); }
+
+    /* ── レシピカード ── */
+    .recipe-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.1rem 1rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 0.8rem;
+    }
+    .recipe-card.full-match { border-color: var(--ok); }
+    .recipe-name {
+      font-size: 1rem; font-weight: 800; color: var(--text);
+      margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;
+    }
+    .match-badge {
+      font-size: 0.68rem; font-weight: 700; padding: 0.15rem 0.45rem;
+      border-radius: 20px; flex-shrink: 0;
+    }
+    .badge-full { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+    .badge-part { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+
+    .recipe-section { margin-top: 0.6rem; }
+    .recipe-section-title { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); letter-spacing: 0.04em; margin-bottom: 0.3rem; }
+    .ingredients-row { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .ing-chip {
+      font-size: 0.75rem; padding: 0.18rem 0.5rem;
+      border-radius: 20px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text-sub);
+    }
+    .ing-chip.have { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); font-weight: 600; }
+    .ing-chip.missing { background: var(--ng-bg); color: var(--ng); border-color: var(--ng); }
+
+    .steps-list { margin-top: 0.3rem; padding-left: 0; list-style: none; }
+    .steps-list li {
+      font-size: 0.82rem; color: var(--text); line-height: 1.55;
+      padding: 0.25rem 0; border-bottom: 1px solid var(--border);
+      display: flex; gap: 0.5rem;
+    }
+    .steps-list li:last-child { border-bottom: none; }
+    .step-num { font-weight: 700; color: var(--accent); flex-shrink: 0; }
+
+    .no-result {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 2rem 1.2rem;
+      text-align: center; color: var(--text-sub); font-size: 0.88rem;
+    }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-reset, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .recipe-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🥦 冷蔵庫食材逆引きレシピ</h1>
+    <p class="subtitle">今ある食材を選ぶだけ — 今日作れるレシピを即提案</p>
+  </header>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <!-- 食材選択カード -->
+  <div class="card">
+    <p class="card-title">食材チェック</p>
+    <p class="selected-count">選択中：<span id="cnt">0</span> 品目</p>
+
+    <p class="cat-head">🥬 野菜</p>
+    <div class="ingredient-grid" id="g-veg"></div>
+
+    <p class="cat-head">🍖 肉</p>
+    <div class="ingredient-grid" id="g-meat"></div>
+
+    <p class="cat-head">🐟 魚介・缶詰</p>
+    <div class="ingredient-grid" id="g-fish"></div>
+
+    <p class="cat-head">🥚 卵・豆腐</p>
+    <div class="ingredient-grid" id="g-egg"></div>
+
+    <p class="cat-head">🍚 主食・その他</p>
+    <div class="ingredient-grid" id="g-carb"></div>
+  </div>
+
+  <button class="btn-calc" onclick="search()">🔍 レシピを探す</button>
+  <button class="btn-reset no-print" onclick="resetAll()">✕ 選択をリセット</button>
+
+  <!-- 結果エリア -->
+  <div id="result-area"></div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 掲載レシピは家庭料理の参考目安です。分量・手順はお好みで調整してください。アレルギー・食の禁忌は各自ご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ─── 食材マスタ ───────────────────────────────────
+  var CATS = {
+    'g-veg':  ['キャベツ','玉ねぎ','にんじん','じゃがいも','ほうれん草','もやし',
+                'ナス','トマト','きゅうり','大根','ブロッコリー','長ねぎ','ピーマン','しいたけ','白菜'],
+    'g-meat': ['鶏もも肉','豚バラ肉','牛薄切り肉','鶏ひき肉','合いびき肉','ベーコン','ウインナー'],
+    'g-fish': ['鮭（切り身）','えび','ツナ缶','サバ缶','あさり'],
+    'g-egg':  ['卵','豆腐','厚揚げ','納豆'],
+    'g-carb': ['ご飯','パスタ','うどん','そうめん','餅']
+  };
+
+  // ─── レシピデータ ─────────────────────────────────
+  // key: レシピ一致に使う食材（選択中にこれが含まれていればマッチ）
+  // all: 全材料表示用（手元にあるものとないものを色分け）
+  // steps: 簡単な手順
+  var RECIPES = [
+    { name:'野菜炒め',
+      key:['もやし','キャベツ','ピーマン'],
+      all:['もやし','キャベツ','ピーマン','塩・こしょう','ごま油'],
+      steps:['フライパンにごま油を熱し、肉があれば先に炒める','野菜を加えて強火でさっと炒める','塩・こしょうで味を調えて完成'] },
+    { name:'肉じゃが',
+      key:['じゃがいも','玉ねぎ','にんじん','牛薄切り肉'],
+      all:['じゃがいも','玉ねぎ','にんじん','牛薄切り肉','醤油','みりん','砂糖'],
+      steps:['野菜を一口大に切り、鍋で炒める','牛肉を加えて炒め、水を加えて煮る','醤油・みりん・砂糖で調味し、煮汁が少なくなるまで煮る'] },
+    { name:'麻婆豆腐',
+      key:['豆腐','鶏ひき肉','合いびき肉'],
+      all:['豆腐','ひき肉','長ねぎ','ごま油','醤油','みそ','片栗粉'],
+      steps:['フライパンにごま油を熱し、ひき肉を炒める','豆腐を加えて崩しながら炒める','醤油・みそで調味し、水溶き片栗粉でとろみをつける'] },
+    { name:'カレー',
+      key:['じゃがいも','にんじん','玉ねぎ','鶏もも肉','牛薄切り肉'],
+      all:['じゃがいも','にんじん','玉ねぎ','肉','カレールー','水'],
+      steps:['野菜・肉を炒める','水を加えて野菜が柔らかくなるまで煮込む','カレールーを入れて溶かし、とろみがつくまで煮る'] },
+    { name:'親子丼',
+      key:['鶏もも肉','卵','玉ねぎ'],
+      all:['鶏もも肉','卵','玉ねぎ','醤油','みりん','だし','ご飯'],
+      steps:['玉ねぎを薄切りにして鍋に入れ、だし・醤油・みりんで煮る','鶏肉を加えて火が通ったら卵を回し入れる','半熟になったらご飯の上にのせる'] },
+    { name:'豚キャベツ炒め',
+      key:['豚バラ肉','キャベツ'],
+      all:['豚バラ肉','キャベツ','醤油','にんにく','ごま油'],
+      steps:['キャベツをざく切りにする','豚バラ肉をフライパンで炒め、キャベツを加える','醤油・にんにくで味付けして炒め合わせる'] },
+    { name:'ほうれん草のおひたし',
+      key:['ほうれん草'],
+      all:['ほうれん草','醤油','かつお節'],
+      steps:['ほうれん草をさっと茹でて水にさらす','食べやすい長さに切る','醤油をかけてかつお節をのせる'] },
+    { name:'トマトと卵の炒め',
+      key:['トマト','卵'],
+      all:['トマト','卵','塩','砂糖','ごま油'],
+      steps:['卵を溶いて半熟に炒め、一度取り出す','トマトを炒め、卵を戻して塩・砂糖で調味する'] },
+    { name:'回鍋肉（ホイコーロー）',
+      key:['キャベツ','豚バラ肉','ピーマン'],
+      all:['キャベツ','豚バラ肉','ピーマン','みそ','醤油','豆板醤','ごま油'],
+      steps:['豚バラを茹でて薄切りにする','野菜と炒め合わせる','みそ・醤油・豆板醤を合わせたタレで和える'] },
+    { name:'ナスの味噌炒め',
+      key:['ナス'],
+      all:['ナス','みそ','みりん','砂糖','ごま油'],
+      steps:['ナスを乱切りにして素揚げまたは油焼きにする','みそ・みりん・砂糖を合わせたタレで炒め合わせる'] },
+    { name:'大根サラダ',
+      key:['大根'],
+      all:['大根','ツナ缶','ごま油','醤油','酢'],
+      steps:['大根を千切りにする','ツナ缶と合わせる','ごま油・醤油・酢でドレッシングを作り和える'] },
+    { name:'ブロッコリーのバター炒め',
+      key:['ブロッコリー'],
+      all:['ブロッコリー','バター','塩','にんにく'],
+      steps:['ブロッコリーを小房に切って茹でる','フライパンにバターとにんにくを熱して炒める','塩で味を整える'] },
+    { name:'きゅうりの浅漬け',
+      key:['きゅうり'],
+      all:['きゅうり','塩','砂糖','酢'],
+      steps:['きゅうりを薄切りにして塩もみする','水気を絞り、酢と砂糖で和える','冷蔵庫で30分ほど冷やして完成'] },
+    { name:'白菜スープ',
+      key:['白菜','豚バラ肉','鶏もも肉'],
+      all:['白菜','肉','鶏がらスープ','塩・こしょう','ごま油'],
+      steps:['白菜と肉を一口大に切る','鶏がらスープで煮込む','塩・こしょうで調味し、ごま油をたらす'] },
+    { name:'しいたけのバター焼き',
+      key:['しいたけ'],
+      all:['しいたけ','バター','醤油','パセリ'],
+      steps:['しいたけを半分に切る','バターで焼く','醤油をかけて完成'] },
+    { name:'長ねぎとベーコンの炒め',
+      key:['長ねぎ','ベーコン'],
+      all:['長ねぎ','ベーコン','醤油','塩・こしょう'],
+      steps:['長ねぎを斜め切り、ベーコンを切る','フライパンで炒め','醤油・塩・こしょうで調味する'] },
+    { name:'ツナサラダ',
+      key:['ツナ缶','きゅうり','玉ねぎ'],
+      all:['ツナ缶','きゅうり','玉ねぎ','マヨネーズ','塩・こしょう'],
+      steps:['きゅうり・玉ねぎを薄切りにして塩もみし水気を絞る','ツナと混ぜる','マヨネーズで和えて完成'] },
+    { name:'サバ缶大根',
+      key:['サバ缶','大根'],
+      all:['サバ缶','大根','生姜','醤油','みりん'],
+      steps:['大根を輪切りにして下茹でする','サバ缶と煮汁、醤油・みりんで一緒に煮込む','生姜を加えて風味をつける'] },
+    { name:'塩鮭ムニエル',
+      key:['鮭（切り身）'],
+      all:['鮭（切り身）','バター','塩・こしょう','レモン'],
+      steps:['鮭に塩・こしょうをふる','バターを熱したフライパンで両面焼く','レモンをしぼって完成'] },
+    { name:'えびチリ',
+      key:['えび','玉ねぎ'],
+      all:['えび','玉ねぎ','ケチャップ','豆板醤','にんにく','生姜'],
+      steps:['えびの下処理をする','玉ねぎを炒め、ケチャップ・豆板醤のソースを作る','えびを加えて炒め合わせる'] },
+    { name:'あさりの酒蒸し',
+      key:['あさり'],
+      all:['あさり','酒','バター','長ねぎ','醤油'],
+      steps:['あさりの砂抜きをする','フライパンに酒とあさりを入れてふたをして蒸す','口が開いたらバター・醤油を加えて完成'] },
+    { name:'豆腐ステーキ',
+      key:['豆腐'],
+      all:['豆腐','醤油','みりん','バター','片栗粉'],
+      steps:['豆腐の水気を切って片栗粉をまぶす','フライパンにバターを熱して両面焼く','醤油・みりんのソースをかける'] },
+    { name:'厚揚げの煮物',
+      key:['厚揚げ','大根'],
+      all:['厚揚げ','大根','だし','醤油','みりん','砂糖'],
+      steps:['厚揚げ・大根を食べやすい大きさに切る','だし・醤油・みりん・砂糖で煮込む','味がしみたら完成'] },
+    { name:'納豆ご飯（アレンジ）',
+      key:['納豆','長ねぎ','卵'],
+      all:['納豆','長ねぎ','卵','醤油','ご飯'],
+      steps:['長ねぎを小口切りにする','納豆に卵・長ねぎ・醤油を加えてよく混ぜる','ご飯にのせて完成'] },
+    { name:'チャーハン',
+      key:['ご飯','卵'],
+      all:['ご飯','卵','長ねぎ','醤油','塩・こしょう','サラダ油'],
+      steps:['卵を溶いてご飯と混ぜる','フライパンに油を強火で熱し、ご飯を炒める','長ねぎを加え、醤油・塩・こしょうで味付けする'] },
+    { name:'オムライス',
+      key:['ご飯','卵','玉ねぎ','鶏もも肉'],
+      all:['ご飯','卵','玉ねぎ','鶏もも肉','ケチャップ','バター'],
+      steps:['鶏肉・玉ねぎを炒めてご飯を加え、ケチャップチャーハンを作る','卵を薄焼きにして包む','ケチャップをかけて完成'] },
+    { name:'炊き込みご飯',
+      key:['ご飯','しいたけ','にんじん'],
+      all:['米','しいたけ','にんじん','醤油','みりん','だし'],
+      steps:['しいたけ・にんじんを細かく切る','米に醤油・みりん・だしを加え、具材をのせて炊く','炊き上がったら混ぜ合わせる'] },
+    { name:'そぼろ丼',
+      key:['鶏ひき肉','合いびき肉','卵'],
+      all:['ひき肉','卵','醤油','みりん','砂糖','生姜','ご飯'],
+      steps:['ひき肉を醤油・みりん・砂糖で炒り煮にする','卵も甘めの炒り卵を作る','ご飯の上に二色盛りにする'] },
+    { name:'ポテトサラダ',
+      key:['じゃがいも','卵','きゅうり'],
+      all:['じゃがいも','卵','きゅうり','玉ねぎ','マヨネーズ','塩・こしょう'],
+      steps:['じゃがいも・卵を茹でて潰す','きゅうり・玉ねぎを薄切りにして塩もみする','全部混ぜてマヨネーズで和える'] },
+    { name:'ウインナー炒め',
+      key:['ウインナー','キャベツ','玉ねぎ'],
+      all:['ウインナー','キャベツ','玉ねぎ','塩・こしょう','油'],
+      steps:['ウインナーに切り込みを入れる','キャベツ・玉ねぎをざく切りにする','炒め合わせて塩・こしょうで味付けする'] },
+    { name:'ベーコンエッグ',
+      key:['ベーコン','卵'],
+      all:['ベーコン','卵','塩・こしょう','バター'],
+      steps:['フライパンにバターを熱する','ベーコンを焼き、卵を割り入れる','塩・こしょうして目玉焼きにする'] },
+    { name:'パスタ（ペペロンチーノ）',
+      key:['パスタ','ベーコン','ウインナー'],
+      all:['パスタ','にんにく','唐辛子','ベーコン','オリーブオイル','塩'],
+      steps:['パスタを茹でる（塩ゆで）','にんにく・唐辛子をオリーブオイルで炒め、ベーコンを加える','茹でたパスタを加えて炒め合わせる'] },
+    { name:'カルボナーラ風パスタ',
+      key:['パスタ','卵','ベーコン'],
+      all:['パスタ','卵','ベーコン','粉チーズ','塩・こしょう'],
+      steps:['パスタを茹でる','ベーコンを炒める','卵・粉チーズを混ぜたソースをパスタに絡める（火を止めてから）'] },
+    { name:'うどん（ざるうどん）',
+      key:['うどん'],
+      all:['うどん','めんつゆ','長ねぎ','生姜'],
+      steps:['うどんを茹でて水でしめる','めんつゆを希釈する','薬味を添えてつけて食べる'] },
+    { name:'そうめん',
+      key:['そうめん'],
+      all:['そうめん','めんつゆ','長ねぎ','生姜','みょうが'],
+      steps:['そうめんを茹でて水でしめる','めんつゆを希釈する','薬味を添えてつけて食べる'] },
+    { name:'お雑煮',
+      key:['餅','長ねぎ','ほうれん草'],
+      all:['餅','だし','醤油','長ねぎ','ほうれん草'],
+      steps:['だしに醤油を加えてつゆを作る','餅を焼くか茹でる','つゆに入れて野菜を添えて完成'] },
+    { name:'焼き餅',
+      key:['餅'],
+      all:['餅','醤油','海苔'],
+      steps:['餅をフライパンで焼く','両面こんがりしたら醤油をかける','海苔で巻いて完成'] },
+    { name:'豚汁',
+      key:['豚バラ肉','大根','にんじん','じゃがいも','長ねぎ'],
+      all:['豚バラ肉','大根','にんじん','じゃがいも','長ねぎ','みそ','だし'],
+      steps:['野菜・豚肉を一口大に切る','だし汁で煮込む','みそを溶き入れて長ねぎをのせる'] },
+    { name:'もやしのナムル',
+      key:['もやし'],
+      all:['もやし','ごま油','塩','にんにく','ごま'],
+      steps:['もやしをさっと茹でて水気を切る','ごま油・塩・にんにくで和える','ごまをふって完成'] },
+    { name:'鶏の照り焼き',
+      key:['鶏もも肉'],
+      all:['鶏もも肉','醤油','みりん','砂糖'],
+      steps:['鶏もも肉の皮目をフライパンで焼く','裏返して火を通す','醤油・みりん・砂糖のタレを絡める'] },
+    { name:'にんじんしりしり',
+      key:['にんじん','卵','ツナ缶'],
+      all:['にんじん','卵','ツナ缶','醤油','塩','ごま油'],
+      steps:['にんじんを細切りにして炒める','ツナ缶を加えてさらに炒める','溶き卵を加えて炒め合わせ、醤油で味付け'] }
+  ];
+
+  // ─── 食材チェックリスト生成 ───────────────────────
+  function buildGrid(gridId, items) {
+    var g = document.getElementById(gridId);
+    items.forEach(function(name) {
+      var lbl = document.createElement('label');
+      lbl.className = 'ing-label';
+      lbl.innerHTML = '<input type="checkbox" value="' + name + '" onchange="updateCount()"><span class="ing-name">' + name + '</span>';
+      g.appendChild(lbl);
+    });
+  }
+  Object.keys(CATS).forEach(function(id) { buildGrid(id, CATS[id]); });
+
+  // ─── 選択数カウント ───────────────────────────────
+  function getSelected() {
+    return Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(function(cb){ return cb.value; });
+  }
+  function updateCount() {
+    document.getElementById('cnt').textContent = getSelected().length;
+    saveLS();
+  }
+
+  // ─── レシピ検索 ───────────────────────────────────
+  function search() {
+    var selected = getSelected();
+    if (selected.length === 0) {
+      document.getElementById('result-area').innerHTML =
+        '<div class="no-result">食材を1つ以上選んでください🥬</div>';
+      return;
+    }
+    var results = [];
+    RECIPES.forEach(function(r) {
+      var matched = r.key.filter(function(k){ return selected.indexOf(k) !== -1; });
+      if (matched.length === 0) return;
+      results.push({ r: r, matched: matched, score: matched.length / r.key.length });
+    });
+    results.sort(function(a, b){ return b.score - a.score || b.matched.length - a.matched.length; });
+
+    var area = document.getElementById('result-area');
+    if (results.length === 0) {
+      area.innerHTML = '<div class="no-result">選んだ食材に合うレシピが見つかりませんでした。<br>食材を変えて試してみてください🔄</div>';
+      return;
+    }
+    var html = '<p class="result-header">✅ <strong>' + results.length + ' 件</strong>のレシピが見つかりました</p>';
+    results.forEach(function(item) {
+      var r = item.r;
+      var isFull = item.score >= 1;
+      var badge = isFull
+        ? '<span class="match-badge badge-full">完全一致</span>'
+        : '<span class="match-badge badge-part">部分一致</span>';
+      var chips = r.all.map(function(ing) {
+        var have = selected.indexOf(ing) !== -1;
+        var isKey = r.key.indexOf(ing) !== -1;
+        var cls = have ? 'have' : (isKey ? 'missing' : '');
+        return '<span class="ing-chip ' + cls + '">' + (cls === 'missing' ? '×' : '') + ing + '</span>';
+      }).join('');
+      var steps = r.steps.map(function(s, i) {
+        return '<li><span class="step-num">' + (i+1) + '</span>' + s + '</li>';
+      }).join('');
+      html += '<div class="recipe-card' + (isFull ? ' full-match' : '') + '">'
+        + '<p class="recipe-name">' + r.name + badge + '</p>'
+        + '<div class="recipe-section"><p class="recipe-section-title">🧂 材料</p><div class="ingredients-row">' + chips + '</div></div>'
+        + '<div class="recipe-section"><p class="recipe-section-title">👨‍🍳 手順</p><ul class="steps-list">' + steps + '</ul></div>'
+        + '</div>';
+    });
+    area.innerHTML = html;
+  }
+
+  // ─── リセット ─────────────────────────────────────
+  function resetAll() {
+    document.querySelectorAll('input[type="checkbox"]').forEach(function(cb){ cb.checked = false; });
+    updateCount();
+    document.getElementById('result-area').innerHTML = '';
+    localStorage.removeItem('reshipi_selected');
+  }
+
+  // ─── localStorage ─────────────────────────────────
+  function saveLS() {
+    localStorage.setItem('reshipi_selected', JSON.stringify(getSelected()));
+  }
+  function loadLS() {
+    try {
+      var saved = JSON.parse(localStorage.getItem('reshipi_selected') || '[]');
+      if (!Array.isArray(saved)) return;
+      saved.forEach(function(name) {
+        var cb = document.querySelector('input[value="' + CSS.escape(name) + '"]');
+        if (cb) cb.checked = true;
+      });
+      updateCount();
+    } catch(e) {}
+  }
+  loadLS();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

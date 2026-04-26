@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>出張料金設定アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* 推奨料金バッジ */
+    .rec-badge {
+      display: inline-block; background: var(--accent-light);
+      border: 1.5px solid var(--accent); border-radius: 8px;
+      padding: 0.5rem 1rem; margin-top: 0.75rem;
+      font-size: 0.9rem; font-weight: 700; color: var(--accent);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>出張料金設定アプリ</h1>
+    <p class="subtitle">移動・作業・経費から採算が取れる最低料金を即計算</p>
+  </header>
+
+  <!-- 人件費カード -->
+  <div class="card">
+    <p class="card-title">人件費</p>
+    <div class="row2">
+      <div class="field">
+        <label for="moveMin">移動時間（片道・分）</label>
+        <input type="number" id="moveMin" placeholder="例: 30" min="0">
+      </div>
+      <div class="field">
+        <label for="workMin">作業時間（分）</label>
+        <input type="number" id="workMin" placeholder="例: 60" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="hourly">時給・人件費単価（円/時間）</label>
+      <input type="number" id="hourly" placeholder="例: 2000" min="0">
+      <p class="hint">自分の時間単価（交通費除く）</p>
+    </div>
+  </div>
+
+  <!-- 経費カード -->
+  <div class="card">
+    <p class="card-title">経費</p>
+    <div class="row2">
+      <div class="field">
+        <label for="transport">交通費（円）</label>
+        <input type="number" id="transport" placeholder="例: 500" min="0">
+      </div>
+      <div class="field">
+        <label for="material">材料費（円）</label>
+        <input type="number" id="material" placeholder="例: 1000" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="other">その他経費（円）</label>
+      <input type="number" id="other" placeholder="例: 0" min="0">
+    </div>
+  </div>
+
+  <!-- 利益率カード -->
+  <div class="card">
+    <p class="card-title">目標利益率（任意）</p>
+    <div class="field">
+      <label for="margin">目標利益率（%）</label>
+      <input type="number" id="margin" placeholder="例: 20" min="0" max="99">
+      <p class="hint">空欄または0の場合は最低採算料金のみ表示します</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">最低料金を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">最低採算料金（原価ベース）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+    <div id="recDiv" style="display:none">
+      <div class="rec-badge" id="recBadge"></div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEYS = ['moveMin','workMin','hourly','transport','material','other','margin'];
+
+  // 保存された値を復元
+  KEYS.forEach(function(k) {
+    var v = localStorage.getItem('chk_' + k);
+    if (v !== null) document.getElementById(k).value = v;
+  });
+
+  function save() {
+    KEYS.forEach(function(k) {
+      localStorage.setItem('chk_' + k, document.getElementById(k).value);
+    });
+  }
+
+  function calc() {
+    save();
+
+    var moveMin   = parseFloat(document.getElementById('moveMin').value)   || 0;
+    var workMin   = parseFloat(document.getElementById('workMin').value)   || 0;
+    var hourly    = parseFloat(document.getElementById('hourly').value)    || 0;
+    var transport = parseFloat(document.getElementById('transport').value) || 0;
+    var material  = parseFloat(document.getElementById('material').value)  || 0;
+    var other     = parseFloat(document.getElementById('other').value)     || 0;
+    var margin    = parseFloat(document.getElementById('margin').value)    || 0;
+
+    if (hourly <= 0 && (moveMin > 0 || workMin > 0)) {
+      showResult('warn', '—', '時給を入力してください');
+      document.getElementById('detail').style.display = 'none';
+      document.getElementById('recDiv').style.display = 'none';
+      return;
+    }
+
+    // 移動時間：片道×2（往復）
+    var totalMin = moveMin * 2 + workMin;
+    var laborCost = Math.round(hourly * totalMin / 60);
+    var expenseTotal = transport + material + other;
+    var minPrice = laborCost + expenseTotal;
+
+    // 推奨料金（利益率考慮）
+    var recPrice = 0;
+    if (margin > 0 && margin < 100) {
+      recPrice = Math.round(minPrice / (1 - margin / 100));
+    }
+
+    showResult('ok', fmt(minPrice) + ' 円', '人件費 + 経費の合計（採算割れしない最低ライン）');
+
+    // 推奨料金バッジ
+    var recDiv = document.getElementById('recDiv');
+    if (recPrice > 0) {
+      document.getElementById('recBadge').textContent = '推奨料金（利益率 ' + margin + '% 確保）：' + fmt(recPrice) + ' 円';
+      recDiv.style.display = '';
+    } else {
+      recDiv.style.display = 'none';
+    }
+
+    showDetail([
+      ['移動時間（往復）', fmt(moveMin * 2) + ' 分'],
+      ['作業時間', fmt(workMin) + ' 分'],
+      ['合計稼働時間', fmt(totalMin) + ' 分（' + (totalMin/60).toFixed(1) + ' 時間）'],
+      ['人件費', fmt(laborCost) + ' 円'],
+      ['交通費', fmt(transport) + ' 円'],
+      ['材料費', fmt(material) + ' 円'],
+      ['その他経費', fmt(other) + ' 円'],
+      ['経費合計', fmt(expenseTotal) + ' 円'],
+      ['最低採算料金', fmt(minPrice) + ' 円', true],
+    ]);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
