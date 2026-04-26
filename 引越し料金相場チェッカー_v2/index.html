@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>引越し料金相場チェッカー v2</title>
+  <meta name="description" content="間取りと移動距離を選ぶだけで、業者に問い合わせる前に引越し料金の相場レンジ（安め〜高め）を即確認。繁忙期・閑散期の価格差も表示。2024年参考値。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.9rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; color: var(--accent); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+      color: var(--ok);
+    }
+
+    /* 繁忙期バッジ */
+    .peak-badge {
+      display: inline-block;
+      background: #fef2f2; color: #b91c1c;
+      border: 1px solid #fca5a5;
+      border-radius: 6px; font-size: 0.75rem; font-weight: 700;
+      padding: 0.2rem 0.6rem; margin-top: 0.5rem;
+    }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── アドバイスカード ── */
+    .advice-list { list-style: none; padding: 0; }
+    .advice-list li {
+      font-size: 0.88rem; color: var(--text-sub); line-height: 1.6;
+      padding: 0.45rem 0; border-bottom: 1px solid var(--border);
+    }
+    .advice-list li:last-child { border-bottom: none; }
+    .advice-list li::before { content: "💡 "; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🚚 引越し料金相場チェッカー</h1>
+    <p class="subtitle">間取りと距離を選ぶだけ。業者問合せ前に相場レンジを即確認（2024年参考値）</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">条件を選ぶ</p>
+    <div class="field">
+      <label for="madori">間取り</label>
+      <select id="madori">
+        <option value="">-- 間取りを選択 --</option>
+        <option value="0">1R・1K</option>
+        <option value="1">1DK・1LDK</option>
+        <option value="2">2LDK</option>
+        <option value="3">3LDK</option>
+        <option value="4">4LDK 以上</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="kyori">移動距離</label>
+      <select id="kyori">
+        <option value="">-- 距離を選択 --</option>
+        <option value="0">同市内（〜15km程度）</option>
+        <option value="1">近隣市区町村（〜30km程度）</option>
+        <option value="2">50km 以内</option>
+        <option value="3">100km 以内</option>
+        <option value="4">200km 以内</option>
+        <option value="5">200km 超（長距離）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="jiki">引越し時期</label>
+      <select id="jiki">
+        <option value="0">通常期（5〜1月）</option>
+        <option value="1">繁忙期（2〜4月）</option>
+      </select>
+      <p class="hint">繁忙期は料金が1.3〜1.5倍になる場合があります</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">相場を確認する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card ok" id="result">
+    <p class="result-label">料金相場レンジ</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+    <span class="peak-badge" id="peak-badge" style="display:none">⚠️ 繁忙期料金（1.3〜1.5倍）</span>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">参考内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- アドバイスカード -->
+  <div class="card" id="advice-card" style="display:none">
+    <p class="card-title">節約のヒント</p>
+    <ul class="advice-list" id="advice-list"></ul>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、国土交通省・引越し業者各社の公開料金目安データ（2024年時点）を参考に整理した概算です。実際の料金は荷物量・作業員数・日時・オプションにより変わります。複数社の見積もり比較をおすすめします。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 相場データ（通常期、万円） [間取り][距離] = [安め, 高め] ──
+  // 間取り: 0=1R/1K, 1=1DK/1LDK, 2=2LDK, 3=3LDK, 4=4LDK以上
+  // 距離:   0=同市内, 1=近隣30km, 2=50km以内, 3=100km以内, 4=200km以内, 5=200km超
+  var PRICES = [
+    // 1R・1K
+    [[3,8],[4,9],[5,11],[6,13],[8,16],[10,20]],
+    // 1DK・1LDK
+    [[5,10],[6,12],[7,14],[9,17],[11,21],[14,26]],
+    // 2LDK
+    [[7,15],[9,18],[11,22],[13,26],[16,31],[20,38]],
+    // 3LDK
+    [[10,22],[13,26],[16,31],[20,38],[25,46],[30,55]],
+    // 4LDK以上
+    [[15,35],[19,42],[24,50],[30,60],[37,72],[45,85]]
+  ];
+
+  var MADORI_LABELS = ['1R・1K','1DK・1LDK','2LDK','3LDK','4LDK 以上'];
+  var KYORI_LABELS  = ['同市内（〜15km）','近隣市区町村（〜30km）','50km 以内','100km 以内','200km 以内','200km 超'];
+
+  var ADVICE_NORMAL = [
+    '複数社に一括見積もりを依頼すると、同じ条件で相場の最安値〜高値を把握できます',
+    '平日・早朝・夕方便は料金が安くなる場合があります',
+    '不用品を事前に処分・売却すると荷物量が減り料金を抑えられます',
+    '段ボールの自力調達・自分梱包で作業費を削減できる業者もあります'
+  ];
+  var ADVICE_PEAK = [
+    '繁忙期（2〜4月）は通常期より1.3〜1.5倍高くなる傾向があります',
+    '引越し日を月末・月初から1〜2週ずらすだけで料金が下がることがあります',
+    '繁忙期でも早朝便・午後便は割安なプランがある業者があります',
+    '予約は1〜2ヶ月前が理想。直前になるほど選択肢が減り割高になります'
+  ];
+
+  function calc() {
+    var m = document.getElementById('madori').value;
+    var k = document.getElementById('kyori').value;
+    var j = parseInt(document.getElementById('jiki').value);
+    if (m === '' || k === '') {
+      alert('間取りと距離を選択してください');
+      return;
+    }
+    m = parseInt(m);
+    k = parseInt(k);
+
+    var base = PRICES[m][k];
+    var low  = base[0];
+    var high = base[1];
+    var lowPeak  = Math.round(low  * 1.4);
+    var highPeak = Math.round(high * 1.4);
+
+    var dispLow  = j === 1 ? lowPeak  : low;
+    var dispHigh = j === 1 ? highPeak : high;
+    var isPeak   = j === 1;
+
+    // 結論カード
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '約 ' + dispLow + '万〜' + dispHigh + '万円';
+    document.getElementById('re').textContent = MADORI_LABELS[m] + ' × ' + KYORI_LABELS[k];
+    document.getElementById('rn').textContent = isPeak
+      ? '繁忙期（2〜4月）の概算相場です。時期をずらすと節約できます。'
+      : '通常期（5〜1月）の概算相場です。複数社の見積もり比較がおすすめです。';
+    var badge = document.getElementById('peak-badge');
+    badge.style.display = isPeak ? '' : 'none';
+
+    // 内訳
+    var rows = [
+      ['間取り', MADORI_LABELS[m]],
+      ['移動距離', KYORI_LABELS[k]],
+      ['時期', isPeak ? '繁忙期（2〜4月）' : '通常期（5〜1月）'],
+      ['通常期 相場', low + '万〜' + high + '万円'],
+    ];
+    if (isPeak) {
+      rows.push(['繁忙期 割増（×1.4目安）', lowPeak + '万〜' + highPeak + '万円', true]);
+    } else {
+      rows[rows.length - 1][2] = true;
+    }
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+
+    // アドバイス
+    var advices = isPeak ? ADVICE_PEAK : ADVICE_NORMAL;
+    document.getElementById('advice-list').innerHTML = advices.map(function(a){
+      return '<li>' + a + '</li>';
+    }).join('');
+    document.getElementById('advice-card').style.display = '';
+
+    // localStorage保存
+    try {
+      localStorage.setItem('hikkoshi_checker_v2', JSON.stringify({ m: m, k: k, j: j }));
+    } catch(e) {}
+  }
+
+  // 前回の選択を復元
+  (function() {
+    try {
+      var saved = localStorage.getItem('hikkoshi_checker_v2');
+      if (!saved) return;
+      var d = JSON.parse(saved);
+      document.getElementById('madori').value = d.m;
+      document.getElementById('kyori').value  = d.k;
+      document.getElementById('jiki').value   = d.j;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -309,3 +309,4 @@ commit: dea0c02
 [2026-04-27_010952] SCAN apps=販促POP文ジェネレーター total=0 exit=0
 [2026-04-27_015900] SCAN apps=関税変動仕入れコスト試算アプリ total=1 exit=0
 [2026-04-27_035755] SCAN apps=在庫処分シミュレーター total=0 exit=0
+[2026-04-27_041634] SCAN apps=引越し料金相場チェッカー_v2 total=0 exit=0
