@@ -244,6 +244,26 @@ commit: dea0c02
 - publish 失敗時はまず `git status --short` と `git log --oneline -5` で残骸の有無と最新コミットを確認する
 - 自動公開の復旧判定は1回成功で済ませず、**2回連続で 10 件バルク公開成功**を確認できるまで様子見する
 - PowerShell × git の組み合わせでは、$ErrorActionPreference='Stop' を script-wide に張ると native command の warning で落ちる罠があることを意識する
+
+### 運用観察（2026-04-26 追記）
+親 run_queue.ps1 の正常 / 異常の見分け方：
+
+**正常パターン（介入不要）:**
+- 親PIDが25分前後動いていても、子プロセスPIDが入れ替わっている
+- `git log --oneline -8` で commit が増え続けている
+- → 大量バックログ消化中の正常動作。すぐ Stop-Process しない
+
+**異常パターン（親PIDだけ強制停止を検討）:**
+- 親PIDが45分以上残り続ける
+- 子プロセスが入れ替わらない（同じ子PIDのまま）
+- git log が更新されない
+- 次回スケジュールが -2147020576 (SCHED_E_INSTANCE_NOT_RUNNING) でスキップされる
+- → claude CLI が応答待ちでハングしている可能性。`Stop-Process -Id <親PID> -Force` で復旧
+
+**確認コマンド:**
+- `Get-Process powershell -ErrorAction SilentlyContinue | Select-Object Id,StartTime,Path`
+- `git log --oneline -8`
+- `schtasks /Query /FO CSV /V | findstr /C:"AI"`
 [2026-04-26_122522] SCAN apps=残業代計算アプリ,残業時間管理チェッカー,水分管理アプリ,水道代節約シミュレーター,法定点検期限管理アプリ,洗濯タグ早見表アプリ,熱中症リスク判定アプリ,熱中症リスク診断アプリ,物流遅延対策アプリ,献立コスト変動シミュレーター total=2 exit=0
 [2026-04-26_124601] SCAN apps=クレーム対応お詫び文ジェネレーター total=0 exit=0
 [2026-04-26_125823] SCAN apps=値引き交渉採算シミュレーター total=0 exit=0
