@@ -193,3 +193,54 @@ commit: dea0c02
 [2026-04-26_114454] SCAN apps=バーンアウト診断アプリ,子育て支援制度ガイドアプリ,季節変動資金計画シミュレーター,実質時給チェッカー,実質賃金チェッカー,年金シミュレーター,年金受給シミュレーター,年金手取りシミュレーター,店舗紹介文ジェネレーター,廃棄込み粗利チェッカー total=7 exit=0
 [2026-04-26_114926] SCAN apps=引継ぎ書ジェネレーター total=0 exit=0
 [2026-04-26_120525] SCAN apps=市販薬選び逆引きアプリ,引越し費用チェッカー,必要保障額チェッカー,所得控除早見表アプリ,扶養内就労シミュレーター,接客ロールプレイ練習アプリ,支払い催促文面ジェネレーター,断り文ジェネレーター,来客予測シミュレーター,残業代未払い診断アプリ total=5 exit=0
+
+---
+
+## 2026-04-26 自動公開が1件/サイクルに激減 → バックログ100件超
+
+### 症状
+- AIキュー自動実行 (run_queue.ps1) は20分ごとに動いていたが、1サイクルあたり10件公開されず1件しか公開されない or 途中で停止することがあった
+- ある時点から git commit/push に到達せず、public 側に未コミット残骸が積み上がった
+- 未公開バックログが100件超まで膨らみ、サイト掲載数が長時間据え置きになった
+
+### 影響
+- 未公開バックログ ~108件まで急増
+- public 側に「Copyは済んだが未コミット」のアプリフォルダ・index.html / PUBLISHED.md / sitemap.xml の更新差分が放置
+- 補助スクリプト・claude_log.txt 等の意図しないファイルが untracked として残存
+- サイト公開数が633→640で長時間停止
+
+### 原因1：配列が子PowerShellに正しく渡らない
+- run_queue.ps1 が publish-batch.ps1 を `& powershell -NoProfile -ExecutionPolicy Bypass -File ".\publish-batch.ps1" -InputApps $publishTargets` で起動していた
+- `-File` 経由の子プロセス起動では、PowerShell の配列が**スペース区切りの独立引数**に展開される
+- 子側の `param([string[]]$InputApps)` は positional binding で先頭1件のみ受け取り、残り9件は破棄
+- 結果として「target_count=10」とログに残るが publish-batch 内では実質1件しか処理されない状態が続いていた
+
+### 修正1：同一プロセス実行に変更
+- run_queue.ps1 L34 を `$pubOut = & .\publish-batch.ps1 -InputApps $publishTargets 2>&1` に変更
+- 同一 PowerShell プロセス内で call 演算子で呼び出すことで `[string[]]$InputApps` に配列がそのまま渡るようになった
+- commit: `a765330 fix: pass publish targets as array`
+
+### 原因2：git の CRLF warning が Stop モードで throw される
+- publish-batch.ps1 冒頭で `$ErrorActionPreference = 'Stop'` が設定されていた
+- Windows 環境で git add 時に出る `warning: in the working copy of '...', LF will be replaced by CRLF the next time Git touches it` を、PowerShell 5.1 が native command の stderr 1行目として ErrorRecord に変換
+- Stop モードのため non-terminating warning が **terminating throw に昇格**して publish-batch.ps1 が catch なしで abort
+- 落ちる位置は L294 付近（`git add -- ERROR_LOG.md 2>$null`）。`2>$null` でも PowerShell 5.1 の挙動上抑止しきれず
+
+### 修正2：git ブロック内だけ ErrorActionPreference を Continue に
+- publish-batch.ps1 の git add/commit/push ブロック (L277-318) を以下で挟むように変更
+  - 開始前: `$prevEAP = $ErrorActionPreference; $ErrorActionPreference = 'Continue'`
+  - 終了後: `$ErrorActionPreference = $prevEAP`
+- core.autocrlf や git の挙動自体は変更せず、warning が出ても publish が止まらないようにした
+- commit: `d0027d8 fix: prevent git warning from stopping publish batch`
+
+### 復旧確認（2サイクル連続成功）
+- `6592eaa add: 10 apps / 681->691` （修正後の自動サイクル1回目で10件バルク公開成功）
+- `1d3cd33 add: 10 apps / 692->702` （次サイクルでも10件バルク公開成功）
+- 修正前は1サイクル1件 or 0件、修正後は1サイクル10件にスループット復帰
+
+### 再発防止
+- 手動 commit 前は必ず `git diff --cached --name-only` で対象を確認する
+- public 側に `claude_log.txt` / `_pick_next10.ps1` / `_publish10.ps1` / `_publish_apps.txt` / `check-report.json` / `check-report.md` / `fix-queue.json` / `pdf-missing-list.md` などの補助スクリプト・レポート類は commit しない
+- publish 失敗時はまず `git status --short` と `git log --oneline -5` で残骸の有無と最新コミットを確認する
+- 自動公開の復旧判定は1回成功で済ませず、**2回連続で 10 件バルク公開成功**を確認できるまで様子見する
+- PowerShell × git の組み合わせでは、$ErrorActionPreference='Stop' を script-wide に張ると native command の warning で落ちる罠があることを意識する
