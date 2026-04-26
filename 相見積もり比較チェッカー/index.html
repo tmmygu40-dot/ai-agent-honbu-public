@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>相見積もり比較チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 700px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 業者入力行 ── */
+    .vendor-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .vendor-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 2fr auto;
+      gap: 0.5rem;
+      align-items: end;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem;
+    }
+    @media (max-width: 600px) {
+      .vendor-row {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto;
+      }
+      .vendor-row .field-memo { grid-column: 1 / 3; }
+      .vendor-row .del-btn-wrap { grid-column: 1 / 3; }
+    }
+    .vendor-row .field { margin-bottom: 0; }
+    .vendor-row label { display: block; font-size: 0.76rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.28rem; }
+    .vendor-row input {
+      width: 100%; padding: 0.55rem 0.7rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: #fff; color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .vendor-row input:focus { border-color: var(--accent); }
+    .vendor-num {
+      font-size: 0.7rem; font-weight: 700; color: var(--accent);
+      margin-bottom: 0.3rem; display: block;
+    }
+
+    /* 削除ボタン */
+    .del-btn {
+      width: 100%; padding: 0.5rem;
+      font-size: 0.82rem; font-weight: 700;
+      background: var(--ng-bg); color: var(--ng);
+      border: 1px solid #fca5a5; border-radius: 8px;
+      cursor: pointer; transition: background 0.1s;
+      white-space: nowrap;
+    }
+    .del-btn:hover { background: #fee2e2; }
+
+    /* 業者追加ボタン */
+    .btn-add {
+      display: block; width: 100%; max-width: 700px;
+      margin: 0 auto 1rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 2px dashed var(--accent); border-radius: var(--radius);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .btn-add:hover { background: #ffe8c4; }
+
+    /* ── 比較ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 700px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果テーブルカード ── */
+    .result-section {
+      display: none;
+      max-width: 700px;
+      margin: 0 auto 1rem;
+    }
+    .result-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 500px) {
+      .result-summary { grid-template-columns: 1fr; }
+    }
+    .summary-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .summary-card.best-price  { border-color: var(--ok);   background: var(--ok-bg);   }
+    .summary-card.best-days   { border-color: #2563eb;     background: #eff6ff;         }
+    .summary-card.best-cospa  { border-color: var(--warn);  background: var(--warn-bg); }
+    .summary-badge {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--text-sub); margin-bottom: 0.4rem;
+    }
+    .summary-card.best-price  .summary-badge { color: var(--ok); }
+    .summary-card.best-days   .summary-badge { color: #2563eb; }
+    .summary-card.best-cospa  .summary-badge { color: var(--warn); }
+    .summary-name { font-size: 1.1rem; font-weight: 900; margin-bottom: 0.25rem; }
+    .summary-val  { font-size: 0.82rem; color: var(--text-sub); }
+
+    /* 比較テーブル */
+    .compare-table-wrap {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      overflow-x: auto;
+    }
+    .compare-table {
+      width: 100%; border-collapse: collapse; font-size: 0.88rem;
+      min-width: 400px;
+    }
+    .compare-table th {
+      background: var(--bg); padding: 0.5rem 0.6rem;
+      text-align: left; font-size: 0.75rem; font-weight: 700;
+      color: var(--text-sub); border-bottom: 2px solid var(--border);
+    }
+    .compare-table td {
+      padding: 0.7rem 0.6rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table tr:hover td { background: var(--accent-light); }
+    .badge {
+      display: inline-block; font-size: 0.68rem; font-weight: 700;
+      padding: 0.15rem 0.45rem; border-radius: 20px; margin-left: 0.35rem;
+      vertical-align: middle; white-space: nowrap;
+    }
+    .badge-price { background: var(--ok-bg);   color: var(--ok);   border: 1px solid #86efac; }
+    .badge-days  { background: #eff6ff;         color: #2563eb;     border: 1px solid #93c5fd; }
+    .badge-cospa { background: var(--warn-bg);  color: var(--warn); border: 1px solid #fcd34d; }
+    .hl-price td { background: #f0fdf4 !important; }
+    .hl-days  td { background: #eff6ff !important; }
+
+    /* ── リセット ── */
+    .btn-reset {
+      display: block; margin: 0 auto 1rem; padding: 0.55rem 1.2rem;
+      font-size: 0.82rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 700px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-reset:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 0.5rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 700px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-add, .btn-reset, .btn-pdf, .back-link, #fav-widget, .no-print, .del-btn { display: none !important; }
+      .card, .result-section { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>相見積もり比較チェッカー</h1>
+    <p class="subtitle">複数業者の見積もりを並べて 最安・最短・最コスパ を即判定</p>
+  </header>
+
+  <!-- 業者入力カード -->
+  <div class="card" style="max-width:700px;">
+    <p class="card-title">業者を入力</p>
+    <div class="vendor-list" id="vendorList"></div>
+  </div>
+
+  <button class="btn-add no-print" onclick="addVendor()">＋ 業者を追加</button>
+
+  <!-- 比較ボタン -->
+  <button class="btn-calc no-print" onclick="compare()">比較する</button>
+
+  <!-- 結果セクション -->
+  <div class="result-section" id="resultSection">
+
+    <!-- サマリー3枚 -->
+    <div class="result-summary" id="summaryCards"></div>
+
+    <!-- 比較テーブル -->
+    <div class="compare-table-wrap">
+      <p class="card-title">全業者 比較一覧</p>
+      <div style="overflow-x:auto;">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th>業者名</th>
+              <th>金額（円）</th>
+              <th>納期（日）</th>
+              <th>コスパ指数</th>
+              <th>備考</th>
+            </tr>
+          </thead>
+          <tbody id="compareBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <button class="btn-reset no-print" onclick="resetAll()">リセット（全データ削除）</button>
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor"
+       target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a>
+  </p>
+
+  <script>
+  var LS_KEY = 'aimitomori_vendors';
+  var vendors = [];
+
+  /* ─── 初期化 ─── */
+  function init() {
+    var saved = localStorage.getItem(LS_KEY);
+    if (saved) {
+      try { vendors = JSON.parse(saved); } catch(e) { vendors = []; }
+    }
+    if (vendors.length === 0) {
+      vendors = [
+        {name:'', price:'', days:'', memo:''},
+        {name:'', price:'', days:'', memo:''},
+        {name:'', price:'', days:'', memo:''}
+      ];
+    }
+    renderVendors();
+  }
+
+  /* ─── 業者行レンダリング ─── */
+  function renderVendors() {
+    var list = document.getElementById('vendorList');
+    list.innerHTML = vendors.map(function(v, i) {
+      return '<div class="vendor-row" id="vrow' + i + '">'
+        + '<div class="field">'
+        +   '<label><span class="vendor-num">業者 ' + (i+1) + '</span>業者名</label>'
+        +   '<input type="text" id="vname' + i + '" value="' + esc(v.name) + '" placeholder="例：A社" oninput="save()">'
+        + '</div>'
+        + '<div class="field">'
+        +   '<label>金額（円）</label>'
+        +   '<input type="number" id="vprice' + i + '" value="' + esc(v.price) + '" placeholder="例：150000" min="0" oninput="save()">'
+        + '</div>'
+        + '<div class="field">'
+        +   '<label>納期（日）</label>'
+        +   '<input type="number" id="vdays' + i + '" value="' + esc(v.days) + '" placeholder="例：14" min="1" oninput="save()">'
+        + '</div>'
+        + '<div class="field field-memo">'
+        +   '<label>備考</label>'
+        +   '<input type="text" id="vmemo' + i + '" value="' + esc(v.memo) + '" placeholder="任意" oninput="save()">'
+        + '</div>'
+        + '<div class="del-btn-wrap">'
+        +   '<label style="visibility:hidden;font-size:0.76rem;">&nbsp;</label>'
+        +   '<button class="del-btn" onclick="removeVendor(' + i + ')">削除</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  /* ─── 業者追加 ─── */
+  function addVendor() {
+    if (vendors.length >= 10) { alert('最大10件まで追加できます'); return; }
+    vendors.push({name:'', price:'', days:'', memo:''});
+    renderVendors();
+  }
+
+  /* ─── 業者削除 ─── */
+  function removeVendor(i) {
+    if (vendors.length <= 2) { alert('最低2件は必要です'); return; }
+    vendors.splice(i, 1);
+    renderVendors();
+    save();
+  }
+
+  /* ─── フォームから値を取得してvendorsに反映 ─── */
+  function collectValues() {
+    for (var i = 0; i < vendors.length; i++) {
+      vendors[i].name  = document.getElementById('vname'  + i).value.trim();
+      vendors[i].price = document.getElementById('vprice' + i).value;
+      vendors[i].days  = document.getElementById('vdays'  + i).value;
+      vendors[i].memo  = document.getElementById('vmemo'  + i).value.trim();
+    }
+  }
+
+  /* ─── localStorage保存 ─── */
+  function save() {
+    collectValues();
+    localStorage.setItem(LS_KEY, JSON.stringify(vendors));
+  }
+
+  /* ─── 比較実行 ─── */
+  function compare() {
+    collectValues();
+    localStorage.setItem(LS_KEY, JSON.stringify(vendors));
+
+    // バリデーション: 業者名・金額・納期が入っているもので比較
+    var valid = vendors.filter(function(v) {
+      return v.name && v.price !== '' && v.days !== '' && parseFloat(v.price) > 0 && parseInt(v.days) > 0;
+    });
+
+    if (valid.length < 2) {
+      alert('比較できる業者が2件以上ありません。\n業者名・金額・納期をすべて入力してください。');
+      return;
+    }
+
+    // コスパ指数 = 金額 ÷ 納期（小さいほど良い）
+    valid.forEach(function(v) {
+      v.priceNum = parseFloat(v.price);
+      v.daysNum  = parseInt(v.days);
+      v.cospa    = v.priceNum / v.daysNum;
+    });
+
+    var minPrice = Math.min.apply(null, valid.map(function(v){ return v.priceNum; }));
+    var minDays  = Math.min.apply(null, valid.map(function(v){ return v.daysNum;  }));
+    var minCospa = Math.min.apply(null, valid.map(function(v){ return v.cospa;    }));
+
+    var bestPrice = valid.filter(function(v){ return v.priceNum === minPrice; });
+    var bestDays  = valid.filter(function(v){ return v.daysNum  === minDays;  });
+    var bestCospa = valid.filter(function(v){ return v.cospa    === minCospa; });
+
+    // サマリーカード
+    var sc = document.getElementById('summaryCards');
+    sc.innerHTML =
+      makeSummaryCard('best-price', '最安', bestPrice[0].name, '¥' + fmt(minPrice) + ' 円')
+    + makeSummaryCard('best-days',  '最短', bestDays[0].name,  minDays + ' 日')
+    + makeSummaryCard('best-cospa', '最コスパ', bestCospa[0].name, '指数 ' + bestCospa[0].cospa.toFixed(1));
+
+    // 比較テーブル
+    var rows = valid.map(function(v) {
+      var badges = '';
+      var rowClass = '';
+      if (v.priceNum === minPrice) { badges += '<span class="badge badge-price">最安</span>'; rowClass = 'hl-price'; }
+      if (v.daysNum  === minDays)  { badges += '<span class="badge badge-days">最短</span>';  if (!rowClass) rowClass = 'hl-days'; }
+      if (v.cospa    === minCospa) { badges += '<span class="badge badge-cospa">最コスパ</span>'; }
+      return '<tr class="' + rowClass + '">'
+        + '<td><strong>' + esc(v.name) + '</strong>' + badges + '</td>'
+        + '<td>¥' + fmt(v.priceNum) + '</td>'
+        + '<td>' + v.daysNum + ' 日</td>'
+        + '<td>' + v.cospa.toFixed(1) + '</td>'
+        + '<td style="color:var(--text-sub)">' + esc(v.memo) + '</td>'
+        + '</tr>';
+    }).join('');
+
+    document.getElementById('compareBody').innerHTML = rows;
+    document.getElementById('resultSection').style.display = 'block';
+    document.getElementById('resultSection').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  function makeSummaryCard(cls, badge, name, val) {
+    return '<div class="summary-card ' + cls + '">'
+      + '<p class="summary-badge">' + badge + '</p>'
+      + '<p class="summary-name">' + esc(name) + '</p>'
+      + '<p class="summary-val">' + val + '</p>'
+      + '</div>';
+  }
+
+  /* ─── リセット ─── */
+  function resetAll() {
+    if (!confirm('全データを削除してリセットしますか？')) return;
+    localStorage.removeItem(LS_KEY);
+    vendors = [
+      {name:'', price:'', days:'', memo:''},
+      {name:'', price:'', days:'', memo:''},
+      {name:'', price:'', days:'', memo:''}
+    ];
+    renderVendors();
+    document.getElementById('resultSection').style.display = 'none';
+  }
+
+  /* ─── ユーティリティ ─── */
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  init();
+  </script>
+
+</body>
+</html>

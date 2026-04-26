@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>節電クイズアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* 進捗バー */
+    .progress-wrap {
+      max-width: 600px; margin: 0 auto 0.8rem;
+      padding: 0 1.2rem;
+    }
+    .progress-info {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; color: var(--text-sub); margin-bottom: 0.35rem;
+    }
+    .progress-bar {
+      height: 8px; background: var(--border); border-radius: 99px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: var(--accent); border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    /* 問題文 */
+    .question-text {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.6;
+      margin-bottom: 1.2rem; color: var(--text);
+    }
+
+    /* 選択肢ボタン */
+    .choices { display: flex; flex-direction: column; gap: 0.6rem; }
+    .choice-btn {
+      width: 100%; padding: 0.85rem 1rem;
+      font-size: 0.95rem; font-weight: 600; text-align: left;
+      background: var(--bg); color: var(--text);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .choice-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); }
+    .choice-btn:disabled { cursor: default; }
+    .choice-btn.correct { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
+    .choice-btn.wrong   { border-color: var(--ng); background: var(--ng-bg); color: var(--ng); }
+
+    /* 解説カード */
+    .explanation-card {
+      display: none;
+      border-radius: var(--radius);
+      padding: 1rem 1.1rem;
+      margin-top: 1rem; font-size: 0.88rem; line-height: 1.65;
+    }
+    .explanation-card.correct { background: var(--ok-bg); border: 1.5px solid var(--ok); color: var(--ok); }
+    .explanation-card.wrong   { background: var(--ng-bg); border: 1.5px solid var(--ng); color: var(--ng); }
+    .explanation-card .exp-title { font-weight: 800; font-size: 1rem; margin-bottom: 0.4rem; }
+    .explanation-card .exp-body  { color: var(--text); font-weight: 400; margin-top: 0.4rem; }
+    .explanation-card .saving-tip {
+      margin-top: 0.6rem; padding: 0.5rem 0.7rem;
+      background: rgba(0,0,0,0.04); border-radius: 8px;
+      font-size: 0.82rem; color: var(--text-sub);
+    }
+
+    /* 次へ / リザルトボタン */
+    .btn-next {
+      display: none; width: 100%; padding: 0.9rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      margin-top: 1rem;
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-next:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00; }
+
+    /* スコア結果 */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.6rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg); }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.5rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok); }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng); }
+    .result-eval { font-size: 1.05rem; font-weight: 700; line-height: 1.4; margin-top: 0.5rem; margin-bottom: 0.6rem; }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* 履歴テーブル */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 0.8rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* リトライボタン */
+    .btn-retry {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* PDF・戻る */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* スタート画面 */
+    .start-card {
+      max-width: 600px; margin: 0 auto 1rem;
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem 1.2rem;
+      box-shadow: var(--shadow); text-align: center;
+    }
+    .start-card .start-icon { font-size: 3rem; margin-bottom: 0.8rem; }
+    .start-card h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 0.6rem; }
+    .start-card p { font-size: 0.88rem; color: var(--text-sub); line-height: 1.6; margin-bottom: 1.2rem; }
+    .start-card .best-score {
+      font-size: 0.8rem; color: var(--text-sub);
+      background: var(--bg); border-radius: 8px; padding: 0.4rem 0.8rem;
+      margin-bottom: 1rem; display: inline-block;
+    }
+    .btn-start {
+      width: 100%; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⚡ 節電クイズアプリ</h1>
+    <p class="subtitle">家電の電気代・節電効果を学んで、電気代をスマートに削減！</p>
+  </header>
+
+  <!-- スタート画面 -->
+  <div class="start-card" id="startScreen">
+    <div class="start-icon">💡</div>
+    <h2>節電知識を試してみよう</h2>
+    <p>家電の電気代や節電テクニックに関する<br>全15問の4択クイズです。<br>正解すれば節約のヒントも身につきます！</p>
+    <div class="best-score" id="bestDisplay">過去ベスト: —</div>
+    <button class="btn-start" onclick="startQuiz()">クイズをスタート ▶</button>
+  </div>
+
+  <!-- 進捗バー -->
+  <div class="progress-wrap" id="progressWrap" style="display:none">
+    <div class="progress-info">
+      <span id="progressText">問題 1 / 15</span>
+      <span id="scoreText">正解 0問</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <!-- 問題カード -->
+  <div class="card" id="questionCard" style="display:none">
+    <p class="card-title" id="qNum">Q1</p>
+    <p class="question-text" id="questionText"></p>
+    <div class="choices" id="choices"></div>
+    <div class="explanation-card" id="explanation">
+      <p class="exp-title" id="expTitle"></p>
+      <p class="exp-body" id="expBody"></p>
+      <p class="saving-tip" id="savingTip"></p>
+    </div>
+    <button class="btn-next" id="btnNext" onclick="nextQuestion()">次の問題へ →</button>
+  </div>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <p class="result-label">クイズ結果</p>
+    <p class="result-value" id="finalScore">0 / 15</p>
+    <p class="result-eval" id="finalEval"></p>
+    <p class="result-note" id="finalNote"></p>
+  </div>
+
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">スコア履歴</p>
+    <table class="detail-table"><tbody id="historyBody"></tbody></table>
+  </div>
+
+  <button class="btn-retry no-print" id="retryBtn" style="display:none" onclick="retryQuiz()">🔄 もう一度チャレンジ</button>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var QUESTIONS = [
+    {
+      q: '一般家庭（4人家族）の1か月の平均電気代はどれくらい？',
+      choices: ['約3,000円', '約8,000〜10,000円', '約18,000円', '約30,000円'],
+      correct: 1,
+      exp: '正解は「約8,000〜10,000円」です。',
+      body: '総務省の家計調査によると、4人家族の電気代は年間平均で約10万円前後（月あたり8,000〜10,000円）です。電力会社や使い方で大きく変わります。',
+      tip: '💡 節約メモ: 電力会社の料金プランを見直すだけで、年間数千円〜1万円以上の節約になるケースがあります。'
+    },
+    {
+      q: '家庭の電気代の中で、最も電気を消費する家電はどれ？',
+      choices: ['テレビ', 'エアコン', '電子レンジ', '洗濯機'],
+      correct: 1,
+      exp: '正解は「エアコン」です。',
+      body: '家庭の電気消費のうち、冷暖房（エアコン）が約25〜30%を占め最大です。1時間の使用で8畳用なら約3〜6円かかります。冷蔵庫が次いで多く、約15%前後。',
+      tip: '💡 節約メモ: エアコンの設定温度を1℃変えるだけで電気代が約10%変わります。冷房28℃・暖房20℃が目安。'
+    },
+    {
+      q: 'LED電球は白熱電球と比べて、電力消費を約何分の1に削減できる？',
+      choices: ['2分の1', '4分の1', '6分の1', '8分の1'],
+      correct: 3,
+      exp: '正解は「8分の1」です。',
+      body: 'LED電球（8W程度）は白熱電球（60W程度）と比べて電力消費が約8分の1になります。寿命も約40倍長く、取り替え頻度も激減します。',
+      tip: '💡 節約メモ: 白熱電球10個をLEDに替えると年間約3,000〜5,000円の節約になります（1日8時間使用の場合）。'
+    },
+    {
+      q: 'エアコン（冷房）の設定温度を1℃上げると電気代はどう変わる？',
+      choices: ['約1%節約', '約5%節約', '約10%節約', 'ほぼ変わらない'],
+      correct: 2,
+      exp: '正解は「約10%節約」です。',
+      body: '環境省のデータによると、冷房時の設定温度を1℃上げると電気代が約10%節約できます。27℃→28℃にするだけで効果大。暖房も同様に1℃下げると約10%節約。',
+      tip: '💡 節約メモ: 扇風機と併用すると体感温度が2〜3℃下がるため、設定温度を上げやすくなります。'
+    },
+    {
+      q: '冷蔵庫の節電で最も効果が大きいのはどれ？',
+      choices: ['ドアの開閉回数を減らす', '温度設定を「強」から「中」にする', '食材を詰め込む', '周囲に隙間を作らない'],
+      correct: 1,
+      exp: '正解は「温度設定を「強」から「中」にする」です。',
+      body: '冷蔵庫の温度設定を「強」→「中」に変えると年間約10%の節電になります（夏以外）。また、冷蔵庫と壁の間に5cm以上の隙間を確保することも放熱効率を高めます。',
+      tip: '💡 節約メモ: 冷蔵庫に食材を詰めすぎると冷気が循環しにくく、電気代が上がります。7〜8割が最適容量。'
+    },
+    {
+      q: '家庭の電気代のうち「待機電力」は全体の約何%を占める？',
+      choices: ['約1%', '約6%', '約15%', '約30%'],
+      correct: 1,
+      exp: '正解は「約6%」です。',
+      body: '経済産業省のデータによると、待機電力は家庭の電気使用量の約6%を占めます。テレビ・エアコン・電子レンジなど複数の機器の待機電力が積み上がります。',
+      tip: '💡 節約メモ: 節電タップで複数機器をまとめてOFFにすれば、年間1,000〜2,000円程度の節約になります。'
+    },
+    {
+      q: '電気ポットで1日中「保温」し続けるのと、必要な時だけ「都度沸かす」のはどちらが電気代が高い？',
+      choices: ['保温し続ける方が高い', '都度沸かす方が高い', 'ほぼ同じ', '季節によって異なる'],
+      correct: 0,
+      exp: '正解は「保温し続ける方が高い」です。',
+      body: '電気ポットの保温機能は1時間あたり約5〜10W使い続けます。1日保温で約2〜4円かかります（月60〜120円）。必要な分だけ沸かす方が大幅に節約できます。',
+      tip: '💡 節約メモ: 電気ケトルは必要な量だけ短時間で沸かせるため、電気ポットの保温より大幅に節電できます。'
+    },
+    {
+      q: 'エアコンのフィルターを定期的に掃除すると電気代が約何%節約できる？',
+      choices: ['約1%', '約10%', '約25%', '効果なし'],
+      correct: 1,
+      exp: '正解は「約10%」です。',
+      body: 'フィルターが詰まると空気の流れが悪くなり、冷暖房効率が下がります。月1〜2回の清掃で電気代が約10%改善するというデータがあります。',
+      tip: '💡 節約メモ: フィルター掃除は月1〜2回が目安。汚れた状態で使い続けると故障の原因にもなります。'
+    },
+    {
+      q: 'ドライヤーを使う前にタオルでしっかり拭くと電気代が節約できる理由は？',
+      choices: ['風量が減るから', '乾燥時間が短くなるから', '温度が均一になるから', '関係ない'],
+      correct: 1,
+      exp: '正解は「乾燥時間が短くなるから」です。',
+      body: 'タオルで水分を十分に取り除いてからドライヤーを使うと、乾燥時間が30〜50%短縮されます。ドライヤーは1,200W前後と消費電力が大きいため、使用時間の短縮が直接節電になります。',
+      tip: '💡 節約メモ: 毎日2分の短縮で年間約1,000円以上の節約になることも。吸水性の高いタオルを使うとさらに効果的。'
+    },
+    {
+      q: '冬に電気毛布を一晩使うコストはエアコン暖房の一晩と比べてどれくらい？',
+      choices: ['ほぼ同じ', '電気毛布の方が高い', '電気毛布は約4〜8分の1程度の費用', '電気毛布の方が2倍高い'],
+      correct: 2,
+      exp: '正解は「電気毛布は約4〜8分の1程度の費用」です。',
+      body: '電気毛布（約20〜60W）は8時間使っても約5〜15円。一方エアコン（500〜1,000W）の1晩は約40〜80円かかります。局所暖房の電気毛布は全体を暖めるエアコンより大幅に節電になります。',
+      tip: '💡 節約メモ: 寝るときはエアコンより電気毛布・電気敷毛布の方が圧倒的に節電。タイマーで就寝後に切れるよう設定を。'
+    },
+    {
+      q: '炊飯器の「保温」機能を3時間以上使い続けるのと、電子レンジで温め直すのはどちらが節電？',
+      choices: ['保温し続ける方が節電', '電子レンジで温め直す方が節電', 'ほぼ同じ', '炊飯器の機種による'],
+      correct: 1,
+      exp: '正解は「電子レンジで温め直す方が節電」です。',
+      body: '炊飯器の保温は1時間あたり約10〜30W使用します。3時間保温≒約3〜9円。一方、電子レンジで2〜3分温め直すのは約1〜2円です。3時間以上の保温なら、冷まして電子レンジで温め直す方が節電・美味しさ両立。',
+      tip: '💡 節約メモ: 食べ切らないご飯はすぐ冷凍し、食べる前に電子レンジで解凍するのがベスト。'
+    },
+    {
+      q: '洗濯機の「乾燥機能」を使うのと、干して乾かすのは電気代にどれほど差がある？',
+      choices: ['ほぼ変わらない（10円以内）', '乾燥機能は1回100〜200円ほど高い', '乾燥機能の方が50円安い', '電力会社によって違う'],
+      correct: 1,
+      exp: '正解は「乾燥機能は1回100〜200円ほど高い」です。',
+      body: 'ドラム式洗濯乾燥機の乾燥1回は800〜1,200Wh程度の電力を消費し、電気代換算で約25〜40円かかります。縦型の電気乾燥機も同様。干して乾かすのは無料です。',
+      tip: '💡 節約メモ: 乾燥機能は週3回使うと月約300〜600円の差。晴れた日は外干しに切り替えるだけで年間約3,000〜7,000円の節約になります。'
+    },
+    {
+      q: '夏の日差しが入る窓にカーテンを閉めると、冷房の電気代はどう変わる？',
+      choices: ['ほぼ変わらない', '約3〜5%節約', '約10〜15%節約', '逆に上がる'],
+      correct: 2,
+      exp: '正解は「約10〜15%節約」です。',
+      body: '日差しが直接入ると室温が大幅に上昇し、エアコンに余計な負荷がかかります。遮光カーテンや断熱フィルムを使うと、冷房の電気代を10〜15%程度削減できます。',
+      tip: '💡 節約メモ: 遮光カーテン・断熱フィルムの導入は初期費用はかかりますが、夏の電気代削減に大きく貢献します。'
+    },
+    {
+      q: 'テレビを「省エネ（エコ）モード」に設定すると消費電力はどれくらい変わる？',
+      choices: ['ほぼ変わらない（5%未満）', '約20〜30%削減', '約60〜70%削減', '倍になる'],
+      correct: 1,
+      exp: '正解は「約20〜30%削減」です。',
+      body: 'テレビの省エネモードは輝度を抑えることで電力を削減します。最近の液晶テレビは省エネモードで20〜30%の削減効果があります。バックライト輝度を手動で下げるのも効果的です。',
+      tip: '💡 節約メモ: テレビの輝度を半分にするだけで消費電力が20〜30%減ります。部屋の明るさに合わせて調整を。'
+    },
+    {
+      q: '太陽光発電で余った電気を電力会社に売る「売電」制度。現在の売電価格は買電価格と比べてどうなった？',
+      choices: ['売電の方がまだ高い', '買電の方が高くなった', 'まったく同じ', '売電制度は廃止された'],
+      correct: 1,
+      exp: '正解は「買電の方が高くなった」です。',
+      body: '固定価格買取制度（FIT）開始時（2012年）は48円/kWhで売電できましたが、2024年度は16円/kWh程度まで下がっています。一方、買電（使う電力）は30〜35円/kWhのため、売るより自家消費する方がお得になっています。',
+      tip: '💡 節約メモ: 太陽光発電がある家庭は「昼間にたくさん使う」生活パターンに変えると節約効果が最大になります。'
+    }
+  ];
+
+  var currentQ = 0;
+  var score = 0;
+  var answered = false;
+  var shuffled = [];
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function startQuiz() {
+    document.getElementById('startScreen').style.display = 'none';
+    document.getElementById('progressWrap').style.display = 'block';
+    document.getElementById('questionCard').style.display = 'block';
+    shuffled = shuffle(QUESTIONS);
+    currentQ = 0;
+    score = 0;
+    showQuestion();
+  }
+
+  function showQuestion() {
+    answered = false;
+    var q = shuffled[currentQ];
+    var total = shuffled.length;
+
+    document.getElementById('qNum').textContent = 'Q' + (currentQ + 1);
+    document.getElementById('questionText').textContent = q.q;
+    document.getElementById('progressText').textContent = '問題 ' + (currentQ + 1) + ' / ' + total;
+    document.getElementById('scoreText').textContent = '正解 ' + score + '問';
+    document.getElementById('progressFill').style.width = (currentQ / total * 100) + '%';
+
+    var choicesEl = document.getElementById('choices');
+    choicesEl.innerHTML = '';
+    q.choices.forEach(function(c, i) {
+      var btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.textContent = ['ア', 'イ', 'ウ', 'エ'][i] + '）' + c;
+      btn.onclick = function() { if (!answered) answer(i, btn); };
+      choicesEl.appendChild(btn);
+    });
+
+    var exp = document.getElementById('explanation');
+    exp.style.display = 'none';
+    exp.className = 'explanation-card';
+    document.getElementById('btnNext').style.display = 'none';
+  }
+
+  function answer(idx, clickedBtn) {
+    answered = true;
+    var q = shuffled[currentQ];
+    var isCorrect = idx === q.correct;
+    if (isCorrect) score++;
+
+    var btns = document.getElementById('choices').querySelectorAll('.choice-btn');
+    btns.forEach(function(b, i) {
+      b.disabled = true;
+      if (i === q.correct) b.className = 'choice-btn correct';
+      else if (i === idx && !isCorrect) b.className = 'choice-btn wrong';
+    });
+
+    var exp = document.getElementById('explanation');
+    exp.className = 'explanation-card ' + (isCorrect ? 'correct' : 'wrong');
+    exp.style.display = 'block';
+    document.getElementById('expTitle').textContent = isCorrect ? '✅ ' + q.exp : '❌ 不正解… ' + q.exp;
+    document.getElementById('expBody').textContent = q.body;
+    document.getElementById('savingTip').textContent = q.tip;
+
+    var btnNext = document.getElementById('btnNext');
+    btnNext.style.display = 'block';
+    if (currentQ === shuffled.length - 1) {
+      btnNext.textContent = '結果を見る 🏆';
+    } else {
+      btnNext.textContent = '次の問題へ →';
+    }
+  }
+
+  function nextQuestion() {
+    currentQ++;
+    if (currentQ >= shuffled.length) {
+      showResult();
+    } else {
+      showQuestion();
+    }
+  }
+
+  function showResult() {
+    document.getElementById('progressWrap').style.display = 'none';
+    document.getElementById('questionCard').style.display = 'none';
+
+    var total = shuffled.length;
+    var pct = score / total;
+    var level = pct >= 0.8 ? 'ok' : pct >= 0.5 ? 'warn' : 'ng';
+    var eval_ = pct >= 0.8 ? '節電マスター！🏆' : pct >= 0.5 ? '節電中級者 💡' : 'まだまだ伸びしろあり ⚡';
+    var note_ = pct >= 0.8
+      ? 'すばらしい！節電の知識が十分に身についています。毎月の電気代を賢く削減しましょう。'
+      : pct >= 0.5
+      ? '半分以上正解。間違えた問題の解説を復習すると、さらに節電力がアップします！'
+      : '節電知識をこれから身につけましょう。解説を読むだけで毎月の電気代が変わります！';
+
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('finalScore').textContent = score + ' / ' + total;
+    document.getElementById('finalEval').textContent = eval_;
+    document.getElementById('finalNote').textContent = note_;
+
+    // 履歴保存
+    saveScore(score, total);
+    showHistory();
+    document.getElementById('retryBtn').style.display = 'block';
+  }
+
+  function saveScore(s, t) {
+    var key = 'setuden_quiz_scores';
+    var history = JSON.parse(localStorage.getItem(key) || '[]');
+    history.unshift({ score: s, total: t, date: new Date().toLocaleDateString('ja-JP') });
+    if (history.length > 10) history = history.slice(0, 10);
+    localStorage.setItem(key, JSON.stringify(history));
+
+    var bestKey = 'setuden_quiz_best';
+    var best = parseInt(localStorage.getItem(bestKey) || '0', 10);
+    if (s > best) {
+      localStorage.setItem(bestKey, String(s));
+    }
+  }
+
+  function showHistory() {
+    var key = 'setuden_quiz_scores';
+    var history = JSON.parse(localStorage.getItem(key) || '[]');
+    if (history.length === 0) return;
+
+    var hc = document.getElementById('historyCard');
+    var hb = document.getElementById('historyBody');
+    hb.innerHTML = history.slice(0, 5).map(function(h, i) {
+      return '<tr' + (i === 0 ? ' class="hl"' : '') + '>'
+           + '<td>' + (i === 0 ? '今回' : h.date) + '</td>'
+           + '<td>' + h.score + ' / ' + h.total + '問正解</td>'
+           + '</tr>';
+    }).join('');
+    hc.style.display = 'block';
+  }
+
+  function retryQuiz() {
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('historyCard').style.display = 'none';
+    document.getElementById('retryBtn').style.display = 'none';
+    startQuiz();
+  }
+
+  // スタート画面：ベストスコア表示
+  (function() {
+    var best = localStorage.getItem('setuden_quiz_best');
+    if (best !== null) {
+      document.getElementById('bestDisplay').textContent = '過去ベスト: ' + best + ' / 15問正解';
+    }
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

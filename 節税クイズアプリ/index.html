@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>節税クイズアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── スタート画面 ── */
+    #startScreen { text-align: center; }
+    .start-icon { font-size: 3.5rem; margin-bottom: 0.8rem; }
+    .start-title { font-size: 1.3rem; font-weight: 900; margin-bottom: 0.5rem; }
+    .start-desc { font-size: 0.88rem; color: var(--text-sub); line-height: 1.6; margin-bottom: 1.5rem; }
+    .start-stats {
+      display: flex; justify-content: center; gap: 1.5rem;
+      margin-bottom: 1.5rem; padding: 1rem;
+      background: var(--accent-light); border-radius: 10px;
+    }
+    .stat-item { text-align: center; }
+    .stat-num { font-size: 1.5rem; font-weight: 900; color: var(--accent); }
+    .stat-label { font-size: 0.72rem; color: var(--text-sub); }
+
+    /* ── クイズ画面 ── */
+    #quizScreen { display: none; }
+    .progress-bar {
+      max-width: 600px; margin: 0 auto 0.8rem;
+      padding: 0 1rem;
+    }
+    .progress-info {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; color: var(--text-sub);
+      margin-bottom: 0.4rem;
+    }
+    .progress-track {
+      background: var(--border); border-radius: 99px; height: 6px;
+    }
+    .progress-fill {
+      background: var(--accent); border-radius: 99px; height: 6px;
+      transition: width 0.3s;
+    }
+    .question-num {
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.05em; margin-bottom: 0.7rem;
+    }
+    .question-text {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.6;
+      margin-bottom: 1.4rem;
+    }
+    .choices { display: flex; flex-direction: column; gap: 0.7rem; }
+    .choice-btn {
+      width: 100%; padding: 0.9rem 1rem;
+      font-size: 0.95rem; font-weight: 600; text-align: left;
+      background: var(--bg); color: var(--text);
+      border: 2px solid var(--border); border-radius: 10px;
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .choice-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); }
+    .choice-btn.correct { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
+    .choice-btn.wrong   { border-color: var(--ng); background: var(--ng-bg); color: var(--ng); }
+    .choice-btn:disabled { cursor: default; }
+
+    /* ── 解説 ── */
+    .explanation {
+      display: none; margin-top: 1rem;
+      padding: 0.9rem 1rem;
+      border-radius: 10px; font-size: 0.88rem; line-height: 1.6;
+    }
+    .explanation.correct { background: var(--ok-bg); border: 1.5px solid var(--ok); color: #14532d; }
+    .explanation.wrong   { background: var(--ng-bg); border: 1.5px solid var(--ng); color: #7f1d1d; }
+    .explanation .exp-label { font-weight: 800; margin-bottom: 0.35rem; font-size: 0.9rem; }
+
+    /* ── ボタン ── */
+    .btn-main {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-main:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-sub {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.85rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 2px solid var(--border); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-sub:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 結果画面 ── */
+    #resultScreen { display: none; }
+    .score-card {
+      text-align: center;
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: var(--radius); padding: 1.8rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px;
+    }
+    .score-icon { font-size: 3rem; margin-bottom: 0.6rem; }
+    .score-main { font-size: 2.8rem; font-weight: 900; letter-spacing: -0.03em; margin-bottom: 0.3rem; }
+    .score-pct { font-size: 1.2rem; font-weight: 700; color: var(--accent); margin-bottom: 0.5rem; }
+    .score-comment { font-size: 0.88rem; color: var(--text-sub); line-height: 1.5; }
+    .score-card.ok { border-color: var(--ok); background: var(--ok-bg); }
+    .score-card.ok .score-main { color: var(--ok); }
+    .score-card.warn { border-color: var(--warn); background: var(--warn-bg); }
+    .score-card.warn .score-main { color: var(--warn); }
+    .score-card.ng { border-color: var(--ng); background: var(--ng-bg); }
+    .score-card.ng .score-main { color: var(--ng); }
+
+    /* ── 履歴 ── */
+    .history-list { list-style: none; }
+    .history-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.55rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-date { color: var(--text-sub); font-size: 0.78rem; }
+    .history-score { font-weight: 700; color: var(--accent); }
+    .no-history { color: var(--text-sub); font-size: 0.85rem; text-align: center; padding: 0.5rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📋 節税クイズアプリ</h1>
+    <p class="subtitle">確定申告で見落としやすい控除をクイズで学ぼう</p>
+  </header>
+
+  <!-- スタート画面 -->
+  <div id="startScreen">
+    <div class="card">
+      <div class="start-icon">🧾</div>
+      <div class="start-title">節税知識を試そう！</div>
+      <div class="start-desc">
+        確定申告で使える各種控除について、クイズ形式で楽しく学べます。<br>
+        全20問から毎回10問をランダム出題します。
+      </div>
+      <div class="start-stats" id="startStats">
+        <div class="stat-item">
+          <div class="stat-num" id="statTotal">—</div>
+          <div class="stat-label">累計プレイ</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="statBest">—</div>
+          <div class="stat-label">最高スコア</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num" id="statAvg">—</div>
+          <div class="stat-label">平均正解率</div>
+        </div>
+      </div>
+    </div>
+    <button class="btn-main" onclick="startQuiz()">クイズをはじめる</button>
+
+    <!-- 履歴 -->
+    <div class="card" id="historyCard" style="display:none">
+      <p class="card-title">プレイ履歴</p>
+      <ul class="history-list" id="historyList"></ul>
+    </div>
+  </div>
+
+  <!-- クイズ画面 -->
+  <div id="quizScreen">
+    <div class="progress-bar">
+      <div class="progress-info">
+        <span id="progressText">1 / 10</span>
+        <span id="scoreText">正解: 0</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="question-num" id="questionNum">問題 1</p>
+      <p class="question-text" id="questionText"></p>
+      <div class="choices" id="choicesArea"></div>
+      <div class="explanation" id="explanation">
+        <div class="exp-label" id="expLabel"></div>
+        <div id="expText"></div>
+      </div>
+    </div>
+
+    <button class="btn-main" id="nextBtn" style="display:none" onclick="nextQuestion()">次の問題へ →</button>
+    <button class="btn-sub" onclick="confirmQuit()">終了する</button>
+  </div>
+
+  <!-- 結果画面 -->
+  <div id="resultScreen">
+    <div class="score-card" id="scoreCard">
+      <div class="score-icon" id="scoreIcon"></div>
+      <div class="score-main" id="scoreMain"></div>
+      <div class="score-pct" id="scorePct"></div>
+      <div class="score-comment" id="scoreComment"></div>
+    </div>
+
+    <button class="btn-main" onclick="startQuiz()">もう一度挑戦する</button>
+    <button class="btn-sub" onclick="showStart()">トップへ戻る</button>
+
+    <!-- 全問の正誤 -->
+    <div class="card">
+      <p class="card-title">今回の結果詳細</p>
+      <ul class="history-list" id="resultDetail"></ul>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // ── クイズデータ（全20問） ──
+  var ALL_QUESTIONS = [
+    {
+      q: '医療費控除を受けるための医療費の最低金額は（所得が200万円以上の場合）？',
+      choices: ['5万円', '10万円', '20万円', '50万円'],
+      ans: 1,
+      exp: '医療費控除は、年間の医療費が10万円（所得200万円未満の場合は所得の5%）を超えた場合に利用できます。'
+    },
+    {
+      q: '基礎控除の金額はいくらか（2020年以降、合計所得金額2,400万円以下の場合）？',
+      choices: ['38万円', '43万円', '48万円', '63万円'],
+      ans: 2,
+      exp: '2020年の税制改正で基礎控除が38万円から48万円に引き上げられました（合計所得2,400万円超から段階的に減額）。'
+    },
+    {
+      q: '扶養控除の対象となる扶養親族の年齢要件は？',
+      choices: ['14歳以上', '16歳以上', '18歳以上', '20歳以上'],
+      ans: 1,
+      exp: '扶養控除の対象は16歳以上の扶養親族です。16歳未満は児童手当の対象となるため扶養控除の対象外です。'
+    },
+    {
+      q: '配偶者控除（一般）の適用を受けるには、配偶者の合計所得金額がいくら以下でなければならないか？',
+      choices: ['38万円', '48万円', '58万円', '76万円'],
+      ans: 0,
+      exp: '配偶者控除は配偶者の合計所得金額が48万円以下（給与収入のみなら103万円以下）の場合に適用されます。なお控除額を受ける本人の所得が1,000万円超の場合は適用不可です。'
+    },
+    {
+      q: '生命保険料控除（新契約）の所得税の控除上限は？',
+      choices: ['4万円', '5万円', '7万円', '12万円'],
+      ans: 0,
+      exp: '新契約（2012年以降）の生命保険料控除は、一般・介護医療・個人年金の各区分それぞれ4万円、合計最大12万円が控除上限です。'
+    },
+    {
+      q: '地震保険料控除の所得税の控除上限は？',
+      choices: ['2万5千円', '5万円', '7万5千円', '10万円'],
+      ans: 1,
+      exp: '地震保険料控除の上限は所得税で5万円（住民税は2万5千円）です。'
+    },
+    {
+      q: '社会保険料控除の控除額は？',
+      choices: ['実際に支払った金額の50%', '上限5万円', '支払った全額', '年収の10%'],
+      ans: 2,
+      exp: '社会保険料控除は、支払った社会保険料の全額が控除されます。上限はありません。'
+    },
+    {
+      q: 'ふるさと納税の自己負担額（実質負担）はいくらか？',
+      choices: ['0円', '1,000円', '2,000円', '5,000円'],
+      ans: 2,
+      exp: 'ふるさと納税の自己負担額は一律2,000円です。それを超える金額が所得税・住民税から控除されます（上限あり）。'
+    },
+    {
+      q: 'iDeCoの掛金は何控除の対象になるか？',
+      choices: ['生命保険料控除', '社会保険料控除', '小規模企業共済等掛金控除', '雑損控除'],
+      ans: 2,
+      exp: 'iDeCo（個人型確定拠出年金）の掛金は「小規模企業共済等掛金控除」として全額が所得控除の対象になります。'
+    },
+    {
+      q: '住宅ローン控除（住宅借入金等特別控除）は所得税のどの種類の控除か？',
+      choices: ['所得控除', '税額控除', '損失控除', '特定支出控除'],
+      ans: 1,
+      exp: '住宅ローン控除は税額控除です。計算された所得税額から直接差し引かれるため、節税効果が大きいです。'
+    },
+    {
+      q: 'ひとり親控除の控除額はいくらか？',
+      choices: ['27万円', '30万円', '35万円', '48万円'],
+      ans: 2,
+      exp: 'ひとり親控除（2020年創設）は35万円です。寡婦控除（27万円）よりも控除額が大きく設定されています。'
+    },
+    {
+      q: '障害者控除（一般障害者）の控除額はいくらか？',
+      choices: ['27万円', '35万円', '40万円', '75万円'],
+      ans: 0,
+      exp: '一般障害者の控除額は27万円、特別障害者は40万円、同居特別障害者は75万円です。'
+    },
+    {
+      q: '勤労学生控除の対象となる合計所得金額の上限はいくらか？',
+      choices: ['38万円', '48万円', '65万円', '75万円'],
+      ans: 2,
+      exp: '勤労学生控除は合計所得金額が75万円以下（かつ勤労以外の所得が10万円以下）の学生が対象です。控除額は27万円。'
+    },
+    {
+      q: '雑損控除の対象となるのは次のうちどれか？',
+      choices: ['株式の売却損', '盗難による損害', '事業の損失', '投資信託の損失'],
+      ans: 1,
+      exp: '雑損控除の対象は、災害・盗難・横領による損害です。詐欺は対象外（2022年以降は一定の場合OK）で、株式・投資の損失も対象外です。'
+    },
+    {
+      q: '小規模企業共済の掛金の所得控除の種類は？',
+      choices: ['社会保険料控除', '小規模企業共済等掛金控除', '事業所得控除', '雑損控除'],
+      ans: 1,
+      exp: '小規模企業共済の掛金は「小規模企業共済等掛金控除」として全額控除されます。iDeCoも同じ控除区分です。'
+    },
+    {
+      q: '給与所得控除は給与収入いくら以上で上限（195万円）に達するか？',
+      choices: ['360万円', '660万円', '850万円', '1,000万円'],
+      ans: 2,
+      exp: '2020年以降、給与収入850万円以上で給与所得控除は上限195万円（2019年以前は220万円）に達します。'
+    },
+    {
+      q: '確定拠出年金（企業型DC）の拠出限度額を超えた場合、超過額はどうなるか？',
+      choices: ['全額控除対象', '半額のみ控除', '控除対象外で課税対象', '翌年に繰り越し'],
+      ans: 2,
+      exp: '拠出限度額を超えた金額は、小規模企業共済等掛金控除の対象にならず課税所得に含まれます。'
+    },
+    {
+      q: '医療費控除の特例「セルフメディケーション税制」で控除対象となる支出はどれか？',
+      choices: ['市販の風邪薬（スイッチOTC）', '歯の治療費', '人間ドック費用', 'コンタクトレンズ代'],
+      ans: 0,
+      exp: 'セルフメディケーション税制は、処方薬から一般用医薬品（スイッチOTC薬）への切替を対象にした制度です。通常の医療費控除との選択適用になります。'
+    },
+    {
+      q: '特定支出控除で給与所得者が申告できる支出はどれか？',
+      choices: ['日常の食費', '通勤費（実費）', '趣味の書籍代', 'ゴルフ会費'],
+      ans: 1,
+      exp: '特定支出控除の対象は、通勤費・転居費・研修費・資格取得費・図書費（職務に関するもの）・交際費（半額まで）などです。日常の食費や趣味は含まれません。'
+    },
+    {
+      q: '配偶者特別控除を受けられる配偶者の合計所得金額の上限はいくらか？',
+      choices: ['48万円超 76万円未満', '48万円超 100万円未満', '48万円超 123万円以下', '48万円超 150万円未満'],
+      ans: 2,
+      exp: '配偶者特別控除は配偶者の合計所得金額が48万円超〜133万円以下の場合に適用されます（段階的に控除額が減少）。なお控除額を受ける本人の所得が1,000万円超の場合は適用不可です。'
+    }
+  ];
+
+  var QUIZ_COUNT = 10;
+  var currentQuestions = [];
+  var currentIndex = 0;
+  var correctCount = 0;
+  var answered = false;
+  var resultLog = [];
+
+  // ── localStorage ──
+  var LS_KEY = 'setsuze_quiz_history';
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
+    catch(e) { return []; }
+  }
+  function saveHistory(history) {
+    localStorage.setItem(LS_KEY, JSON.stringify(history));
+  }
+
+  // ── スタート画面更新 ──
+  function updateStartStats() {
+    var h = loadHistory();
+    if (h.length === 0) {
+      document.getElementById('statTotal').textContent = '0';
+      document.getElementById('statBest').textContent = '—';
+      document.getElementById('statAvg').textContent = '—';
+      document.getElementById('historyCard').style.display = 'none';
+      return;
+    }
+    document.getElementById('statTotal').textContent = h.length + '回';
+    var bestPct = 0;
+    var sumPct = 0;
+    h.forEach(function(item) {
+      if (item.pct > bestPct) bestPct = item.pct;
+      sumPct += item.pct;
+    });
+    document.getElementById('statBest').textContent = bestPct + '%';
+    document.getElementById('statAvg').textContent = Math.round(sumPct / h.length) + '%';
+
+    var histCard = document.getElementById('historyCard');
+    histCard.style.display = '';
+    var ul = document.getElementById('historyList');
+    var recent = h.slice(-5).reverse();
+    ul.innerHTML = recent.map(function(item) {
+      return '<li class="history-item">'
+        + '<span class="history-date">' + item.date + '</span>'
+        + '<span>' + item.correct + '/' + QUIZ_COUNT + '問正解</span>'
+        + '<span class="history-score">' + item.pct + '%</span>'
+        + '</li>';
+    }).join('');
+  }
+
+  // ── クイズ開始 ──
+  function startQuiz() {
+    // ランダムに10問選ぶ
+    var shuffled = ALL_QUESTIONS.slice().sort(function() { return Math.random() - 0.5; });
+    currentQuestions = shuffled.slice(0, QUIZ_COUNT);
+    currentIndex = 0;
+    correctCount = 0;
+    resultLog = [];
+
+    document.getElementById('startScreen').style.display = 'none';
+    document.getElementById('resultScreen').style.display = 'none';
+    document.getElementById('quizScreen').style.display = '';
+    showQuestion();
+  }
+
+  function showQuestion() {
+    var q = currentQuestions[currentIndex];
+    answered = false;
+
+    // プログレス
+    var num = currentIndex + 1;
+    document.getElementById('progressText').textContent = num + ' / ' + QUIZ_COUNT;
+    document.getElementById('scoreText').textContent = '正解: ' + correctCount;
+    document.getElementById('progressFill').style.width = ((currentIndex / QUIZ_COUNT) * 100) + '%';
+
+    document.getElementById('questionNum').textContent = '問題 ' + num;
+    document.getElementById('questionText').textContent = q.q;
+
+    var ca = document.getElementById('choicesArea');
+    ca.innerHTML = q.choices.map(function(c, i) {
+      return '<button class="choice-btn" onclick="selectAnswer(' + i + ')">' + c + '</button>';
+    }).join('');
+
+    var exp = document.getElementById('explanation');
+    exp.style.display = 'none';
+    document.getElementById('nextBtn').style.display = 'none';
+  }
+
+  function selectAnswer(idx) {
+    if (answered) return;
+    answered = true;
+    var q = currentQuestions[currentIndex];
+    var btns = document.querySelectorAll('.choice-btn');
+    var isCorrect = idx === q.ans;
+
+    btns.forEach(function(btn, i) {
+      btn.disabled = true;
+      if (i === q.ans) btn.classList.add('correct');
+      else if (i === idx) btn.classList.add('wrong');
+    });
+
+    var exp = document.getElementById('explanation');
+    exp.style.display = '';
+    if (isCorrect) {
+      exp.className = 'explanation correct';
+      document.getElementById('expLabel').textContent = '⭕ 正解！';
+      correctCount++;
+    } else {
+      exp.className = 'explanation wrong';
+      document.getElementById('expLabel').textContent = '❌ 不正解…  正解は「' + q.choices[q.ans] + '」';
+    }
+    document.getElementById('expText').textContent = q.exp;
+
+    resultLog.push({ q: q.q, isCorrect: isCorrect, correct: q.choices[q.ans], selected: q.choices[idx] });
+
+    document.getElementById('scoreText').textContent = '正解: ' + correctCount;
+
+    var nextBtn = document.getElementById('nextBtn');
+    if (currentIndex + 1 >= QUIZ_COUNT) {
+      nextBtn.textContent = '結果を見る';
+    } else {
+      nextBtn.textContent = '次の問題へ →';
+    }
+    nextBtn.style.display = '';
+  }
+
+  function nextQuestion() {
+    currentIndex++;
+    if (currentIndex >= QUIZ_COUNT) {
+      showResult();
+    } else {
+      showQuestion();
+    }
+  }
+
+  function showResult() {
+    document.getElementById('quizScreen').style.display = 'none';
+    document.getElementById('resultScreen').style.display = '';
+
+    var pct = Math.round(correctCount / QUIZ_COUNT * 100);
+    var sc = document.getElementById('scoreCard');
+    var icon, comment, level;
+
+    if (pct >= 80) {
+      level = 'ok'; icon = '🏆'; comment = '素晴らしい！節税知識がしっかり身についています。確定申告に自信を持って臨めます！';
+    } else if (pct >= 50) {
+      level = 'warn'; icon = '📚'; comment = '半分以上正解しました。間違えた問題の解説を読んで知識を定着させましょう。';
+    } else {
+      level = 'ng'; icon = '💡'; comment = 'まだ学ぶことがありそうです。控除の種類と条件をもう一度確認してみましょう！';
+    }
+
+    sc.className = 'score-card ' + level;
+    document.getElementById('scoreIcon').textContent = icon;
+    document.getElementById('scoreMain').textContent = correctCount + ' / ' + QUIZ_COUNT;
+    document.getElementById('scorePct').textContent = '正解率 ' + pct + '%';
+    document.getElementById('scoreComment').textContent = comment;
+
+    // 詳細
+    var ul = document.getElementById('resultDetail');
+    ul.innerHTML = resultLog.map(function(r, i) {
+      var mark = r.isCorrect ? '⭕' : '❌';
+      return '<li class="history-item">'
+        + '<span style="flex:1;margin-right:0.5rem;font-size:0.82rem;">' + mark + ' ' + r.q.slice(0, 25) + '…</span>'
+        + '<span style="font-size:0.78rem;color:' + (r.isCorrect ? 'var(--ok)' : 'var(--ng)') + ';">' + r.correct + '</span>'
+        + '</li>';
+    }).join('');
+
+    // 履歴保存
+    var h = loadHistory();
+    var now = new Date();
+    var dateStr = (now.getMonth()+1) + '/' + now.getDate() + ' ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+    h.push({ date: dateStr, correct: correctCount, pct: pct });
+    if (h.length > 20) h = h.slice(-20);
+    saveHistory(h);
+  }
+
+  function showStart() {
+    document.getElementById('quizScreen').style.display = 'none';
+    document.getElementById('resultScreen').style.display = 'none';
+    document.getElementById('startScreen').style.display = '';
+    updateStartStats();
+  }
+
+  function confirmQuit() {
+    if (confirm('クイズを終了してトップへ戻りますか？')) {
+      showStart();
+    }
+  }
+
+  // 初期化
+  updateStartStats();
+  </script>
+</body>
+</html>

@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>社内稟議書ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果エリア ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .result-card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+
+    /* ── 稟議書プレビュー ── */
+    .ringi-preview {
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 1.5rem;
+      font-size: 0.9rem;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text);
+      margin-bottom: 1rem;
+      font-family: "Hiragino Mincho ProN", "Yu Mincho", "MS Mincho", serif;
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: block; width: 100%;
+      padding: 0.7rem; font-size: 0.92rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: 10px;
+      cursor: pointer; transition: background 0.15s;
+      margin-bottom: 0.6rem;
+    }
+    .btn-copy:hover { background: var(--accent); color: #fff; }
+    .copy-ok { font-size: 0.78rem; color: var(--ok); text-align: center; height: 1.2rem; }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; display: block !important; }
+      .app-header { border-bottom: 2px solid #000; }
+      .ringi-preview { border: 1px solid #999; font-size: 10pt; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>社内稟議書ジェネレーター</h1>
+    <p class="subtitle">申請内容・金額・理由を入力するだけで稟議書の文面を自動生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">申請情報を入力</p>
+    <div class="field">
+      <label for="title">件名（申請内容）<span style="color:var(--ng)">*</span></label>
+      <input type="text" id="title" placeholder="例：新型プリンター購入の件">
+    </div>
+    <div class="field">
+      <label for="dept">申請部署</label>
+      <input type="text" id="dept" placeholder="例：総務部">
+    </div>
+    <div class="field">
+      <label for="name">申請者名<span style="color:var(--ng)">*</span></label>
+      <input type="text" id="name" placeholder="例：山田 太郎">
+    </div>
+    <div class="field">
+      <label for="to">宛先（承認者）</label>
+      <input type="text" id="to" placeholder="例：代表取締役 鈴木 一郎">
+    </div>
+    <div class="field">
+      <label for="appdate">申請日</label>
+      <input type="date" id="appdate">
+    </div>
+    <div class="field">
+      <label for="amount">申請金額（円）</label>
+      <input type="number" id="amount" placeholder="例：150000" min="0">
+    </div>
+    <div class="field">
+      <label for="reason">申請理由・背景<span style="color:var(--ng)">*</span></label>
+      <textarea id="reason" placeholder="例：現在使用中のプリンターが老朽化し、印刷コストが増加しているため、新型機器への切り替えを申請します。"></textarea>
+    </div>
+    <div class="field">
+      <label for="effect">期待される効果</label>
+      <textarea id="effect" placeholder="例：月間印刷コストを約30%削減できる見込みです。" style="min-height:60px;"></textarea>
+    </div>
+    <div class="field">
+      <label for="note">備考</label>
+      <textarea id="note" placeholder="例：見積書添付あり" style="min-height:60px;"></textarea>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">稟議書を生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <div class="result-card-title">
+      <span>生成された稟議書</span>
+    </div>
+    <div class="ringi-preview" id="ringiText"></div>
+    <button class="btn-copy no-print" onclick="copyText()">📋 クリップボードにコピー</button>
+    <p class="copy-ok" id="copyOk"></p>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 印刷 / PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // 今日の日付をデフォルトにセット
+  (function() {
+    var today = new Date();
+    var y = today.getFullYear();
+    var m = ('0' + (today.getMonth() + 1)).slice(-2);
+    var d = ('0' + today.getDate()).slice(-2);
+    document.getElementById('appdate').value = y + '-' + m + '-' + d;
+  })();
+
+  // localStorage から復元
+  var FIELDS = ['title', 'dept', 'name', 'to', 'appdate', 'amount', 'reason', 'effect', 'note'];
+  (function() {
+    FIELDS.forEach(function(id) {
+      var val = localStorage.getItem('ringi_' + id);
+      if (val !== null) document.getElementById(id).value = val;
+    });
+  })();
+
+  // 入力値を保存
+  FIELDS.forEach(function(id) {
+    document.getElementById(id).addEventListener('input', function() {
+      localStorage.setItem('ringi_' + id, this.value);
+    });
+  });
+
+  function fmtDate(dateStr) {
+    if (!dateStr) return '';
+    var parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    return parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+  }
+
+  function fmtAmount(val) {
+    var n = parseInt(val, 10);
+    if (isNaN(n)) return '';
+    return n.toLocaleString('ja-JP') + '円';
+  }
+
+  function generate() {
+    var title  = document.getElementById('title').value.trim();
+    var dept   = document.getElementById('dept').value.trim();
+    var name   = document.getElementById('name').value.trim();
+    var to     = document.getElementById('to').value.trim();
+    var date   = document.getElementById('appdate').value;
+    var amount = document.getElementById('amount').value.trim();
+    var reason = document.getElementById('reason').value.trim();
+    var effect = document.getElementById('effect').value.trim();
+    var note   = document.getElementById('note').value.trim();
+
+    if (!title || !name || !reason) {
+      alert('件名・申請者名・申請理由は必須です。');
+      return;
+    }
+
+    var lines = [];
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('　　　　　稟　議　書');
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('');
+    if (to)   lines.push('宛　先：' + to);
+    if (date) lines.push('申請日：' + fmtDate(date));
+    if (dept) lines.push('部　署：' + dept);
+    lines.push('申請者：' + name);
+    lines.push('');
+    lines.push('件　名：' + title);
+    lines.push('');
+    if (amount) {
+      lines.push('申請金額：' + fmtAmount(amount));
+      lines.push('');
+    }
+    lines.push('【申請理由】');
+    lines.push(reason);
+    lines.push('');
+    if (effect) {
+      lines.push('【期待される効果】');
+      lines.push(effect);
+      lines.push('');
+    }
+    if (note) {
+      lines.push('【備考】');
+      lines.push(note);
+      lines.push('');
+    }
+    lines.push('');
+    lines.push('上記の件につきまして、ご検討の上、ご承認いただきますよう');
+    lines.push('よろしくお願い申し上げます。');
+    lines.push('');
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('　承認欄');
+    lines.push('　□ 承認　　□ 条件付き承認　　□ 差し戻し');
+    lines.push('');
+    lines.push('　承認者サイン：＿＿＿＿＿　　承認日：＿＿年＿＿月＿＿日');
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━');
+
+    var text = lines.join('\n');
+
+    document.getElementById('ringiText').textContent = text;
+    var rc = document.getElementById('resultCard');
+    rc.style.display = 'block';
+    document.getElementById('copyOk').textContent = '';
+
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // 生成内容を保存
+    localStorage.setItem('ringi_last', text);
+  }
+
+  function copyText() {
+    var text = document.getElementById('ringiText').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        document.getElementById('copyOk').textContent = 'コピーしました！';
+        setTimeout(function() { document.getElementById('copyOk').textContent = ''; }, 2000);
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      document.getElementById('copyOk').textContent = 'コピーしました！';
+      setTimeout(function() { document.getElementById('copyOk').textContent = ''; }, 2000);
+    }
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

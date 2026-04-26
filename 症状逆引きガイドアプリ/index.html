@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>症状逆引きガイドアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      cursor: pointer;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* カテゴリボタングリッド */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.6rem;
+    }
+    .cat-btn {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.7rem 0.5rem;
+      font-size: 0.88rem; font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cat-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .cat-btn.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .cat-btn .icon { font-size: 1.4rem; display: block; margin-bottom: 0.25rem; }
+
+    /* 症状ボタングリッド */
+    .sym-grid {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+    }
+    .sym-btn {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem; font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sym-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .sym-btn.active { border-color: var(--accent); background: var(--accent); color: #fff; }
+
+    /* 結果エリア */
+    .result-area {
+      display: none;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .result-symptom {
+      text-align: center;
+      padding: 1rem;
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius);
+      margin-bottom: 1rem;
+      font-size: 1.15rem;
+      font-weight: 900;
+      box-shadow: var(--shadow);
+    }
+
+    .result-section {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1rem;
+    }
+    .result-section-title {
+      font-size: 0.82rem; font-weight: 800;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.8rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid var(--border);
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .result-section-title.cause { color: var(--ng); border-color: #fecaca; }
+    .result-section-title.treat { color: var(--ok); border-color: #bbf7d0; }
+    .result-section-title.doctor { color: var(--warn); border-color: #fde68a; }
+
+    .result-list { list-style: none; }
+    .result-list li {
+      padding: 0.55rem 0;
+      font-size: 0.92rem;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.5;
+      display: flex; align-items: flex-start; gap: 0.5rem;
+    }
+    .result-list li:last-child { border-bottom: none; }
+    .result-list li::before {
+      content: '•';
+      color: var(--accent);
+      font-weight: 900;
+      flex-shrink: 0;
+      margin-top: 0.05rem;
+    }
+    .result-list.cause li::before { color: var(--ng); }
+    .result-list.treat li::before { color: var(--ok); }
+
+    .doctor-tag {
+      display: inline-block;
+      background: var(--warn-bg);
+      border: 1px solid #fde68a;
+      border-radius: 6px;
+      padding: 0.3rem 0.7rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--warn);
+      margin: 0.3rem 0.3rem 0 0;
+    }
+    .warn-box {
+      background: var(--ng-bg);
+      border: 1.5px solid #fecaca;
+      border-radius: 10px;
+      padding: 0.8rem 1rem;
+      font-size: 0.82rem;
+      color: var(--ng);
+      line-height: 1.5;
+    }
+    .warn-box strong { font-weight: 800; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .reset-btn {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem;
+      padding: 0.75rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius); cursor: pointer;
+      transition: all 0.15s;
+    }
+    .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>症状逆引きガイド</h1>
+    <p class="subtitle">症状を選ぶだけで原因と対処法をすぐ確認</p>
+  </header>
+
+  <!-- カテゴリ選択 -->
+  <div class="card" id="catCard">
+    <p class="card-title">STEP 1 — カテゴリを選ぶ</p>
+    <div class="cat-grid" id="catGrid"></div>
+  </div>
+
+  <!-- 症状選択 -->
+  <div class="card" id="symCard" style="display:none">
+    <p class="card-title">STEP 2 — 症状を選ぶ</p>
+    <div class="sym-grid" id="symGrid"></div>
+  </div>
+
+  <!-- 結果 -->
+  <div class="result-area" id="resultArea">
+    <div class="result-symptom" id="resultTitle"></div>
+
+    <div class="result-section">
+      <p class="result-section-title cause">❓ 考えられる原因</p>
+      <ul class="result-list cause" id="causeList"></ul>
+    </div>
+
+    <div class="result-section">
+      <p class="result-section-title treat">✅ 対処法・セルフケア</p>
+      <ul class="result-list treat" id="treatList"></ul>
+    </div>
+
+    <div class="result-section">
+      <p class="result-section-title doctor">🏥 受診の目安・診療科</p>
+      <div id="doctorInfo"></div>
+    </div>
+
+    <button class="reset-btn" onclick="resetAll()">← 別の症状を調べる</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // ─────────────────────────────────────────
+  // 症状データベース
+  // ─────────────────────────────────────────
+  var DB = {
+    "頭・神経": {
+      icon: "🧠",
+      symptoms: {
+        "頭痛": {
+          causes: ["緊張型頭痛（肩こり・姿勢不良）", "片頭痛（血管の拡張）", "睡眠不足・疲労の蓄積", "脱水・水分不足", "目の疲れ・眼精疲労", "高血圧・血圧の変動"],
+          treats: ["十分な水分補給（コップ1〜2杯の水）", "暗く静かな場所で横になって休む", "こめかみや首筋を冷やす・温める", "市販の鎮痛剤を用法通りに服用", "肩・首のストレッチを行う", "スマホ・PC作業を中断して目を休める"],
+          doctors: ["内科・神経内科", "脳神経外科（突然の激しい頭痛の場合）"],
+          warn: "突然の激しい頭痛・意識の変化・手足のしびれを伴う場合はすぐに救急受診"
+        },
+        "めまい": {
+          causes: ["良性発作性頭位めまい症（耳石の移動）", "メニエール病（内耳のリンパ液異常）", "起立性低血圧（急な体位変換）", "貧血・低血糖", "過労・ストレス", "高血圧・低血圧"],
+          treats: ["横になってゆっくり休む", "急に立ち上がらずゆっくり体を起こす", "水分・塩分を適度に補給する", "首・肩のコリをほぐすストレッチ", "安静を保ち無理に動かない"],
+          doctors: ["耳鼻咽喉科", "内科・神経内科"],
+          warn: "ろれつが回らない・複視・手足の麻痺を伴う場合は脳卒中の可能性があり即救急受診"
+        },
+        "耳鳴り": {
+          causes: ["騒音性難聴（大きな音への長時間暴露）", "メニエール病", "老年性難聴", "中耳炎・外耳炎", "ストレス・自律神経の乱れ", "薬の副作用"],
+          treats: ["耳を休める（大音量の音楽・イヤホンを控える）", "十分な睡眠と休養をとる", "ストレスを軽減する（運動・入浴）", "カフェイン・アルコールを控える", "首・肩のコリをほぐす"],
+          doctors: ["耳鼻咽喉科"],
+          warn: "突然始まった耳鳴り・急な難聴を伴う場合は早めに耳鼻科を受診"
+        },
+        "記憶力低下": {
+          causes: ["睡眠不足・慢性的な疲労", "ストレス・精神的過負荷", "加齢による認知機能の変化", "栄養不足（ビタミンB群・鉄など）", "甲状腺機能低下症", "うつ病・適応障害"],
+          treats: ["十分な睡眠（7〜8時間）を確保する", "規則正しい生活リズムを維持する", "有酸素運動（ウォーキングなど）を習慣にする", "バランスの良い食事・ビタミンB群の補給", "メモ・手帳を活用して記憶を補助する"],
+          doctors: ["内科・神経内科", "精神科・心療内科（ストレス・うつが疑われる場合）"],
+          warn: "急激な記憶力低下・日常生活に支障が出る場合は早めに受診"
+        }
+      }
+    },
+    "目": {
+      icon: "👁️",
+      symptoms: {
+        "目のかすみ": {
+          causes: ["眼精疲労（長時間のPC・スマホ使用）", "ドライアイ（涙の分泌不足）", "老眼・近視の進行", "白内障（水晶体の混濁）", "血糖値の変動（糖尿病）", "コンタクトレンズの不具合"],
+          treats: ["20分ごとに遠くを見て目を休める", "人工涙液（目薬）で目を潤す", "まばたきを意識的に増やす", "PC・スマホの画面輝度を下げる", "ブルーライトカット眼鏡を使用する"],
+          doctors: ["眼科"],
+          warn: "突然の視力低下・視野の一部が欠ける場合はすぐに眼科を受診"
+        },
+        "充血": {
+          causes: ["目の疲れ・睡眠不足", "アレルギー性結膜炎（花粉・ほこりなど）", "細菌性・ウイルス性結膜炎", "ドライアイ", "コンタクトレンズの長時間装用", "異物混入"],
+          treats: ["目を清潔にする（洗眼薬で洗う）", "コンタクトを外してメガネに替える", "冷たいタオルで目を冷やす", "アレルギー用目薬を使用する", "十分な睡眠をとる"],
+          doctors: ["眼科"],
+          warn: "強い目の痛み・急激な視力低下・大量のめやにが出る場合は眼科へ"
+        },
+        "目の疲れ": {
+          causes: ["長時間のPC・スマホ作業", "まばたきの減少によるドライアイ", "照明の明るさが合っていない", "眼鏡・コンタクトの度数不適合", "睡眠不足・全身疲労"],
+          treats: ["20-20-20ルール（20分毎に20フィート先を20秒見る）", "蒸しタオルで目を温める", "目の周りのマッサージ（優しく）", "十分な睡眠をとる", "ビタミンAを含む食品（にんじん・レバーなど）を摂る"],
+          doctors: ["眼科"],
+          warn: "目の痛みが続く・頭痛を伴う場合は眼科で眼圧・視力チェックを"
+        }
+      }
+    },
+    "鼻・喉": {
+      icon: "😷",
+      symptoms: {
+        "鼻水・鼻詰まり": {
+          causes: ["風邪（ウイルス感染）", "アレルギー性鼻炎（花粉・ほこり・ダニ）", "急性副鼻腔炎", "乾燥した空気", "温度変化（寒暖差アレルギー）"],
+          treats: ["十分な水分補給", "加湿器・蒸気吸入で鼻の通りをよくする", "生理食塩水で鼻うがいをする", "市販の点鼻薬・抗アレルギー薬を使用", "暖かくして安静にする"],
+          doctors: ["耳鼻咽喉科", "内科（風邪・発熱を伴う場合）"],
+          warn: "10日以上続く・黄緑色の鼻水・顔の痛みがある場合は副鼻腔炎の可能性"
+        },
+        "喉の痛み": {
+          causes: ["ウイルス性咽頭炎（風邪）", "細菌性扁桃炎（溶連菌など）", "乾燥・空気の乾燥", "声の使いすぎ", "逆流性食道炎（胃酸の逆流）", "タバコ・アルコールの刺激"],
+          treats: ["水分をこまめに摂る（温かい飲み物がおすすめ）", "うがいを頻繁に行う", "市販の喉スプレー・のど飴を使用", "加湿器で室内を適切な湿度に保つ", "刺激物（辛いもの・アルコール）を避ける", "声を休める"],
+          doctors: ["耳鼻咽喉科", "内科"],
+          warn: "38度以上の発熱・扁桃腺の強い腫れ・飲み込めない場合は細菌感染の可能性があり受診を"
+        },
+        "咳": {
+          causes: ["風邪・気管支炎（ウイルス・細菌感染）", "アレルギー性咳嗽", "気管支喘息", "逆流性食道炎", "後鼻漏（鼻水が喉に落ちる）", "乾燥した空気"],
+          treats: ["十分な水分補給で痰を出しやすくする", "加湿器で部屋の湿度を50〜60%に保つ", "蜂蜜大根（大根を蜂蜜に漬けたもの）を飲む", "市販の鎮咳薬・去痰薬を使用", "刺激物を避けて安静にする"],
+          doctors: ["内科・呼吸器内科", "耳鼻咽喉科（後鼻漏疑いの場合）"],
+          warn: "3週間以上続く咳・血痰・呼吸困難・体重減少を伴う場合は早めに受診"
+        },
+        "声のかすれ": {
+          causes: ["声帯炎（声の使いすぎ・風邪）", "乾燥・空気の乾燥", "胃食道逆流症", "甲状腺疾患", "声帯ポリープ"],
+          treats: ["声を安静にする（できるだけ話さない）", "十分な水分補給", "加湿器で喉を潤す", "喉に優しい温かい飲み物（白湯・ハーブティー）", "アルコール・タバコを控える"],
+          doctors: ["耳鼻咽喉科"],
+          warn: "2週間以上続く場合・急激に悪化する場合は声帯の異常が疑われ受診を"
+        }
+      }
+    },
+    "消化器": {
+      icon: "🫃",
+      symptoms: {
+        "腹痛": {
+          causes: ["過敏性腸症候群（ストレス・食事）", "胃腸炎（ウイルス・細菌感染）", "便秘", "月経痛（女性）", "胃潰瘍・十二指腸潰瘍", "虫垂炎（右下腹部の場合）"],
+          treats: ["温かくして横になって安静にする", "腹部を温める（カイロ・湯たんぽ）", "消化の良い食事（おかゆ・うどんなど）をとる", "水分をゆっくり補給する", "刺激物・脂っこい食べ物を避ける"],
+          doctors: ["内科・消化器内科"],
+          warn: "右下腹部の激しい痛み・嘔吐を伴う激痛・腹部の板状の硬さは緊急受診が必要"
+        },
+        "下痢": {
+          causes: ["ウイルス性胃腸炎（ノロ・ロタなど）", "細菌性食中毒", "過敏性腸症候群", "乳糖不耐症（牛乳・乳製品）", "薬の副作用（抗生物質など）", "ストレス・緊張"],
+          treats: ["こまめな水分補給（経口補水液・スポーツドリンク）", "消化の良い食事（おかゆ・バナナなど）", "お腹を温める", "市販の整腸剤・止瀉薬を使用", "脂肪分・刺激物を避ける"],
+          doctors: ["内科・消化器内科"],
+          warn: "血便・高熱・激しい腹痛・1日10回以上・脱水症状の場合は早めに受診"
+        },
+        "便秘": {
+          causes: ["食物繊維・水分の不足", "運動不足", "ストレス・生活リズムの乱れ", "排便を我慢する習慣", "過敏性腸症候群", "甲状腺機能低下症"],
+          treats: ["水分を1日1.5〜2L摂る", "食物繊維（野菜・果物・豆類）を意識して摂る", "毎日同じ時間にトイレに行く習慣をつける", "軽い運動（ウォーキングなど）をする", "腹部マッサージ（の字にさする）をする", "市販の便秘薬を用法通りに使用"],
+          doctors: ["内科・消化器内科"],
+          warn: "1週間以上続く・急に便が細くなる・血便が出る場合は消化器内科を受診"
+        },
+        "吐き気・嘔吐": {
+          causes: ["ウイルス性胃腸炎", "食中毒", "乗り物酔い", "片頭痛", "過食・暴飲暴食", "薬の副作用", "妊娠（女性）"],
+          treats: ["横になって安静にする（胃への負担を減らす）", "脱水を防ぐため少量ずつ水分補給", "嘔吐後は口をゆすぐ", "食事は落ち着いてから消化の良いものを少量ずつ", "市販の酔い止め薬（乗り物酔いの場合）"],
+          doctors: ["内科・消化器内科"],
+          warn: "嘔吐が続いて水分もとれない・意識の変化・激しい頭痛を伴う場合は救急受診"
+        },
+        "胸やけ": {
+          causes: ["逆流性食道炎（胃酸の逆流）", "胃炎・胃潰瘍", "過食・早食い", "脂っこい食事・アルコール・コーヒーの摂りすぎ", "肥満・腹部への圧迫", "ストレス"],
+          treats: ["食後2〜3時間は横にならない", "少量ずつゆっくり食べる", "脂肪分・アルコール・コーヒー・タバコを控える", "就寝時は上半身を少し高くする", "市販の胃薬（制酸剤）を使用"],
+          doctors: ["内科・消化器内科"],
+          warn: "飲み込みにくい・体重減少・嘔血・黒色の便がある場合は早めに受診"
+        }
+      }
+    },
+    "体全般": {
+      icon: "🌡️",
+      symptoms: {
+        "発熱": {
+          causes: ["ウイルス感染（風邪・インフルエンザ）", "細菌感染（肺炎・尿路感染など）", "免疫疾患・自己免疫疾患", "熱中症・体温調節の乱れ", "ワクチン接種後の反応"],
+          treats: ["安静にして体を休める", "十分な水分補給（経口補水液）", "薄着にして体を冷やす", "38.5度以上なら解熱剤を使用", "脇の下・鼠径部を冷やして体温を下げる"],
+          doctors: ["内科・発熱外来"],
+          warn: "40度以上・3日以上続く・意識障害・呼吸困難・重症に見える場合は即受診"
+        },
+        "だるさ・倦怠感": {
+          causes: ["睡眠不足・慢性的な疲労", "貧血（鉄分不足）", "甲状腺機能低下症", "うつ病・精神的ストレス", "ウイルス感染後の倦怠感", "低血糖・栄養不足"],
+          treats: ["十分な睡眠をとる（7〜8時間）", "バランスの良い食事（鉄分・ビタミンB群を意識）", "適度な有酸素運動（ウォーキングなど）", "ストレスの原因を見直し休息をとる", "入浴でリラックスする"],
+          doctors: ["内科", "心療内科（ストレス・うつが疑われる場合）"],
+          warn: "急激に始まった倦怠感・発熱を伴う・体重減少・2週間以上続く場合は受診を"
+        },
+        "食欲不振": {
+          causes: ["ストレス・精神的疲労", "うつ病・適応障害", "胃炎・胃潰瘍", "発熱・感染症", "薬の副作用", "加齢による消化機能の低下"],
+          treats: ["食べやすい形状・小分けにして少量から試す", "好きな食べ物や香りのよい食事を試す", "食事の環境を整える（会食・温かい食事）", "適度な運動で食欲を増進させる", "ストレスの原因を解消する"],
+          doctors: ["内科", "心療内科（ストレス・うつが疑われる場合）"],
+          warn: "2週間以上続く・急激な体重減少（1ヶ月に5%以上）の場合は早めに受診"
+        }
+      }
+    },
+    "心臓・呼吸": {
+      icon: "❤️",
+      symptoms: {
+        "動悸": {
+          causes: ["不整脈（心房細動・上室性頻脈など）", "自律神経の乱れ・ストレス", "貧血", "カフェイン・アルコールの過剰摂取", "甲状腺機能亢進症", "低血糖"],
+          treats: ["安静にして深呼吸をする", "カフェイン・アルコールを控える", "十分な睡眠とストレス管理", "迷走神経刺激（冷水を飲む・顔を冷水につける）", "貧血の場合は鉄分補給"],
+          doctors: ["循環器内科・内科"],
+          warn: "めまい・失神・胸痛・呼吸困難を伴う場合は救急受診"
+        },
+        "息切れ": {
+          causes: ["運動不足・体力低下", "貧血", "気管支喘息・COPD", "心不全", "肺炎・気管支炎", "過呼吸（ストレス・パニック）"],
+          treats: ["安静にして呼吸を整える", "腹式呼吸・ゆっくりとした深呼吸", "適度な有酸素運動で体力をつける", "貧血の場合は鉄分補給", "喫煙者は禁煙する"],
+          doctors: ["内科・呼吸器内科", "循環器内科（心臓疾患が疑われる場合）"],
+          warn: "安静時の息切れ・夜中に目が覚めるほどの息苦しさは早めに受診が必要"
+        },
+        "胸の痛み": {
+          causes: ["狭心症・心筋梗塞（心臓の血流不足）", "逆流性食道炎（胃酸）", "肋間神経痛", "気胸（肺の虚脱）", "ストレス・パニック障害", "筋肉痛（胸の筋肉）"],
+          treats: ["安静にして体を楽にする", "逆流性食道炎の場合は胃薬を服用", "肋間神経痛の場合は温めてケア", "深呼吸でリラックス（パニックの場合）"],
+          doctors: ["循環器内科・救急（心臓疾患疑いの場合）", "内科・消化器内科"],
+          warn: "締め付けられる胸痛・左腕への放散・冷や汗・息苦しさを伴う場合は即救急受診（心筋梗塞の可能性）"
+        }
+      }
+    },
+    "皮膚": {
+      icon: "🩹",
+      symptoms: {
+        "かゆみ": {
+          causes: ["アトピー性皮膚炎", "アレルギー反応（食物・花粉・接触アレルギー）", "乾燥肌（皮膚バリア機能の低下）", "虫刺され", "じんましん", "内臓疾患（肝臓・腎臓の機能低下）"],
+          treats: ["かかないようにする（搔き傷・感染のリスク）", "冷たいタオルで冷やして鎮める", "保湿クリームでしっかり保湿する", "アレルギーの原因物質を避ける", "市販の抗ヒスタミン薬（かゆみ止め）を使用"],
+          doctors: ["皮膚科", "内科（全身疾患疑いの場合）"],
+          warn: "全身のかゆみ・黄疸（皮膚の黄色化）を伴う場合は内臓疾患の可能性があり受診を"
+        },
+        "発疹・じんましん": {
+          causes: ["アレルギー（食物・薬・接触物質）", "ウイルス感染（風疹・麻疹など）", "ストレス・疲労", "日光・寒冷刺激", "虫刺され", "原因不明（特発性じんましん）"],
+          treats: ["アレルゲン（原因物質）を特定して避ける", "冷たいタオルで冷やす", "市販の抗ヒスタミン薬を服用", "衣類をゆるくして肌への刺激を減らす", "掻かないようにする"],
+          doctors: ["皮膚科", "アレルギー科"],
+          warn: "呼吸困難・顔の腫れ・唇の腫れを伴う場合はアナフィラキシーの可能性があり即救急受診"
+        },
+        "皮膚の乾燥": {
+          causes: ["乾燥した空気・低湿度", "入浴のしすぎ・熱いお湯での洗浄", "加齢（皮脂分泌の低下）", "アトピー性皮膚炎", "甲状腺機能低下症", "ビタミン・脂肪酸の不足"],
+          treats: ["入浴後すぐに保湿クリームを塗る", "シャワー・入浴は短めにぬるめのお湯で", "加湿器で室内湿度を50〜60%に保つ", "保湿剤（ヘパリン類似物質・セラミドなど）を使用", "水分を十分に摂る"],
+          doctors: ["皮膚科"],
+          warn: "ひび割れ・出血・感染が疑われる場合は皮膚科を受診"
+        }
+      }
+    },
+    "関節・筋肉": {
+      icon: "🦴",
+      symptoms: {
+        "腰痛": {
+          causes: ["筋肉疲労・姿勢不良（椎間板への負荷）", "椎間板ヘルニア", "変形性腰椎症（加齢）", "腰椎分離症・すべり症", "ぎっくり腰（急性腰痛）", "内臓疾患（腎結石など）"],
+          treats: ["安静（ただし長期臥床は避ける）", "患部を温める（慢性腰痛）または冷やす（急性）", "軽いストレッチで腰周りの筋肉をほぐす", "コルセットで腰を保護する", "市販の消炎鎮痛剤・湿布を使用", "正しい姿勢を意識する"],
+          doctors: ["整形外科", "内科（内臓疾患疑いの場合）"],
+          warn: "足のしびれ・麻痺・排尿・排便障害を伴う場合は椎間板ヘルニア等の可能性があり早めに受診"
+        },
+        "肩こり": {
+          causes: ["長時間の同一姿勢（デスクワーク・スマホ）", "眼精疲労", "冷え・血行不良", "精神的ストレス・緊張", "運動不足・筋力低下", "まくらの高さが合っていない"],
+          treats: ["首・肩のストレッチを定期的に行う", "温める（蒸しタオル・カイロ・入浴）", "姿勢を意識する（モニターの高さを調整）", "30〜60分に1回は立ち上がって動く", "マッサージ・セルフマッサージを行う", "枕の高さを調整する"],
+          doctors: ["整形外科", "鍼灸院・マッサージ（慢性の場合）"],
+          warn: "上肢のしびれ・力が入らない・頭痛を伴う場合は頸部疾患の可能性があり受診を"
+        },
+        "膝の痛み": {
+          causes: ["変形性膝関節症（加齢・肥満）", "半月板損傷", "靭帯損傷", "膝蓋腱炎（ジャンパー膝）", "鵞足炎", "痛風・関節リウマチ"],
+          treats: ["安静にして膝を休める", "アイシング（急性期・運動後）", "温める（慢性期）", "膝周りの筋力トレーニング（大腿四頭筋強化）", "市販の消炎鎮痛剤・湿布を使用", "適正体重を維持する"],
+          doctors: ["整形外科"],
+          warn: "膝の急激な腫れ・熱感・歩けないほどの痛みは早めに受診"
+        },
+        "関節の腫れ": {
+          causes: ["外傷（捻挫・打撲）", "痛風（尿酸の結晶沈着）", "関節リウマチ（自己免疫疾患）", "変形性関節症", "感染性関節炎", "偽痛風（ピロリン酸カルシウム沈着）"],
+          treats: ["安静・患部を挙上する", "アイシングで冷やす（急性の腫れ）", "弾性包帯で圧迫する（捻挫の場合）", "市販の消炎鎮痛剤を使用"],
+          doctors: ["整形外科", "リウマチ科（リウマチ疑いの場合）", "内科（痛風・代謝疾患疑いの場合）"],
+          warn: "発熱・発赤を伴う急激な腫れは感染性関節炎の可能性があり速やかに受診"
+        }
+      }
+    },
+    "精神・睡眠": {
+      icon: "😴",
+      symptoms: {
+        "不眠": {
+          causes: ["ストレス・不安・精神的緊張", "不規則な生活リズム", "就寝前のスマホ・ブルーライト", "カフェインの過剰摂取", "うつ病・不安障害", "睡眠時無呼吸症候群"],
+          treats: ["毎日同じ時間に起床して生活リズムを整える", "就寝1時間前はスマホ・PCを控える", "寝室を暗く・静かに・適温に保つ", "カフェインを午後から控える", "軽い運動（夕方のウォーキングなど）を習慣にする", "ぬるめのお風呂に入る（就寝1〜2時間前）"],
+          doctors: ["心療内科・精神科", "睡眠外来"],
+          warn: "1ヶ月以上続く不眠・日中の著しい眠気・作業ミスが増えた場合は受診を"
+        },
+        "ストレス・不安": {
+          causes: ["仕事・家庭のプレッシャー", "人間関係の問題", "生活環境の変化", "健康への不安", "経済的な問題", "完璧主義・思い込みのクセ"],
+          treats: ["深呼吸・腹式呼吸を実践する", "運動（有酸素運動がストレス解消に効果的）", "趣味や好きな活動に時間を使う", "信頼できる人に話す・相談する", "瞑想・マインドフルネスを取り入れる", "ストレスの原因を紙に書き出して整理する"],
+          doctors: ["心療内科・精神科", "カウンセリング"],
+          warn: "日常生活に支障が出る不安・パニック発作・2週間以上気分が沈む場合は受診を"
+        },
+        "気分の落ち込み": {
+          causes: ["うつ病・適応障害", "慢性的なストレス・疲労", "季節性感情障害（冬季うつ）", "ホルモンバランスの変化（月経前・産後）", "社会的な孤立・孤独感", "甲状腺機能低下症"],
+          treats: ["十分な睡眠と休養をとる", "太陽光を浴びる（朝の散歩）", "軽い運動を日課にする", "好きなことや楽しいことを意識的に取り入れる", "信頼できる人と話す"],
+          doctors: ["心療内科・精神科"],
+          warn: "2週間以上ほぼ毎日落ち込む・自傷・希死念慮がある場合は速やかに受診"
+        },
+        "疲れが取れない": {
+          causes: ["慢性的な睡眠不足", "鉄欠乏性貧血", "甲状腺機能低下症", "うつ病・慢性疲労症候群", "睡眠時無呼吸症候群", "栄養不足（ビタミンB群・鉄・亜鉛）"],
+          treats: ["睡眠時間・質を改善する（規則正しい起床・就寝）", "鉄分・ビタミンB群を意識して摂取する", "過度な仕事・作業を減らして休息を優先する", "入浴でリラックスして回復を促す", "軽い運動を取り入れて血行を良くする"],
+          doctors: ["内科", "心療内科（精神的要因が疑われる場合）"],
+          warn: "6ヶ月以上続く強い疲労・日常生活に支障が出る場合は受診を"
+        }
+      }
+    }
+  };
+
+  // ─────────────────────────────────────────
+  // UI制御
+  // ─────────────────────────────────────────
+  var selectedCat = null;
+  var selectedSym = null;
+
+  function init() {
+    renderCategories();
+    // localStorageから前回の選択を復元
+    var saved = getSaved();
+    if (saved && DB[saved.cat] && DB[saved.cat].symptoms[saved.sym]) {
+      selectCategory(saved.cat, true);
+      selectSymptom(saved.sym);
+    }
+  }
+
+  function renderCategories() {
+    var grid = document.getElementById('catGrid');
+    grid.innerHTML = '';
+    Object.keys(DB).forEach(function(cat) {
+      var btn = document.createElement('button');
+      btn.className = 'cat-btn' + (selectedCat === cat ? ' active' : '');
+      btn.innerHTML = '<span class="icon">' + DB[cat].icon + '</span>' + cat;
+      btn.onclick = function() { selectCategory(cat); };
+      grid.appendChild(btn);
+    });
+  }
+
+  function selectCategory(cat, silent) {
+    selectedCat = cat;
+    selectedSym = null;
+    renderCategories();
+    renderSymptoms(cat);
+    document.getElementById('symCard').style.display = '';
+    document.getElementById('resultArea').style.display = 'none';
+    if (!silent) {
+      document.getElementById('symCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function renderSymptoms(cat) {
+    var grid = document.getElementById('symGrid');
+    grid.innerHTML = '';
+    Object.keys(DB[cat].symptoms).forEach(function(sym) {
+      var btn = document.createElement('button');
+      btn.className = 'sym-btn' + (selectedSym === sym ? ' active' : '');
+      btn.textContent = sym;
+      btn.onclick = function() { selectSymptom(sym); };
+      grid.appendChild(btn);
+    });
+  }
+
+  function selectSymptom(sym) {
+    selectedSym = sym;
+    renderSymptoms(selectedCat);
+    showResult(selectedCat, sym);
+    saveSelected(selectedCat, sym);
+    setTimeout(function() {
+      document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }
+
+  function showResult(cat, sym) {
+    var data = DB[cat].symptoms[sym];
+    document.getElementById('resultTitle').textContent = DB[cat].icon + ' ' + sym;
+
+    // 原因
+    var causeList = document.getElementById('causeList');
+    causeList.innerHTML = data.causes.map(function(c) {
+      return '<li>' + c + '</li>';
+    }).join('');
+
+    // 対処法
+    var treatList = document.getElementById('treatList');
+    treatList.innerHTML = data.treats.map(function(t) {
+      return '<li>' + t + '</li>';
+    }).join('');
+
+    // 診療科
+    var doctorInfo = document.getElementById('doctorInfo');
+    var html = data.doctors.map(function(d) {
+      return '<span class="doctor-tag">' + d + '</span>';
+    }).join('');
+    if (data.warn) {
+      html += '<div class="warn-box" style="margin-top:0.8rem"><strong>⚠️ 受診タイミング：</strong>' + data.warn + '</div>';
+    }
+    doctorInfo.innerHTML = html;
+
+    document.getElementById('resultArea').style.display = '';
+  }
+
+  function resetAll() {
+    selectedCat = null;
+    selectedSym = null;
+    renderCategories();
+    document.getElementById('symCard').style.display = 'none';
+    document.getElementById('resultArea').style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // localStorage
+  function saveSelected(cat, sym) {
+    try { localStorage.setItem('symptom_guide_last', JSON.stringify({cat: cat, sym: sym})); } catch(e) {}
+  }
+  function getSaved() {
+    try { return JSON.parse(localStorage.getItem('symptom_guide_last')); } catch(e) { return null; }
+  }
+
+  window.onload = init;
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

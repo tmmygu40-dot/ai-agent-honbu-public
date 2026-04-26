@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>社内緊急連絡文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* シナリオ選択 */
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.7rem;
+    }
+    .scenario-btn {
+      padding: 0.9rem 0.7rem;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+      cursor: pointer;
+      text-align: center;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .scenario-btn .icon { font-size: 1.6rem; display: block; margin-bottom: 0.3rem; }
+    .scenario-btn.active {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+    .scenario-btn:hover { border-color: var(--accent); }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-calc:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* 生成結果エリア */
+    .result-area {
+      display: none;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+    }
+    .result-card-custom {
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+    }
+    .result-label { font-size: 0.78rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; margin-bottom: 0.8rem; }
+    .result-text {
+      width: 100%;
+      min-height: 280px;
+      padding: 0.8rem;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      background: var(--bg);
+      color: var(--text);
+      resize: vertical;
+      font-family: inherit;
+      outline: none;
+    }
+    .result-text:focus { border-color: var(--accent); background: #fff; }
+
+    .btn-copy {
+      display: block; width: 100%; margin-top: 0.9rem;
+      padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 800;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.8; }
+    .copy-msg { font-size: 0.78rem; color: var(--ok); text-align: center; margin-top: 0.4rem; min-height: 1.2em; }
+
+    /* 履歴 */
+    .history-list { list-style: none; }
+    .history-item {
+      padding: 0.6rem 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      margin-bottom: 0.5rem;
+      font-size: 0.82rem;
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .history-item:hover { border-color: var(--accent); color: var(--text); }
+    .history-item .h-date { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.2rem; }
+    .history-item .h-scenario { font-weight: 700; color: var(--accent); }
+    .no-history { font-size: 0.82rem; color: var(--text-sub); }
+
+    .btn-clear-history {
+      font-size: 0.75rem; color: var(--text-sub); background: none; border: none; cursor: pointer; margin-top: 0.8rem; text-decoration: underline;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 420px) {
+      .scenario-grid { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+      .scenario-btn { font-size: 0.8rem; padding: 0.7rem 0.4rem; }
+    }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print, .btn-copy { display: none !important; }
+      .card, .result-area { box-shadow: none; }
+      .app-header { border-bottom: 2px solid #000; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>社内緊急連絡文ジェネレーター</h1>
+    <p class="subtitle">シナリオを選んで入力するだけ — 緊急周知メールを即生成</p>
+  </header>
+
+  <!-- シナリオ選択 -->
+  <div class="card">
+    <p class="card-title">STEP 1 — シナリオ選択</p>
+    <div class="scenario-grid">
+      <button class="scenario-btn" onclick="selectScenario('disaster', this)">
+        <span class="icon">🚨</span>災害発生
+      </button>
+      <button class="scenario-btn" onclick="selectScenario('outage', this)">
+        <span class="icon">⚡</span>停電・設備トラブル
+      </button>
+      <button class="scenario-btn" onclick="selectScenario('policy', this)">
+        <span class="icon">📋</span>業務方針変更
+      </button>
+      <button class="scenario-btn" onclick="selectScenario('other', this)">
+        <span class="icon">📢</span>その他緊急周知
+      </button>
+    </div>
+  </div>
+
+  <!-- 入力欄（シナリオ別） -->
+  <div class="card" id="input-card" style="display:none">
+    <p class="card-title">STEP 2 — 詳細入力</p>
+
+    <!-- 共通 -->
+    <div class="field">
+      <label for="sender">送信者名（署名に使用）</label>
+      <input type="text" id="sender" placeholder="例: 総務部 田中">
+    </div>
+    <div class="field">
+      <label for="datetime">発生日時（または通知日時）</label>
+      <input type="text" id="datetime" placeholder="例: 2026年4月25日 14:30">
+    </div>
+
+    <!-- 災害 -->
+    <div id="fields-disaster" style="display:none">
+      <div class="field">
+        <label for="d-type">災害の種類</label>
+        <select id="d-type">
+          <option value="地震">地震</option>
+          <option value="台風・大雨">台風・大雨</option>
+          <option value="火災">火災</option>
+          <option value="その他の災害">その他の災害</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="d-location">発生場所</label>
+        <input type="text" id="d-location" placeholder="例: 本社ビル周辺 / 〇〇地域全体">
+      </div>
+      <div class="field">
+        <label for="d-status">現在の状況</label>
+        <textarea id="d-status" placeholder="例: 震度5強の地震が発生しました。現在建物の安全確認を行っています。"></textarea>
+      </div>
+      <div class="field">
+        <label for="d-action">従業員への対応指示</label>
+        <textarea id="d-action" placeholder="例: 直ちに作業を中断し、所定の避難経路で1階駐車場へ避難してください。"></textarea>
+      </div>
+    </div>
+
+    <!-- 停電・設備トラブル -->
+    <div id="fields-outage" style="display:none">
+      <div class="field">
+        <label for="o-target">影響範囲</label>
+        <input type="text" id="o-target" placeholder="例: 本社3〜5F / サーバー室">
+      </div>
+      <div class="field">
+        <label for="o-status">トラブルの内容</label>
+        <textarea id="o-status" placeholder="例: 空調設備の故障により、3〜5Fの室温が上昇しています。"></textarea>
+      </div>
+      <div class="field">
+        <label for="o-restore">復旧見込み</label>
+        <input type="text" id="o-restore" placeholder="例: 本日18時を予定 / 現在調査中">
+      </div>
+      <div class="field">
+        <label for="o-action">対応指示</label>
+        <textarea id="o-action" placeholder="例: 一時的に2Fの会議室へ移動してください。重要なデータは保存してください。"></textarea>
+      </div>
+    </div>
+
+    <!-- 業務方針変更 -->
+    <div id="fields-policy" style="display:none">
+      <div class="field">
+        <label for="p-subject">変更内容の概要</label>
+        <input type="text" id="p-subject" placeholder="例: テレワーク勤務の取り扱い変更">
+      </div>
+      <div class="field">
+        <label for="p-reason">変更の理由・背景</label>
+        <textarea id="p-reason" placeholder="例: 社内感染症対策強化のため、以下のとおり取り扱いを変更します。"></textarea>
+      </div>
+      <div class="field">
+        <label for="p-detail">変更内容の詳細</label>
+        <textarea id="p-detail" placeholder="例: ・週3日以上のテレワーク実施を推奨&#10;・出社する場合はマスク着用を必須とします"></textarea>
+      </div>
+      <div class="field">
+        <label for="p-start">適用開始日</label>
+        <input type="text" id="p-start" placeholder="例: 2026年5月1日（木）より">
+      </div>
+    </div>
+
+    <!-- その他緊急周知 -->
+    <div id="fields-other" style="display:none">
+      <div class="field">
+        <label for="ot-subject">件名・タイトル</label>
+        <input type="text" id="ot-subject" placeholder="例: 〇〇に関する緊急ご連絡">
+      </div>
+      <div class="field">
+        <label for="ot-body">連絡内容</label>
+        <textarea id="ot-body" placeholder="例: 本日〇〇の事案が発生しました。詳細は以下のとおりです。"></textarea>
+      </div>
+      <div class="field">
+        <label for="ot-action">依頼事項</label>
+        <textarea id="ot-action" placeholder="例: ご不明な点は総務部までお問い合わせください。"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc no-print" id="gen-btn" onclick="generate()" disabled>文面を生成する</button>
+
+  <!-- 生成結果 -->
+  <div class="result-area" id="result-area">
+    <div class="result-card-custom">
+      <p class="result-label">生成された連絡文</p>
+      <textarea class="result-text" id="result-text"></textarea>
+      <button class="btn-copy no-print" onclick="copyText()">クリップボードにコピー</button>
+      <p class="copy-msg" id="copy-msg"></p>
+    </div>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="card" id="history-card">
+    <p class="card-title">履歴（最新5件）</p>
+    <ul class="history-list" id="history-list">
+      <li class="no-history">まだ生成履歴はありません</li>
+    </ul>
+    <button class="btn-clear-history no-print" onclick="clearHistory()">履歴を削除</button>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var selectedScenario = null;
+
+  var scenarioLabels = {
+    disaster: '🚨 災害発生',
+    outage:   '⚡ 停電・設備トラブル',
+    policy:   '📋 業務方針変更',
+    other:    '📢 その他緊急周知'
+  };
+
+  function selectScenario(type, btn) {
+    selectedScenario = type;
+    // ボタン切替
+    document.querySelectorAll('.scenario-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+
+    // 入力カード表示
+    document.getElementById('input-card').style.display = 'block';
+
+    // フィールド表示切替
+    ['disaster', 'outage', 'policy', 'other'].forEach(function(s) {
+      document.getElementById('fields-' + s).style.display = (s === type) ? 'block' : 'none';
+    });
+
+    document.getElementById('gen-btn').disabled = false;
+
+    // 前の結果を隠す
+    document.getElementById('result-area').style.display = 'none';
+  }
+
+  function getVal(id) {
+    var el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+  }
+
+  function generate() {
+    var sender   = getVal('sender')   || '担当部署';
+    var datetime = getVal('datetime') || '本日';
+    var text = '';
+
+    if (selectedScenario === 'disaster') {
+      var dtype    = getVal('d-type')     || '災害';
+      var dloc     = getVal('d-location') || '当該エリア';
+      var dstatus  = getVal('d-status')   || '状況を確認中です。';
+      var daction  = getVal('d-action')   || '上長の指示に従い行動してください。';
+      text = '件名：【緊急】' + dtype + '発生のお知らせ\n\n'
+           + '社員各位\n\n'
+           + datetime + '、' + dloc + 'において' + dtype + 'が発生しました。\n\n'
+           + '【現在の状況】\n' + dstatus + '\n\n'
+           + '【対応指示】\n' + daction + '\n\n'
+           + '安全を最優先に行動し、状況が落ち着き次第、上長へ報告してください。\n'
+           + '引き続き情報が入り次第、随時ご連絡いたします。\n\n'
+           + sender;
+
+    } else if (selectedScenario === 'outage') {
+      var otarget  = getVal('o-target')  || '一部エリア';
+      var ostatus  = getVal('o-status')  || 'トラブルが発生しています。';
+      var orestore = getVal('o-restore') || '現在調査中';
+      var oaction  = getVal('o-action')  || '上長の指示に従い行動してください。';
+      text = '件名：【緊急】設備トラブル発生のお知らせ\n\n'
+           + '社員各位\n\n'
+           + datetime + '、' + otarget + 'において設備トラブルが発生しています。\n\n'
+           + '【状況】\n' + ostatus + '\n\n'
+           + '【復旧見込み】\n' + orestore + '\n\n'
+           + '【対応指示】\n' + oaction + '\n\n'
+           + '復旧次第、改めてご連絡いたします。ご不便をおかけし申し訳ございません。\n\n'
+           + sender;
+
+    } else if (selectedScenario === 'policy') {
+      var psubject = getVal('p-subject') || '業務取り扱い';
+      var preason  = getVal('p-reason')  || '業務上の理由により';
+      var pdetail  = getVal('p-detail')  || '詳細は別途ご案内します。';
+      var pstart   = getVal('p-start')   || '追って連絡する日より';
+      text = '件名：【重要】' + psubject + 'の変更について\n\n'
+           + '社員各位\n\n'
+           + datetime + '付で、以下のとおり取り扱いを変更しますのでお知らせします。\n\n'
+           + '【変更の背景】\n' + preason + '\n\n'
+           + '【変更内容】\n' + pdetail + '\n\n'
+           + '【適用開始】\n' + pstart + '\n\n'
+           + 'ご不明な点は、' + sender + ' までお問い合わせください。\n'
+           + 'ご協力よろしくお願いいたします。\n\n'
+           + sender;
+
+    } else if (selectedScenario === 'other') {
+      var otsubject = getVal('ot-subject') || '緊急のご連絡';
+      var otbody    = getVal('ot-body')    || '詳細については追ってご案内します。';
+      var otaction  = getVal('ot-action')  || 'ご不明な点はご連絡ください。';
+      text = '件名：【緊急】' + otsubject + '\n\n'
+           + '社員各位\n\n'
+           + datetime + '、下記の件について緊急のご連絡をいたします。\n\n'
+           + '【内容】\n' + otbody + '\n\n'
+           + '【依頼事項】\n' + otaction + '\n\n'
+           + 'ご対応のほどよろしくお願いいたします。\n\n'
+           + sender;
+    }
+
+    document.getElementById('result-text').value = text;
+    document.getElementById('result-area').style.display = 'block';
+    document.getElementById('copy-msg').textContent = '';
+    document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // 履歴保存
+    saveHistory(scenarioLabels[selectedScenario], text, datetime);
+  }
+
+  function copyText() {
+    var ta = document.getElementById('result-text');
+    ta.select();
+    ta.setSelectionRange(0, 99999);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(ta.value).then(function() {
+        showCopyMsg('コピーしました！');
+      });
+    } else {
+      document.execCommand('copy');
+      showCopyMsg('コピーしました！');
+    }
+  }
+
+  function showCopyMsg(msg) {
+    var el = document.getElementById('copy-msg');
+    el.textContent = msg;
+    setTimeout(function() { el.textContent = ''; }, 2500);
+  }
+
+  // 履歴
+  var HISTORY_KEY = 'kinren_history';
+
+  function saveHistory(scenario, text, dt) {
+    var list = loadHistory();
+    list.unshift({ scenario: scenario, text: text, dt: dt, saved: new Date().toLocaleString('ja-JP') });
+    if (list.length > 5) list = list.slice(0, 5);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+    renderHistory();
+  }
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+    catch(e) { return []; }
+  }
+
+  function renderHistory() {
+    var list = loadHistory();
+    var ul = document.getElementById('history-list');
+    if (list.length === 0) {
+      ul.innerHTML = '<li class="no-history">まだ生成履歴はありません</li>';
+      return;
+    }
+    ul.innerHTML = list.map(function(item, i) {
+      return '<li class="history-item" onclick="loadHistoryItem(' + i + ')">'
+           + '<div class="h-date">' + item.saved + '</div>'
+           + '<div class="h-scenario">' + item.scenario + '</div>'
+           + '<div style="margin-top:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'
+           + item.text.split('\n')[0] + '</div>'
+           + '</li>';
+    }).join('');
+  }
+
+  function loadHistoryItem(i) {
+    var list = loadHistory();
+    if (!list[i]) return;
+    document.getElementById('result-text').value = list[i].text;
+    document.getElementById('result-area').style.display = 'block';
+    document.getElementById('copy-msg').textContent = '';
+    document.getElementById('result-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function clearHistory() {
+    if (!confirm('履歴を全て削除しますか？')) return;
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory();
+  }
+
+  // 初期化
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
