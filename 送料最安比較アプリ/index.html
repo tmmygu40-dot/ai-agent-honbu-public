@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>送料最安比較</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .size-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .size-field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; text-align: center; }
+    .size-field input {
+      width: 100%; padding: 0.65rem 0.5rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; text-align: center;
+    }
+    .size-field input:focus { border-color: var(--accent); background: #fff; }
+    .cross { display: flex; align-items: flex-end; justify-content: center; padding-bottom: 0.7rem; color: var(--text-sub); font-size: 1.1rem; font-weight: 700; }
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);  background: var(--ok-bg); }
+    .result-card.ng   { border-color: var(--ng);   background: var(--ng-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok .result-value { color: var(--ok); }
+    .result-card.ng .result-value { color: var(--ng); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval { font-size: 1rem; font-weight: 700; margin-top: 0.4rem; margin-bottom: 0.4rem; }
+    .result-card.ok .result-eval { color: var(--ok); }
+    /* 比較テーブル */
+    .cmp-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .cmp-table th {
+      text-align: left; padding: 0.45rem 0.4rem;
+      font-size: 0.72rem; font-weight: 700; color: var(--text-sub);
+      border-bottom: 2px solid var(--border);
+    }
+    .cmp-table th.right { text-align: right; }
+    .cmp-table td { padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .cmp-table tr:last-child td { border-bottom: none; }
+    .cmp-table td.price { text-align: right; font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
+    .cmp-table td.note { font-size: 0.72rem; color: var(--text-sub); }
+    .row-best { background: #f0fdf4; }
+    .row-best td { color: var(--ok); }
+    .row-best td.service-name { font-weight: 800; }
+    .row-best td.price { font-size: 1.1rem; }
+    .row-unavail td { color: #c4bcb4; }
+    .tag-best {
+      display: inline-block; background: var(--ok); color: #fff;
+      font-size: 0.6rem; font-weight: 700; padding: 0.1rem 0.3rem;
+      border-radius: 3px; margin-left: 0.3rem; vertical-align: middle;
+    }
+    .info-box {
+      background: var(--accent-light); border: 1px solid var(--border);
+      border-radius: 8px; padding: 0.75rem 0.9rem;
+      font-size: 0.78rem; color: var(--text-sub); margin-bottom: 0.8rem;
+      line-height: 1.6;
+    }
+    .info-box strong { color: var(--accent); }
+    .disclaimer { font-size: 0.7rem; color: var(--text-sub); text-align: center; margin: 0.5rem 1rem 0; line-height: 1.5; }
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📦 送料最安比較</h1>
+    <p class="subtitle">サイズ・重量を入れるだけで最安の配送方法をすぐ確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">荷物のサイズ・重量</p>
+
+    <p style="font-size:0.82rem;font-weight:600;color:var(--text-sub);margin-bottom:0.5rem;">サイズ（cm）</p>
+    <div class="size-row">
+      <div class="size-field">
+        <label for="s1">縦</label>
+        <input type="number" id="s1" placeholder="30" min="0" step="0.1">
+      </div>
+      <div class="size-field">
+        <label for="s2">横</label>
+        <input type="number" id="s2" placeholder="20" min="0" step="0.1">
+      </div>
+      <div class="size-field">
+        <label for="s3">高さ</label>
+        <input type="number" id="s3" placeholder="10" min="0" step="0.1">
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="weight">重量（g）</label>
+      <input type="number" id="weight" placeholder="例：500（500g）、2000（2kg）" min="0">
+      <p class="hint">グラム単位で入力してください。例：1kgなら1000</p>
+    </div>
+  </div>
+
+  <!-- 比較ボタン -->
+  <button class="btn-calc" onclick="compare()">最安を比較する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">最安の配送方法</p>
+    <p class="result-eval" id="rservice">—</p>
+    <p class="result-value" id="rprice">—</p>
+    <p class="result-note" id="rnote"></p>
+  </div>
+
+  <!-- 比較一覧カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">配送方法 比較一覧</p>
+    <div class="info-box" id="size-info"></div>
+    <table class="cmp-table">
+      <thead>
+        <tr>
+          <th>サービス</th>
+          <th>会社</th>
+          <th class="right">料金</th>
+        </tr>
+      </thead>
+      <tbody id="cmp-body"></tbody>
+    </table>
+    <p class="disclaimer">※料金は同一都道府県内の目安料金（2024年頃）。実際の料金は発送元・お届け先・オプションによって異なります。必ず各社サイトでご確認ください。</p>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // ─── 料金データ（同一都道府県内の目安料金・2024年頃） ───
+
+  // 定形外郵便（規格内）: 最長辺≦34cm, 3辺合計≦60cm, ≦4kg
+  var TEIKEI_NAIBU = [
+    { maxG: 50,   price: 120 },
+    { maxG: 100,  price: 140 },
+    { maxG: 150,  price: 210 },
+    { maxG: 250,  price: 250 },
+    { maxG: 500,  price: 390 },
+    { maxG: 1000, price: 580 },
+    { maxG: 2000, price: 1040 },
+    { maxG: 4000, price: 1350 },
+  ];
+
+  // 定形外郵便（規格外）: 最長辺≦60cm, 3辺合計≦90cm, ≦4kg
+  var TEIKEI_GAIKEI = [
+    { maxG: 50,   price: 200 },
+    { maxG: 100,  price: 220 },
+    { maxG: 150,  price: 300 },
+    { maxG: 250,  price: 350 },
+    { maxG: 500,  price: 510 },
+    { maxG: 1000, price: 710 },
+    { maxG: 2000, price: 1180 },
+    { maxG: 4000, price: 1680 },
+  ];
+
+  // ゆうパック（同一地方）
+  var YUPACK = [
+    { size: 60,  maxG: 25000, price: 870 },
+    { size: 80,  maxG: 25000, price: 1100 },
+    { size: 100, maxG: 25000, price: 1350 },
+    { size: 120, maxG: 25000, price: 1600 },
+    { size: 140, maxG: 25000, price: 1850 },
+    { size: 160, maxG: 25000, price: 2100 },
+    { size: 170, maxG: 25000, price: 2350 },
+  ];
+
+  // ヤマト宅急便（同一地方・持込み前/後）
+  var YAMATO = [
+    { size: 60,  maxG: 2000,  price: 1000 },
+    { size: 80,  maxG: 5000,  price: 1220 },
+    { size: 100, maxG: 10000, price: 1650 },
+    { size: 120, maxG: 15000, price: 1870 },
+    { size: 140, maxG: 20000, price: 2090 },
+    { size: 160, maxG: 25000, price: 2310 },
+    { size: 200, maxG: 30000, price: 3630 },
+  ];
+
+  // 佐川急便（同一地方）
+  var SAGAWA = [
+    { size: 60,  maxG: 2000,  price: 990 },
+    { size: 80,  maxG: 5000,  price: 1210 },
+    { size: 100, maxG: 10000, price: 1540 },
+    { size: 120, maxG: 15000, price: 1980 },
+    { size: 140, maxG: 20000, price: 2310 },
+    { size: 160, maxG: 25000, price: 2860 },
+    { size: 200, maxG: 30000, price: 4510 },
+  ];
+
+  function getTeikeiPrice(table, g) {
+    for (var i = 0; i < table.length; i++) {
+      if (g <= table[i].maxG) return table[i].price;
+    }
+    return null; // 超過
+  }
+
+  function compare() {
+    var s1 = parseFloat(document.getElementById('s1').value);
+    var s2 = parseFloat(document.getElementById('s2').value);
+    var s3 = parseFloat(document.getElementById('s3').value);
+    var wg = parseFloat(document.getElementById('weight').value);
+
+    if (isNaN(s1) || isNaN(s2) || isNaN(s3) || isNaN(wg)) {
+      showErr('縦・横・高さ・重量をすべて入力してください');
+      return;
+    }
+    if (s1 <= 0 || s2 <= 0 || s3 <= 0 || wg <= 0) {
+      showErr('値は0より大きい数を入力してください');
+      return;
+    }
+
+    // ─── 寸法計算 ───
+    var dims = [s1, s2, s3].sort(function(a,b){return b-a;}); // 降順
+    var longest = dims[0];
+    var middle  = dims[1];
+    var shortest = dims[2]; // 厚さ
+    var total   = s1 + s2 + s3;
+
+    // ─── 各サービス判定 ───
+    var rows = [];
+
+    // 1. ゆうパケット: 3辺合計≦60, 最長辺≦34, 厚さ≦3, 重量≦1000g
+    if (total <= 60 && longest <= 34 && shortest <= 3 && wg <= 1000) {
+      rows.push({ name: 'ゆうパケット', carrier: '日本郵便', price: 230, ok: true, note: '' });
+    } else {
+      rows.push({ name: 'ゆうパケット', carrier: '日本郵便', price: null, ok: false,
+        note: cond([total>60,'3辺合計'+total.toFixed(1)+'cm（上限60cm）'],[longest>34,'最長辺'+longest+'cm（上限34cm）'],[shortest>3,'厚さ'+shortest+'cm（上限3cm）'],[wg>1000,'重量'+wg+'g（上限1000g）']) });
+    }
+
+    // 2. レターパックライト: 縦≦34, 横≦24.8, 厚さ≦3, ≦4000g
+    if (longest <= 34 && middle <= 24.8 && shortest <= 3 && wg <= 4000) {
+      rows.push({ name: 'レターパックライト', carrier: '日本郵便', price: 430, ok: true, note: 'ポスト投函' });
+    } else {
+      rows.push({ name: 'レターパックライト', carrier: '日本郵便', price: null, ok: false,
+        note: cond([longest>34,'最長辺'+longest+'cm（上限34cm）'],[middle>24.8,'次辺'+middle.toFixed(1)+'cm（上限24.8cm）'],[shortest>3,'厚さ'+shortest+'cm（上限3cm）'],[wg>4000,'重量'+wg+'g（上限4000g）']) });
+    }
+
+    // 3. レターパックプラス: 縦≦34, 横≦24.8, ≦4000g（厚さ制限なし）
+    if (longest <= 34 && middle <= 24.8 && wg <= 4000) {
+      rows.push({ name: 'レターパックプラス', carrier: '日本郵便', price: 600, ok: true, note: '対面手渡し' });
+    } else {
+      rows.push({ name: 'レターパックプラス', carrier: '日本郵便', price: null, ok: false,
+        note: cond([longest>34,'最長辺'+longest+'cm（上限34cm）'],[middle>24.8,'次辺'+middle.toFixed(1)+'cm（上限24.8cm）'],[wg>4000,'重量'+wg+'g（上限4000g）']) });
+    }
+
+    // 4. 定形外郵便（規格内）: 最長辺≦34, 3辺合計≦60, ≦4000g
+    if (longest <= 34 && total <= 60 && wg <= 4000) {
+      var p = getTeikeiPrice(TEIKEI_NAIBU, wg);
+      rows.push({ name: '定形外郵便（規格内）', carrier: '日本郵便', price: p, ok: true, note: '' });
+    } else {
+      rows.push({ name: '定形外郵便（規格内）', carrier: '日本郵便', price: null, ok: false,
+        note: cond([longest>34,'最長辺'+longest+'cm（上限34cm）'],[total>60,'3辺合計'+total.toFixed(1)+'cm（上限60cm）'],[wg>4000,'重量'+wg+'g（上限4000g）']) });
+    }
+
+    // 5. 定形外郵便（規格外）: 最長辺≦60, 3辺合計≦90, ≦4000g
+    if (longest <= 60 && total <= 90 && wg <= 4000) {
+      var p2 = getTeikeiPrice(TEIKEI_GAIKEI, wg);
+      rows.push({ name: '定形外郵便（規格外）', carrier: '日本郵便', price: p2, ok: true, note: '' });
+    } else {
+      rows.push({ name: '定形外郵便（規格外）', carrier: '日本郵便', price: null, ok: false,
+        note: cond([longest>60,'最長辺'+longest+'cm（上限60cm）'],[total>90,'3辺合計'+total.toFixed(1)+'cm（上限90cm）'],[wg>4000,'重量'+wg+'g（上限4000g）']) });
+    }
+
+    // 6. ゆうパック
+    for (var i = 0; i < YUPACK.length; i++) {
+      var yp = YUPACK[i];
+      if (total <= yp.size && wg <= yp.maxG) {
+        rows.push({ name: 'ゆうパック '+yp.size+'サイズ', carrier: '日本郵便', price: yp.price, ok: true, note: '3辺'+total.toFixed(1)+'cm' });
+        break;
+      }
+    }
+    // 超過チェック
+    var lastYP = YUPACK[YUPACK.length-1];
+    if (total > lastYP.size || wg > lastYP.maxG) {
+      var reason = total > lastYP.size ? '3辺合計'+total.toFixed(1)+'cm（最大'+lastYP.size+'cm）' : '重量'+wg+'g（最大'+lastYP.maxG+'g）';
+      if (!rows.some(function(r){return r.name.indexOf('ゆうパック')===0 && r.ok;})) {
+        rows.push({ name: 'ゆうパック', carrier: '日本郵便', price: null, ok: false, note: reason });
+      }
+    }
+
+    // 7. ヤマト宅急便
+    for (var j = 0; j < YAMATO.length; j++) {
+      var yt = YAMATO[j];
+      if (total <= yt.size && wg <= yt.maxG) {
+        rows.push({ name: 'ヤマト宅急便 '+yt.size+'サイズ', carrier: 'ヤマト運輸', price: yt.price, ok: true, note: '3辺'+total.toFixed(1)+'cm' });
+        break;
+      }
+    }
+    var lastYT = YAMATO[YAMATO.length-1];
+    if (!rows.some(function(r){return r.name.indexOf('ヤマト')===0 && r.ok;})) {
+      var reason2 = total > lastYT.size ? '3辺合計'+total.toFixed(1)+'cm（最大'+lastYT.size+'cm）' : '重量'+wg+'g（最大'+lastYT.maxG+'g）';
+      rows.push({ name: 'ヤマト宅急便', carrier: 'ヤマト運輸', price: null, ok: false, note: reason2 });
+    }
+
+    // 8. 佐川急便
+    for (var k = 0; k < SAGAWA.length; k++) {
+      var sg = SAGAWA[k];
+      if (total <= sg.size && wg <= sg.maxG) {
+        rows.push({ name: '飛脚宅配便 '+sg.size+'サイズ', carrier: '佐川急便', price: sg.price, ok: true, note: '3辺'+total.toFixed(1)+'cm' });
+        break;
+      }
+    }
+    var lastSG = SAGAWA[SAGAWA.length-1];
+    if (!rows.some(function(r){return r.name.indexOf('飛脚')===0 && r.ok;})) {
+      var reason3 = total > lastSG.size ? '3辺合計'+total.toFixed(1)+'cm（最大'+lastSG.size+'cm）' : '重量'+wg+'g（最大'+lastSG.maxG+'g）';
+      rows.push({ name: '飛脚宅配便', carrier: '佐川急便', price: null, ok: false, note: reason3 });
+    }
+
+    // ─── ソート（利用可能→安い順、利用不可は後） ───
+    var available = rows.filter(function(r){return r.ok && r.price !== null;});
+    var unavail   = rows.filter(function(r){return !r.ok || r.price === null;});
+    available.sort(function(a,b){return a.price - b.price;});
+
+    // ─── 表示 ───
+    if (available.length === 0) {
+      showErr('入力したサイズ・重量で利用できる配送方法が見つかりませんでした');
+      return;
+    }
+
+    var best = available[0];
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = '';
+    document.getElementById('rservice').textContent = best.name + '（' + best.carrier + '）';
+    document.getElementById('rprice').textContent = '¥' + best.price.toLocaleString('ja-JP');
+    document.getElementById('rnote').textContent = best.note ? best.note : '利用可能な中で最安の配送方法です';
+
+    // 内訳テーブル
+    var sizeInfo = '3辺合計: ' + total.toFixed(1) + 'cm　最長辺: ' + longest + 'cm　厚さ: ' + shortest + 'cm　重量: ' + fmtW(wg);
+    document.getElementById('size-info').innerHTML = '<strong>入力内容：</strong>' + sizeInfo;
+
+    var tbody = '';
+    var allRows = available.concat(unavail);
+    allRows.forEach(function(r, idx) {
+      var isBest = r.ok && r.price === best.price && r.name === best.name;
+      var cls = isBest ? 'row-best' : (!r.ok ? 'row-unavail' : '');
+      var priceCell = r.ok && r.price !== null
+        ? '¥' + r.price.toLocaleString('ja-JP') + (isBest ? ' <span class="tag-best">最安</span>' : '')
+        : '<span style="font-size:0.78rem">対象外</span>';
+      var noteCell = r.note || '';
+      tbody += '<tr class="' + cls + '">'
+        + '<td class="service-name">' + r.name + '</td>'
+        + '<td style="font-size:0.78rem;color:var(--text-sub)">' + r.carrier + '</td>'
+        + '<td class="price">' + priceCell + '</td>'
+        + '</tr>';
+      if (noteCell) {
+        tbody += '<tr class="' + (r.ok ? '' : 'row-unavail') + '">'
+          + '<td colspan="3" class="note" style="padding-top:0;padding-bottom:0.4rem;">' + noteCell + '</td>'
+          + '</tr>';
+      }
+    });
+    document.getElementById('cmp-body').innerHTML = tbody;
+    document.getElementById('detail').style.display = '';
+
+    // localStorage 保存
+    try {
+      localStorage.setItem('souryo_s1', s1);
+      localStorage.setItem('souryo_s2', s2);
+      localStorage.setItem('souryo_s3', s3);
+      localStorage.setItem('souryo_w', wg);
+    } catch(e) {}
+  }
+
+  function cond() {
+    var msgs = [];
+    for (var i = 0; i < arguments.length; i++) {
+      if (arguments[i][0]) msgs.push(arguments[i][1]);
+    }
+    return msgs.join('、');
+  }
+
+  function fmtW(g) {
+    if (g >= 1000) return (g / 1000).toFixed(2).replace(/\.?0+$/, '') + 'kg';
+    return g + 'g';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rservice').textContent = '';
+    document.getElementById('rprice').textContent = '⚠️ 入力エラー';
+    document.getElementById('rnote').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  // localStorage 復元
+  (function() {
+    try {
+      var s1 = localStorage.getItem('souryo_s1');
+      var s2 = localStorage.getItem('souryo_s2');
+      var s3 = localStorage.getItem('souryo_s3');
+      var w  = localStorage.getItem('souryo_w');
+      if (s1) document.getElementById('s1').value = s1;
+      if (s2) document.getElementById('s2').value = s2;
+      if (s3) document.getElementById('s3').value = s3;
+      if (w)  document.getElementById('weight').value = w;
+    } catch(e) {}
+  })();
+  </script>
+
+</body>
+</html>

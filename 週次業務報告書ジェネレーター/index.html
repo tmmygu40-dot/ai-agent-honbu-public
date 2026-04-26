@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>週次業務報告書ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果エリア ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.show { display: block; }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.8rem; }
+    .result-text {
+      white-space: pre-wrap; font-size: 0.92rem; line-height: 1.8;
+      color: var(--text); background: var(--bg);
+      border: 1.5px solid var(--border); border-radius: 9px;
+      padding: 1rem; font-family: inherit;
+    }
+
+    .btn-copy {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 0.6rem; padding: 0.8rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok-bg); color: var(--ok);
+      border: 1.5px solid var(--ok); border-radius: var(--radius); cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: #d1fae5; }
+    .btn-copy.copied { background: var(--ok); color: #fff; }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 0.6rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .btn-pdf, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>週次業務報告書ジェネレーター</h1>
+    <p class="subtitle">今週の実績・課題・来週の計画を入力するだけで社内向け週報を即生成</p>
+  </header>
+
+  <!-- 基本情報カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="row2">
+      <div class="field">
+        <label for="name">氏名</label>
+        <input type="text" id="name" placeholder="例: 山田 太郎">
+      </div>
+      <div class="field">
+        <label for="dept">部署・チーム</label>
+        <input type="text" id="dept" placeholder="例: 営業部">
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="week-from">週の始め</label>
+        <input type="date" id="week-from">
+      </div>
+      <div class="field">
+        <label for="week-to">週の終わり</label>
+        <input type="date" id="week-to">
+      </div>
+    </div>
+  </div>
+
+  <!-- 実績カード -->
+  <div class="card">
+    <p class="card-title">今週の実績・成果</p>
+    <div class="field">
+      <label for="achievement">実績・成果（箇条書き可）</label>
+      <textarea id="achievement" placeholder="例:&#10;・〇〇プロジェクトの提案書を完成、先方へ提出&#10;・△△クライアントと打ち合わせ実施、次回訪問を調整中&#10;・月次レポートの作成・提出完了"></textarea>
+    </div>
+    <div class="field">
+      <label for="kpi">数値実績（任意）</label>
+      <input type="text" id="kpi" placeholder="例: 新規商談3件、売上目標達成率 95%">
+    </div>
+  </div>
+
+  <!-- 課題カード -->
+  <div class="card">
+    <p class="card-title">課題・懸念事項</p>
+    <div class="field">
+      <label for="issue">課題・問題点</label>
+      <textarea id="issue" placeholder="例:&#10;・〇〇案件の納期が逼迫しており、リソース確保が必要&#10;・顧客からの仕様変更が多く、スケジュール調整が必要"></textarea>
+    </div>
+    <div class="field">
+      <label for="support">サポートが必要なこと（任意）</label>
+      <input type="text" id="support" placeholder="例: △△の件でご判断をいただきたい">
+    </div>
+  </div>
+
+  <!-- 来週の計画カード -->
+  <div class="card">
+    <p class="card-title">来週の計画</p>
+    <div class="field">
+      <label for="plan">来週の予定・アクション</label>
+      <textarea id="plan" placeholder="例:&#10;・〇〇プロジェクト：設計レビュー実施&#10;・△△クライアントへ訪問（水曜予定）&#10;・月次レポート集計開始"></textarea>
+    </div>
+    <div class="field">
+      <label for="goal">来週の目標（任意）</label>
+      <input type="text" id="goal" placeholder="例: 新規アポイント2件獲得">
+    </div>
+  </div>
+
+  <!-- その他カード -->
+  <div class="card">
+    <p class="card-title">所感・その他（任意）</p>
+    <div class="field">
+      <label for="comment">コメント・連絡事項</label>
+      <textarea id="comment" style="min-height:70px" placeholder="例: 来週水曜は外出のため午後は不在になります"></textarea>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">📝 週報を生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成された週報</p>
+    <pre class="result-text" id="result-text"></pre>
+  </div>
+
+  <button class="btn-copy no-print" id="btn-copy" style="display:none" onclick="copyText()">📋 コピーする</button>
+
+  <button class="btn-pdf no-print" id="btn-pdf" style="display:none" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var KEYS = ['name','dept','week-from','week-to','achievement','kpi','issue','support','plan','goal','comment'];
+
+  // localStorage 復元
+  window.addEventListener('load', function() {
+    // 今週の月〜金をデフォルト設定
+    var today = new Date();
+    var dow = today.getDay(); // 0=日,1=月...6=土
+    var mon = new Date(today);
+    mon.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+    var fri = new Date(mon);
+    fri.setDate(mon.getDate() + 4);
+    function fmt(d) { return d.toISOString().slice(0,10); }
+    document.getElementById('week-from').value = fmt(mon);
+    document.getElementById('week-to').value   = fmt(fri);
+
+    KEYS.forEach(function(k) {
+      var saved = localStorage.getItem('weekly_report_' + k);
+      if (saved !== null && saved !== '') {
+        document.getElementById(k).value = saved;
+      }
+    });
+  });
+
+  // 入力値を随時保存
+  KEYS.forEach(function(k) {
+    document.getElementById(k).addEventListener('input', function() {
+      localStorage.setItem('weekly_report_' + k, this.value);
+    });
+  });
+
+  function generate() {
+    var name   = document.getElementById('name').value.trim();
+    var dept   = document.getElementById('dept').value.trim();
+    var from   = document.getElementById('week-from').value;
+    var to     = document.getElementById('week-to').value;
+    var ach    = document.getElementById('achievement').value.trim();
+    var kpi    = document.getElementById('kpi').value.trim();
+    var issue  = document.getElementById('issue').value.trim();
+    var sup    = document.getElementById('support').value.trim();
+    var plan   = document.getElementById('plan').value.trim();
+    var goal   = document.getElementById('goal').value.trim();
+    var cmt    = document.getElementById('comment').value.trim();
+
+    if (!ach && !issue && !plan) {
+      alert('実績・課題・来週の計画のいずれかを入力してください');
+      return;
+    }
+
+    // 日付整形
+    function fmtDate(s) {
+      if (!s) return '';
+      var d = new Date(s);
+      return (d.getMonth()+1) + '月' + d.getDate() + '日（' + '日月火水木金土'.charAt(d.getDay()) + '）';
+    }
+    var period = from && to ? fmtDate(from) + ' 〜 ' + fmtDate(to) : '';
+
+    var lines = [];
+
+    // ヘッダー
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('　週次業務報告');
+    if (period) lines.push('　対象期間：' + period);
+    if (dept)   lines.push('　部署：' + dept);
+    if (name)   lines.push('　報告者：' + name);
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('');
+
+    // 実績
+    lines.push('■ 今週の実績・成果');
+    if (ach) {
+      ach.split('\n').forEach(function(l) { lines.push(l); });
+    } else {
+      lines.push('特記事項なし');
+    }
+    if (kpi) lines.push('【数値実績】' + kpi);
+    lines.push('');
+
+    // 課題
+    lines.push('■ 課題・懸念事項');
+    if (issue) {
+      issue.split('\n').forEach(function(l) { lines.push(l); });
+    } else {
+      lines.push('特記事項なし');
+    }
+    if (sup) lines.push('【サポート依頼】' + sup);
+    lines.push('');
+
+    // 来週の計画
+    lines.push('■ 来週の計画');
+    if (plan) {
+      plan.split('\n').forEach(function(l) { lines.push(l); });
+    } else {
+      lines.push('未定');
+    }
+    if (goal) lines.push('【目標】' + goal);
+    lines.push('');
+
+    // その他
+    if (cmt) {
+      lines.push('■ 所感・その他');
+      cmt.split('\n').forEach(function(l) { lines.push(l); });
+      lines.push('');
+    }
+
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    var text = lines.join('\n');
+    document.getElementById('result-text').textContent = text;
+    document.getElementById('result').className = 'result-card show';
+    document.getElementById('btn-copy').style.display = 'block';
+    document.getElementById('btn-pdf').style.display = 'block';
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copyText() {
+    var text = document.getElementById('result-text').textContent;
+    var btn  = document.getElementById('btn-copy');
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        btn.textContent = '✅ コピーしました';
+        btn.classList.add('copied');
+        setTimeout(function() {
+          btn.textContent = '📋 コピーする';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = '✅ コピーしました';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = '📋 コピーする';
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>農業コスト採算チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #4a8c3f;
+      --accent-dark: #336b29;
+      --accent-light: #f0f9ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 640px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力グリッド ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .input-grid .full { grid-column: 1 / -1; }
+    .field { }
+    .field label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .field input {
+      width: 100%; padding: 0.65rem 0.8rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .unit { font-size: 0.7rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    /* ── ボタン ── */
+    .btn-add {
+      display: block; width: 100%; max-width: 640px;
+      margin: 0 auto 1.2rem; padding: 0.9rem;
+      font-size: 1rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 var(--accent-dark), 0 6px 16px rgba(74,140,63,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 var(--accent-dark), 0 2px 8px rgba(74,140,63,0.2);
+    }
+    .btn-small {
+      padding: 0.35rem 0.8rem; font-size: 0.78rem; font-weight: 700;
+      border: 1.5px solid; border-radius: 7px; cursor: pointer; background: transparent;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-del { color: var(--ng); border-color: var(--ng); }
+    .btn-del:hover { background: var(--ng-bg); }
+    .btn-clear { color: var(--text-sub); border-color: var(--border); }
+    .btn-clear:hover { background: var(--bg); }
+
+    /* ── サマリーカード ── */
+    .summary-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+    .summary-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.7rem 0.6rem;
+      text-align: center;
+    }
+    .summary-item .s-label { font-size: 0.68rem; color: var(--text-sub); font-weight: 600; }
+    .summary-item .s-val { font-size: 1.15rem; font-weight: 900; margin-top: 0.2rem; }
+    .s-total .s-val { color: var(--text); }
+    .s-profit .s-val { color: var(--ok); }
+    .s-loss .s-val { color: var(--ng); }
+
+    /* ── 作物リスト ── */
+    .crop-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .crop-card {
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .crop-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+    }
+    .crop-head.ok   { background: var(--ok-bg);   border-bottom: 2px solid var(--ok);   }
+    .crop-head.warn { background: var(--warn-bg);  border-bottom: 2px solid var(--warn); }
+    .crop-head.ng   { background: var(--ng-bg);    border-bottom: 2px solid var(--ng);   }
+    .crop-name { font-size: 1rem; font-weight: 800; }
+    .crop-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 0.25rem 0.7rem;
+      border-radius: 20px;
+    }
+    .ok .crop-badge   { background: var(--ok);   color: #fff; }
+    .warn .crop-badge { background: var(--warn); color: #fff; }
+    .ng .crop-badge   { background: var(--ng);   color: #fff; }
+    .crop-profit {
+      font-size: 1.15rem; font-weight: 900;
+    }
+    .ok .crop-profit   { color: var(--ok);   }
+    .warn .crop-profit { color: var(--warn); }
+    .ng .crop-profit   { color: var(--ng);   }
+    .crop-body { padding: 0.8rem 1rem; background: var(--card); }
+    .crop-detail-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .crop-detail-table tr { border-bottom: 1px solid var(--border); }
+    .crop-detail-table tr:last-child { border-bottom: none; }
+    .crop-detail-table td { padding: 0.42rem 0.2rem; color: var(--text-sub); }
+    .crop-detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .crop-detail-table .hl td { font-weight: 700; }
+    .crop-detail-table .hl td:last-child { font-size: 1rem; }
+    .crop-foot { display: flex; justify-content: flex-end; padding: 0.6rem 1rem; background: #fafafa; border-top: 1px solid var(--border); }
+
+    /* ── 空状態 ── */
+    .empty-state {
+      text-align: center; padding: 2.5rem 1rem; color: var(--text-sub);
+    }
+    .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .empty-state p { font-size: 0.88rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 420px) {
+      .input-grid { grid-template-columns: 1fr; }
+      .input-grid .full { grid-column: 1; }
+      .summary-bar { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>農業コスト採算チェッカー</h1>
+    <p class="subtitle">肥料・農薬・燃料の値上がりで作物ごとの採算割れを即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">作物を追加（10a = 1反 あたりの金額）</p>
+    <div class="input-grid">
+      <div class="field full">
+        <label for="cropName">作物名</label>
+        <input type="text" id="cropName" placeholder="例：コシヒカリ、キャベツ">
+      </div>
+      <div class="field">
+        <label for="fertCost">肥料費</label>
+        <input type="number" id="fertCost" placeholder="20000" min="0">
+        <p class="unit">円/10a</p>
+      </div>
+      <div class="field">
+        <label for="pestCost">農薬費</label>
+        <input type="number" id="pestCost" placeholder="10000" min="0">
+        <p class="unit">円/10a</p>
+      </div>
+      <div class="field">
+        <label for="fuelCost">燃料費</label>
+        <input type="number" id="fuelCost" placeholder="8000" min="0">
+        <p class="unit">円/10a</p>
+      </div>
+      <div class="field">
+        <label for="otherCost">その他コスト</label>
+        <input type="number" id="otherCost" placeholder="0" min="0">
+        <p class="unit">円/10a（農機・労賃等）</p>
+      </div>
+      <div class="field full">
+        <label for="revenue">販売収入（見込み）</label>
+        <input type="number" id="revenue" placeholder="80000" min="0">
+        <p class="unit">円/10a</p>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-add" onclick="addCrop()">+ 採算チェック</button>
+
+  <!-- サマリー（2件以上のとき表示） -->
+  <div id="summaryWrap" style="display:none; max-width:640px; margin:0 auto 1rem;">
+    <div class="summary-bar">
+      <div class="summary-item s-total">
+        <div class="s-label">登録作物数</div>
+        <div class="s-val" id="sumCount">0</div>
+      </div>
+      <div class="summary-item">
+        <div class="s-label">黒字作物</div>
+        <div class="s-val" style="color:var(--ok)" id="sumOk">0</div>
+      </div>
+      <div class="summary-item">
+        <div class="s-label">赤字作物</div>
+        <div class="s-val" style="color:var(--ng)" id="sumNg">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 作物リスト -->
+  <div class="card" style="padding: 1.25rem 1rem;">
+    <p class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>採算一覧</span>
+      <button class="btn-small btn-clear" onclick="clearAll()">全削除</button>
+    </p>
+    <div class="crop-list" id="cropList">
+      <div class="empty-state">
+        <div class="icon">🌾</div>
+        <p>作物を追加すると採算が表示されます</p>
+      </div>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <script>
+    var LS_KEY = 'nogyoCostChecker_v1';
+    var crops = [];
+
+    function load() {
+      try {
+        var saved = localStorage.getItem(LS_KEY);
+        if (saved) crops = JSON.parse(saved);
+      } catch(e) { crops = []; }
+      render();
+    }
+
+    function save() {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(crops)); } catch(e) {}
+    }
+
+    function addCrop() {
+      var name = document.getElementById('cropName').value.trim();
+      var fert = parseFloat(document.getElementById('fertCost').value) || 0;
+      var pest = parseFloat(document.getElementById('pestCost').value) || 0;
+      var fuel = parseFloat(document.getElementById('fuelCost').value) || 0;
+      var other= parseFloat(document.getElementById('otherCost').value) || 0;
+      var rev  = parseFloat(document.getElementById('revenue').value);
+
+      if (!name) { alert('作物名を入力してください'); return; }
+      if (isNaN(rev) || rev < 0) { alert('販売収入を入力してください'); return; }
+
+      crops.push({
+        id: Date.now(),
+        name: name,
+        fert: fert,
+        pest: pest,
+        fuel: fuel,
+        other: other,
+        rev: rev
+      });
+      save();
+      render();
+
+      // 入力クリア
+      ['cropName','fertCost','pestCost','fuelCost','otherCost','revenue'].forEach(function(id){
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('cropName').focus();
+    }
+
+    function deleteCrop(id) {
+      crops = crops.filter(function(c){ return c.c_id !== id; });
+      save();
+      render();
+    }
+
+    function clearAll() {
+      if (crops.length === 0) return;
+      if (!confirm('全作物データを削除してよいですか？')) return;
+      crops = [];
+      save();
+      render();
+    }
+
+    function getLevel(profit) {
+      if (profit < 0) return 'ng';
+      var totalCost = profit; // dummy
+      return profit >= 0 ? 'ok' : 'ng';
+    }
+
+    function render() {
+      var list = document.getElementById('cropList');
+      var summaryWrap = document.getElementById('summaryWrap');
+
+      if (crops.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="icon">🌾</div><p>作物を追加すると採算が表示されます</p></div>';
+        summaryWrap.style.display = 'none';
+        return;
+      }
+
+      var okCount = 0, ngCount = 0;
+      var html = '';
+
+      crops.forEach(function(c) {
+        var totalCost = c.fert + c.pest + c.fuel + c.other;
+        var profit = c.rev - totalCost;
+        var margin = totalCost > 0 ? (profit / c.rev * 100) : 0;
+        var level = profit < 0 ? 'ng' : (margin < 15 ? 'warn' : 'ok');
+        var badge = level === 'ok' ? '黒字' : (level === 'warn' ? '注意' : '採算割れ');
+
+        if (level === 'ok') okCount++;
+        if (level === 'ng') ngCount++;
+
+        html += '<div class="crop-card">';
+        html += '<div class="crop-head ' + level + '">';
+        html += '<div>';
+        html += '<div class="crop-name">' + esc(c.name) + '</div>';
+        html += '<div class="crop-profit">' + (profit >= 0 ? '+' : '') + fmt(profit) + ' 円</div>';
+        html += '</div>';
+        html += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem;">';
+        html += '<span class="crop-badge">' + badge + '</span>';
+        html += '</div>';
+        html += '</div>';
+        html += '<div class="crop-body">';
+        html += '<table class="crop-detail-table"><tbody>';
+        html += row('肥料費', fmt(c.fert) + ' 円');
+        html += row('農薬費', fmt(c.pest) + ' 円');
+        html += row('燃料費', fmt(c.fuel) + ' 円');
+        if (c.other > 0) html += row('その他', fmt(c.other) + ' 円');
+        html += rowHl('総コスト', fmt(totalCost) + ' 円', level === 'ng' ? 'color:var(--ng)' : '');
+        html += row('販売収入', fmt(c.rev) + ' 円');
+        html += rowHl('損益', (profit >= 0 ? '+' : '') + fmt(profit) + ' 円', level === 'ng' ? 'color:var(--ng)' : (level === 'warn' ? 'color:var(--warn)' : 'color:var(--ok)'));
+        if (c.rev > 0) {
+          html += row('利益率', margin.toFixed(1) + ' %');
+        }
+        html += '</tbody></table>';
+        html += '</div>';
+        html += '<div class="crop-foot">';
+        html += '<button class="btn-small btn-del" onclick="delCrop(' + c.id + ')">削除</button>';
+        html += '</div>';
+        html += '</div>';
+      });
+
+      list.innerHTML = html;
+
+      // サマリー更新
+      document.getElementById('sumCount').textContent = crops.length;
+      document.getElementById('sumOk').textContent = okCount;
+      document.getElementById('sumNg').textContent = ngCount;
+      summaryWrap.style.display = crops.length >= 2 ? '' : 'none';
+    }
+
+    function delCrop(id) {
+      crops = crops.filter(function(c){ return c.id !== id; });
+      save();
+      render();
+    }
+
+    function row(label, val) {
+      return '<tr><td>' + label + '</td><td>' + val + '</td></tr>';
+    }
+    function rowHl(label, val, style) {
+      return '<tr class="hl"><td>' + label + '</td><td style="' + (style||'') + '">' + val + '</td></tr>';
+    }
+    function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    load();
+  </script>
+</body>
+</html>

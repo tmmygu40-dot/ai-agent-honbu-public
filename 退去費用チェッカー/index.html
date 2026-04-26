@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>退去費用チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 2列グリッド */
+    .field-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; }
+    .field-row .field { margin-bottom: 0; flex: 1; }
+
+    /* 費用項目リスト */
+    .item-list { display: flex; flex-direction: column; gap: 0.8rem; }
+    .item-row {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      background: var(--bg);
+    }
+    .item-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
+    .item-header input[type="checkbox"] {
+      width: 18px; height: 18px; flex-shrink: 0; cursor: pointer;
+      accent-color: var(--accent);
+    }
+    .item-name { font-size: 0.92rem; font-weight: 700; cursor: pointer; }
+    .item-guide { font-size: 0.72rem; color: var(--text-sub); line-height: 1.4; margin-bottom: 0.5rem; }
+    .item-amount { display: none; }
+    .item-amount input {
+      width: 100%; padding: 0.6rem 0.8rem;
+      font-size: 0.95rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: #fff; color: var(--text);
+      outline: none;
+    }
+    .item-amount input:focus { border-color: var(--accent); }
+    .item-row.active { border-color: var(--accent); background: var(--accent-light); }
+    .item-row.active .item-amount { display: block; }
+
+    /* 自由記入行 */
+    .custom-item {
+      border: 1.5px dashed var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      background: var(--bg);
+    }
+    .custom-item .custom-row { display: flex; gap: 0.5rem; }
+    .custom-item input[type="text"] {
+      flex: 1.5; padding: 0.6rem 0.8rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: #fff; color: var(--text); outline: none;
+    }
+    .custom-item input[type="number"] {
+      flex: 1; padding: 0.6rem 0.8rem;
+      font-size: 0.9rem; border: 1.5px solid var(--border);
+      border-radius: 8px; background: #fff; color: var(--text); outline: none;
+    }
+    .custom-item input:focus { border-color: var(--accent); }
+    .custom-item .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.35rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.2; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* 項目別判定テーブル */
+    .judge-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    .judge-table thead th {
+      text-align: left; font-size: 0.72rem; color: var(--text-sub);
+      padding: 0 0.3rem 0.5rem; border-bottom: 1.5px solid var(--border);
+    }
+    .judge-table tbody tr { border-bottom: 1px solid var(--border); }
+    .judge-table tbody tr:last-child { border-bottom: none; }
+    .judge-table td { padding: 0.6rem 0.3rem; vertical-align: top; }
+    .judge-table .col-name { font-weight: 600; color: var(--text); }
+    .judge-table .col-amount { text-align: right; font-weight: 600; white-space: nowrap; }
+    .judge-table .col-badge { text-align: center; white-space: nowrap; }
+    .badge {
+      display: inline-block; font-size: 0.72rem; font-weight: 700;
+      padding: 0.18rem 0.55rem; border-radius: 99px;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   border: 1px solid var(--ok);   }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng);   border: 1px solid var(--ng);   }
+    .judge-comment { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.2rem; line-height: 1.35; }
+
+    .advice-box {
+      background: #f0f9ff; border: 1.5px solid #bae6fd;
+      border-radius: 10px; padding: 0.85rem 1rem;
+      margin-top: 1rem; font-size: 0.82rem; color: #0369a1; line-height: 1.55;
+    }
+    .advice-box strong { display: block; margin-bottom: 0.4rem; font-size: 0.85rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🏠 退去費用チェッカー</h1>
+    <p class="subtitle">請求内容を入力して過請求の有無を即チェック（国交省ガイドライン基準）</p>
+  </header>
+
+  <!-- 基本情報 -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="years">入居年数</label>
+        <input type="number" id="years" min="0" step="0.5" placeholder="例: 3">
+      </div>
+      <div class="field">
+        <label for="sqm">部屋の広さ（㎡）</label>
+        <input type="number" id="sqm" min="10" step="1" placeholder="例: 40">
+      </div>
+    </div>
+    <div class="field">
+      <label for="bldg">建物種別</label>
+      <select id="bldg">
+        <option value="mansion">マンション・アパート（RC・鉄骨）</option>
+        <option value="wood">木造アパート</option>
+        <option value="house">一軒家</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 請求項目 -->
+  <div class="card">
+    <p class="card-title">請求されている費用項目</p>
+    <p style="font-size:0.8rem;color:var(--text-sub);margin-bottom:1rem;">請求された項目にチェックを入れて金額を入力してください</p>
+    <div class="item-list" id="itemList"></div>
+
+    <div class="custom-item" style="margin-top:0.8rem;">
+      <p style="font-size:0.8rem;font-weight:700;margin-bottom:0.5rem;">その他の請求項目</p>
+      <div id="customItems"></div>
+      <button onclick="addCustomItem()" style="font-size:0.8rem;color:var(--accent);background:none;border:none;cursor:pointer;padding:0.4rem 0;font-weight:600;">＋ 項目を追加</button>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="check()">過請求チェックをする</button>
+
+  <!-- 総合判定 -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 項目別判定 -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">項目別判定</p>
+    <table class="judge-table">
+      <thead>
+        <tr>
+          <th>項目</th>
+          <th style="text-align:right;">請求額</th>
+          <th style="text-align:center;">判定</th>
+        </tr>
+      </thead>
+      <tbody id="detailBody"></tbody>
+    </table>
+    <div id="adviceBox" class="advice-box" style="display:none"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  // ── 項目定義 ──────────────────────────────────
+  var ITEMS = [
+    {
+      id: 'cleaning',
+      name: 'ハウスクリーニング',
+      guide: '通常は借主負担（契約書に明記されている場合）。相場は部屋の広さで変わります。',
+      judge: function(amount, sqm, years) {
+        var max;
+        if (sqm <= 25) max = 30000;
+        else if (sqm <= 35) max = 40000;
+        else if (sqm <= 50) max = 55000;
+        else if (sqm <= 70) max = 70000;
+        else max = 90000;
+        var note = '相場目安: ' + fmt(max * 0.5) + '〜' + fmt(max) + '円（' + sqm + '㎡）';
+        if (amount <= max) return { level:'ok', comment: '概ね相場内です。' + note };
+        if (amount <= max * 1.4) return { level:'warn', comment: '相場を若干超えています。領収書や明細の確認を。' + note };
+        return { level:'ng', comment: '相場を大幅に超えています。明細の確認と交渉を検討してください。' + note };
+      }
+    },
+    {
+      id: 'wallpaper',
+      name: '壁紙（クロス）張り替え',
+      guide: '故意・過失による損傷のみ借主負担。経年劣化は貸主負担。6年以上居住で残存価値ほぼゼロ（国交省ガイドライン）。',
+      judge: function(amount, sqm, years) {
+        // 6年で残存価値ゼロ
+        var residual = Math.max(0, (6 - years) / 6);
+        // 壁面積 ≈ sqm * 2.5、単価900円/㎡
+        var fullCost = sqm * 2.5 * 900;
+        var maxTenant = fullCost * residual;
+        if (years >= 6) {
+          if (amount <= 10000) return { level:'ok', comment: '6年以上居住のため残存価値はほぼゼロです。少額は許容範囲です。' };
+          return { level:'ng', comment: '6年以上居住の場合、壁紙の残存価値はほぼゼロのため借主負担は原則不要です（経年劣化）。交渉を検討してください。' };
+        }
+        var note = '入居' + years + '年の場合の借主負担上限目安: 約' + fmt(maxTenant) + '円';
+        if (amount <= maxTenant) return { level:'ok', comment: '負担額は目安の範囲内です。' + note };
+        if (amount <= maxTenant * 1.3) return { level:'warn', comment: '目安をやや超えています。内訳明細を確認してください。' + note };
+        return { level:'ng', comment: '目安を大幅に超えています。全室張り替えの請求なら交渉を検討。' + note };
+      }
+    },
+    {
+      id: 'key',
+      name: '鍵交換',
+      guide: '国交省ガイドラインでは鍵交換は貸主負担が原則。ただし契約書に「借主負担」と明記されていれば有効。',
+      judge: function(amount, sqm, years) {
+        var note = '相場: 10,000〜25,000円';
+        if (amount <= 25000) return { level:'warn', comment: '金額は相場内ですが、本来は貸主負担が原則です。契約書を確認してください。' + note };
+        return { level:'ng', comment: '高額です。鍵交換は貸主負担が原則であり、金額も相場超えの可能性があります。' + note };
+      }
+    },
+    {
+      id: 'flooring',
+      name: 'フローリング補修・張り替え',
+      guide: '借主の故意・過失による傷・汚れのみ借主負担。フローリング全体の張り替えは経年劣化として貸主負担が原則。',
+      judge: function(amount, sqm, years) {
+        // スポット補修の相場: 1箇所15,000〜30,000円
+        // 全面張り替え: sqm * 8,000円程度（貸主負担が原則）
+        var spotMax = 30000;
+        var fullCost = sqm * 8000;
+        var note = 'スポット補修相場: 15,000〜30,000円 / 全面張り替え相場: 約' + fmt(fullCost) + '円（通常は貸主負担）';
+        if (amount <= spotMax) return { level:'ok', comment: 'スポット補修の相場内です。実際の損傷箇所を確認してください。' + note };
+        if (amount <= fullCost * 0.5) return { level:'warn', comment: '複数箇所または広範囲の補修と考えられます。内訳明細を確認してください。' + note };
+        return { level:'ng', comment: '高額です。全面張り替えは通常貸主負担です。根拠の説明を求めてください。' + note };
+      }
+    },
+    {
+      id: 'tatami',
+      name: '畳・表替え',
+      guide: '畳の変色・消耗は経年劣化として貸主負担。借主の過失による汚損のみ借主負担。相場: 1枚3,000〜5,000円。',
+      judge: function(amount, sqm, years) {
+        // 一般的な和室6畳として計算
+        var mats6 = 6 * 4500; // 27,000
+        var note = '6畳の場合の相場目安: 18,000〜30,000円';
+        if (amount <= mats6) return { level:'ok', comment: '6畳分以内の相場内です。ただし経年劣化分は貸主負担であることを確認してください。' + note };
+        if (amount <= mats6 * 1.5) return { level:'warn', comment: '複数部屋または相場を超えています。内訳を確認してください。' + note };
+        return { level:'ng', comment: '高額です。畳の枚数・単価の内訳を確認し、経年劣化分の差し引きを求めてください。' + note };
+      }
+    },
+    {
+      id: 'aircon',
+      name: 'エアコン洗浄・修理',
+      guide: '備え付けエアコンの通常の使用・管理による汚れは貸主負担が原則。エアコンフィルター未清掃など著しい汚損のみ借主負担。',
+      judge: function(amount, sqm, years) {
+        var note = '洗浄の相場: 8,000〜15,000円/台';
+        if (amount <= 15000) return { level:'warn', comment: '金額は相場内ですが、通常は貸主負担です。契約書と過失の有無を確認してください。' + note };
+        return { level:'ng', comment: '高額です。備え付けエアコンの修理・交換は原則貸主負担です。根拠を確認してください。' + note };
+      }
+    },
+    {
+      id: 'painting',
+      name: '壁の塗装',
+      guide: '通常の生活による壁面の汚れは経年劣化として貸主負担。タバコのヤニ汚染や著しい汚損は借主負担となる場合があります。',
+      judge: function(amount, sqm, years) {
+        var residual = Math.max(0, (6 - years) / 6);
+        var fullCost = sqm * 1500; // 塗装単価
+        var maxTenant = fullCost * residual;
+        var note = '借主負担上限目安: 約' + fmt(maxTenant) + '円（入居' + years + '年）';
+        if (amount <= maxTenant) return { level:'ok', comment: '目安の範囲内です。' + note };
+        if (amount <= maxTenant * 1.3) return { level:'warn', comment: '目安をやや超えています。過失の根拠と内訳を確認してください。' + note };
+        return { level:'ng', comment: '目安を大幅に超えています。過失の根拠の説明を求めてください。' + note };
+      }
+    },
+  ];
+
+  // ── DOM生成 ──────────────────────────────────
+  function buildItems() {
+    var list = document.getElementById('itemList');
+    ITEMS.forEach(function(item) {
+      var row = document.createElement('div');
+      row.className = 'item-row';
+      row.id = 'row-' + item.id;
+      row.innerHTML =
+        '<div class="item-header">' +
+          '<input type="checkbox" id="chk-' + item.id + '" onchange="toggleItem(\'' + item.id + '\')">' +
+          '<label class="item-name" for="chk-' + item.id + '">' + item.name + '</label>' +
+        '</div>' +
+        '<p class="item-guide">' + item.guide + '</p>' +
+        '<div class="item-amount" id="amt-' + item.id + '">' +
+          '<input type="number" id="val-' + item.id + '" placeholder="請求金額を入力（円）" min="0">' +
+        '</div>';
+      list.appendChild(row);
+    });
+  }
+
+  function toggleItem(id) {
+    var row = document.getElementById('row-' + id);
+    var chk = document.getElementById('chk-' + id);
+    if (chk.checked) {
+      row.classList.add('active');
+    } else {
+      row.classList.remove('active');
+    }
+  }
+
+  var customCount = 0;
+  function addCustomItem() {
+    customCount++;
+    var wrap = document.getElementById('customItems');
+    var div = document.createElement('div');
+    div.className = 'custom-row';
+    div.style.marginBottom = '0.5rem';
+    div.innerHTML =
+      '<input type="text" id="cname-' + customCount + '" placeholder="項目名（例: 消毒費）">' +
+      '<input type="number" id="cval-' + customCount + '" placeholder="金額（円）" min="0">';
+    wrap.appendChild(div);
+  }
+
+  // ── 判定ロジック ──────────────────────────────────
+  function check() {
+    var years = parseFloat(document.getElementById('years').value);
+    var sqm   = parseFloat(document.getElementById('sqm').value);
+    if (isNaN(years) || isNaN(sqm) || years < 0 || sqm <= 0) {
+      alert('入居年数と部屋の広さを入力してください');
+      return;
+    }
+
+    var rows = [];
+    var totalAmount = 0;
+    var hasWarn = false, hasNg = false;
+    var ngItems = [];
+
+    // 固定項目チェック
+    ITEMS.forEach(function(item) {
+      var chk = document.getElementById('chk-' + item.id);
+      if (!chk.checked) return;
+      var amount = parseFloat(document.getElementById('val-' + item.id).value);
+      if (isNaN(amount) || amount <= 0) return;
+      totalAmount += amount;
+      var r = item.judge(amount, sqm, years);
+      rows.push({ name: item.name, amount: amount, level: r.level, comment: r.comment });
+      if (r.level === 'warn') hasWarn = true;
+      if (r.level === 'ng') { hasNg = true; ngItems.push(item.name); }
+    });
+
+    // カスタム項目
+    for (var i = 1; i <= customCount; i++) {
+      var nameEl = document.getElementById('cname-' + i);
+      var valEl  = document.getElementById('cval-' + i);
+      if (!nameEl || !valEl) continue;
+      var name   = nameEl.value.trim();
+      var amount = parseFloat(valEl.value);
+      if (!name || isNaN(amount) || amount <= 0) continue;
+      totalAmount += amount;
+      // カスタム項目は要確認として扱う
+      rows.push({ name: name, amount: amount, level: 'warn', comment: '内容の根拠と適正額を必ず確認してください。' });
+      hasWarn = true;
+    }
+
+    if (rows.length === 0) {
+      alert('請求された項目にチェックを入れて金額を入力してください');
+      return;
+    }
+
+    // 総合判定
+    var level, val, note;
+    if (hasNg) {
+      level = 'ng';
+      val   = '過請求の疑いあり';
+      note  = '複数の項目で過請求の可能性があります。\n貸主に内訳明細と根拠の提示を求め、国交省ガイドラインを基に交渉してください。\n合計請求額: ' + fmt(totalAmount) + '円';
+    } else if (hasWarn) {
+      level = 'warn';
+      val   = '要確認';
+      note  = '一部の項目に確認が必要な請求があります。\n内訳明細を確認し、過失の根拠を求めてください。\n合計請求額: ' + fmt(totalAmount) + '円';
+    } else {
+      level = 'ok';
+      val   = '概ね適正';
+      note  = '請求内容は概ね相場・ガイドラインの範囲内です。\nただし個別の状況によって異なる場合があります。\n合計請求額: ' + fmt(totalAmount) + '円';
+    }
+
+    // 表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+
+    // 項目別テーブル
+    var tbody = document.getElementById('detailBody');
+    tbody.innerHTML = rows.map(function(r) {
+      var badgeClass = r.level === 'ok' ? 'badge-ok' : r.level === 'warn' ? 'badge-warn' : 'badge-ng';
+      var badgeText  = r.level === 'ok' ? '適正' : r.level === 'warn' ? '要確認' : '過請求疑い';
+      return '<tr>' +
+        '<td class="col-name">' + esc(r.name) +
+          '<div class="judge-comment">' + esc(r.comment) + '</div>' +
+        '</td>' +
+        '<td class="col-amount">' + fmt(r.amount) + '円</td>' +
+        '<td class="col-badge"><span class="badge ' + badgeClass + '">' + badgeText + '</span></td>' +
+        '</tr>';
+    }).join('');
+
+    document.getElementById('detail').style.display = '';
+
+    // アドバイス
+    var advice = document.getElementById('adviceBox');
+    var adviceText = '';
+    if (hasNg || hasWarn) {
+      adviceText = '<strong>💡 交渉のポイント</strong>' +
+        '① 「国土交通省 原状回復をめぐるトラブルとガイドライン」を根拠に提示する<br>' +
+        '② 費用の内訳明細（㎡単価・数量・作業内容）の開示を求める<br>' +
+        '③ 入居時と退去時の写真・チェックシートと照合する<br>' +
+        '④ 納得できない場合は国民生活センターや消費生活センターに相談する';
+    }
+    if (adviceText) {
+      advice.innerHTML = adviceText;
+      advice.style.display = '';
+    } else {
+      advice.style.display = 'none';
+    }
+
+    // localStorage保存
+    try {
+      localStorage.setItem('taikyo_checker', JSON.stringify({
+        years: years, sqm: sqm, total: totalAmount, level: level,
+        rows: rows.map(function(r){ return { name: r.name, amount: r.amount, level: r.level }; })
+      }));
+    } catch(e) {}
+
+    window.scrollTo({ top: document.getElementById('result').offsetTop - 20, behavior: 'smooth' });
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── 初期化 ──────────────────────────────────
+  buildItems();
+
+  // 保存データ復元
+  try {
+    var saved = JSON.parse(localStorage.getItem('taikyo_checker') || 'null');
+    if (saved) {
+      if (saved.years) document.getElementById('years').value = saved.years;
+      if (saved.sqm) document.getElementById('sqm').value = saved.sqm;
+    }
+  } catch(e) {}
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

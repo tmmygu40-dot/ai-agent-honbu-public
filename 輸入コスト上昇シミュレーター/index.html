@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>輸入コスト上昇シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-sub {
+      display: inline-block; padding: 0.6rem 1.2rem;
+      font-size: 0.88rem; font-weight: 700;
+      background: #fff; color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 9px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-sub:hover { background: var(--accent-light); }
+    .btn-danger {
+      display: inline-block; padding: 0.4rem 0.8rem;
+      font-size: 0.78rem; font-weight: 600;
+      background: #fff; color: var(--ng);
+      border: 1px solid var(--ng); border-radius: 7px; cursor: pointer;
+    }
+    .btn-danger:hover { background: var(--ng-bg); }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 品目一覧テーブル ── */
+    .item-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .item-table th {
+      background: var(--accent-light); color: var(--accent);
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+      padding: 0.5rem 0.4rem; text-align: left; border-bottom: 2px solid var(--border);
+    }
+    .item-table th:last-child { text-align: center; }
+    .item-table td { padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .item-table td:nth-child(n+2) { text-align: right; }
+    .item-table td:last-child { text-align: center; }
+    .item-table .up { color: var(--ng); font-weight: 700; }
+    .item-table .down { color: var(--ok); font-weight: 700; }
+    .empty-msg { text-align: center; color: var(--text-sub); font-size: 0.85rem; padding: 1.5rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── ユーティリティ ── */
+    .mt1 { margin-top: 1rem; }
+    .tac { text-align: center; }
+    .flex-btns { display: flex; gap: 0.6rem; justify-content: center; margin-top: 1rem; }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>輸入コスト上昇シミュレーター</h1>
+    <p class="subtitle">円安・関税変動で仕入れ単価がいくら上がるかを即試算</p>
+  </header>
+
+  <!-- 共通条件カード -->
+  <div class="card">
+    <p class="card-title">為替・関税条件</p>
+    <div class="row2">
+      <div class="field">
+        <label for="rateBefore">変動前 為替レート</label>
+        <input type="number" id="rateBefore" placeholder="例: 130" step="0.01">
+        <p class="hint">1外貨 = ○円</p>
+      </div>
+      <div class="field">
+        <label for="rateAfter">変動後 為替レート</label>
+        <input type="number" id="rateAfter" placeholder="例: 155" step="0.01">
+        <p class="hint">1外貨 = ○円</p>
+      </div>
+    </div>
+    <div class="row2 mt1">
+      <div class="field">
+        <label for="tariffBefore">変動前 関税率（%）</label>
+        <input type="number" id="tariffBefore" placeholder="例: 5" step="0.1">
+      </div>
+      <div class="field">
+        <label for="tariffAfter">変動後 関税率（%）</label>
+        <input type="number" id="tariffAfter" placeholder="例: 25" step="0.1">
+      </div>
+    </div>
+  </div>
+
+  <!-- 品目入力カード -->
+  <div class="card">
+    <p class="card-title">品目を追加</p>
+    <div class="field">
+      <label for="itemName">品目名</label>
+      <input type="text" id="itemName" placeholder="例: 電子部品A">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="unitPrice">仕入れ単価（外貨）</label>
+        <input type="number" id="unitPrice" placeholder="例: 10.00" step="0.01">
+      </div>
+      <div class="field">
+        <label for="quantity">数量</label>
+        <input type="number" id="quantity" placeholder="例: 1000" step="1" value="1">
+      </div>
+    </div>
+    <div class="tac mt1">
+      <button class="btn-sub" onclick="addItem()">＋ 品目を追加</button>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calcAll()">コスト比較を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総コスト上昇額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">総合内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 品目一覧カード -->
+  <div class="card" id="listCard">
+    <p class="card-title">品目一覧</p>
+    <div id="listBody">
+      <p class="empty-msg">品目がまだ追加されていません</p>
+    </div>
+    <div class="flex-btns" id="listBtns" style="display:none">
+      <button class="btn-danger" onclick="clearAll()">全品目を削除</button>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var items = [];
+  var LS_KEY = 'importCostSimItems';
+  var LS_COND_KEY = 'importCostSimCond';
+
+  function init() {
+    loadData();
+    renderList();
+    loadConditions();
+  }
+
+  function loadData() {
+    try { items = JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch(e) { items = []; }
+  }
+  function saveData() {
+    localStorage.setItem(LS_KEY, JSON.stringify(items));
+  }
+  function saveConditions() {
+    var cond = {
+      rateBefore: document.getElementById('rateBefore').value,
+      rateAfter: document.getElementById('rateAfter').value,
+      tariffBefore: document.getElementById('tariffBefore').value,
+      tariffAfter: document.getElementById('tariffAfter').value
+    };
+    localStorage.setItem(LS_COND_KEY, JSON.stringify(cond));
+  }
+  function loadConditions() {
+    try {
+      var cond = JSON.parse(localStorage.getItem(LS_COND_KEY));
+      if (!cond) return;
+      if (cond.rateBefore) document.getElementById('rateBefore').value = cond.rateBefore;
+      if (cond.rateAfter) document.getElementById('rateAfter').value = cond.rateAfter;
+      if (cond.tariffBefore) document.getElementById('tariffBefore').value = cond.tariffBefore;
+      if (cond.tariffAfter) document.getElementById('tariffAfter').value = cond.tariffAfter;
+    } catch(e) {}
+  }
+
+  function addItem() {
+    var name = document.getElementById('itemName').value.trim();
+    var price = parseFloat(document.getElementById('unitPrice').value);
+    var qty = parseInt(document.getElementById('quantity').value) || 1;
+    if (!name) { alert('品目名を入力してください'); return; }
+    if (isNaN(price) || price <= 0) { alert('仕入れ単価を正しく入力してください'); return; }
+    items.push({ name: name, price: price, qty: qty });
+    saveData();
+    renderList();
+    document.getElementById('itemName').value = '';
+    document.getElementById('unitPrice').value = '';
+    document.getElementById('quantity').value = '1';
+  }
+
+  function removeItem(i) {
+    items.splice(i, 1);
+    saveData();
+    renderList();
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function clearAll() {
+    if (!confirm('全品目を削除しますか？')) return;
+    items = [];
+    saveData();
+    renderList();
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function renderList() {
+    var el = document.getElementById('listBody');
+    var btns = document.getElementById('listBtns');
+    if (items.length === 0) {
+      el.innerHTML = '<p class="empty-msg">品目がまだ追加されていません</p>';
+      btns.style.display = 'none';
+      return;
+    }
+    var html = '<table class="item-table"><thead><tr>'
+      + '<th>品目名</th><th>単価</th><th>数量</th><th>削除</th>'
+      + '</tr></thead><tbody>';
+    for (var i = 0; i < items.length; i++) {
+      html += '<tr><td>' + esc(items[i].name) + '</td>'
+        + '<td>' + items[i].price.toLocaleString('ja-JP', {minimumFractionDigits:2}) + '</td>'
+        + '<td>' + items[i].qty.toLocaleString('ja-JP') + '</td>'
+        + '<td><button class="btn-danger" onclick="removeItem(' + i + ')">×</button></td></tr>';
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+    btns.style.display = 'flex';
+  }
+
+  function calcAll() {
+    var rb = parseFloat(document.getElementById('rateBefore').value);
+    var ra = parseFloat(document.getElementById('rateAfter').value);
+    var tb = parseFloat(document.getElementById('tariffBefore').value);
+    var ta = parseFloat(document.getElementById('tariffAfter').value);
+    if (isNaN(rb) || isNaN(ra)) { showErr('為替レートを入力してください'); return; }
+    if (isNaN(tb)) tb = 0;
+    if (isNaN(ta)) ta = 0;
+    if (items.length === 0) { showErr('品目を1つ以上追加してください'); return; }
+
+    saveConditions();
+
+    var totalBefore = 0, totalAfter = 0;
+    var rows = [];
+
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      var costBefore = it.price * rb * (1 + tb / 100) * it.qty;
+      var costAfter  = it.price * ra * (1 + ta / 100) * it.qty;
+      var diff = costAfter - costBefore;
+      var pct = costBefore > 0 ? (diff / costBefore * 100) : 0;
+      totalBefore += costBefore;
+      totalAfter += costAfter;
+      rows.push({
+        name: it.name,
+        before: costBefore,
+        after: costAfter,
+        diff: diff,
+        pct: pct
+      });
+    }
+
+    var totalDiff = totalAfter - totalBefore;
+    var totalPct = totalBefore > 0 ? (totalDiff / totalBefore * 100) : 0;
+
+    // 結論カード
+    var level = totalDiff <= 0 ? 'ok' : totalPct < 10 ? 'warn' : 'ng';
+    var msg = totalDiff <= 0
+      ? 'コスト削減が見込めます'
+      : totalPct < 10
+      ? '小幅なコスト上昇です（' + totalPct.toFixed(1) + '%増）'
+      : '大幅なコスト上昇です（' + totalPct.toFixed(1) + '%増）。要対策';
+    showResult(level, (totalDiff >= 0 ? '+' : '') + fmt(totalDiff) + ' 円', msg);
+
+    // 内訳
+    var detailRows = [
+      ['変動前 総コスト', fmt(totalBefore) + ' 円'],
+      ['変動後 総コスト', fmt(totalAfter) + ' 円'],
+      ['コスト上昇額', (totalDiff >= 0 ? '+' : '') + fmt(totalDiff) + ' 円', true],
+      ['上昇率', (totalDiff >= 0 ? '+' : '') + totalPct.toFixed(1) + ' %'],
+      ['為替変動', rb + ' → ' + ra + ' 円/' + '外貨'],
+      ['関税変動', tb + '% → ' + ta + '%']
+    ];
+    showDetail(detailRows);
+
+    // 品目一覧を計算結果付きに更新
+    renderCalcList(rows);
+  }
+
+  function renderCalcList(rows) {
+    var el = document.getElementById('listBody');
+    var html = '<table class="item-table"><thead><tr>'
+      + '<th>品目名</th><th>変動前</th><th>変動後</th><th>差額</th><th>率</th>'
+      + '</tr></thead><tbody>';
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var cls = r.diff > 0 ? 'up' : r.diff < 0 ? 'down' : '';
+      html += '<tr><td>' + esc(r.name) + '</td>'
+        + '<td>' + fmt(r.before) + '</td>'
+        + '<td>' + fmt(r.after) + '</td>'
+        + '<td class="' + cls + '">' + (r.diff >= 0 ? '+' : '') + fmt(r.diff) + '</td>'
+        + '<td class="' + cls + '">' + (r.diff >= 0 ? '+' : '') + r.pct.toFixed(1) + '%</td></tr>';
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '入力エラー', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
