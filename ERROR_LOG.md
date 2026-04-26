@@ -246,3 +246,4 @@ commit: dea0c02
 - PowerShell × git の組み合わせでは、$ErrorActionPreference='Stop' を script-wide に張ると native command の warning で落ちる罠があることを意識する
 [2026-04-26_122522] SCAN apps=残業代計算アプリ,残業時間管理チェッカー,水分管理アプリ,水道代節約シミュレーター,法定点検期限管理アプリ,洗濯タグ早見表アプリ,熱中症リスク判定アプリ,熱中症リスク診断アプリ,物流遅延対策アプリ,献立コスト変動シミュレーター total=2 exit=0
 [2026-04-26_124601] SCAN apps=クレーム対応お詫び文ジェネレーター total=0 exit=0
+[2026-04-26_125823] SCAN apps=値引き交渉採算シミュレーター total=0 exit=0
