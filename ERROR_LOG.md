@@ -294,3 +294,4 @@ commit: dea0c02
 [2026-04-26_191214] SCAN apps=BCP簡易チェックリストアプリ total=0 exit=0
 [2026-04-26_194515] SCAN apps=輸入採算シミュレーター total=0 exit=0
 [2026-04-26_200148] SCAN apps=シフト穴埋めシミュレーター total=0 exit=0
+[2026-04-26_202058] SCAN apps=副業適性診断アプリ total=0 exit=0
