@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="売上・経費・在庫・人員を入力するだけで経営の危険シグナルを即診断。改善が必要な指標を優先順位付きで表示する中小企業向け経営健康診断アプリです。">
+  <title>経営健康診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .input-suffix {
+      position: relative;
+    }
+    .input-suffix input {
+      padding-right: 3rem;
+    }
+    .input-suffix .suffix {
+      position: absolute; right: 0.9rem; top: 50%; transform: translateY(-50%);
+      font-size: 0.82rem; color: var(--text-sub); pointer-events: none;
+    }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* 総合判定カード */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* 指標カード */
+    .signal-list { display: flex; flex-direction: column; gap: 0.7rem; }
+    .signal-item {
+      border-radius: 10px; padding: 0.9rem 1rem;
+      border: 1.5px solid var(--border);
+    }
+    .signal-item.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .signal-item.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .signal-item.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .signal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 0.35rem;
+    }
+    .signal-name { font-size: 0.88rem; font-weight: 700; }
+    .signal-badge {
+      font-size: 0.72rem; font-weight: 700; padding: 0.18rem 0.6rem;
+      border-radius: 999px; letter-spacing: 0.04em;
+    }
+    .ok   .signal-badge { background: var(--ok);   color: #fff; }
+    .warn .signal-badge { background: var(--warn);  color: #fff; }
+    .ng   .signal-badge { background: var(--ng);    color: #fff; }
+    .signal-val  { font-size: 1.2rem; font-weight: 900; margin-bottom: 0.2rem; }
+    .ok   .signal-val { color: var(--ok);   }
+    .warn .signal-val { color: var(--warn); }
+    .ng   .signal-val { color: var(--ng);   }
+    .signal-desc { font-size: 0.78rem; color: var(--text-sub); line-height: 1.5; }
+    .signal-action {
+      margin-top: 0.4rem; font-size: 0.8rem; font-weight: 600;
+      padding: 0.3rem 0.6rem; border-radius: 6px;
+      display: inline-block;
+    }
+    .ok   .signal-action { display: none; }
+    .warn .signal-action { background: #fef3c7; color: var(--warn); }
+    .ng   .signal-action { background: #fee2e2; color: var(--ng); }
+
+    /* 優先順位カード */
+    .priority-list { list-style: none; }
+    .priority-item {
+      display: flex; align-items: flex-start; gap: 0.8rem;
+      padding: 0.75rem 0; border-bottom: 1px solid var(--border);
+    }
+    .priority-item:last-child { border-bottom: none; }
+    .priority-num {
+      flex-shrink: 0; width: 28px; height: 28px;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 0.82rem; font-weight: 800; color: #fff;
+    }
+    .priority-num.ng   { background: var(--ng); }
+    .priority-num.warn { background: var(--warn); }
+    .priority-num.ok   { background: var(--ok); }
+    .priority-text { flex: 1; }
+    .priority-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.2rem; }
+    .priority-sub { font-size: 0.78rem; color: var(--text-sub); line-height: 1.4; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <a class="back-link" href="../index.html" style="display:inline-block;margin-bottom:0.5rem;margin-top:0;">← アプリ一覧に戻る</a>
+    <h1>🏥 経営健康診断アプリ</h1>
+    <p class="subtitle">数字を入れるだけで経営の危険シグナルと改善優先順位を即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">📊 経営数値の入力（月次）</p>
+    <div class="field">
+      <label for="sales">月次売上高</label>
+      <div class="input-suffix">
+        <input type="number" id="sales" placeholder="例: 3000000" min="0">
+        <span class="suffix">円</span>
+      </div>
+    </div>
+    <div class="field">
+      <label for="cost">月次経費合計</label>
+      <div class="input-suffix">
+        <input type="number" id="cost" placeholder="例: 2400000" min="0">
+        <span class="suffix">円</span>
+      </div>
+      <p class="hint">人件費・仕入れ・賃料・光熱費など全経費の合計</p>
+    </div>
+    <div class="field">
+      <label for="labor">うち人件費</label>
+      <div class="input-suffix">
+        <input type="number" id="labor" placeholder="例: 900000" min="0">
+        <span class="suffix">円</span>
+      </div>
+      <p class="hint">給与・社会保険料など人に関わるコストの合計</p>
+    </div>
+    <div class="field">
+      <label for="inventory">月末在庫金額</label>
+      <div class="input-suffix">
+        <input type="number" id="inventory" placeholder="例: 500000" min="0">
+        <span class="suffix">円</span>
+      </div>
+      <p class="hint">在庫のない業種（サービス業など）は 0 と入力</p>
+    </div>
+    <div class="field">
+      <label for="staff">従業員数</label>
+      <div class="input-suffix">
+        <input type="number" id="staff" placeholder="例: 5" min="1">
+        <span class="suffix">人</span>
+      </div>
+      <p class="hint">パート・アルバイトはフルタイム換算で入力</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="diagnose()">🔍 経営健康診断を実行</button>
+
+  <!-- 総合判定カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- シグナル一覧カード -->
+  <div class="card" id="signals-card" style="display:none">
+    <p class="card-title">🚦 危険シグナル診断</p>
+    <div class="signal-list" id="signal-list"></div>
+  </div>
+
+  <!-- 改善優先順位カード -->
+  <div class="card" id="priority-card" style="display:none">
+    <p class="card-title">📋 改善優先順位</p>
+    <ul class="priority-list" id="priority-list"></ul>
+  </div>
+
+  <!-- 数値内訳カード -->
+  <div class="card" id="detail-card" style="display:none">
+    <p class="card-title">📈 数値サマリー</p>
+    <table class="detail-table"><tbody id="detail-body"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 診断基準は中小企業庁・経産省の中小企業経営指標を参考にした目安です。業種・業態によって適正値は異なります。最新情報は公認会計士・税理士などの専門家にご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var SIGNALS = [
+    {
+      key: 'profit_rate',
+      name: '営業利益率',
+      unit: '%',
+      decimals: 1,
+      thresholds: { ok: 10, warn: 5 }, // ok >= 10, warn >= 5, ng < 5
+      desc: '売上に対する利益の割合。低いほど経営の体力がない状態。',
+      advice: {
+        warn: '利益率が薄い状態です。固定費の見直し・価格設定の再検討を。',
+        ng: '赤字または低利益です。早急に経費削減か売上拡大策が必要です。'
+      },
+      priority: {
+        warn: '価格設定・固定費の見直し',
+        ng: '即・収支改善に着手（赤字は持続不可能）'
+      }
+    },
+    {
+      key: 'cost_rate',
+      name: '経費率',
+      unit: '%',
+      decimals: 1,
+      thresholds: { ok: 70, warn: 85 }, // ok < 70, warn < 85, ng >= 85
+      invert: true, // 低いほど良い
+      desc: '売上に対する経費の割合。高いほど利益が圧迫されている。',
+      advice: {
+        warn: '経費が売上の大半を占めています。コスト構造を見直しましょう。',
+        ng: '経費が売上のほぼ全てです。業態転換・コスト大幅削減が必要です。'
+      },
+      priority: {
+        warn: '各経費項目の内訳精査・削減',
+        ng: '経費の緊急見直し（倒産リスクあり）'
+      }
+    },
+    {
+      key: 'labor_rate',
+      name: '人件費率',
+      unit: '%',
+      decimals: 1,
+      thresholds: { ok: 25, warn: 35 }, // ok < 25, warn < 35, ng >= 35
+      invert: true,
+      desc: '売上に対する人件費の割合。業種平均より高いと人員過多の可能性。',
+      advice: {
+        warn: '人件費が高めです。業務効率化や勤怠管理の見直しを。',
+        ng: '人件費が重すぎます。組織再編・シフト最適化・外注化の検討を。'
+      },
+      priority: {
+        warn: '業務効率化・シフト見直し',
+        ng: '人員配置・外注化の緊急検討'
+      }
+    },
+    {
+      key: 'inventory_turn',
+      name: '在庫回転率',
+      unit: '回/月',
+      decimals: 1,
+      thresholds: { ok: 4, warn: 2 }, // ok >= 4, warn >= 2, ng < 2
+      skip_zero: true, // 在庫0なら診断スキップ
+      desc: '月次売上を在庫金額で割った値。低いほど在庫が滞留している。',
+      advice: {
+        warn: '在庫が滞留しがちです。発注量・品揃えの最適化を。',
+        ng: '在庫が大量に滞留しています。在庫圧縮・値引き販売・廃棄検討を。'
+      },
+      priority: {
+        warn: '在庫発注量の見直し・品番絞り込み',
+        ng: '在庫の緊急圧縮（資金繰りリスクあり）'
+      }
+    },
+    {
+      key: 'sales_per_staff',
+      name: '一人当たり売上',
+      unit: '万円/人',
+      decimals: 0,
+      thresholds: { ok: 50, warn: 30 }, // ok >= 50, warn >= 30, ng < 30
+      desc: '従業員1人当たりの月次売上。低いほど生産性が低い状態。',
+      advice: {
+        warn: '生産性がやや低めです。業務プロセス改善を検討しましょう。',
+        ng: '一人当たり売上が低水準です。業務の見直し・商品構成の改善が急務。'
+      },
+      priority: {
+        warn: '業務プロセス改善・商品構成の見直し',
+        ng: '生産性の抜本改善（組織・商品・オペレーション）'
+      }
+    }
+  ];
+
+  function diagnose() {
+    var sales     = parseFloat(document.getElementById('sales').value);
+    var cost      = parseFloat(document.getElementById('cost').value);
+    var labor     = parseFloat(document.getElementById('labor').value);
+    var inventory = parseFloat(document.getElementById('inventory').value) || 0;
+    var staff     = parseFloat(document.getElementById('staff').value);
+
+    if (isNaN(sales) || isNaN(cost) || isNaN(labor) || isNaN(staff)) {
+      showErr('売上・経費・人件費・従業員数は必ず入力してください');
+      return;
+    }
+    if (sales <= 0) { showErr('売上は0より大きい値を入力してください'); return; }
+    if (labor > cost) { showErr('人件費が経費合計を超えています。値を確認してください'); return; }
+    if (staff < 1) { showErr('従業員数は1人以上を入力してください'); return; }
+
+    var profit = sales - cost;
+    var profitRate = profit / sales * 100;
+    var costRate   = cost / sales * 100;
+    var laborRate  = labor / sales * 100;
+    var invTurn    = inventory > 0 ? sales / inventory : null;
+    var salesPerStaff = sales / staff / 10000; // 万円
+
+    var values = {
+      profit_rate: profitRate,
+      cost_rate: costRate,
+      labor_rate: laborRate,
+      inventory_turn: invTurn,
+      sales_per_staff: salesPerStaff
+    };
+
+    // 各指標の判定
+    var results = [];
+    SIGNALS.forEach(function(sig) {
+      if (sig.skip_zero && (invTurn === null)) {
+        results.push({ sig: sig, level: 'ok', val: null, skip: true });
+        return;
+      }
+      var v = values[sig.key];
+      var level;
+      if (sig.invert) {
+        // 低いほど良い
+        level = v < sig.thresholds.ok ? 'ok' : v < sig.thresholds.warn ? 'warn' : 'ng';
+      } else {
+        // 高いほど良い
+        level = v >= sig.thresholds.ok ? 'ok' : v >= sig.thresholds.warn ? 'warn' : 'ng';
+      }
+      results.push({ sig: sig, level: level, val: v, skip: false });
+    });
+
+    // 総合判定
+    var ngCount   = results.filter(function(r){ return r.level === 'ng';   }).length;
+    var warnCount = results.filter(function(r){ return r.level === 'warn'; }).length;
+    var overallLevel = ngCount >= 2 ? 'ng' : ngCount >= 1 ? 'ng' : warnCount >= 2 ? 'warn' : warnCount >= 1 ? 'warn' : 'ok';
+    var overallLabel = overallLevel === 'ok' ? '🟢 健全' : overallLevel === 'warn' ? '🟡 注意' : '🔴 危険';
+    var overallEval  = overallLevel === 'ok'   ? '経営は概ね健全な状態です'
+                     : overallLevel === 'warn' ? '一部の指標に注意が必要です'
+                     : '複数の危険シグナルが出ています。早急な対応を。';
+    var overallNote  = ngCount > 0 ? '赤シグナルが ' + ngCount + ' 件あります。優先順位に従って改善してください。'
+                     : warnCount > 0 ? '黄シグナルが ' + warnCount + ' 件あります。早めに手を打ちましょう。'
+                     : 'すべての指標が良好です。この状態を維持しましょう。';
+
+    // 総合判定表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + overallLevel;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = overallLabel;
+    document.getElementById('re').textContent = overallEval;
+    document.getElementById('rn').textContent = overallNote;
+
+    // シグナル一覧
+    var sigHtml = '';
+    results.forEach(function(r) {
+      if (r.skip) return;
+      var valStr = r.val !== null ? r.val.toFixed(r.sig.decimals) + ' ' + r.sig.unit : '—';
+      var badge  = r.level === 'ok' ? '良好' : r.level === 'warn' ? '注意' : '要対応';
+      var action = r.level !== 'ok' ? '<span class="signal-action">' + r.sig.advice[r.level] + '</span>' : '';
+      sigHtml += '<div class="signal-item ' + r.level + '">'
+               + '<div class="signal-header">'
+               + '<span class="signal-name">' + r.sig.name + '</span>'
+               + '<span class="signal-badge">' + badge + '</span>'
+               + '</div>'
+               + '<div class="signal-val">' + valStr + '</div>'
+               + '<div class="signal-desc">' + r.sig.desc + '</div>'
+               + action
+               + '</div>';
+    });
+    document.getElementById('signal-list').innerHTML = sigHtml;
+    document.getElementById('signals-card').style.display = 'block';
+
+    // 優先順位：ng → warn → ok の順でソート
+    var ranked = results.filter(function(r){ return !r.skip && r.level !== 'ok'; });
+    ranked.sort(function(a, b) {
+      var order = { ng: 0, warn: 1, ok: 2 };
+      return order[a.level] - order[b.level];
+    });
+    var priHtml = '';
+    if (ranked.length === 0) {
+      priHtml = '<li class="priority-item"><div class="priority-text"><div class="priority-title" style="color:var(--ok)">✅ 改善が必要な項目はありません</div><div class="priority-sub">すべての指標が良好な状態です。引き続き維持してください。</div></div></li>';
+    } else {
+      ranked.forEach(function(r, i) {
+        priHtml += '<li class="priority-item">'
+                 + '<div class="priority-num ' + r.level + '">' + (i + 1) + '</div>'
+                 + '<div class="priority-text">'
+                 + '<div class="priority-title">' + r.sig.name + '</div>'
+                 + '<div class="priority-sub">' + r.sig.priority[r.level] + '</div>'
+                 + '</div></li>';
+      });
+    }
+    document.getElementById('priority-list').innerHTML = priHtml;
+    document.getElementById('priority-card').style.display = 'block';
+
+    // 数値サマリー
+    var rows = [
+      ['月次売上', fmt(sales) + ' 円'],
+      ['月次経費', fmt(cost)  + ' 円'],
+      ['うち人件費', fmt(labor) + ' 円'],
+      ['月次利益', fmt(profit) + ' 円（' + profitRate.toFixed(1) + '%）', true],
+      ['従業員数', staff + ' 人'],
+    ];
+    if (inventory > 0) rows.push(['月末在庫', fmt(inventory) + ' 円']);
+    var detailHtml = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail-body').innerHTML = detailHtml;
+    document.getElementById('detail-card').style.display = 'block';
+
+    // localStorage保存
+    try {
+      localStorage.setItem('keiei_shindan', JSON.stringify({
+        sales: sales, cost: cost, labor: labor,
+        inventory: inventory, staff: staff
+      }));
+    } catch(e) {}
+
+    // 結果までスクロール
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('signals-card').style.display = 'none';
+    document.getElementById('priority-card').style.display = 'none';
+    document.getElementById('detail-card').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage復元
+  (function() {
+    try {
+      var saved = localStorage.getItem('keiei_shindan');
+      if (!saved) return;
+      var d = JSON.parse(saved);
+      if (d.sales)     document.getElementById('sales').value     = d.sales;
+      if (d.cost)      document.getElementById('cost').value      = d.cost;
+      if (d.labor)     document.getElementById('labor').value     = d.labor;
+      if (d.inventory) document.getElementById('inventory').value = d.inventory;
+      if (d.staff)     document.getElementById('staff').value     = d.staff;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

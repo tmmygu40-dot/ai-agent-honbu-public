@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自宅防災診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── チェック項目 ── */
+    .category-title {
+      font-size: 0.9rem; font-weight: 800;
+      color: var(--text); margin-bottom: 0.8rem;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .category-icon { font-size: 1.2rem; }
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.7rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-label { flex: 1; font-size: 0.88rem; line-height: 1.5; }
+    .radio-group { display: flex; gap: 0.5rem; flex-shrink: 0; margin-top: 0.1rem; }
+    .radio-btn {
+      display: flex; align-items: center; gap: 0.3rem;
+      font-size: 0.82rem; font-weight: 600; cursor: pointer;
+      padding: 0.3rem 0.65rem;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      transition: all 0.15s;
+    }
+    .radio-btn input { display: none; }
+    .radio-btn.yes-btn { color: var(--ok); }
+    .radio-btn.no-btn  { color: var(--ng); }
+    .radio-btn input:checked ~ span { font-weight: 800; }
+    .radio-btn.yes-btn:has(input:checked) { background: var(--ok-bg); border-color: var(--ok); }
+    .radio-btn.no-btn:has(input:checked)  { background: var(--ng-bg); border-color: var(--ng); }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.7rem;
+      font-size: 0.88rem; font-weight: 600;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-score { font-size: 0.85rem; margin-top: 0.5rem; font-weight: 600; }
+
+    /* ── 優先対策リスト ── */
+    .priority-list { list-style: none; }
+    .priority-item {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .priority-item:last-child { border-bottom: none; }
+    .priority-rank {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.82rem; font-weight: 900; flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+    .rank-1 { background: var(--ng-bg); color: var(--ng); border: 1.5px solid var(--ng); }
+    .rank-2 { background: var(--warn-bg); color: var(--warn); border: 1.5px solid var(--warn); }
+    .rank-other { background: var(--bg); color: var(--text-sub); border: 1.5px solid var(--border); }
+    .priority-text { flex: 1; }
+    .priority-cat { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.2rem; }
+    .priority-action { font-size: 0.88rem; line-height: 1.5; }
+
+    /* ── カテゴリ別スコアバー ── */
+    .score-row { margin-bottom: 0.75rem; }
+    .score-row:last-child { margin-bottom: 0; }
+    .score-header { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 0.3rem; }
+    .score-bar-bg { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+    .score-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+    .fill-ok   { background: var(--ok); }
+    .fill-warn { background: var(--warn); }
+    .fill-ng   { background: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🏠 自宅防災診断アプリ</h1>
+    <p class="subtitle">耐震・家具・避難・備蓄・火災の5項目で自宅の防災力を診断します</p>
+  </header>
+
+  <!-- 耐震性 -->
+  <div class="card">
+    <p class="card-title">🏗️ 耐震性</p>
+    <div id="cat-quake"></div>
+  </div>
+
+  <!-- 家具転倒リスク -->
+  <div class="card">
+    <p class="card-title">🪑 家具転倒リスク</p>
+    <div id="cat-furniture"></div>
+  </div>
+
+  <!-- 避難経路 -->
+  <div class="card">
+    <p class="card-title">🚪 避難経路</p>
+    <div id="cat-escape"></div>
+  </div>
+
+  <!-- 備蓄 -->
+  <div class="card">
+    <p class="card-title">🎒 備蓄</p>
+    <div id="cat-stock"></div>
+  </div>
+
+  <!-- 火災リスク -->
+  <div class="card">
+    <p class="card-title">🔥 火災リスク</p>
+    <div id="cat-fire"></div>
+  </div>
+
+  <button class="btn-calc" onclick="diagnose()">🔍 防災診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合防災リスク</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+    <p class="result-score" id="rs"></p>
+  </div>
+
+  <!-- カテゴリ別スコアカード -->
+  <div class="card" id="score-card" style="display:none">
+    <p class="card-title">カテゴリ別リスク</p>
+    <div id="score-bars"></div>
+  </div>
+
+  <!-- 優先対策リスト -->
+  <div class="card" id="priority-card" style="display:none">
+    <p class="card-title">対策優先順位</p>
+    <ul class="priority-list" id="priority-list"></ul>
+  </div>
+
+  <button class="btn-reset" onclick="resetAll()" id="reset-btn" style="display:none">リセットして再診断</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var CATEGORIES = [
+    {
+      id: 'quake',
+      name: '耐震性',
+      icon: '🏗️',
+      questions: [
+        { id: 'q1', text: '建物は1981年以降に建てられている（新耐震基準適合）' },
+        { id: 'q2', text: '耐震診断または耐震補強を実施している' },
+        { id: 'q3', text: '基礎や壁に大きなひび割れはない' },
+      ],
+      actions: [
+        { no: ['q1','q2'], text: '建物の耐震診断を専門家に依頼し、必要なら補強工事を検討する' },
+        { no: ['q3'],      text: '基礎・壁のひび割れを専門家に確認してもらう' },
+      ]
+    },
+    {
+      id: 'furniture',
+      name: '家具転倒',
+      icon: '🪑',
+      questions: [
+        { id: 'f1', text: '大型家具（本棚・タンスなど）を壁や天井に固定している' },
+        { id: 'f2', text: '冷蔵庫・洗濯機に転倒防止措置をしている' },
+        { id: 'f3', text: '高い位置に重いものを置いていない' },
+        { id: 'f4', text: '窓ガラスに飛散防止フィルムを貼っている' },
+      ],
+      actions: [
+        { no: ['f1'], text: '大型家具に家具転倒防止金具・突っ張り棒を設置する' },
+        { no: ['f2'], text: '冷蔵庫・洗濯機に耐震ゴムマットまたは固定バンドを設置する' },
+        { no: ['f3'], text: '棚の上部に重い物を置くのをやめ、低い場所に移動する' },
+        { no: ['f4'], text: '窓ガラスに飛散防止フィルムを貼って破片による怪我を防ぐ' },
+      ]
+    },
+    {
+      id: 'escape',
+      name: '避難経路',
+      icon: '🚪',
+      questions: [
+        { id: 'e1', text: '玄関・窓など避難経路が家具や荷物で塞がれていない' },
+        { id: 'e2', text: '家族全員が避難場所までの経路を把握している' },
+        { id: 'e3', text: '近くの指定避難所（学校・公民館など）を確認している' },
+      ],
+      actions: [
+        { no: ['e1'], text: '玄関や窓周辺の荷物を整理し、すぐ脱出できる経路を確保する' },
+        { no: ['e2'], text: '家族で避難ルートを歩いて確認し、集合場所を決めておく' },
+        { no: ['e3'], text: '市区町村のハザードマップで指定避難所を確認して家族に共有する' },
+      ]
+    },
+    {
+      id: 'stock',
+      name: '備蓄',
+      icon: '🎒',
+      questions: [
+        { id: 's1', text: '水を1人3日分（9リットル）以上備蓄している' },
+        { id: 's2', text: '食料（レトルト・缶詰など）を3日分以上備蓄している' },
+        { id: 's3', text: '懐中電灯・携帯ラジオ・乾電池を用意している' },
+        { id: 's4', text: '非常持ち出し袋（リュック）を準備している' },
+      ],
+      actions: [
+        { no: ['s1'], text: '2Lペットボトルを1人あたり5本以上備蓄する（定期ローリングストック）' },
+        { no: ['s2'], text: '缶詰・レトルト食品・乾パンなど3日分以上の食料を確保する' },
+        { no: ['s3'], text: '懐中電灯・ラジオ・乾電池をまとめてすぐ使える場所に置く' },
+        { no: ['s4'], text: '非常持ち出し袋を1人1つ用意し、玄関近くに置く' },
+      ]
+    },
+    {
+      id: 'fire',
+      name: '火災リスク',
+      icon: '🔥',
+      questions: [
+        { id: 'fi1', text: '火災警報器を設置し、定期的に点検している' },
+        { id: 'fi2', text: '消火器を設置している' },
+        { id: 'fi3', text: 'タコ足配線・電気コードの束ねをしていない' },
+      ],
+      actions: [
+        { no: ['fi1'], text: '各寝室・台所に火災警報器を設置し、電池を定期交換する' },
+        { no: ['fi2'], text: '台所・玄関などに消火器を設置し、使い方を家族で確認する' },
+        { no: ['fi3'], text: 'タコ足配線を解消し、コンセント周りの整理・ほこり掃除をする' },
+      ]
+    }
+  ];
+
+  var STORAGE_KEY = 'bousai_diag_v1';
+
+  // 質問フォームを描画
+  function renderForms() {
+    CATEGORIES.forEach(function(cat) {
+      var el = document.getElementById('cat-' + cat.id);
+      el.innerHTML = cat.questions.map(function(q) {
+        return '<div class="check-item">'
+          + '<span class="check-label">' + q.text + '</span>'
+          + '<div class="radio-group">'
+          + '<label class="radio-btn yes-btn"><input type="radio" name="' + q.id + '" value="yes"><span>はい</span></label>'
+          + '<label class="radio-btn no-btn"><input type="radio" name="' + q.id + '" value="no"><span>いいえ</span></label>'
+          + '</div>'
+          + '</div>';
+      }).join('');
+    });
+  }
+
+  // 全回答を取得
+  function getAnswers() {
+    var ans = {};
+    CATEGORIES.forEach(function(cat) {
+      cat.questions.forEach(function(q) {
+        var checked = document.querySelector('input[name="' + q.id + '"]:checked');
+        ans[q.id] = checked ? checked.value : null;
+      });
+    });
+    return ans;
+  }
+
+  function diagnose() {
+    var ans = getAnswers();
+
+    // 未回答チェック
+    var unanswered = [];
+    CATEGORIES.forEach(function(cat) {
+      cat.questions.forEach(function(q) {
+        if (!ans[q.id]) unanswered.push(q.text);
+      });
+    });
+    if (unanswered.length > 0) {
+      alert('未回答の項目があります。すべて回答してから診断してください。');
+      return;
+    }
+
+    // カテゴリ別スコア（No の数）
+    var catScores = {};
+    CATEGORIES.forEach(function(cat) {
+      var noCount = cat.questions.filter(function(q) { return ans[q.id] === 'no'; }).length;
+      catScores[cat.id] = { noCount: noCount, total: cat.questions.length };
+    });
+
+    var totalNo = Object.values(catScores).reduce(function(s, v) { return s + v.noCount; }, 0);
+    var totalQ  = Object.values(catScores).reduce(function(s, v) { return s + v.total; }, 0);
+    var score   = totalQ - totalNo;
+
+    // リスクレベル判定
+    var level, label, note;
+    if (totalNo === 0) {
+      level = 'ok'; label = '防災リスク：低'; note = '自宅の防災対策はよく整っています。定期的な見直しを続けましょう。';
+    } else if (totalNo <= 4) {
+      level = 'ok'; label = '防災リスク：低〜中'; note = '基本的な対策はできています。未対応の項目を順次改善しましょう。';
+    } else if (totalNo <= 8) {
+      level = 'warn'; label = '防災リスク：中'; note = '改善が必要な項目があります。優先順位の高い対策から着手してください。';
+    } else {
+      level = 'ng'; label = '防災リスク：高'; note = '多くの項目で対策が不十分です。早急に改善が必要です。';
+    }
+
+    // 結論表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = label;
+    document.getElementById('rn').textContent = note;
+    document.getElementById('rs').textContent = '回答済み ' + totalQ + '問中 ' + score + '問 対策済み（未対策：' + totalNo + '問）';
+
+    // カテゴリ別バー
+    var barsHtml = CATEGORIES.map(function(cat) {
+      var s = catScores[cat.id];
+      var pct = Math.round((s.total - s.noCount) / s.total * 100);
+      var fillClass = pct === 100 ? 'fill-ok' : pct >= 50 ? 'fill-warn' : 'fill-ng';
+      return '<div class="score-row">'
+        + '<div class="score-header"><span>' + cat.icon + ' ' + cat.name + '</span><span>' + (s.total - s.noCount) + '/' + s.total + ' 対策済み</span></div>'
+        + '<div class="score-bar-bg"><div class="score-bar-fill ' + fillClass + '" style="width:' + pct + '%"></div></div>'
+        + '</div>';
+    }).join('');
+    document.getElementById('score-bars').innerHTML = barsHtml;
+    document.getElementById('score-card').style.display = '';
+
+    // 優先対策リスト
+    var priorities = [];
+    CATEGORIES.forEach(function(cat) {
+      cat.actions.forEach(function(action) {
+        var isNeeded = action.no.some(function(qid) { return ans[qid] === 'no'; });
+        if (isNeeded) {
+          var catScore = catScores[cat.id];
+          priorities.push({
+            cat: cat.name, icon: cat.icon,
+            text: action.text,
+            weight: catScore.noCount
+          });
+        }
+      });
+    });
+    // 未対策数の多いカテゴリを上位に
+    priorities.sort(function(a, b) { return b.weight - a.weight; });
+
+    if (priorities.length === 0) {
+      document.getElementById('priority-card').style.display = 'none';
+    } else {
+      var listHtml = priorities.map(function(p, i) {
+        var rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : 'rank-other';
+        return '<li class="priority-item">'
+          + '<div class="priority-rank ' + rankClass + '">' + (i + 1) + '</div>'
+          + '<div class="priority-text">'
+          + '<div class="priority-cat">' + p.icon + ' ' + p.cat + '</div>'
+          + '<div class="priority-action">' + p.text + '</div>'
+          + '</div></li>';
+      }).join('');
+      document.getElementById('priority-list').innerHTML = listHtml;
+      document.getElementById('priority-card').style.display = '';
+    }
+
+    document.getElementById('reset-btn').style.display = '';
+
+    // スクロール
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // localStorage 保存
+    saveState(ans);
+  }
+
+  function saveState(ans) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(ans)); } catch(e) {}
+  }
+
+  function loadState() {
+    try {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      var ans = JSON.parse(saved);
+      Object.keys(ans).forEach(function(qid) {
+        if (!ans[qid]) return;
+        var el = document.querySelector('input[name="' + qid + '"][value="' + ans[qid] + '"]');
+        if (el) el.checked = true;
+      });
+    } catch(e) {}
+  }
+
+  function resetAll() {
+    document.querySelectorAll('input[type="radio"]').forEach(function(r) { r.checked = false; });
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('score-card').style.display = 'none';
+    document.getElementById('priority-card').style.display = 'none';
+    document.getElementById('reset-btn').style.display = 'none';
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // 初期化
+  renderForms();
+  loadState();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

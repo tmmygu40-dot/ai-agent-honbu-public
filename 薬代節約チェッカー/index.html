@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>薬代節約チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2カラム入力 ── */
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .field-row .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 薬リスト ── */
+    .drug-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .drug-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.5rem;
+      align-items: start;
+      padding: 0.85rem 1rem;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+    }
+    .drug-item-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.3rem; }
+    .drug-item-detail { font-size: 0.78rem; color: var(--text-sub); line-height: 1.6; }
+    .drug-item-saving {
+      font-size: 1rem; font-weight: 800;
+      color: var(--ok); white-space: nowrap;
+    }
+    .drug-item-saving.zero { color: var(--text-sub); font-weight: 600; }
+    .btn-delete {
+      background: none; border: none; cursor: pointer;
+      color: var(--text-sub); font-size: 1.2rem;
+      padding: 0.2rem 0.4rem; border-radius: 6px;
+      transition: color 0.15s, background 0.15s;
+      line-height: 1;
+    }
+    .btn-delete:hover { color: var(--ng); background: var(--ng-bg); }
+    .drug-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+
+    .empty-msg {
+      text-align: center;
+      color: var(--text-sub);
+      font-size: 0.88rem;
+      padding: 1.5rem 0;
+    }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💊 薬代節約チェッカー</h1>
+    <p class="subtitle">ジェネリックに切り替えると年間いくら節約できる？</p>
+  </header>
+
+  <!-- 合計節約額カード -->
+  <div class="result-card ok" id="totalCard">
+    <p class="result-label">年間合計節約額</p>
+    <p class="result-value" id="totalValue">― 円</p>
+    <p class="result-note" id="totalNote">薬を登録すると節約額が表示されます</p>
+  </div>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">薬を追加する</p>
+    <div class="field">
+      <label for="drugName">薬の名前</label>
+      <input type="text" id="drugName" placeholder="例：アムロジピン">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="brandPrice">先発薬 自己負担額<br><span style="font-size:0.7rem;color:var(--text-sub)">（1回あたり・円）</span></label>
+        <input type="number" id="brandPrice" placeholder="例：1200" min="0">
+      </div>
+      <div class="field">
+        <label for="genericPrice">ジェネリック 自己負担額<br><span style="font-size:0.7rem;color:var(--text-sub)">（1回あたり・円）</span></label>
+        <input type="number" id="genericPrice" placeholder="例：800" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="visitCount">月間受診回数</label>
+      <input type="number" id="visitCount" placeholder="例：1" min="1" value="1">
+      <p class="hint">月に何回処方してもらうか</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="addDrug()">追加する</button>
+
+  <!-- 薬リストカード -->
+  <div class="card" id="listCard">
+    <p class="card-title">登録済みの薬</p>
+    <div class="drug-list" id="drugList">
+      <p class="empty-msg" id="emptyMsg">まだ薬が登録されていません</p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">節約内訳</p>
+    <table class="detail-table"><tbody id="detailBody"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'yakudai_checker_v1';
+  var drugs = [];
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) drugs = JSON.parse(raw);
+    } catch(e) { drugs = []; }
+    render();
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(drugs));
+  }
+
+  function addDrug() {
+    var name    = document.getElementById('drugName').value.trim();
+    var brand   = parseFloat(document.getElementById('brandPrice').value);
+    var generic = parseFloat(document.getElementById('genericPrice').value);
+    var visits  = parseInt(document.getElementById('visitCount').value) || 1;
+
+    if (!name)          { alert('薬の名前を入力してください'); return; }
+    if (isNaN(brand))   { alert('先発薬の自己負担額を入力してください'); return; }
+    if (isNaN(generic)) { alert('ジェネリックの自己負担額を入力してください'); return; }
+    if (visits < 1)     { alert('月間受診回数は1以上を入力してください'); return; }
+
+    var saving = (brand - generic) * visits * 12;
+
+    drugs.push({ id: Date.now(), name: name, brand: brand, generic: generic, visits: visits, saving: saving });
+    save();
+    render();
+
+    // フォームリセット
+    document.getElementById('drugName').value    = '';
+    document.getElementById('brandPrice').value  = '';
+    document.getElementById('genericPrice').value = '';
+    document.getElementById('visitCount').value  = '1';
+    document.getElementById('drugName').focus();
+  }
+
+  function deleteDrug(id) {
+    drugs = drugs.filter(function(d){ return d.id !== id; });
+    save();
+    render();
+  }
+
+  function render() {
+    var list = document.getElementById('drugList');
+    var empty = document.getElementById('emptyMsg');
+
+    if (drugs.length === 0) {
+      list.innerHTML = '';
+      empty = document.createElement('p');
+      empty.className = 'empty-msg';
+      empty.textContent = 'まだ薬が登録されていません';
+      list.appendChild(empty);
+      updateTotal(0, 0);
+      document.getElementById('detailCard').style.display = 'none';
+      return;
+    }
+
+    list.innerHTML = drugs.map(function(d) {
+      var savingClass = d.saving > 0 ? 'drug-item-saving' : 'drug-item-saving zero';
+      var savingText  = d.saving > 0
+        ? '年間 −' + fmt(d.saving) + '円'
+        : d.saving === 0 ? '節約なし' : '先発薬が安い';
+      return [
+        '<div class="drug-item">',
+          '<div>',
+            '<div class="drug-item-name">' + esc(d.name) + '</div>',
+            '<div class="drug-item-detail">',
+              '先発 ' + fmt(d.brand) + '円 → ジェネリック ' + fmt(d.generic) + '円',
+              ' ／ 月' + d.visits + '回',
+            '</div>',
+          '</div>',
+          '<div class="drug-item-right">',
+            '<button class="btn-delete" onclick="deleteDrug(' + d.id + ')" title="削除">✕</button>',
+            '<span class="' + savingClass + '">' + savingText + '</span>',
+          '</div>',
+        '</div>'
+      ].join('');
+    }).join('');
+
+    var totalSaving = drugs.reduce(function(sum, d){ return sum + d.saving; }, 0);
+    updateTotal(totalSaving, drugs.length);
+    renderDetail();
+  }
+
+  function updateTotal(totalSaving, count) {
+    var card  = document.getElementById('totalCard');
+    var value = document.getElementById('totalValue');
+    var note  = document.getElementById('totalNote');
+
+    if (count === 0) {
+      card.className = 'result-card ok';
+      value.textContent = '― 円';
+      note.textContent  = '薬を登録すると節約額が表示されます';
+      return;
+    }
+
+    value.textContent = (totalSaving >= 0 ? '' : '−') + fmt(Math.abs(totalSaving)) + ' 円';
+
+    if (totalSaving > 0) {
+      card.className = 'result-card ok';
+      note.textContent = '全' + count + '種をジェネリックに切り替えると、年間約' + fmt(totalSaving) + '円節約できます（月約' + fmt(Math.round(totalSaving/12)) + '円）';
+    } else if (totalSaving === 0) {
+      card.className = 'result-card warn';
+      note.textContent = '節約額はゼロです。価格差がないか確認してみましょう。';
+    } else {
+      card.className = 'result-card ng';
+      note.textContent = '一部の薬は先発薬の方が安い可能性があります。薬剤師に相談してみましょう。';
+    }
+  }
+
+  function renderDetail() {
+    var positiveDrugs = drugs.filter(function(d){ return d.saving > 0; });
+    if (positiveDrugs.length === 0) {
+      document.getElementById('detailCard').style.display = 'none';
+      return;
+    }
+
+    var sorted = positiveDrugs.slice().sort(function(a, b){ return b.saving - a.saving; });
+    var rows = sorted.map(function(d){
+      return '<tr><td>' + esc(d.name) + '</td><td>' + fmt(d.saving) + '円/年</td></tr>';
+    });
+    var total = drugs.reduce(function(sum, d){ return sum + (d.saving > 0 ? d.saving : 0); }, 0);
+    rows.push('<tr class="hl"><td>合計節約額</td><td>' + fmt(total) + '円/年</td></tr>');
+
+    document.getElementById('detailBody').innerHTML = rows.join('');
+    document.getElementById('detailCard').style.display = '';
+  }
+
+  function fmt(n) { return Math.abs(Math.round(n)).toLocaleString('ja-JP'); }
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Enterキーで追加
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.closest && e.target.closest('.card')) {
+      addDrug();
+    }
+  });
+
+  load();
+  </script>
+
+</body>
+</html>

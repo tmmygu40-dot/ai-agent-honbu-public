@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>補助金逆引き診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── チェックボックスグループ ── */
+    .check-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem; }
+    .check-tag {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.45rem 0.75rem;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      background: var(--bg);
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-sub);
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .check-tag input[type="checkbox"] { display: none; }
+    .check-tag:has(input:checked) {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-reset {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.65rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: var(--radius); cursor: pointer;
+    }
+
+    /* ── 結果件数バナー ── */
+    .result-banner {
+      display: none;
+      max-width: 600px; margin: 0 auto 1rem;
+      padding: 1rem 1.2rem;
+      border-radius: var(--radius);
+      background: var(--ok-bg);
+      border: 2px solid var(--ok);
+      text-align: center;
+    }
+    .result-banner.none { background: var(--ng-bg); border-color: var(--ng); }
+    .result-banner .count { font-size: 1.8rem; font-weight: 900; color: var(--ok); }
+    .result-banner.none .count { color: var(--ng); }
+    .result-banner .count-label { font-size: 0.82rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 補助金カード ── */
+    .subsidy-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 0.8rem;
+      max-width: 600px;
+    }
+    .subsidy-name { font-size: 1rem; font-weight: 800; color: var(--text); margin-bottom: 0.4rem; }
+    .subsidy-amount {
+      display: inline-block;
+      background: var(--accent-light);
+      color: var(--accent);
+      font-size: 0.8rem; font-weight: 700;
+      padding: 0.2rem 0.6rem; border-radius: 6px;
+      margin-bottom: 0.55rem;
+    }
+    .subsidy-desc { font-size: 0.85rem; color: var(--text-sub); line-height: 1.6; margin-bottom: 0.55rem; }
+    .subsidy-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+    .subsidy-tag {
+      font-size: 0.72rem; padding: 0.15rem 0.5rem;
+      border-radius: 4px; font-weight: 600;
+      background: #f1f5f9; color: #64748b;
+    }
+    .subsidy-tag.issue { background: #fef3c7; color: #92400e; }
+    .subsidy-note { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.5rem; border-top: 1px solid var(--border); padding-top: 0.45rem; }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-reset, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .subsidy-card, .result-banner { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🔍 補助金逆引き診断アプリ</h1>
+    <p class="subtitle">業種・人数・課題を選ぶだけで、使える補助金・助成金候補をすぐ表示</p>
+  </header>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <!-- 条件入力カード -->
+  <div class="card">
+    <p class="card-title">STEP 1 — 業種を選ぶ</p>
+    <div class="field">
+      <label for="industry">業種</label>
+      <select id="industry">
+        <option value="all">すべて（業種不問）</option>
+        <option value="manufacturing">製造業</option>
+        <option value="retail">小売業・卸売業</option>
+        <option value="food">飲食業</option>
+        <option value="construction">建設業</option>
+        <option value="it">IT・情報通信業</option>
+        <option value="service">サービス業・その他</option>
+        <option value="medical">医療・福祉・介護</option>
+        <option value="agriculture">農業・林業・漁業</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">STEP 2 — 従業員数を選ぶ</p>
+    <div class="field">
+      <label for="size">従業員数</label>
+      <select id="size">
+        <option value="1">1人（個人事業主含む）</option>
+        <option value="5">2〜5人</option>
+        <option value="20">6〜20人</option>
+        <option value="100">21〜100人</option>
+        <option value="300">101〜300人</option>
+        <option value="999">301人以上</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">STEP 3 — 課題・目的を選ぶ（複数選択OK）</p>
+    <div class="check-group" id="issueGroup">
+      <label class="check-tag"><input type="checkbox" value="it"> IT導入・デジタル化</label>
+      <label class="check-tag"><input type="checkbox" value="equipment"> 設備投資・機械導入</label>
+      <label class="check-tag"><input type="checkbox" value="hr"> 人材育成・研修</label>
+      <label class="check-tag"><input type="checkbox" value="sales"> 販路拡大・マーケティング</label>
+      <label class="check-tag"><input type="checkbox" value="energy"> 省エネ・脱炭素</label>
+      <label class="check-tag"><input type="checkbox" value="hire"> 雇用・採用促進</label>
+      <label class="check-tag"><input type="checkbox" value="wage"> 賃金引上げ・処遇改善</label>
+      <label class="check-tag"><input type="checkbox" value="startup"> 創業・起業</label>
+      <label class="check-tag"><input type="checkbox" value="reorg"> 事業再構築・新展開</label>
+      <label class="check-tag"><input type="checkbox" value="welfare"> 福利厚生・働き方改革</label>
+    </div>
+  </div>
+
+  <button class="btn-calc no-print" onclick="diagnose()">🔍 診断する</button>
+
+  <!-- 結果バナー -->
+  <div class="result-banner" id="resultBanner">
+    <div class="count" id="resultCount">0</div>
+    <div class="count-label">件の補助金・助成金が見つかりました</div>
+  </div>
+
+  <!-- 補助金一覧 -->
+  <div id="subsidyList"></div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 掲載情報は2024年度時点の主要制度を参考に作成しています。実際の申請要件・締切は各省庁・機関の公式サイトをご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 補助金・助成金データ ──
+  var SUBSIDIES = [
+    {
+      name: 'IT導入補助金',
+      amount: '最大450万円',
+      desc: 'ITツール（ソフトウェア・SaaS等）の導入コストを補助。中小企業・小規模事業者が対象。補助率1/2〜3/4。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100, 300],
+      issues: ['it'],
+      note: '中小企業庁 / 通年公募（交付申請期限あり）',
+      url: 'https://www.it-hojo.jp/'
+    },
+    {
+      name: 'ものづくり・商業・サービス生産性向上促進補助金（ものづくり補助金）',
+      amount: '最大4,000万円',
+      desc: '革新的な製品・サービス開発や生産プロセス改善の設備投資を支援。補助率1/2〜2/3。',
+      industries: ['manufacturing', 'retail', 'food', 'construction', 'it', 'service', 'medical', 'agriculture'],
+      sizes: [1, 5, 20, 100, 300],
+      issues: ['equipment', 'it', 'reorg'],
+      note: '中小企業庁 / 年複数回公募',
+      url: 'https://portal.monodukuri-hojo.jp/'
+    },
+    {
+      name: '小規模事業者持続化補助金',
+      amount: '最大250万円',
+      desc: '小規模事業者（商工業者）の販路開拓や業務効率化に係る経費を補助。補助率2/3。',
+      industries: ['all'],
+      sizes: [1, 5, 20],
+      issues: ['sales', 'it', 'equipment'],
+      note: '日本商工会議所 / 年複数回公募',
+      url: 'https://r3.jizokukahojokin.info/'
+    },
+    {
+      name: '事業再構築補助金',
+      amount: '最大3億円',
+      desc: 'ポストコロナを見据えた新分野展開・事業転換・業種転換等を支援。補助率1/2〜3/4。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100, 300, 999],
+      issues: ['reorg', 'equipment', 'it'],
+      note: '中小企業庁 / 随時公募',
+      url: 'https://jigyou-saikouchiku.go.jp/'
+    },
+    {
+      name: '業務改善助成金',
+      amount: '最大600万円',
+      desc: '最低賃金引上げに伴う生産性向上のための設備投資を支援。賃金引上げが条件。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100],
+      issues: ['wage', 'equipment', 'it'],
+      note: '厚生労働省 / 随時申請',
+      url: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/roudoukijun/zigyonushi/shienjigyou/index.html'
+    },
+    {
+      name: 'キャリアアップ助成金',
+      amount: '最大80万円/人',
+      desc: '非正規雇用労働者の正社員転換・処遇改善を行った事業主に助成。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100, 300, 999],
+      issues: ['hire', 'welfare', 'wage'],
+      note: '厚生労働省 / 随時申請',
+      url: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/part_haken/jigyounushi/career.html'
+    },
+    {
+      name: '人材開発支援助成金',
+      amount: '最大100万円/年',
+      desc: '従業員の職業訓練・研修費用を補助。訓練の種類によって補助率・上限が異なる。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100, 300, 999],
+      issues: ['hr'],
+      note: '厚生労働省 / 随時申請',
+      url: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/koyou/kyufukin/d01-1.html'
+    },
+    {
+      name: '働き方改革推進支援助成金',
+      amount: '最大500万円',
+      desc: '労働時間短縮・年次有給休暇促進・勤務間インターバル導入等の取組を支援。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100],
+      issues: ['welfare', 'hr', 'it'],
+      note: '厚生労働省 / 随時申請（年度内締切あり）',
+      url: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/0000148322.html'
+    },
+    {
+      name: '省エネルギー投資促進支援事業費補助金',
+      amount: '最大15億円',
+      desc: '省エネ設備の導入による省エネ量に応じて補助。補助率1/3〜1/2。',
+      industries: ['manufacturing', 'retail', 'food', 'construction', 'service'],
+      sizes: [1, 5, 20, 100, 300, 999],
+      issues: ['energy', 'equipment'],
+      note: '経済産業省 / 年度ごとに公募',
+      url: 'https://www.enecho.meti.go.jp/category/saving_and_new/saving/enterprise/support/'
+    },
+    {
+      name: '創業補助金（地域創業促進補助金）',
+      amount: '最大200万円',
+      desc: '創業時の設備費・広告費・人件費等を補助。新たに法人を設立または開業した人が対象。',
+      industries: ['all'],
+      sizes: [1],
+      issues: ['startup', 'sales', 'equipment'],
+      note: '自治体・商工会議所 / 年度ごとに公募（地域差あり）',
+      url: ''
+    },
+    {
+      name: '雇用調整助成金',
+      amount: '最大9,000円/人/日',
+      desc: '経済的理由で事業縮小を余儀なくされた際に休業・訓練を実施した事業主を助成。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100, 300, 999],
+      issues: ['hire', 'welfare'],
+      note: '厚生労働省 / 随時申請',
+      url: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/koyou_roudou/koyou/kyufukin/pageL07.html'
+    },
+    {
+      name: '農業法人等への雇用就農資金',
+      amount: '最大120万円/人/年',
+      desc: '農業法人が就農希望者を新規雇用して研修を行う際に助成。',
+      industries: ['agriculture'],
+      sizes: [1, 5, 20, 100],
+      issues: ['hire', 'hr'],
+      note: '農林水産省 / 随時申請',
+      url: 'https://www.maff.go.jp/j/new_farmer/n_syunou/hojin.html'
+    },
+    {
+      name: 'ものづくり中小企業製品開発等支援補助金（医療機器・福祉機器向け）',
+      amount: '最大1,000万円',
+      desc: '医療・福祉分野の中小企業が行う製品開発・サービス向上の投資を支援。',
+      industries: ['medical', 'manufacturing'],
+      sizes: [1, 5, 20, 100, 300],
+      issues: ['equipment', 'reorg'],
+      note: '厚生労働省・経済産業省 / 年度ごとに公募',
+      url: ''
+    },
+    {
+      name: 'DX投資促進税制（デジタルトランスフォーメーション投資促進税制）',
+      amount: '税額控除3〜5%または特別償却30%',
+      desc: 'DXに資するシステム導入投資に対して税制優遇。大企業・中堅企業も対象。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100, 300, 999],
+      issues: ['it', 'reorg'],
+      note: '経済産業省 / 確定申告時に適用',
+      url: 'https://www.meti.go.jp/policy/it_policy/investment/dx-tax/dx-tax.html'
+    },
+    {
+      name: '建設業省エネ型建設機械導入支援事業',
+      amount: '最大3,000万円',
+      desc: '建設業の省エネ型・電動型建設機械の購入費を補助。補助率1/3。',
+      industries: ['construction'],
+      sizes: [1, 5, 20, 100, 300, 999],
+      issues: ['energy', 'equipment'],
+      note: '国土交通省 / 年度ごとに公募',
+      url: ''
+    },
+    {
+      name: '商店街活性化・観光消費創出事業（商業系補助金）',
+      amount: '最大500万円',
+      desc: '商店街・小売業の集客イベント・共同販促・デジタル化に係る費用を補助。',
+      industries: ['retail', 'food', 'service'],
+      sizes: [1, 5, 20, 100],
+      issues: ['sales', 'it'],
+      note: '自治体・商工会議所 / 年度ごとに公募（地域差あり）',
+      url: ''
+    },
+    {
+      name: '食品製造業の高度化・近代化支援補助金',
+      amount: '最大5,000万円',
+      desc: '食品製造業のHACCP対応・衛生管理向上・設備近代化を支援。',
+      industries: ['food', 'manufacturing'],
+      sizes: [1, 5, 20, 100, 300],
+      issues: ['equipment', 'energy'],
+      note: '農林水産省 / 年度ごとに公募',
+      url: ''
+    },
+    {
+      name: 'IT経営応援隊事業（地方ITサポート）',
+      amount: '最大100万円',
+      desc: '地域の中小企業がITを活用した経営改善計画を策定し実行する際に支援。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100],
+      issues: ['it', 'hr'],
+      note: '都道府県・商工会 / 随時申請（地域差あり）',
+      url: ''
+    },
+    {
+      name: '女性活躍推進助成金（両立支援等助成金）',
+      amount: '最大130万円',
+      desc: '子育て・介護支援制度の導入や女性管理職比率向上に取り組む事業主を助成。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100, 300, 999],
+      issues: ['welfare', 'hire', 'hr'],
+      note: '厚生労働省 / 随時申請',
+      url: 'https://www.mhlw.go.jp/stf/seisakunitsuite/bunya/kodomo/shokuba_kosodate/ryouritsu01/index.html'
+    },
+    {
+      name: '地域中小企業人材確保支援等事業（採用補助）',
+      amount: '最大200万円',
+      desc: '地域の中小企業が採用活動を行う際の経費（合同説明会・就職情報誌等）を補助。',
+      industries: ['all'],
+      sizes: [1, 5, 20, 100, 300],
+      issues: ['hire'],
+      note: '厚生労働省・都道府県 / 年度ごとに公募',
+      url: ''
+    }
+  ];
+
+  var SIZE_MAP = {
+    '1': 1, '5': 5, '20': 20, '100': 100, '300': 300, '999': 999
+  };
+
+  function diagnose() {
+    var industry = document.getElementById('industry').value;
+    var sizeVal  = document.getElementById('size').value;
+    var sizeNum  = SIZE_MAP[sizeVal] || 1;
+
+    var checked = Array.from(document.querySelectorAll('#issueGroup input:checked'))
+                       .map(function(el){ return el.value; });
+
+    var results = SUBSIDIES.filter(function(s) {
+      // 業種チェック
+      var indOK = s.industries.indexOf('all') >= 0 || s.industries.indexOf(industry) >= 0 || industry === 'all';
+      // 従業員数チェック（対象サイズリストにsizeNum以下のものがあればOK）
+      var sizeOK = s.sizes.some(function(sz){ return sz >= sizeNum; }) || s.sizes.indexOf(sizeNum) >= 0;
+      // 課題チェック（選択なし or 1つでも一致）
+      var issueOK = checked.length === 0 || checked.some(function(c){ return s.issues.indexOf(c) >= 0; });
+      return indOK && sizeOK && issueOK;
+    });
+
+    // 表示
+    var banner = document.getElementById('resultBanner');
+    var list   = document.getElementById('subsidyList');
+
+    banner.style.display = 'block';
+    document.getElementById('resultCount').textContent = results.length;
+
+    if (results.length === 0) {
+      banner.classList.add('none');
+      list.innerHTML = '<div class="card" style="max-width:600px;text-align:center;color:var(--text-sub);padding:2rem;">条件に合う補助金・助成金が見つかりませんでした。<br>業種や課題の条件を広げてお試しください。</div>';
+    } else {
+      banner.classList.remove('none');
+      list.innerHTML = results.map(function(s){
+        var tags = s.issues.map(function(i){ return '<span class="subsidy-tag issue">' + ISSUE_LABELS[i] + '</span>'; }).join('');
+        var urlBtn = s.url ? '<a href="' + s.url + '" target="_blank" rel="noopener" style="font-size:0.78rem;color:var(--accent);font-weight:700;text-decoration:none;margin-top:0.5rem;display:inline-block;">公式サイト →</a>' : '';
+        return '<div class="subsidy-card">'
+          + '<div class="subsidy-name">' + s.name + '</div>'
+          + '<span class="subsidy-amount">' + s.amount + '</span>'
+          + '<div class="subsidy-desc">' + s.desc + '</div>'
+          + '<div class="subsidy-tags">' + tags + '</div>'
+          + (urlBtn ? '<div>' + urlBtn + '</div>' : '')
+          + '<div class="subsidy-note">📋 ' + s.note + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    // 結果へスクロール
+    banner.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // localStorage保存
+    try {
+      localStorage.setItem('subsidy_diag', JSON.stringify({
+        industry: industry,
+        size: sizeVal,
+        issues: checked
+      }));
+    } catch(e) {}
+  }
+
+  var ISSUE_LABELS = {
+    it: 'IT導入', equipment: '設備投資', hr: '人材育成', sales: '販路拡大',
+    energy: '省エネ', hire: '雇用促進', wage: '賃金引上げ', startup: '創業',
+    reorg: '事業再構築', welfare: '働き方改革'
+  };
+
+  // localStorage 復元
+  (function(){
+    try {
+      var saved = JSON.parse(localStorage.getItem('subsidy_diag') || 'null');
+      if (!saved) return;
+      if (saved.industry) document.getElementById('industry').value = saved.industry;
+      if (saved.size)     document.getElementById('size').value = saved.size;
+      if (saved.issues && saved.issues.length) {
+        document.querySelectorAll('#issueGroup input').forEach(function(el){
+          if (saved.issues.indexOf(el.value) >= 0) el.checked = true;
+        });
+      }
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

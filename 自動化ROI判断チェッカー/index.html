@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自動化ROI判断チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .sg-item {
+      background: var(--accent-light);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.9rem 0.8rem; text-align: center;
+    }
+    .sg-label { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.25rem; }
+    .sg-value { font-size: 1.15rem; font-weight: 800; color: var(--accent); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 判定基準 ── */
+    .guide {
+      max-width: 600px; margin: 0 auto 1rem;
+      padding: 0.9rem 1.2rem;
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); font-size: 0.8rem; color: var(--text-sub);
+    }
+    .guide strong { color: var(--text); }
+    .guide ul { margin: 0.4rem 0 0 1rem; }
+    .guide li { margin-bottom: 0.2rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>自動化ROI判断チェッカー</h1>
+    <p class="subtitle">導入コストと人件費削減効果を比較して投資回収期間を即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">コスト入力</p>
+    <div class="field">
+      <label for="initCost">導入コスト（初期費用）</label>
+      <input type="number" id="initCost" placeholder="例: 500000" min="0">
+      <p class="hint">ツール購入費・構築費・初期設定費など（円）</p>
+    </div>
+    <div class="field">
+      <label for="runCost">月額ランニングコスト</label>
+      <input type="number" id="runCost" placeholder="例: 20000" min="0">
+      <p class="hint">月額ライセンス料・保守費など（円/月）</p>
+    </div>
+  </div>
+
+  <!-- 効果入力カード -->
+  <div class="card">
+    <p class="card-title">削減効果入力</p>
+    <div class="field">
+      <label for="laborSave">削減できる月間人件費</label>
+      <input type="number" id="laborSave" placeholder="例: 80000" min="0">
+      <p class="hint">自動化により不要になる作業の人件費（円/月）</p>
+    </div>
+    <div class="field">
+      <label for="otherSave">その他の月間効果（任意）</label>
+      <input type="number" id="otherSave" placeholder="例: 10000" min="0">
+      <p class="hint">ミス削減・品質向上などの金銭換算効果（円/月）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">投資回収期間を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">投資回収期間</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリー -->
+  <div class="card" id="summary" style="display:none">
+    <p class="card-title">サマリー</p>
+    <div class="summary-grid" id="sg"></div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 判定基準 -->
+  <div class="guide">
+    <strong>判定基準</strong>
+    <ul>
+      <li><span style="color:var(--ok)">■ OK（推奨）</span>：回収期間 2年以内</li>
+      <li><span style="color:var(--warn)">■ WARN（要検討）</span>：回収期間 2〜4年</li>
+      <li><span style="color:var(--ng)">■ NG（要見直し）</span>：回収期間 4年超 または 削減効果がコストを下回る</li>
+    </ul>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'autoROI_v1';
+
+  window.addEventListener('DOMContentLoaded', function() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        var d = JSON.parse(saved);
+        if (d.initCost   !== undefined) document.getElementById('initCost').value   = d.initCost;
+        if (d.runCost    !== undefined) document.getElementById('runCost').value    = d.runCost;
+        if (d.laborSave  !== undefined) document.getElementById('laborSave').value  = d.laborSave;
+        if (d.otherSave  !== undefined) document.getElementById('otherSave').value  = d.otherSave;
+      } catch(e) {}
+    }
+  });
+
+  function calc() {
+    var initCost  = parseFloat(document.getElementById('initCost').value)  || 0;
+    var runCost   = parseFloat(document.getElementById('runCost').value)   || 0;
+    var laborSave = parseFloat(document.getElementById('laborSave').value) || 0;
+    var otherSave = parseFloat(document.getElementById('otherSave').value) || 0;
+
+    if (initCost <= 0 && runCost <= 0) { showErr('導入コストまたは月額コストを入力してください'); return; }
+    if (laborSave <= 0 && otherSave <= 0) { showErr('削減効果を入力してください'); return; }
+
+    var monthlyNet = laborSave + otherSave - runCost; // 月間純削減効果
+    var yearSave   = monthlyNet * 12;
+
+    var level, mainText, noteText, recoveryMonths;
+
+    if (monthlyNet <= 0) {
+      level = 'ng';
+      mainText = '回収不可';
+      noteText = '月間削減効果がランニングコストを下回っています。ツール選定や効果試算を見直してください。';
+      recoveryMonths = null;
+    } else {
+      recoveryMonths = initCost / monthlyNet;
+      var recoveryYears = recoveryMonths / 12;
+
+      if (recoveryMonths <= 24) {
+        level = 'ok';
+        mainText = fmt0(Math.ceil(recoveryMonths)) + 'ヶ月';
+        noteText = '2年以内に回収できます。導入を積極的に検討しましょう。';
+      } else if (recoveryMonths <= 48) {
+        level = 'warn';
+        mainText = fmt0(Math.ceil(recoveryMonths)) + 'ヶ月';
+        noteText = '回収に2〜4年かかります。効果の精度を高めてから判断してください。';
+      } else {
+        level = 'ng';
+        mainText = fmt0(Math.ceil(recoveryMonths)) + 'ヶ月';
+        noteText = '回収に4年超かかります。費用対効果の改善が必要です。';
+      }
+    }
+
+    showResult(level, mainText, noteText);
+
+    // サマリー
+    var sgData = [
+      { label: '月間純削減効果', value: (monthlyNet >= 0 ? '+' : '') + fmt(monthlyNet) + '円' },
+      { label: '年間節約見込み', value: (yearSave >= 0 ? '+' : '') + fmt(yearSave) + '円' },
+      { label: '導入コスト', value: fmt(initCost) + '円' },
+      { label: '損益分岐', value: recoveryMonths !== null ? (Math.ceil(recoveryMonths)) + 'ヶ月' : '—' }
+    ];
+    document.getElementById('sg').innerHTML = sgData.map(function(s) {
+      return '<div class="sg-item"><div class="sg-label">' + s.label + '</div><div class="sg-value">' + s.value + '</div></div>';
+    }).join('');
+    document.getElementById('summary').style.display = '';
+
+    showDetail([
+      ['導入コスト（初期）',   fmt(initCost)   + ' 円'],
+      ['月額ランニングコスト', fmt(runCost)    + ' 円/月'],
+      ['削減人件費',           fmt(laborSave)  + ' 円/月'],
+      ['その他削減効果',       fmt(otherSave)  + ' 円/月'],
+      ['月間純削減効果',       fmt(monthlyNet) + ' 円/月', true],
+      ['年間節約見込み',       fmt(yearSave)   + ' 円/年'],
+    ]);
+
+    // localStorage 保存
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      initCost: document.getElementById('initCost').value,
+      runCost:  document.getElementById('runCost').value,
+      laborSave:document.getElementById('laborSave').value,
+      otherSave:document.getElementById('otherSave').value,
+    }));
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('summary').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n)  { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmt0(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>
