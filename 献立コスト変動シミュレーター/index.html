@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="食材名・現在価格・値上がり率・週の使用回数を入力するだけで、週の献立コストが値上がり後にいくら増えるかを即計算。食費の値上がり影響をサッと試算できる生活防衛アプリです。">
+  <title>献立コスト変動シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 入力グリッド ── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+    .input-grid .field { margin-bottom: 0; }
+
+    /* ── ボタン群 ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-add {
+      display: block; width: 100%; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: 10px;
+      cursor: pointer; margin-top: 1rem;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-add:active { background: #ffe4bb; }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table th {
+      padding: 0.4rem 0.3rem; text-align: left;
+      font-size: 0.73rem; font-weight: 700; color: var(--text-sub);
+      border-bottom: 2px solid var(--border);
+    }
+    .detail-table th:last-child { text-align: right; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child td { border-bottom: none; }
+    .detail-table td:not(:first-child) { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); border-top: 2px solid var(--border); }
+    .detail-table .hl td:last-child { color: var(--ng); font-size: 1.05rem; }
+    .detail-table .diff-up { color: var(--ng) !important; }
+    .detail-table .diff-zero { color: var(--ok) !important; }
+
+    /* ── 食材リスト ── */
+    .item-list { margin-top: 0.5rem; }
+    .item-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+    }
+    .item-row:last-child { border-bottom: none; }
+    .item-info { flex: 1; font-size: 0.88rem; }
+    .item-name { font-weight: 700; color: var(--text); }
+    .item-detail { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .btn-delete {
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text-sub);
+      font-size: 0.78rem; padding: 0.3rem 0.6rem;
+      cursor: pointer; flex-shrink: 0;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-delete:hover { border-color: var(--ng); color: var(--ng); }
+    .empty-msg { font-size: 0.85rem; color: var(--text-sub); text-align: center; padding: 0.8rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-add, .btn-delete, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>献立コスト変動シミュレーター</h1>
+    <p class="subtitle">食材の値上がり率を入れるだけで、週の食費増加額を即試算</p>
+  </header>
+
+  <!-- 食材登録カード -->
+  <div class="card">
+    <p class="card-title">食材を登録</p>
+    <div class="field">
+      <label for="itemName">食材名</label>
+      <input type="text" id="itemName" placeholder="例：卵、牛乳、鶏むね肉">
+    </div>
+    <div class="input-grid">
+      <div class="field">
+        <label for="itemPrice">現在の価格（円）</label>
+        <input type="number" id="itemPrice" placeholder="例: 300" min="0">
+      </div>
+      <div class="field">
+        <label for="itemRate">値上がり率（%）</label>
+        <input type="number" id="itemRate" placeholder="例: 15" min="0" max="200">
+      </div>
+    </div>
+    <div class="field" style="margin-top:0.8rem;">
+      <label for="itemFreq">週の使用回数（回/週）</label>
+      <input type="number" id="itemFreq" placeholder="例: 3" min="1" max="21">
+      <p class="hint">週に何回この食材を使うか（1〜21）</p>
+    </div>
+    <button class="btn-add" onclick="addItem()">＋ 食材を追加</button>
+  </div>
+
+  <!-- 登録済み食材一覧カード -->
+  <div class="card">
+    <p class="card-title">登録済み食材</p>
+    <div class="item-list" id="itemList">
+      <p class="empty-msg" id="emptyMsg">まだ食材が登録されていません</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">週のコスト変動を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">週の食費増加額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">食材別コスト内訳</p>
+    <table class="detail-table">
+      <thead>
+        <tr>
+          <th>食材</th>
+          <th>現在（週）</th>
+          <th>値上がり後</th>
+          <th>差額</th>
+        </tr>
+      </thead>
+      <tbody id="db"></tbody>
+    </table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、農林水産省・総務省（家計調査）などの公開データをもとに、食費の目安として使いやすく整理しています。実際の価格・値上がり率は購入先によって異なります。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var items = [];
+  var STORAGE_KEY = '献立コスト変動_items';
+
+  // ── localStorage 読み込み ──
+  function loadFromStorage() {
+    try {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) { items = JSON.parse(saved); }
+    } catch(e) { items = []; }
+    renderList();
+  }
+
+  function saveToStorage() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); } catch(e) {}
+  }
+
+  // ── 食材追加 ──
+  function addItem() {
+    var name  = document.getElementById('itemName').value.trim();
+    var price = parseFloat(document.getElementById('itemPrice').value);
+    var rate  = parseFloat(document.getElementById('itemRate').value);
+    var freq  = parseFloat(document.getElementById('itemFreq').value);
+
+    if (!name) { alert('食材名を入力してください'); return; }
+    if (isNaN(price) || price <= 0) { alert('現在の価格を正しく入力してください'); return; }
+    if (isNaN(rate) || rate < 0)    { alert('値上がり率を正しく入力してください（0以上）'); return; }
+    if (isNaN(freq) || freq < 1)    { alert('週の使用回数を1以上で入力してください'); return; }
+
+    items.push({ name: name, price: price, rate: rate, freq: Math.round(freq) });
+    saveToStorage();
+    renderList();
+
+    // フォームリセット
+    document.getElementById('itemName').value  = '';
+    document.getElementById('itemPrice').value = '';
+    document.getElementById('itemRate').value  = '';
+    document.getElementById('itemFreq').value  = '';
+    document.getElementById('itemName').focus();
+  }
+
+  // ── 食材削除 ──
+  function deleteItem(idx) {
+    items.splice(idx, 1);
+    saveToStorage();
+    renderList();
+    // 結果をリセット
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  // ── リスト描画 ──
+  function renderList() {
+    var list = document.getElementById('itemList');
+    var emptyMsg = document.getElementById('emptyMsg');
+
+    if (items.length === 0) {
+      list.innerHTML = '<p class="empty-msg" id="emptyMsg">まだ食材が登録されていません</p>';
+      return;
+    }
+
+    list.innerHTML = items.map(function(item, i) {
+      var weekCost = item.price * item.freq;
+      return '<div class="item-row">'
+        + '<div class="item-info">'
+        + '<div class="item-name">' + escHtml(item.name) + '</div>'
+        + '<div class="item-detail">'
+        + fmt(item.price) + '円 × 週' + item.freq + '回 ／ 値上がり率 +' + item.rate + '% ／ 現在の週コスト: ' + fmt(weekCost) + '円'
+        + '</div></div>'
+        + '<button class="btn-delete" onclick="deleteItem(' + i + ')">削除</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  // ── 計算 ──
+  function calc() {
+    if (items.length === 0) {
+      alert('食材を1件以上登録してください');
+      return;
+    }
+
+    var totalBefore = 0, totalAfter = 0;
+    var rows = '';
+
+    items.forEach(function(item) {
+      var before = item.price * item.freq;
+      var after  = item.price * (1 + item.rate / 100) * item.freq;
+      var diff   = after - before;
+      totalBefore += before;
+      totalAfter  += after;
+      rows += '<tr>'
+        + '<td>' + escHtml(item.name) + '</td>'
+        + '<td>' + fmt(before) + '円</td>'
+        + '<td>' + fmt(after)  + '円</td>'
+        + '<td class="' + (diff > 0 ? 'diff-up' : 'diff-zero') + '">+'
+        + fmt(diff) + '円</td>'
+        + '</tr>';
+    });
+
+    var totalDiff = totalAfter - totalBefore;
+    var diffPct   = totalBefore > 0 ? (totalDiff / totalBefore * 100).toFixed(1) : '0.0';
+
+    // 月換算（週×4.3）
+    var monthlyDiff = totalDiff * 4.3;
+
+    rows += '<tr class="hl">'
+      + '<td>合計</td>'
+      + '<td>' + fmt(totalBefore) + '円</td>'
+      + '<td>' + fmt(totalAfter)  + '円</td>'
+      + '<td>+' + fmt(totalDiff) + '円</td>'
+      + '</tr>';
+
+    document.getElementById('db').innerHTML = rows;
+    document.getElementById('detail').style.display = 'block';
+
+    // 結論カードのレベル判定
+    var level, evalMsg, noteMsg;
+    if (totalDiff <= 0) {
+      level   = 'ok';
+      evalMsg = '食費への影響はほぼありません';
+      noteMsg = '値上がり率がない（または0%）食材がほとんどです。';
+    } else if (diffPct < 5) {
+      level   = 'ok';
+      evalMsg = '週の食費増加は軽微です';
+      noteMsg = '週 +' + fmt(totalDiff) + '円（約 +' + diffPct + '%）／ 月換算で約 +' + fmt(monthlyDiff) + '円の増加見込みです。';
+    } else if (diffPct < 15) {
+      level   = 'warn';
+      evalMsg = '週の食費がやや増えています';
+      noteMsg = '週 +' + fmt(totalDiff) + '円（約 +' + diffPct + '%）／ 月換算で約 +' + fmt(monthlyDiff) + '円。代替品の検討や購入頻度の見直しを考えてみてください。';
+    } else {
+      level   = 'ng';
+      evalMsg = '週の食費への影響が大きいです';
+      noteMsg = '週 +' + fmt(totalDiff) + '円（約 +' + diffPct + '%）／ 月換算で約 +' + fmt(monthlyDiff) + '円。購入先・食材・献立の見直しを検討してください。';
+    }
+
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '+' + fmt(totalDiff) + '円／週';
+    document.getElementById('re').textContent = evalMsg;
+    document.getElementById('rn').textContent = noteMsg;
+
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── ユーティリティ ──
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Enterキーで追加 ──
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && (e.target.id === 'itemFreq' || e.target.id === 'itemName' || e.target.id === 'itemPrice' || e.target.id === 'itemRate')) {
+      addItem();
+    }
+  });
+
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

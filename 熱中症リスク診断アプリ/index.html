@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>熱中症リスク診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --safe:    #15803d;   --safe-bg:   #f0fdf4;
+      --caution: #a16207;   --caution-bg:#fefce8;
+      --warn:    #c2410c;   --warn-bg:   #fff7ed;
+      --severe:  #b91c1c;   --severe-bg: #fef2f2;
+      --danger:  #7c1d1d;   --danger-bg: #450a0a;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.safe    { border-color: var(--safe);    background: var(--safe-bg);    }
+    .result-card.caution { border-color: var(--caution); background: var(--caution-bg); }
+    .result-card.warn    { border-color: var(--warn);    background: var(--warn-bg);    }
+    .result-card.severe  { border-color: var(--severe);  background: var(--severe-bg);  }
+    .result-card.danger  { border-color: var(--danger);  background: #fef2f2;           }
+
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.safe    .result-value { color: var(--safe);    }
+    .result-card.caution .result-value { color: var(--caution); }
+    .result-card.warn    .result-value { color: var(--warn);    }
+    .result-card.severe  .result-value { color: var(--severe);  }
+    .result-card.danger  .result-value { color: var(--danger);  }
+
+    .result-wbgt {
+      font-size: 0.82rem; color: var(--text-sub);
+      margin-bottom: 0.5rem;
+    }
+    .result-eval {
+      font-size: 1rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.safe    .result-eval { color: var(--safe);    }
+    .result-card.caution .result-eval { color: var(--caution); }
+    .result-card.warn    .result-eval { color: var(--warn);    }
+    .result-card.severe  .result-eval { color: var(--severe);  }
+    .result-card.danger  .result-eval { color: var(--danger);  }
+
+    /* ── 対処法カード ── */
+    .action-card {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .action-list { list-style: none; padding: 0; }
+    .action-list li {
+      display: flex; align-items: flex-start; gap: 0.6rem;
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.9rem; line-height: 1.5;
+    }
+    .action-list li:last-child { border-bottom: none; }
+    .action-list .icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 0.05rem; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card, .action-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🌡️ 熱中症リスク診断アプリ</h1>
+    <p class="subtitle">気温・湿度・作業強度を入力してリスクを即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">現場の状況を入力</p>
+    <div class="field">
+      <label for="temp">気温（℃）</label>
+      <input type="number" id="temp" placeholder="例: 35" min="-10" max="55" step="0.1">
+      <p class="hint">現在の気温を℃で入力してください</p>
+    </div>
+    <div class="field">
+      <label for="humid">湿度（%）</label>
+      <input type="number" id="humid" placeholder="例: 70" min="0" max="100" step="1">
+      <p class="hint">相対湿度を%で入力してください</p>
+    </div>
+    <div class="field">
+      <label for="work">作業強度</label>
+      <select id="work">
+        <option value="0">軽作業（事務・軽い歩行など）</option>
+        <option value="1" selected>中程度（歩行・軽い運搬など）</option>
+        <option value="2">重作業（重い物の運搬・力仕事など）</option>
+      </select>
+      <p class="hint">現場での作業の重さを選んでください</p>
+    </div>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" onclick="diagnose()">🔍 今すぐ診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">熱中症リスクレベル</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-wbgt" id="rwbgt"></p>
+    <p class="result-eval" id="re"></p>
+  </div>
+
+  <!-- 対処法カード -->
+  <div class="action-card" id="action-card">
+    <p class="card-title">対処法・行動指針</p>
+    <ul class="action-list" id="action-list"></ul>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">診断根拠</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 WBGT（暑さ指数）は環境省・日本スポーツ協会の基準に準拠した近似式で算出しています。あくまで目安としてご活用ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LEVELS = [
+    {
+      key: 'safe',
+      label: 'ほぼ安全',
+      eval: '通常の作業が可能な状態です。',
+      actions: [
+        { icon: '💧', text: '定期的な水分補給を忘れずに（30分に1回程度）' },
+        { icon: '🌿', text: '日陰での休憩を適宜取りましょう' },
+        { icon: '👀', text: '体調の変化に注意しながら作業を続けてください' },
+      ]
+    },
+    {
+      key: 'caution',
+      label: '注意',
+      eval: '熱中症が起こりやすい状態です。',
+      actions: [
+        { icon: '💧', text: '積極的に水分・塩分を補給する（20〜30分ごと）' },
+        { icon: '🕐', text: '定期的に日陰で休憩を取りましょう（1時間ごとに10分以上）' },
+        { icon: '🧢', text: '帽子・日傘など遮熱対策を行いましょう' },
+        { icon: '👤', text: '単独作業は避け、複数人で体調を確認し合いましょう' },
+      ]
+    },
+    {
+      key: 'warn',
+      label: '警戒',
+      eval: '熱中症の危険が増しています。作業を見直してください。',
+      actions: [
+        { icon: '🚨', text: '激しい作業は中止または大幅に軽減してください' },
+        { icon: '💧', text: '15〜20分ごとに水分・塩分を補給する' },
+        { icon: '❄️', text: '冷たいタオルや冷却スプレーで体を冷やしましょう' },
+        { icon: '🕐', text: '涼しい場所で頻繁に休憩を取りましょう（30〜45分ごと）' },
+        { icon: '👥', text: '体調不良者がいないか互いに確認してください' },
+      ]
+    },
+    {
+      key: 'severe',
+      label: '厳重警戒',
+      eval: '熱中症の危険が非常に高い状態です。作業の中断を検討してください。',
+      actions: [
+        { icon: '🛑', text: '重作業・激しい運動は直ちに中止してください' },
+        { icon: '🏠', text: '冷房の効いた室内や日陰で十分に休憩してください' },
+        { icon: '💧', text: '経口補水液などで積極的に水分・電解質を補給する' },
+        { icon: '🌡️', text: '体温・脈拍を定期的に確認し、異常があれば休憩を' },
+        { icon: '📞', text: '体調不良者は速やかに涼しい場所へ移動させましょう' },
+      ]
+    },
+    {
+      key: 'danger',
+      label: '危険',
+      eval: '熱中症による死亡事故が起きるレベルです。直ちに作業を中止してください。',
+      actions: [
+        { icon: '🚫', text: '屋外での作業・活動を直ちに中止してください' },
+        { icon: '🏥', text: '体調不良者がいる場合はすぐに救急（119番）へ連絡' },
+        { icon: '❄️', text: '冷房の効いた室内に避難し、体を急速に冷やしてください' },
+        { icon: '💧', text: '意識のある場合は経口補水液・スポーツ飲料で補給する' },
+        { icon: '🛌', text: '意識がない・高体温の場合はすぐに氷嚢・濡れタオルで冷却しながら救急を待つ' },
+      ]
+    }
+  ];
+
+  // WBGT簡易推定（Stull 2011近似式 + 作業強度補正）
+  function calcWBGT(T, RH, workLevel) {
+    // 湿球温度（Stull 2011）
+    var Tw = T * Math.atan(0.151977 * Math.sqrt(RH + 8.313659))
+           + Math.atan(T + RH)
+           - Math.atan(RH - 1.676331)
+           + 0.00391838 * Math.pow(RH, 1.5) * Math.atan(0.023101 * RH)
+           - 4.686035;
+    // 室内WBGT近似
+    var wbgt = 0.725 * Tw + 0.0273 * T + 0.667;
+    // 作業強度補正（環境省ガイドラインに基づく）
+    wbgt += workLevel * 1.5;
+    return wbgt;
+  }
+
+  function getLevel(wbgt) {
+    if (wbgt < 21) return 0;
+    if (wbgt < 25) return 1;
+    if (wbgt < 28) return 2;
+    if (wbgt < 31) return 3;
+    return 4;
+  }
+
+  function diagnose() {
+    var T  = parseFloat(document.getElementById('temp').value);
+    var RH = parseFloat(document.getElementById('humid').value);
+    var wk = parseInt(document.getElementById('work').value);
+
+    if (isNaN(T) || isNaN(RH)) {
+      alert('気温と湿度を入力してください');
+      return;
+    }
+    if (RH < 0 || RH > 100) { alert('湿度は0〜100の範囲で入力してください'); return; }
+
+    var wbgt = calcWBGT(T, RH, wk);
+    var lvIdx = getLevel(wbgt);
+    var lv = LEVELS[lvIdx];
+
+    // 結論カード
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + lv.key;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = lv.label;
+    document.getElementById('rwbgt').textContent = 'WBGT（暑さ指数）推定値：' + wbgt.toFixed(1) + '℃';
+    document.getElementById('re').textContent = lv.eval;
+
+    // 対処法
+    var ac = document.getElementById('action-card');
+    ac.style.display = 'block';
+    document.getElementById('action-list').innerHTML = lv.actions.map(function(a) {
+      return '<li><span class="icon">' + a.icon + '</span><span>' + a.text + '</span></li>';
+    }).join('');
+
+    // 内訳
+    var workLabels = ['軽作業', '中程度', '重作業'];
+    var rows = [
+      ['気温', T.toFixed(1) + ' ℃'],
+      ['湿度', RH + ' %'],
+      ['作業強度', workLabels[wk]],
+      ['WBGT推定値', wbgt.toFixed(1) + ' ℃', true],
+    ];
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+
+    // localStorage保存
+    try {
+      localStorage.setItem('heatstroke_temp',  T);
+      localStorage.setItem('heatstroke_humid', RH);
+      localStorage.setItem('heatstroke_work',  wk);
+    } catch(e) {}
+  }
+
+  // 起動時に前回入力を復元
+  (function restoreLast() {
+    try {
+      var t = localStorage.getItem('heatstroke_temp');
+      var h = localStorage.getItem('heatstroke_humid');
+      var w = localStorage.getItem('heatstroke_work');
+      if (t !== null) document.getElementById('temp').value  = t;
+      if (h !== null) document.getElementById('humid').value = h;
+      if (w !== null) document.getElementById('work').value  = w;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

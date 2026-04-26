@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>水道代節約シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f0f7ff;
+      --card: #ffffff;
+      --border: #c8dff2;
+      --accent: #0077cc;
+      --accent-light: #e8f4fd;
+      --text: #1a2a3a;
+      --text-sub: #5a7a9a;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,100,200,0.09);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── チェックボックスリスト ── */
+    .check-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.75rem;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.75rem 0.9rem;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .check-item:has(input:checked) {
+      border-color: var(--accent); background: var(--accent-light);
+    }
+    .check-item input[type="checkbox"] {
+      width: 1.1rem; height: 1.1rem; margin-top: 0.15rem;
+      accent-color: var(--accent); cursor: pointer; flex-shrink: 0;
+    }
+    .check-body { flex: 1; }
+    .check-name { font-size: 0.9rem; font-weight: 600; line-height: 1.3; }
+    .check-desc { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.2rem; }
+    .check-save { font-size: 0.78rem; font-weight: 700; color: var(--accent); margin-top: 0.2rem; }
+
+    /* ── 結果エリア ── */
+    .result-box {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+    .result-box.has-saving { border-color: var(--ok); background: var(--ok-bg); }
+    .result-box.no-saving  { border-color: var(--border); }
+
+    .result-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 0.8rem;
+    }
+    .result-row:last-child { margin-bottom: 0; }
+    .result-row .rlabel { font-size: 0.85rem; font-weight: 600; color: var(--text-sub); }
+    .result-row .rval   { font-size: 1.9rem; font-weight: 900; letter-spacing: -0.03em; }
+    .result-row.monthly .rval { color: var(--ok); }
+    .result-row.annual  .rval { color: var(--accent); }
+
+    .result-divider { border: none; border-top: 1px solid var(--border); margin: 0.8rem 0; }
+
+    .no-select-msg { color: var(--text-sub); font-size: 0.88rem; padding: 0.5rem 0; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1rem; }
+
+    /* ── 注記 ── */
+    .note-text { font-size: 0.74rem; color: var(--text-sub); text-align: center; margin: 0 auto 1rem; max-width: 600px; padding: 0 1rem; line-height: 1.6; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💧 水道代節約シミュレーター</h1>
+    <p class="subtitle">家族人数と節水方法を選ぶだけで月間・年間の節約額がわかります</p>
+  </header>
+
+  <!-- 家族人数 -->
+  <div class="card">
+    <p class="card-title">家族人数</p>
+    <div class="field">
+      <label for="members">何人家族ですか？</label>
+      <select id="members">
+        <option value="1">1人（一人暮らし）</option>
+        <option value="2" selected>2人</option>
+        <option value="3">3人</option>
+        <option value="4">4人</option>
+        <option value="5">5人</option>
+        <option value="6">6人以上</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 節水方法 -->
+  <div class="card">
+    <p class="card-title">取り組む節水方法（複数選択OK）</p>
+    <div class="check-list" id="checkList">
+      <!-- 1人あたり系 -->
+      <label class="check-item">
+        <input type="checkbox" data-per="person" data-liter="180" value="shower1">
+        <div class="check-body">
+          <div class="check-name">🚿 シャワー時間を1分短縮（毎日）</div>
+          <div class="check-desc">1分あたり約6Lを節水。毎日継続すれば大きな効果</div>
+          <div class="check-save">1人あたり 約54円/月</div>
+        </div>
+      </label>
+      <label class="check-item">
+        <input type="checkbox" data-per="person" data-liter="1200" value="showerhead">
+        <div class="check-body">
+          <div class="check-name">🚿 節水シャワーヘッドに交換</div>
+          <div class="check-desc">従来比40%削減。1回シャワーで約40L節水</div>
+          <div class="check-save">1人あたり 約360円/月</div>
+        </div>
+      </label>
+      <label class="check-item">
+        <input type="checkbox" data-per="person" data-liter="360" value="teeth">
+        <div class="check-body">
+          <div class="check-name">🦷 歯磨き中は水を止める</div>
+          <div class="check-desc">流しっぱなしは1回6L以上のムダ。1日3回で大きな差</div>
+          <div class="check-save">1人あたり 約108円/月</div>
+        </div>
+      </label>
+      <label class="check-item">
+        <input type="checkbox" data-per="person" data-liter="450" value="toilet">
+        <div class="check-body">
+          <div class="check-name">🚽 トイレの大小を使い分ける</div>
+          <div class="check-desc">小を使うだけで1回3〜4L節水。1日5回平均で効果大</div>
+          <div class="check-save">1人あたり 約135円/月</div>
+        </div>
+      </label>
+      <!-- 世帯固定系 -->
+      <label class="check-item">
+        <input type="checkbox" data-per="household" data-liter="360" value="laundry">
+        <div class="check-body">
+          <div class="check-name">👕 洗濯はまとめ洗いにする</div>
+          <div class="check-desc">洗濯回数を3割減らすだけで月9回分節水</div>
+          <div class="check-save">世帯で 約108円/月</div>
+        </div>
+      </label>
+      <label class="check-item">
+        <input type="checkbox" data-per="household" data-liter="2400" value="bathtub">
+        <div class="check-body">
+          <div class="check-name">🛁 お風呂の残り湯を洗濯に再利用</div>
+          <div class="check-desc">浴槽1杯（約200L）のうち約80Lを洗濯に活用</div>
+          <div class="check-save">世帯で 約720円/月</div>
+        </div>
+      </label>
+      <label class="check-item">
+        <input type="checkbox" data-per="household" data-liter="1500" value="dishes">
+        <div class="check-body">
+          <div class="check-name">🍽️ 食器洗いは溜め洗いにする</div>
+          <div class="check-desc">流しっぱなし洗いをやめて桶に溜めて洗う</div>
+          <div class="check-save">世帯で 約450円/月</div>
+        </div>
+      </label>
+      <label class="check-item">
+        <input type="checkbox" data-per="household" data-liter="600" value="garden">
+        <div class="check-body">
+          <div class="check-name">🌿 庭・ベランダの水やりを雨水で代用</div>
+          <div class="check-desc">雨水タンクや貯め水を活用して水道水をカット</div>
+          <div class="check-save">世帯で 約180円/月</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- 結果カード -->
+  <div class="result-box no-saving" id="resultBox">
+    <div id="noSelectMsg" class="no-select-msg">節水方法を選ぶと節約額が表示されます</div>
+    <div id="resultContent" style="display:none">
+      <div class="result-row monthly">
+        <span class="rlabel">月間節約額</span>
+        <span class="rval" id="monthVal">—</span>
+      </div>
+      <hr class="result-divider">
+      <div class="result-row annual">
+        <span class="rlabel">年間節約額</span>
+        <span class="rval" id="yearVal">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detailCard" style="display:none">
+    <p class="card-title">節水方法別 節約内訳</p>
+    <table class="detail-table"><tbody id="detailBody"></tbody></table>
+  </div>
+
+  <p class="note-text">
+    ※ 節約額は水道料金の目安単価（約300円/m³）をもとに計算した概算です。地域・料金体系によって異なります。
+  </p>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var PRICE_PER_M3 = 300; // 円/m³
+
+  function litersToYen(liters) {
+    return liters / 1000 * PRICE_PER_M3;
+  }
+
+  function calc() {
+    var members = parseInt(document.getElementById('members').value, 10);
+    var checks = document.querySelectorAll('#checkList input[type="checkbox"]:checked');
+
+    if (checks.length === 0) {
+      document.getElementById('noSelectMsg').style.display = '';
+      document.getElementById('resultContent').style.display = 'none';
+      document.getElementById('resultBox').className = 'result-box no-saving';
+      document.getElementById('detailCard').style.display = 'none';
+      return;
+    }
+
+    var totalLiters = 0;
+    var rows = [];
+
+    checks.forEach(function(cb) {
+      var per = cb.dataset.per;
+      var liter = parseInt(cb.dataset.liter, 10);
+      var effectiveLiters = per === 'person' ? liter * members : liter;
+      var yen = Math.round(litersToYen(effectiveLiters));
+      totalLiters += effectiveLiters;
+      var label = cb.closest('.check-item').querySelector('.check-name').textContent.replace(/^[^\s]+\s/, '');
+      rows.push([label, '+' + yen.toLocaleString('ja-JP') + ' 円/月']);
+    });
+
+    var monthlyYen = Math.round(litersToYen(totalLiters));
+    var yearlyYen  = monthlyYen * 12;
+
+    // 結果表示
+    document.getElementById('noSelectMsg').style.display = 'none';
+    document.getElementById('resultContent').style.display = '';
+    document.getElementById('monthVal').textContent = monthlyYen.toLocaleString('ja-JP') + ' 円';
+    document.getElementById('yearVal').textContent  = yearlyYen.toLocaleString('ja-JP') + ' 円';
+    document.getElementById('resultBox').className = 'result-box has-saving';
+
+    // 内訳
+    rows.push(['合計節約（月）', monthlyYen.toLocaleString('ja-JP') + ' 円', true]);
+    var tbody = document.getElementById('detailBody');
+    tbody.innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detailCard').style.display = '';
+
+    save();
+  }
+
+  function save() {
+    var members = document.getElementById('members').value;
+    var checked = Array.from(document.querySelectorAll('#checkList input:checked')).map(function(c){ return c.value; });
+    try {
+      localStorage.setItem('water_members', members);
+      localStorage.setItem('water_checked', JSON.stringify(checked));
+    } catch(e) {}
+  }
+
+  function load() {
+    try {
+      var m = localStorage.getItem('water_members');
+      if (m) document.getElementById('members').value = m;
+      var c = JSON.parse(localStorage.getItem('water_checked') || '[]');
+      c.forEach(function(v) {
+        var el = document.querySelector('input[value="' + v + '"]');
+        if (el) el.checked = true;
+      });
+    } catch(e) {}
+    calc();
+  }
+
+  // イベント設定
+  document.getElementById('members').addEventListener('change', calc);
+  document.querySelectorAll('#checkList input').forEach(function(cb) {
+    cb.addEventListener('change', calc);
+  });
+
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

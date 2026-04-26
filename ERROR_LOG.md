@@ -244,3 +244,4 @@ commit: dea0c02
 - publish 失敗時はまず `git status --short` と `git log --oneline -5` で残骸の有無と最新コミットを確認する
 - 自動公開の復旧判定は1回成功で済ませず、**2回連続で 10 件バルク公開成功**を確認できるまで様子見する
 - PowerShell × git の組み合わせでは、$ErrorActionPreference='Stop' を script-wide に張ると native command の warning で落ちる罠があることを意識する
+[2026-04-26_122522] SCAN apps=残業代計算アプリ,残業時間管理チェッカー,水分管理アプリ,水道代節約シミュレーター,法定点検期限管理アプリ,洗濯タグ早見表アプリ,熱中症リスク判定アプリ,熱中症リスク診断アプリ,物流遅延対策アプリ,献立コスト変動シミュレーター total=2 exit=0

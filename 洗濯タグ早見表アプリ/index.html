@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>洗濯タグ早見表アプリ</title>
+  <style>
+    :root {
+      --bg: #f0f5ff;
+      --card: #ffffff;
+      --border: #d0dbf0;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --text: #1e293b;
+      --text-sub: #64748b;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.2rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .search-wrap {
+      max-width: 640px; margin: 0 auto 1rem; padding: 0 1rem;
+    }
+    .search-wrap input {
+      width: 100%; padding: 0.75rem 1rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 10px; background: var(--card); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .search-wrap input:focus { border-color: var(--accent); }
+
+    .cat-tabs {
+      max-width: 640px; margin: 0 auto 1rem; padding: 0 1rem;
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .cat-tab {
+      padding: 0.4rem 0.85rem; font-size: 0.82rem; font-weight: 700;
+      border: 1.5px solid var(--border); border-radius: 20px;
+      background: var(--card); color: var(--text-sub); cursor: pointer;
+      transition: all 0.15s; user-select: none;
+    }
+    .cat-tab.active, .cat-tab:hover {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+
+    .grid {
+      max-width: 640px; margin: 0 auto; padding: 0 1rem;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .mark-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 0.8rem;
+      box-shadow: var(--shadow); cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.12s;
+      text-align: center; user-select: none;
+    }
+    .mark-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+    .mark-card:active { transform: translateY(0); }
+
+    .mark-symbol {
+      font-size: 2rem; line-height: 1;
+      margin-bottom: 0.4rem;
+    }
+    .mark-symbol.drawn {
+      width: 48px; height: 48px; margin: 0 auto 0.4rem;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem;
+    }
+    .mark-name {
+      font-size: 0.78rem; font-weight: 700; color: var(--text);
+      margin-bottom: 0.2rem; line-height: 1.3;
+    }
+    .mark-short {
+      font-size: 0.72rem; color: var(--text-sub); line-height: 1.4;
+    }
+    .mark-cat-badge {
+      display: inline-block; margin-top: 0.4rem;
+      font-size: 0.66rem; font-weight: 700; padding: 0.15rem 0.5rem;
+      border-radius: 10px; color: #fff;
+    }
+
+    /* カテゴリ別バッジカラー */
+    .badge-wash    { background: #2563eb; }
+    .badge-bleach  { background: #7c3aed; }
+    .badge-dry     { background: #0891b2; }
+    .badge-iron    { background: #d97706; }
+    .badge-clean   { background: #16a34a; }
+
+    /* モーダル */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 100;
+      align-items: center; justify-content: center; padding: 1rem;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--card); border-radius: var(--radius);
+      padding: 1.5rem 1.4rem; max-width: 480px; width: 100%;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18); position: relative;
+      max-height: 90vh; overflow-y: auto;
+    }
+    .modal-close {
+      position: absolute; top: 0.8rem; right: 1rem;
+      font-size: 1.4rem; cursor: pointer; color: var(--text-sub);
+      background: none; border: none; line-height: 1;
+    }
+    .modal-symbol { font-size: 3.5rem; text-align: center; margin-bottom: 0.8rem; }
+    .modal-name { font-size: 1.15rem; font-weight: 900; margin-bottom: 0.3rem; }
+    .modal-cat { font-size: 0.78rem; color: var(--text-sub); margin-bottom: 1rem; }
+    .modal-desc { font-size: 0.9rem; line-height: 1.7; color: var(--text); margin-bottom: 0.8rem; }
+    .modal-tips {
+      background: var(--accent-light); border-radius: 10px;
+      padding: 0.8rem 1rem;
+    }
+    .modal-tips-title { font-size: 0.75rem; font-weight: 700; color: var(--accent); margin-bottom: 0.4rem; }
+    .modal-tips ul { padding-left: 1.2rem; }
+    .modal-tips li { font-size: 0.82rem; color: var(--text); line-height: 1.6; }
+
+    .no-result {
+      text-align: center; color: var(--text-sub);
+      padding: 2rem; font-size: 0.9rem; grid-column: 1/-1;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🧺 洗濯タグ早見表</h1>
+    <p class="subtitle">洗濯表示マークの意味と正しい洗い方を即確認</p>
+  </header>
+
+  <div class="search-wrap">
+    <input type="text" id="searchInput" placeholder="マーク名・キーワードで検索（例: 手洗い、漂白、低温）" oninput="renderCards()">
+  </div>
+
+  <div class="cat-tabs" id="catTabs"></div>
+
+  <div class="grid" id="grid"></div>
+
+  <!-- 詳細モーダル -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal" id="modal">
+      <button class="modal-close" onclick="closeModalDirect()">✕</button>
+      <div class="modal-symbol" id="mSymbol"></div>
+      <div class="modal-name" id="mName"></div>
+      <div class="modal-cat" id="mCat"></div>
+      <div class="modal-desc" id="mDesc"></div>
+      <div class="modal-tips" id="mTips" style="display:none">
+        <div class="modal-tips-title">ポイント</div>
+        <ul id="mTipsList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script src="../fav-widget.js"></script>
+
+  <script>
+  var DATA = [
+    // ── 洗い方 ──
+    { id:1, cat:'wash', symbol:'🫧', name:'洗濯機洗い（40℃以下）', short:'弱水流で洗える', keywords:'洗濯機 水洗い 弱水流 40度',
+      desc:'洗濯機を使って洗えます。水温は40℃以下にしてください。弱水流（ソフトコース）で洗うと生地を傷めにくいです。',
+      tips:['水温を40℃以下に設定する','デリケートコースや手洗いコースを使う','脱水は短めに（30秒〜1分）'] },
+    { id:2, cat:'wash', symbol:'🪣', name:'洗濯機洗い（30℃以下）', short:'30℃以下の弱水流', keywords:'洗濯機 30度 デリケート 弱水流',
+      desc:'洗濯機を使って洗えます。水温は30℃以下にしてください。デリケートな素材や色落ちしやすい衣類に多い表示です。',
+      tips:['水温は常温（約20〜25℃）でもOK','中性洗剤を使う','他の衣類と分けて洗う'] },
+    { id:3, cat:'wash', symbol:'✋', name:'手洗い', short:'手洗いのみOK', keywords:'手洗い 桶 デリケート',
+      desc:'洗濯機は使えません。手洗いのみ可能です。水温は30℃以下が目安です。',
+      tips:['たっぷりの水に中性洗剤を溶かす','優しく押し洗い・つまみ洗いをする','強くもんだりこすったりしない','すすぎは2回行い洗剤をよく落とす'] },
+    { id:4, cat:'wash', symbol:'🚫', name:'水洗い不可', short:'水洗いできない', keywords:'水洗い不可 ドライクリーニング',
+      desc:'水を使った洗い方はすべてNG。ドライクリーニングに出してください。型崩れや縮み、色落ちの恐れがあります。',
+      tips:['クリーニング店に持参する','汚れが軽い場合はドライ専用スプレーを使う'] },
+    { id:5, cat:'wash', symbol:'💧', name:'洗濯機洗い（通常）', short:'通常コースで洗える', keywords:'洗濯機 通常 普通 水洗い',
+      desc:'洗濯機の通常コースで洗えます。温度制限の表示がない場合は40℃以下が一般的な目安です。',
+      tips:['裏返して洗うと色落ちを防ぎやすい','ファスナーは閉めてから洗う'] },
+
+    // ── 漂白 ──
+    { id:6, cat:'bleach', symbol:'△', name:'塩素系・酸素系漂白剤OK', short:'漂白剤が使える', keywords:'漂白 三角 使える OK',
+      desc:'塩素系・酸素系どちらの漂白剤も使えます。白い衣類の黄ばみや汚れに効果的です。',
+      tips:['原液のまま直接つけない','規定量を守って使う'] },
+    { id:7, cat:'bleach', symbol:'△/', name:'酸素系漂白剤のみOK', short:'酸素系のみ使える', keywords:'酸素系 漂白 デリケート カラー',
+      desc:'酸素系漂白剤（過炭酸ナトリウムなど）は使えますが、塩素系漂白剤（次亜塩素酸ナトリウム）は使用不可です。色物に多い表示。',
+      tips:['「酸素系」の表示を確認してから使う','カラーの衣類は色落ちを目立たない部分でテストする'] },
+    { id:8, cat:'bleach', symbol:'🔺', name:'漂白不可', short:'漂白剤は使えない', keywords:'漂白不可 漂白剤 NG',
+      desc:'塩素系・酸素系どちらの漂白剤も使用できません。生地を傷めたり、色落ちの原因になります。',
+      tips:['重曹や酸素系漂白剤でも注意が必要','頑固な汚れはクリーニングへ'] },
+
+    // ── 乾燥 ──
+    { id:9, cat:'dry', symbol:'☀️', name:'つり干し（日干しOK）', short:'外干し・日干しOK', keywords:'つり干し 外干し 日干し 乾燥',
+      desc:'ハンガーなどにつるして乾燥させます。日光に当てて乾かしてOKです。',
+      tips:['形を整えてからつるす','風通しの良い場所で干す'] },
+    { id:10, cat:'dry', symbol:'🌥️', name:'つり干し（日陰）', short:'日陰での外干し', keywords:'日陰 つり干し 陰干し',
+      desc:'ハンガーなどにつるして乾燥させますが、直射日光は避けてください。色落ちや変色の恐れがある素材に多い表示。',
+      tips:['室内の風通しのよい場所か日陰の外干しが理想','乾燥機も使用不可が多い'] },
+    { id:11, cat:'dry', symbol:'🛏️', name:'平干し', short:'平らに広げて乾燥', keywords:'平干し 型崩れ ニット セーター',
+      desc:'平らに広げて乾燥させます。ハンガーに掛けると型崩れや伸びが起こる素材（ニット・セーターなど）に多い表示。',
+      tips:['洗濯ネットに入れたまま干してもOK','型を整えながら平らに並べる','手首・袖口などを伸ばしておく'] },
+    { id:12, cat:'dry', symbol:'🌧️', name:'平干し（日陰）', short:'日陰で平らに乾燥', keywords:'平干し 日陰 ニット デリケート',
+      desc:'日陰で平らに広げて乾燥させます。デリケートな素材や色落ちしやすい衣類に多い表示。',
+      tips:['室内の乾燥した場所で干す','除湿機の近くに置くと乾きが早い'] },
+    { id:13, cat:'dry', symbol:'🔄', name:'タンブル乾燥OK（低温）', short:'乾燥機使用OK（低温）', keywords:'乾燥機 タンブル 低温 ドラム',
+      desc:'乾燥機が使えます。低温（60℃以下が目安）で乾燥させてください。',
+      tips:['乾燥機のエコモード・低温モードを使う','縮みが心配な場合はほどほどで止めて陰干しに切り替える'] },
+    { id:14, cat:'dry', symbol:'❌🔄', name:'タンブル乾燥不可', short:'乾燥機は使えない', keywords:'乾燥機不可 タンブル不可 NG',
+      desc:'乾燥機は使用できません。縮み・型崩れ・傷みの原因になります。',
+      tips:['自然乾燥（つり干し・平干し）で乾かす','急ぎの場合はドライヤーを遠ざけて使う'] },
+
+    // ── アイロン ──
+    { id:15, cat:'iron', symbol:'🔥', name:'アイロン可（高温）', short:'高温180〜210℃', keywords:'アイロン 高温 180度 綿 麻',
+      desc:'高温（180〜210℃、スチーム可）でアイロンがけできます。綿・麻素材に多い表示。',
+      tips:['スチームを使うとシワが伸びやすい','裏から当てると光沢を防げる'] },
+    { id:16, cat:'iron', symbol:'♨️', name:'アイロン可（中温）', short:'中温140〜160℃', keywords:'アイロン 中温 140度 ウール シルク',
+      desc:'中温（140〜160℃）でアイロンがけできます。ウール・シルクなどに多い表示。',
+      tips:['あて布を使うと生地を傷めにくい','スチームは避けるか最小限に'] },
+    { id:17, cat:'iron', symbol:'🌡️', name:'アイロン可（低温）', short:'低温80〜120℃', keywords:'アイロン 低温 80度 化繊 ナイロン',
+      desc:'低温（80〜120℃）のみでアイロンがけできます。化学繊維やナイロン素材に多い表示。スチームは使用不可。',
+      tips:['スチームは使わない','あて布を必ず使う','素早く動かして同じ場所に当て続けない'] },
+    { id:18, cat:'iron', symbol:'🚫🔥', name:'アイロン不可', short:'アイロンは使えない', keywords:'アイロン不可 NG プリント 接着',
+      desc:'アイロンは使用できません。熱で溶ける・縮む・プリントが剥がれるなどの恐れがあります。',
+      tips:['スチームも当てない','シワが気になる場合はスチーマーを遠めから当てるか、濡らしたタオルをかぶせてたたく'] },
+
+    // ── クリーニング ──
+    { id:19, cat:'clean', symbol:'⭕', name:'ドライクリーニングOK', short:'クリーニング店へ', keywords:'ドライクリーニング 石油系 クリーニング',
+      desc:'石油系溶剤によるドライクリーニングが可能です。クリーニング店に出せます。',
+      tips:['洗濯タグをそのまま見せるとスムーズ','シミは事前にスタッフへ伝える'] },
+    { id:20, cat:'clean', symbol:'⭕W', name:'ウェットクリーニングOK', short:'水系クリーニング可', keywords:'ウェットクリーニング 水系 クリーニング',
+      desc:'ウェットクリーニング（水系溶剤）が可能です。クリーニング店に出せます。',
+      tips:['通常のドライクリーニングと異なる処理法','クリーニング店に「ウェット可」と伝える'] },
+    { id:21, cat:'clean', symbol:'🚫⭕', name:'クリーニング不可', short:'クリーニング店でも断られる素材', keywords:'クリーニング不可 取扱い注意',
+      desc:'プロのクリーニングにも出せない素材や商品です。専門店に相談するか取扱説明書に従ってください。',
+      tips:['購入店に問い合わせる','局所的な汚れには専用ブラシやクリーナーを使う'] },
+  ];
+
+  var CATS = [
+    { id:'all',    label:'すべて' },
+    { id:'wash',   label:'洗い方',       badgeClass:'badge-wash' },
+    { id:'bleach', label:'漂白',         badgeClass:'badge-bleach' },
+    { id:'dry',    label:'乾燥・干し方', badgeClass:'badge-dry' },
+    { id:'iron',   label:'アイロン',     badgeClass:'badge-iron' },
+    { id:'clean',  label:'クリーニング', badgeClass:'badge-clean' },
+  ];
+
+  var CAT_LABEL = {};
+  var CAT_BADGE = {};
+  CATS.forEach(function(c){ CAT_LABEL[c.id] = c.label; CAT_BADGE[c.id] = c.badgeClass || ''; });
+
+  var currentCat = 'all';
+
+  // タブ描画
+  function renderTabs() {
+    var el = document.getElementById('catTabs');
+    el.innerHTML = CATS.map(function(c){
+      return '<button class="cat-tab' + (currentCat===c.id?' active':'') + '" onclick="setCat(\'' + c.id + '\')">' + c.label + '</button>';
+    }).join('');
+  }
+
+  function setCat(cat) {
+    currentCat = cat;
+    renderTabs();
+    renderCards();
+  }
+
+  function renderCards() {
+    var q = document.getElementById('searchInput').value.trim().toLowerCase();
+    var list = DATA.filter(function(d){
+      var catOk = currentCat === 'all' || d.cat === currentCat;
+      if (!catOk) return false;
+      if (!q) return true;
+      return (d.name + d.short + d.keywords + (d.desc||'')).toLowerCase().indexOf(q) >= 0;
+    });
+
+    var grid = document.getElementById('grid');
+    if (list.length === 0) {
+      grid.innerHTML = '<p class="no-result">「' + escHtml(q) + '」に一致するマークが見つかりませんでした</p>';
+      return;
+    }
+    grid.innerHTML = list.map(function(d){
+      return '<div class="mark-card" onclick="openModal(' + d.id + ')">'
+           + '<div class="mark-symbol">' + escHtml(d.symbol) + '</div>'
+           + '<div class="mark-name">' + escHtml(d.name) + '</div>'
+           + '<div class="mark-short">' + escHtml(d.short) + '</div>'
+           + '<span class="mark-cat-badge ' + (CAT_BADGE[d.cat]||'') + '">' + escHtml(CAT_LABEL[d.cat]||'') + '</span>'
+           + '</div>';
+    }).join('');
+  }
+
+  function openModal(id) {
+    var d = DATA.find(function(x){ return x.id === id; });
+    if (!d) return;
+    document.getElementById('mSymbol').textContent = d.symbol;
+    document.getElementById('mName').textContent = d.name;
+    document.getElementById('mCat').textContent = CAT_LABEL[d.cat] || '';
+    document.getElementById('mDesc').textContent = d.desc || '';
+    var tipsEl = document.getElementById('mTips');
+    var tipsListEl = document.getElementById('mTipsList');
+    if (d.tips && d.tips.length) {
+      tipsListEl.innerHTML = d.tips.map(function(t){ return '<li>' + escHtml(t) + '</li>'; }).join('');
+      tipsEl.style.display = '';
+    } else {
+      tipsEl.style.display = 'none';
+    }
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+  }
+  function closeModalDirect() {
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // キーボードでモーダルを閉じる
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') closeModalDirect();
+  });
+
+  renderTabs();
+  renderCards();
+  </script>
+</body>
+</html>

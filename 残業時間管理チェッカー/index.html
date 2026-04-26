@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>残業時間管理チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .inline-fields { display: flex; gap: 0.8rem; }
+    .inline-fields .field { flex: 1; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-secondary {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.75rem;
+      font-size: 0.92rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 従業員一覧テーブル ── */
+    .employee-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .employee-table th {
+      padding: 0.6rem 0.4rem; text-align: left; font-size: 0.75rem;
+      color: var(--text-sub); border-bottom: 2px solid var(--border);
+    }
+    .employee-table th:nth-child(n+2) { text-align: right; }
+    .employee-table td { padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--border); }
+    .employee-table td:nth-child(n+2) { text-align: right; font-variant-numeric: tabular-nums; }
+    .employee-table tr:last-child td { border-bottom: none; }
+    .badge {
+      display: inline-block; padding: 0.15rem 0.55rem; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); }
+    .badge-ng   { background: var(--ng-bg);   color: var(--ng);   }
+    .del-btn {
+      background: none; border: none; color: var(--text-sub); cursor: pointer;
+      font-size: 0.85rem; padding: 0.2rem 0.4rem;
+    }
+    .del-btn:hover { color: var(--ng); }
+    .empty-msg { text-align: center; color: var(--text-sub); padding: 1.5rem 0; font-size: 0.88rem; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>残業時間管理チェッカー</h1>
+    <p class="subtitle">36協定の上限違反リスクを即確認</p>
+  </header>
+
+  <!-- 対象月選択 -->
+  <div class="card">
+    <p class="card-title">対象月</p>
+    <div class="inline-fields">
+      <div class="field">
+        <label for="targetYear">年</label>
+        <input type="number" id="targetYear" min="2020" max="2099">
+      </div>
+      <div class="field">
+        <label for="targetMonth">月</label>
+        <select id="targetMonth"></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 従業員追加 -->
+  <div class="card">
+    <p class="card-title">従業員追加</p>
+    <div class="field">
+      <label for="empName">従業員名</label>
+      <input type="text" id="empName" placeholder="例: 山田太郎">
+    </div>
+    <div class="field">
+      <label for="empHours">今月の残業時間 (h)</label>
+      <input type="number" id="empHours" placeholder="例: 35" min="0" step="0.5">
+      <p class="hint">一般条項上限: 月45h / 年360h</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="addEmployee()">登録してチェック</button>
+
+  <!-- 全体サマリー結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">全体リスク判定</p>
+    <p class="result-value" id="rv">-</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリー内訳 -->
+  <div class="card" id="summaryCard" style="display:none">
+    <p class="card-title">サマリー</p>
+    <table class="detail-table"><tbody id="summaryBody"></tbody></table>
+  </div>
+
+  <!-- 従業員一覧 -->
+  <div class="card" id="listCard">
+    <p class="card-title">従業員一覧</p>
+    <div id="listArea"></div>
+  </div>
+
+  <button class="btn-secondary" onclick="clearAll()">全データ削除</button>
+
+  <a class="back-link" href="../index.html">&larr; トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'overtimeChecker_data';
+  var LIMIT_MONTH = 45;
+  var LIMIT_YEAR = 360;
+  var LIMIT_MONTH_SPECIAL = 100;
+  var LIMIT_YEAR_SPECIAL = 720;
+  var WARN_MONTH = 36; // 80% of 45
+
+  var state = loadState();
+
+  function defaultState() {
+    var now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1, employees: {} };
+  }
+
+  function loadState() {
+    try {
+      var s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (s && s.employees) return s;
+    } catch(e) {}
+    return defaultState();
+  }
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function getKey() { return state.year + '-' + String(state.month).padStart(2, '0'); }
+
+  // 初期化
+  (function init() {
+    document.getElementById('targetYear').value = state.year;
+    var sel = document.getElementById('targetMonth');
+    for (var i = 1; i <= 12; i++) {
+      var opt = document.createElement('option');
+      opt.value = i; opt.textContent = i + '月';
+      sel.appendChild(opt);
+    }
+    sel.value = state.month;
+
+    document.getElementById('targetYear').addEventListener('change', onMonthChange);
+    sel.addEventListener('change', onMonthChange);
+
+    document.getElementById('empName').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') document.getElementById('empHours').focus();
+    });
+    document.getElementById('empHours').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') addEmployee();
+    });
+
+    render();
+  })();
+
+  function onMonthChange() {
+    state.year = parseInt(document.getElementById('targetYear').value) || new Date().getFullYear();
+    state.month = parseInt(document.getElementById('targetMonth').value) || 1;
+    saveState();
+    render();
+  }
+
+  function addEmployee() {
+    var nameEl = document.getElementById('empName');
+    var hoursEl = document.getElementById('empHours');
+    var name = nameEl.value.trim();
+    var hours = parseFloat(hoursEl.value);
+
+    if (!name) { nameEl.focus(); return; }
+    if (isNaN(hours) || hours < 0) { hoursEl.focus(); return; }
+
+    var key = getKey();
+    if (!state.employees[name]) state.employees[name] = {};
+    state.employees[name][key] = hours;
+    saveState();
+
+    nameEl.value = '';
+    hoursEl.value = '';
+    nameEl.focus();
+    render();
+  }
+
+  function removeEmployee(name) {
+    var key = getKey();
+    if (state.employees[name]) {
+      delete state.employees[name][key];
+      if (Object.keys(state.employees[name]).length === 0) {
+        delete state.employees[name];
+      }
+    }
+    saveState();
+    render();
+  }
+
+  function getYearTotal(name) {
+    var total = 0;
+    var year = state.year;
+    for (var m = 1; m <= 12; m++) {
+      var k = year + '-' + String(m).padStart(2, '0');
+      if (state.employees[name] && state.employees[name][k]) {
+        total += state.employees[name][k];
+      }
+    }
+    return total;
+  }
+
+  function judgeLevel(monthHours, yearTotal) {
+    if (monthHours > LIMIT_MONTH_SPECIAL || yearTotal > LIMIT_YEAR_SPECIAL) return 'ng';
+    if (monthHours > LIMIT_MONTH || yearTotal > LIMIT_YEAR) return 'ng';
+    if (monthHours > WARN_MONTH || yearTotal > LIMIT_YEAR * 0.8) return 'warn';
+    return 'ok';
+  }
+
+  function judgeLabelText(level) {
+    if (level === 'ok') return 'OK';
+    if (level === 'warn') return 'WARN';
+    return 'NG';
+  }
+
+  function render() {
+    var key = getKey();
+    var area = document.getElementById('listArea');
+    var names = [];
+
+    // この月にデータがある従業員を収集
+    for (var name in state.employees) {
+      if (state.employees[name][key] !== undefined) {
+        names.push(name);
+      }
+    }
+
+    if (names.length === 0) {
+      area.innerHTML = '<p class="empty-msg">従業員が登録されていません</p>';
+      document.getElementById('result').style.display = 'none';
+      document.getElementById('summaryCard').style.display = 'none';
+      return;
+    }
+
+    var countOk = 0, countWarn = 0, countNg = 0;
+    var html = '<table class="employee-table"><thead><tr>'
+      + '<th>氏名</th><th>今月(h)</th><th>年累計(h)</th><th>判定</th><th></th>'
+      + '</tr></thead><tbody>';
+
+    for (var i = 0; i < names.length; i++) {
+      var n = names[i];
+      var mh = state.employees[n][key];
+      var yt = getYearTotal(n);
+      var lv = judgeLevel(mh, yt);
+      if (lv === 'ok') countOk++;
+      else if (lv === 'warn') countWarn++;
+      else countNg++;
+
+      html += '<tr>'
+        + '<td>' + esc(n) + '</td>'
+        + '<td>' + mh.toFixed(1) + '</td>'
+        + '<td>' + yt.toFixed(1) + '</td>'
+        + '<td><span class="badge badge-' + lv + '">' + judgeLabelText(lv) + '</span></td>'
+        + '<td><button class="del-btn" onclick="removeEmployee(\'' + esc(n).replace(/'/g, "\\'") + '\')" title="削除">&times;</button></td>'
+        + '</tr>';
+    }
+    html += '</tbody></table>';
+    area.innerHTML = html;
+
+    // 全体判定
+    var overall = countNg > 0 ? 'ng' : countWarn > 0 ? 'warn' : 'ok';
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + overall;
+    rc.style.display = '';
+
+    var rv = document.getElementById('rv');
+    var rn = document.getElementById('rn');
+    if (overall === 'ok') {
+      rv.textContent = 'OK - 問題なし';
+      rn.textContent = '全員が36協定の上限内です';
+    } else if (overall === 'warn') {
+      rv.textContent = 'WARN - 注意';
+      rn.textContent = countWarn + '名が上限に近づいています。早めの対策を検討してください';
+    } else {
+      rv.textContent = 'NG - 上限超過あり';
+      rn.textContent = countNg + '名が36協定の上限を超過しています。即対応が必要です';
+    }
+
+    // サマリー
+    var sb = document.getElementById('summaryBody');
+    sb.innerHTML = ''
+      + row('登録人数', names.length + '名')
+      + row('OK', countOk + '名')
+      + row('WARN（月36h超 or 年288h超）', countWarn + '名')
+      + rowHl('NG（月45h超 or 年360h超）', countNg + '名');
+    document.getElementById('summaryCard').style.display = '';
+  }
+
+  function row(label, val) {
+    return '<tr><td>' + label + '</td><td>' + val + '</td></tr>';
+  }
+  function rowHl(label, val) {
+    return '<tr class="hl"><td>' + label + '</td><td>' + val + '</td></tr>';
+  }
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function clearAll() {
+    if (!confirm('全データを削除しますか？')) return;
+    state = defaultState();
+    saveState();
+    document.getElementById('targetYear').value = state.year;
+    document.getElementById('targetMonth').value = state.month;
+    render();
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

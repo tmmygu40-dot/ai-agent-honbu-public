@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>法定点検期限管理アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 700px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 700px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 点検一覧テーブル ── */
+    .result-area {
+      display: none;
+      max-width: 700px;
+      margin: 0 auto 1rem;
+    }
+    .section-title {
+      font-size: 0.85rem; font-weight: 800;
+      color: var(--accent); letter-spacing: 0.04em;
+      margin-bottom: 0.5rem; margin-top: 1.2rem;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .section-title::before {
+      content: ''; display: inline-block;
+      width: 4px; height: 1em; background: var(--accent); border-radius: 2px;
+    }
+    .insp-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.84rem; background: var(--card);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      overflow: hidden; box-shadow: var(--shadow);
+    }
+    .insp-table thead tr { background: var(--accent-light); }
+    .insp-table th {
+      padding: 0.6rem 0.7rem; text-align: left;
+      font-size: 0.75rem; font-weight: 700; color: var(--accent);
+      border-bottom: 2px solid var(--border);
+    }
+    .insp-table td {
+      padding: 0.7rem 0.7rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top; line-height: 1.45;
+    }
+    .insp-table tr:last-child td { border-bottom: none; }
+    .insp-table tr:hover td { background: #fafaf8; }
+    .cycle-badge {
+      display: inline-block; padding: 0.15rem 0.5rem;
+      border-radius: 20px; font-size: 0.74rem; font-weight: 700;
+      white-space: nowrap;
+    }
+    .cycle-6m  { background: var(--warn-bg); color: var(--warn); }
+    .cycle-1y  { background: var(--ok-bg);   color: var(--ok); }
+    .cycle-2y  { background: #eff6ff; color: #1d4ed8; }
+    .cycle-3y  { background: #f5f3ff; color: #7c3aed; }
+    .cycle-other { background: #f3f4f6; color: #4b5563; }
+    .law-text { font-size: 0.74rem; color: var(--text-sub); }
+    .who-badge {
+      display: inline-block; padding: 0.12rem 0.45rem;
+      border-radius: 20px; font-size: 0.72rem; font-weight: 600;
+      background: #f3f4f6; color: #374151;
+    }
+    .count-badge {
+      display: inline-block; background: var(--accent); color: #fff;
+      border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+      padding: 0.1rem 0.55rem; margin-left: 0.4rem;
+    }
+
+    /* ── 注釈 ── */
+    .source-note {
+      max-width: 700px; margin: 1.6rem auto 0;
+      padding: 0.7rem 0.9rem;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; font-size: 0.76rem; color: var(--text-sub);
+      line-height: 1.6; text-align: left;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 700px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media (max-width: 520px) {
+      .insp-table th:nth-child(4),
+      .insp-table td:nth-child(4) { display: none; }
+    }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print, .btn-pdf { display: none !important; }
+      .card, .insp-table { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>⚙️ 法定点検期限管理アプリ</h1>
+    <p class="subtitle">業種・設備を選ぶだけで法定点検と更新周期の一覧を即生成</p>
+  </header>
+
+  <!-- 選択カード -->
+  <div class="card">
+    <p class="card-title">業種・設備を選択</p>
+    <div class="field">
+      <label for="industry">業種</label>
+      <select id="industry" onchange="onIndustryChange()">
+        <option value="">-- 業種を選んでください --</option>
+        <option value="common">共通（全業種）</option>
+        <option value="restaurant">飲食店・食品製造</option>
+        <option value="retail">小売店・スーパー</option>
+        <option value="construction">建設業・工事現場</option>
+        <option value="manufacturing">製造業・工場</option>
+        <option value="office">オフィス・事務所</option>
+      </select>
+    </div>
+    <div class="field" id="equipment-field" style="display:none">
+      <label for="equipment">設備カテゴリ（絞り込み・任意）</label>
+      <select id="equipment" onchange="generate()">
+        <option value="all">すべて表示</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">点検一覧を生成する</button>
+
+  <!-- 結果エリア -->
+  <div class="result-area" id="result-area">
+    <div id="result-content"></div>
+  </div>
+
+  <p class="source-note no-print">
+    📚 消防法・建築基準法・労働安全衛生法・電気事業法・ガス事業法・道路運送車両法などの法令を参考に整理しています。
+    実際の点検義務は建物規模・使用状況により異なります。管轄官公庁や専門業者にご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  /* ===== 点検データ定義 ===== */
+  // 各点検: { name, equipment, cycle, cycleClass, law, who }
+  // cycleClass: cycle-6m / cycle-1y / cycle-2y / cycle-3y / cycle-other
+  // who: 専門業者 / 有資格者 / 自主点検
+
+  var DATA = {
+    common: [
+      { name: '消火器 外観点検',           equipment: '消防設備',   cycle: '6ヶ月ごと', cycleClass: 'cycle-6m',  law: '消防法 17条の3の3',    who: '専門業者' },
+      { name: '消火器 機能点検',           equipment: '消防設備',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '消防法 17条の3の3',    who: '専門業者' },
+      { name: '自動火災報知設備 点検',      equipment: '消防設備',   cycle: '6ヶ月ごと', cycleClass: 'cycle-6m',  law: '消防法 17条の3の3',    who: '専門業者' },
+      { name: '誘導灯・誘導標識 点検',      equipment: '消防設備',   cycle: '6ヶ月ごと', cycleClass: 'cycle-6m',  law: '消防法 17条の3の3',    who: '専門業者' },
+      { name: '避難器具 点検',             equipment: '消防設備',   cycle: '6ヶ月ごと', cycleClass: 'cycle-6m',  law: '消防法 17条の3の3',    who: '専門業者' },
+      { name: '屋内消火栓設備 点検',        equipment: '消防設備',   cycle: '6ヶ月ごと', cycleClass: 'cycle-6m',  law: '消防法 17条の3の3',    who: '専門業者' },
+      { name: '低圧電気設備 定期点検',      equipment: '電気設備',   cycle: '3年ごと',   cycleClass: 'cycle-3y',  law: '電気事業法 43条',      who: '電気主任技術者' },
+      { name: '高圧電気設備 定期点検',      equipment: '電気設備',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '電気事業法 43条',      who: '電気主任技術者' },
+      { name: '特定建築物 建物外壁点検',    equipment: '建築設備',   cycle: '3年ごと',   cycleClass: 'cycle-3y',  law: '建築基準法 12条',      who: '建築士等' },
+      { name: '特殊建築物 定期調査',        equipment: '建築設備',   cycle: '3年ごと',   cycleClass: 'cycle-3y',  law: '建築基準法 12条',      who: '建築士等' },
+    ],
+    restaurant: [
+      { name: '厨房ガス設備 点検',          equipment: 'ガス設備',   cycle: '4年ごと',   cycleClass: 'cycle-other',law: 'ガス事業法 施行規則',  who: 'ガス業者' },
+      { name: 'フードダクト清掃・点検',      equipment: '換気設備',   cycle: '6ヶ月ごと', cycleClass: 'cycle-6m',  law: '消防法・建築基準法',   who: '専門業者' },
+      { name: '換気設備 定期報告',          equipment: '換気設備',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '建築基準法 12条',      who: '有資格者' },
+      { name: '食品衛生 定期検査',          equipment: '食品設備',   cycle: '定期',       cycleClass: 'cycle-other',law: '食品衛生法 48・50条', who: '自主・行政' },
+      { name: '厨房排水トラップ清掃',        equipment: '排水設備',   cycle: '6ヶ月ごと', cycleClass: 'cycle-6m',  law: '建築基準法 施行令',    who: '専門業者' },
+      { name: '防火ダンパー 点検',          equipment: '防火設備',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '建築基準法 12条',      who: '専門業者' },
+    ],
+    retail: [
+      { name: '冷凍・冷蔵設備 フロン点検',  equipment: '冷凍設備',   cycle: '3ヶ月〜1年', cycleClass: 'cycle-other',law: 'フロン排出抑制法',     who: '専門業者' },
+      { name: '冷凍設備 冷媒漏洩点検',      equipment: '冷凍設備',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '高圧ガス保安法',       who: '専門業者' },
+      { name: '防火シャッター 定期検査',    equipment: '防火設備',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '建築基準法 12条',      who: '専門業者' },
+      { name: '空調設備 定期保守',          equipment: '空調設備',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '建築基準法 施行令',    who: '専門業者' },
+    ],
+    construction: [
+      { name: 'クレーン 年次自主検査',      equipment: '重機・クレーン', cycle: '1年ごと', cycleClass: 'cycle-1y',  law: 'クレーン等安全規則 34条', who: '事業者' },
+      { name: 'クレーン 月次自主検査',      equipment: '重機・クレーン', cycle: '1ヶ月ごと', cycleClass: 'cycle-other', law: 'クレーン等安全規則 36条', who: '事業者' },
+      { name: '移動式クレーン 年次検査',    equipment: '重機・クレーン', cycle: '1年ごと', cycleClass: 'cycle-1y',  law: 'クレーン等安全規則 76条', who: '有資格者' },
+      { name: 'フォークリフト 年次自主検査', equipment: 'フォークリフト', cycle: '1年ごと', cycleClass: 'cycle-1y', law: '労働安全衛生法 45条',  who: '事業者' },
+      { name: 'フォークリフト 月次自主検査', equipment: 'フォークリフト', cycle: '1ヶ月ごと', cycleClass: 'cycle-other', law: '労働安全衛生法 45条', who: '事業者' },
+      { name: '高所作業車 年次自主検査',    equipment: '高所作業車',  cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '労働安全衛生法 45条',  who: '事業者' },
+      { name: '足場 組立・解体前点検',      equipment: '足場',       cycle: '都度',       cycleClass: 'cycle-other',law: '労働安全衛生法 施行令', who: '有資格者' },
+      { name: '車両系建設機械 年次検査',    equipment: '建設機械',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '労働安全衛生法 45条',  who: '事業者' },
+      { name: '作業主任者 技能講習更新',    equipment: '資格',       cycle: '5年ごと',   cycleClass: 'cycle-other',law: '労働安全衛生法 14条',  who: '有資格者' },
+    ],
+    manufacturing: [
+      { name: 'ボイラー 性能検査',          equipment: 'ボイラー',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: 'ボイラー及び圧力容器安全規則', who: '労働基準監督署' },
+      { name: 'ボイラー 月次点検',          equipment: 'ボイラー',   cycle: '1ヶ月ごと', cycleClass: 'cycle-other',law: 'ボイラー及び圧力容器安全規則', who: '有資格者' },
+      { name: '第1種圧力容器 検査',         equipment: '圧力容器',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '労働安全衛生法 施行令',who: '労働基準監督署' },
+      { name: '産業用ロボット 定期自主検査', equipment: 'ロボット',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '労働安全衛生法 45条',  who: '事業者' },
+      { name: 'コンベヤ 定期自主検査',      equipment: '搬送設備',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '労働安全衛生法 45条',  who: '事業者' },
+      { name: '局所排気装置 定期自主検査',  equipment: '排気設備',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '労働安全衛生法 45条',  who: '事業者' },
+      { name: '特定化学物質 作業環境測定',  equipment: '作業環境',   cycle: '6ヶ月ごと', cycleClass: 'cycle-6m',  law: '特定化学物質障害予防規則', who: '専門業者' },
+    ],
+    office: [
+      { name: 'エレベーター 定期検査',      equipment: 'エレベーター', cycle: '1年ごと', cycleClass: 'cycle-1y',  law: '建築基準法 12条',      who: '建築士等' },
+      { name: 'エスカレーター 定期検査',    equipment: 'エレベーター', cycle: '1年ごと', cycleClass: 'cycle-1y',  law: '建築基準法 12条',      who: '建築士等' },
+      { name: '空調設備 定期報告',          equipment: '空調設備',   cycle: '3年ごと',   cycleClass: 'cycle-3y',  law: '建築基準法 12条',      who: '建築士等' },
+      { name: '給排水設備 定期点検',        equipment: '給排水',     cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '建築物衛生法',         who: '専門業者' },
+      { name: '受水槽・高架水槽 清掃',      equipment: '給排水',     cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '建築物衛生法 4条',     who: '専門業者' },
+      { name: 'ビル管理 水質検査',          equipment: '給排水',     cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '建築物衛生法',         who: '専門業者' },
+      { name: '防火扉・防火戸 定期検査',    equipment: '防火設備',   cycle: '1年ごと',   cycleClass: 'cycle-1y',  law: '建築基準法 12条',      who: '専門業者' },
+    ],
+  };
+
+  /* 設備カテゴリの選択肢を設定 */
+  function onIndustryChange() {
+    var ind = document.getElementById('industry').value;
+    var equipSel = document.getElementById('equipment');
+    var equipField = document.getElementById('equipment-field');
+    equipSel.innerHTML = '<option value="all">すべて表示</option>';
+
+    if (!ind) { equipField.style.display = 'none'; clearResult(); return; }
+
+    var rows = (DATA[ind] || []).concat(DATA.common || []);
+    var cats = [];
+    rows.forEach(function(r) {
+      if (cats.indexOf(r.equipment) === -1) cats.push(r.equipment);
+    });
+    cats.forEach(function(c) {
+      var opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      equipSel.appendChild(opt);
+    });
+    equipField.style.display = '';
+
+    // localStorage 保存
+    try { localStorage.setItem('houki_industry', ind); } catch(e) {}
+
+    generate();
+  }
+
+  function clearResult() {
+    document.getElementById('result-area').style.display = 'none';
+  }
+
+  function generate() {
+    var ind = document.getElementById('industry').value;
+    if (!ind) { clearResult(); return; }
+    var equipFilter = document.getElementById('equipment').value;
+
+    // localStorage 保存
+    try { localStorage.setItem('houki_industry', ind); } catch(e) {}
+
+    var indRows    = (DATA[ind] || []).slice();
+    var commonRows = DATA.common.slice();
+
+    // 絞り込み
+    if (equipFilter && equipFilter !== 'all') {
+      indRows    = indRows.filter(function(r){ return r.equipment === equipFilter; });
+      commonRows = commonRows.filter(function(r){ return r.equipment === equipFilter; });
+    }
+
+    var html = '';
+
+    // 業種別
+    if (indRows.length > 0) {
+      var indLabel = document.getElementById('industry').options[document.getElementById('industry').selectedIndex].text;
+      html += '<div class="section-title">' + escH(indLabel) + ' の点検<span class="count-badge">' + indRows.length + '件</span></div>';
+      html += buildTable(indRows);
+    }
+
+    // 共通
+    if (commonRows.length > 0) {
+      html += '<div class="section-title">共通（全業種）<span class="count-badge">' + commonRows.length + '件</span></div>';
+      html += buildTable(commonRows);
+    }
+
+    if (!html) {
+      html = '<div class="card"><p style="color:var(--text-sub);text-align:center;padding:1rem">該当する点検はありませんでした</p></div>';
+    }
+
+    document.getElementById('result-content').innerHTML = html;
+    document.getElementById('result-area').style.display = 'block';
+  }
+
+  function buildTable(rows) {
+    var thead = '<thead><tr>'
+      + '<th>点検名</th>'
+      + '<th>設備</th>'
+      + '<th>周期</th>'
+      + '<th>根拠法令</th>'
+      + '<th>実施者</th>'
+      + '</tr></thead>';
+    var tbody = '<tbody>' + rows.map(function(r) {
+      return '<tr>'
+        + '<td><strong>' + escH(r.name) + '</strong></td>'
+        + '<td>' + escH(r.equipment) + '</td>'
+        + '<td><span class="cycle-badge ' + r.cycleClass + '">' + escH(r.cycle) + '</span></td>'
+        + '<td><span class="law-text">' + escH(r.law) + '</span></td>'
+        + '<td><span class="who-badge">' + escH(r.who) + '</span></td>'
+        + '</tr>';
+    }).join('') + '</tbody>';
+    return '<table class="insp-table">' + thead + tbody + '</table>';
+  }
+
+  function escH(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  /* ── 復元 ── */
+  window.addEventListener('DOMContentLoaded', function() {
+    try {
+      var saved = localStorage.getItem('houki_industry');
+      if (saved) {
+        var sel = document.getElementById('industry');
+        sel.value = saved;
+        if (sel.value) { onIndustryChange(); }
+      }
+    } catch(e) {}
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;">
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a>
+  </p>
+</body>
+</html>
