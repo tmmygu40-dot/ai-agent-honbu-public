@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="年収目標・月稼働時間・月経費を入力するだけで、案件の時間単価下限・日単価・月契約額の目安を即算出。フリーランスの適正単価を数字で確認できるシミュレーターです。">
+  <title>フリーランス単価シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2カラムグリッド ── */
+    .fields-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    @media (max-width: 480px) {
+      .fields-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── KPI グリッド ── */
+    .kpi-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+      margin-bottom: 1.2rem;
+    }
+    @media (max-width: 400px) {
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+    }
+    .kpi-item {
+      background: var(--accent-light); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.75rem 0.5rem; text-align: center;
+    }
+    .kpi-label { font-size: 0.7rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .kpi-value { font-size: 1.2rem; font-weight: 900; color: var(--accent); }
+    .kpi-unit  { font-size: 0.7rem; color: var(--text-sub); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>フリーランス単価シミュレーター</h1>
+    <p class="subtitle">年収目標・稼働時間・経費から、案件単価の下限と月契約額の目安を即算出</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">収入・稼働の目標を入力</p>
+    <div class="field">
+      <label for="annual">年収目標（万円）</label>
+      <input type="number" id="annual" placeholder="例: 600" min="0" inputmode="decimal">
+      <p class="hint">税込み手取り目標（例: 年収600万円なら 600）</p>
+    </div>
+    <div class="fields-grid">
+      <div class="field">
+        <label for="hours">月稼働時間（時間）</label>
+        <input type="number" id="hours" placeholder="例: 120" min="1" inputmode="decimal">
+        <p class="hint">1ヶ月に働く合計時間</p>
+      </div>
+      <div class="field">
+        <label for="hours_per_day">1日稼働時間（時間）</label>
+        <input type="number" id="hours_per_day" placeholder="例: 8" min="1" max="24" inputmode="decimal">
+        <p class="hint">日単価計算に使用</p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="expense">月経費（万円）</label>
+      <input type="number" id="expense" placeholder="例: 10" min="0" inputmode="decimal">
+      <p class="hint">交通費・機材・税金積立・ソフト代など（なければ 0）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">単価を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月に必要な収入</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- KPIグリッド -->
+  <div class="card" id="kpi-card" style="display:none">
+    <p class="card-title">案件単価の下限</p>
+    <div class="kpi-grid">
+      <div class="kpi-item">
+        <p class="kpi-label">時間単価</p>
+        <p class="kpi-value" id="k-hourly">—</p>
+        <p class="kpi-unit">円 / 時</p>
+      </div>
+      <div class="kpi-item">
+        <p class="kpi-label">日単価</p>
+        <p class="kpi-value" id="k-daily">—</p>
+        <p class="kpi-unit">円 / 日</p>
+      </div>
+      <div class="kpi-item">
+        <p class="kpi-label">月契約額目安</p>
+        <p class="kpi-value" id="k-monthly">—</p>
+        <p class="kpi-unit">万円 / 月</p>
+      </div>
+    </div>
+    <p style="font-size:0.75rem;color:var(--text-sub);margin-top:0.5rem;line-height:1.6;">
+      ※ この金額を下回る案件は、目標年収を達成できない可能性があります。
+    </p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、国税庁・中小企業庁・経済産業省等の公開データを参考に、目安として使いやすく整理しています。実際の税率・社会保険料は状況により異なります。最新情報は公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'freelance_rate_sim_v1';
+
+  function calc() {
+    var annual = parseFloat(document.getElementById('annual').value);
+    var hours  = parseFloat(document.getElementById('hours').value);
+    var hpd    = parseFloat(document.getElementById('hours_per_day').value);
+    var expense= parseFloat(document.getElementById('expense').value) || 0;
+
+    if (isNaN(annual) || annual <= 0) { showErr('年収目標を入力してください'); return; }
+    if (isNaN(hours)  || hours  <= 0) { showErr('月稼働時間を入力してください'); return; }
+    if (isNaN(hpd)    || hpd    <= 0) { showErr('1日稼働時間を入力してください'); return; }
+
+    // 計算
+    var annualYen   = annual * 10000;
+    var expenseYen  = expense * 10000;
+    var monthlyNeed = annualYen / 12 + expenseYen;
+    var hourlyRate  = Math.ceil(monthlyNeed / hours);
+    var dailyRate   = Math.ceil(hourlyRate * hpd);
+    var monthlyRate = Math.ceil(monthlyNeed);
+    var monthlyWan  = (monthlyRate / 10000).toFixed(1);
+
+    // 判定
+    var level, eval_, note;
+    if (hourlyRate >= 5000) {
+      level = 'ok'; eval_ = '高単価フリーランスレンジです';
+      note  = '市場では高単価の部類。スキルと実績をアピールして自信を持って交渉しましょう。';
+    } else if (hourlyRate >= 2500) {
+      level = 'warn'; eval_ = '中堅フリーランスレンジです';
+      note  = '実現可能なレンジです。単価アップには専門スキルや実績の積み上げが有効です。';
+    } else {
+      level = 'ok'; eval_ = '入門〜中堅フリーランスレンジです';
+      note  = 'スタート時点として現実的な単価です。実績を積んで段階的に引き上げましょう。';
+    }
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent  = fmt(monthlyRate) + ' 円 / 月';
+    document.getElementById('re').textContent  = eval_;
+    document.getElementById('rn').textContent  = note;
+
+    // KPI
+    document.getElementById('k-hourly').textContent  = fmt(hourlyRate);
+    document.getElementById('k-daily').textContent   = fmt(dailyRate);
+    document.getElementById('k-monthly').textContent = monthlyWan;
+    document.getElementById('kpi-card').style.display = 'block';
+
+    // 内訳
+    var workdays = Math.round(hours / hpd);
+    document.getElementById('db').innerHTML = [
+      ['年収目標',        fmt(annualYen)   + ' 円'],
+      ['月換算（目標）',   fmt(Math.ceil(annualYen / 12)) + ' 円 / 月'],
+      ['月経費',          fmt(expenseYen)  + ' 円 / 月'],
+      ['月に必要な収入',  fmt(monthlyRate) + ' 円 / 月', true],
+      ['月稼働時間',      fmt(hours)       + ' 時間'],
+      ['月稼働日数（概算）', workdays      + ' 日'],
+      ['時間単価（下限）', fmt(hourlyRate) + ' 円 / 時', true],
+      ['日単価（下限）',   fmt(dailyRate)  + ' 円 / 日'],
+    ].map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+
+    // localStorage保存
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        annual: annual, hours: hours, hpd: hpd, expense: expense
+      }));
+    } catch(e) {}
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('kpi-card').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // 起動時にlocalStorageから復元
+  (function(){
+    try {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      var d = JSON.parse(saved);
+      if (d.annual)  document.getElementById('annual').value  = d.annual;
+      if (d.hours)   document.getElementById('hours').value   = d.hours;
+      if (d.hpd)     document.getElementById('hours_per_day').value = d.hpd;
+      if (d.expense !== undefined) document.getElementById('expense').value = d.expense;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
