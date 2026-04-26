@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>防災備蓄過不足診断アプリ</title>
+  <meta name="description" content="家族人数と住居タイプを入力するだけで水・食料・トイレなど防災備蓄の過不足を即診断。内閣府・農林水産省基準の7日分推奨量をもとに、今すぐ何が足りないかを一覧で確認できる生活防衛アプリです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2列グリッド ── */
+    .field-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .field-row .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.6rem 0.3rem; color: var(--text-sub); vertical-align: middle; }
+    .detail-table td:last-child { text-align: right; }
+    .detail-table td.rec { font-size: 0.75rem; color: var(--text-sub); }
+
+    /* ── ステータスバッジ ── */
+    .status-badge {
+      display: inline-block; padding: 0.18rem 0.55rem;
+      font-size: 0.72rem; font-weight: 700; border-radius: 6px; white-space: nowrap;
+    }
+    .badge-ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .badge-warn { background: var(--warn-bg);  color: var(--warn); }
+    .badge-ng   { background: var(--ng-bg);    color: var(--ng);   }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🏠 防災備蓄過不足診断アプリ</h1>
+    <p class="subtitle">家族構成と現在の備蓄量を入力 → 過不足をすぐ診断</p>
+  </header>
+
+  <!-- 基本情報カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field-row">
+      <div class="field">
+        <label for="people">家族人数</label>
+        <select id="people">
+          <option value="1">1人</option>
+          <option value="2" selected>2人</option>
+          <option value="3">3人</option>
+          <option value="4">4人</option>
+          <option value="5">5人</option>
+          <option value="6">6人以上</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="housing">住居タイプ</label>
+        <select id="housing">
+          <option value="mansion_high">マンション（高層）</option>
+          <option value="mansion_low" selected>マンション（低層）</option>
+          <option value="house">一戸建て</option>
+          <option value="apartment">賃貸アパート</option>
+        </select>
+      </div>
+    </div>
+    <p class="hint">※ マンション高層は停電時に断水リスクが高いため、水の推奨量が1.5倍になります</p>
+  </div>
+
+  <!-- 現在の備蓄量カード -->
+  <div class="card">
+    <p class="card-title">現在の備蓄量</p>
+    <div class="field">
+      <label for="water">飲料水（L）</label>
+      <input type="number" id="water" min="0" step="0.5" placeholder="例: 21">
+      <p class="hint">ペットボトル2L×本数で計算 / 推奨: 1人1日3L × 7日分</p>
+    </div>
+    <div class="field">
+      <label for="food_days">食料備蓄（日数分）</label>
+      <input type="number" id="food_days" min="0" step="0.5" placeholder="例: 7">
+      <p class="hint">缶詰・レトルト・乾麺など。推奨: 7日分</p>
+    </div>
+    <div class="field">
+      <label for="gas">カセットガス（本）</label>
+      <input type="number" id="gas" min="0" step="1" placeholder="例: 4">
+      <p class="hint">調理・暖房用。推奨: 4本以上（1本≒約60分使用）</p>
+    </div>
+    <div class="field">
+      <label for="toilet">非常用トイレ（回分）</label>
+      <input type="number" id="toilet" min="0" step="1" placeholder="例: 50">
+      <p class="hint">推奨: 1人1日5回 × 7日分。市販品は1パック50回分が多い</p>
+    </div>
+    <div class="field">
+      <label for="light">照明・電源</label>
+      <select id="light">
+        <option value="ok">懐中電灯またはランタンあり（充電・電池確認済み）</option>
+        <option value="warn">懐中電灯はあるが電池・充電が不安</option>
+        <option value="ng">なし・未確認</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="first_aid">救急セット・常備薬</label>
+      <select id="first_aid">
+        <option value="ok">救急セットあり（常備薬も含む）</option>
+        <option value="warn">救急セットはあるが中身が古い・不足気味</option>
+        <option value="ng">なし・未確認</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="cash">現金備蓄（万円）</label>
+      <input type="number" id="cash" min="0" step="0.5" placeholder="例: 3">
+      <p class="hint">停電時はカード・電子マネー使用不可。推奨: 3万円以上</p>
+    </div>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" onclick="diagnose()">🔍 備蓄を診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">品目別チェック結果</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- Q&Aカード -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、内閣府・農林水産省・消防庁などの防災備蓄に関する官公庁資料を参考に、目安として使いやすく整理しています。2025年時点の参考データです。最新情報は各官公庁の公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: '備蓄は十分です！このまま維持しましょう' },
+    warn: { e: '🤔', t: '一部の備蓄が不足しています。少しずつ補充を' },
+    ng:   { e: '😱', t: '備蓄が大幅に不足しています。早めの対策を！' }
+  };
+
+  var QA = {
+    ok: [
+      { q: '備蓄はどのくらいの頻度で確認すべき？', a: '年に1〜2回、賞味期限と量の確認がおすすめです。防災の日（9月1日）や家族の誕生日などに合わせると忘れにくいです。' },
+      { q: 'ローリングストックとは？', a: '日常的に使いながら補充する方法です。専用の備蓄を持たなくても、普段の食材をちょっと多めにストックしておくだけで防災備蓄になります。' },
+      { q: '他にあると便利なものは？', a: 'モバイルバッテリー・ウォータータンク・毛布・雨具・マスク・ウェットティッシュなど。あなたの家族の状況（乳幼児・持病・ペット）に合わせて追加しましょう。' },
+      { q: '非常用持ち出しバッグとの違いは？', a: '在宅避難用の備蓄とは別に、避難時の持ち出し用（3日分）も準備しておくと安心です。重いものより軽くて日持ちするものを優先してください。' }
+    ],
+    warn: [
+      { q: '何から補充すればいい？', a: '判定が「✕」の品目から優先して補充しましょう。特に水と食料は最優先です。まずは3日分を目標に揃えてみてください。' },
+      { q: '一度に全部揃えるのは大変…', a: '毎週のスーパーのついでに少しずつ追加する方法が続けやすいです。月1,000〜2,000円程度で少しずつ揃えられます。' },
+      { q: 'どんな食料を備蓄すべき？', a: '缶詰・レトルト食品・インスタント麺・乾麺・フリーズドライが定番です。家族が普段食べているものを選ぶと消費もしやすくなります。' },
+      { q: 'マンション高層での注意点は？', a: '停電時はエレベーターが使えず、電動ポンプが止まると断水になることがあります。特に水の備蓄を多めに確保しておきましょう。' }
+    ],
+    ng: [
+      { q: 'まず今日できることは？', a: '今日のうちに2Lペットボトルを数本と即席食品を1〜2食分だけ買っておくだけでも「ゼロ」から脱出できます。完璧を目指さず一歩から始めましょう。' },
+      { q: '最低限何が必要？', a: '水（1人1日3L）・食料（最低3日分）・懐中電灯・乾電池・簡易トイレ・現金。この6点を揃えることを最初の目標にしてください。' },
+      { q: '費用はどのくらいかかる？', a: '家族2人で3日分の最低限の備蓄を揃えるなら5,000〜10,000円程度です。防災グッズセットより、必要なものを個別に選ぶほうが割安なことが多いです。' },
+      { q: '家族で共有したい…', a: 'この診断結果をPDF保存して家族に見せましょう。備蓄場所・避難場所・連絡方法も一緒に確認しておくと安心です。' }
+    ]
+  };
+
+  var STORAGE_KEY = 'bichiku_shindan_v1';
+
+  function diagnose() {
+    var people = parseInt(document.getElementById('people').value) || 1;
+    var housing = document.getElementById('housing').value;
+    var water = parseFloat(document.getElementById('water').value) || 0;
+    var foodDays = parseFloat(document.getElementById('food_days').value) || 0;
+    var gas = parseInt(document.getElementById('gas').value) || 0;
+    var toilet = parseInt(document.getElementById('toilet').value) || 0;
+    var light = document.getElementById('light').value;
+    var firstAid = document.getElementById('first_aid').value;
+    var cash = parseFloat(document.getElementById('cash').value) || 0;
+
+    // 推奨量計算
+    var waterMul = (housing === 'mansion_high') ? 1.5 : 1.0;
+    var waterRec = people * 3 * 7 * waterMul;  // 3L/人/日 × 7日
+    var foodRec = 7;                             // 7日分
+    var gasRec = 4;                              // 4本
+    var toiletRec = people * 35;                 // 5回/日 × 7日 × 人数
+    var cashRec = 3;                             // 3万円
+
+    // 判定（数値系）
+    function levelByRatio(cur, rec) {
+      if (rec === 0) return 'ok';
+      var ratio = cur / rec;
+      if (ratio >= 1.0) return 'ok';
+      if (ratio >= 3/7) return 'warn';  // 3日分以上
+      return 'ng';
+    }
+
+    var wLevel  = levelByRatio(water, waterRec);
+    var fLevel  = levelByRatio(foodDays, foodRec);
+    var gLevel  = levelByRatio(gas, gasRec);
+    var tLevel  = levelByRatio(toilet, toiletRec);
+    var lLevel  = light;
+    var aLevel  = firstAid;
+    var cLevel  = levelByRatio(cash, cashRec);
+
+    var allLevels = [wLevel, fLevel, gLevel, tLevel, lLevel, aLevel, cLevel];
+    var overall = 'ok';
+    if (allLevels.indexOf('ng') >= 0) overall = 'ng';
+    else if (allLevels.indexOf('warn') >= 0) overall = 'warn';
+
+    var overallText = { ok: '◎ 備蓄十分', warn: '△ 一部不足', ng: '✕ 備蓄不足' }[overall];
+    var overallNote = {
+      ok: '全項目で目安量を確保できています。引き続き賞味期限の管理を忘れずに。',
+      warn: '一部の備蓄が3〜7日分の水準です。不足している品目から補充しましょう。',
+      ng: '3日分未満の備蓄が複数あります。最優先で水・食料から補充してください。'
+    }[overall];
+
+    showResult(overall, overallText, overallNote);
+
+    // 内訳テーブル
+    var rows = [
+      ['飲料水', fmt(water, 1) + 'L', '推奨 ' + fmt(waterRec, 0) + 'L', wLevel],
+      ['食料', foodDays + '日分', '推奨 7日分', fLevel],
+      ['カセットガス', gas + '本', '推奨 4本', gLevel],
+      ['非常用トイレ', toilet + '回分', '推奨 ' + toiletRec + '回分', tLevel],
+      ['照明・電源', light === 'ok' ? '確認済み' : light === 'warn' ? '要確認' : 'なし', '準備済みが目安', lLevel],
+      ['救急セット・常備薬', firstAid === 'ok' ? '確認済み' : firstAid === 'warn' ? '要確認' : 'なし', '準備済みが目安', aLevel],
+      ['現金備蓄', cash + '万円', '推奨 3万円', cLevel],
+    ];
+    showDetailCustom(rows);
+    showQA(overall);
+    saveData(people, housing, water, foodDays, gas, toilet, light, firstAid, cash);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetailCustom(rows) {
+    var html = rows.map(function(r) {
+      var badge = r[3] === 'ok'
+        ? '<span class="status-badge badge-ok">◎ 十分</span>'
+        : r[3] === 'warn'
+        ? '<span class="status-badge badge-warn">△ 不足</span>'
+        : '<span class="status-badge badge-ng">✕ 大幅不足</span>';
+      return '<tr>'
+        + '<td style="color:var(--text);font-weight:600">' + r[0] + '<br><small style="font-weight:400;font-size:0.72rem">' + r[2] + '</small></td>'
+        + '<td style="text-align:center;color:var(--text)">' + r[1] + '</td>'
+        + '<td>' + badge + '</td>'
+        + '</tr>';
+    }).join('');
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x) {
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+
+  function fmt(n, decimals) {
+    if (decimals === undefined) decimals = 0;
+    return parseFloat(n.toFixed(decimals)).toLocaleString('ja-JP');
+  }
+
+  function saveData(people, housing, water, foodDays, gas, toilet, light, firstAid, cash) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        people: people, housing: housing, water: water,
+        foodDays: foodDays, gas: gas, toilet: toilet,
+        light: light, firstAid: firstAid, cash: cash
+      }));
+    } catch(e) {}
+  }
+
+  function loadData() {
+    try {
+      var s = localStorage.getItem(STORAGE_KEY);
+      if (!s) return;
+      var d = JSON.parse(s);
+      if (d.people) document.getElementById('people').value = d.people;
+      if (d.housing) document.getElementById('housing').value = d.housing;
+      if (d.water !== undefined) document.getElementById('water').value = d.water;
+      if (d.foodDays !== undefined) document.getElementById('food_days').value = d.foodDays;
+      if (d.gas !== undefined) document.getElementById('gas').value = d.gas;
+      if (d.toilet !== undefined) document.getElementById('toilet').value = d.toilet;
+      if (d.light) document.getElementById('light').value = d.light;
+      if (d.firstAid) document.getElementById('first_aid').value = d.firstAid;
+      if (d.cash !== undefined) document.getElementById('cash').value = d.cash;
+    } catch(e) {}
+  }
+
+  loadData();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
