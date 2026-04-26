@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>在庫処分シミュレーター</title>
+  <meta name="description" content="在庫数・日販数・期限・値下げ率を入力するだけで期限前に売り切れるかと採算判定をすぐ試算。値引き幅の最適解を素早く判断できる在庫処分シミュレーターです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── バッジ ── */
+    .badge {
+      display: inline-block; padding: 0.25rem 0.75rem;
+      border-radius: 999px; font-size: 0.82rem; font-weight: 700;
+      margin-bottom: 0.6rem;
+    }
+    .badge.ok   { background: var(--ok);   color: #fff; }
+    .badge.warn { background: var(--warn); color: #fff; }
+    .badge.ng   { background: var(--ng);   color: #fff; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 警告バー ── */
+    .alert-bar {
+      display: none; max-width: 600px; margin: 0 auto 1rem;
+      padding: 0.8rem 1rem; border-radius: var(--radius);
+      background: var(--ng-bg); border: 1.5px solid var(--ng);
+      color: var(--ng); font-size: 0.88rem; font-weight: 600; line-height: 1.5;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>在庫処分シミュレーター</h1>
+    <p class="subtitle">値下げ幅と期限前の売り切り日数を即試算 — 採算判定付き</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品情報</p>
+    <div class="field">
+      <label for="itemName">商品名（任意）</label>
+      <input type="text" id="itemName" placeholder="例: 在庫品A">
+    </div>
+    <div class="field">
+      <label for="stock">現在在庫数（個）</label>
+      <input type="number" id="stock" placeholder="例: 200" min="0">
+    </div>
+    <div class="field">
+      <label for="dailySales">1日平均販売数（個/日）</label>
+      <input type="number" id="dailySales" placeholder="例: 5" min="0" step="0.1">
+      <p class="hint">現状のペースで何個/日売れているか</p>
+    </div>
+    <div class="field">
+      <label for="deadline">販売期限までの残日数（日）</label>
+      <input type="number" id="deadline" placeholder="例: 30" min="1">
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">価格情報</p>
+    <div class="field">
+      <label for="price">現行販売価格（円）</label>
+      <input type="number" id="price" placeholder="例: 1000" min="0">
+    </div>
+    <div class="field">
+      <label for="cost">原価（円）</label>
+      <input type="number" id="cost" placeholder="例: 600" min="0">
+    </div>
+    <div class="field">
+      <label for="discount">値下げ率（%）</label>
+      <input type="number" id="discount" placeholder="例: 20" min="0" max="100" step="0.1">
+      <p class="hint">0%で現行価格、30%で3割引</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">試算する</button>
+
+  <!-- 期限内売り切り警告 -->
+  <div class="alert-bar" id="selloutAlert"></div>
+
+  <!-- 採算判定カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">採算判定</p>
+    <div id="badge-area"></div>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">詳細内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 逆算カード -->
+  <div class="card" id="reverseCard" style="display:none">
+    <p class="card-title">逆算：期限内に売り切るには</p>
+    <table class="detail-table"><tbody id="rb"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは目安として使いやすく整理しています。実際の採算判断は仕入れ条件・在庫廃棄コストなども考慮した上でご判断ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  var LS_KEY = 'zaiko-shobun-v1';
+
+  function save() {
+    var d = {
+      itemName:   document.getElementById('itemName').value,
+      stock:      document.getElementById('stock').value,
+      dailySales: document.getElementById('dailySales').value,
+      deadline:   document.getElementById('deadline').value,
+      price:      document.getElementById('price').value,
+      cost:       document.getElementById('cost').value,
+      discount:   document.getElementById('discount').value
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(d));
+  }
+
+  function load() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!d) return;
+      if (d.itemName   !== undefined) document.getElementById('itemName').value   = d.itemName;
+      if (d.stock      !== undefined) document.getElementById('stock').value      = d.stock;
+      if (d.dailySales !== undefined) document.getElementById('dailySales').value = d.dailySales;
+      if (d.deadline   !== undefined) document.getElementById('deadline').value   = d.deadline;
+      if (d.price      !== undefined) document.getElementById('price').value      = d.price;
+      if (d.cost       !== undefined) document.getElementById('cost').value       = d.cost;
+      if (d.discount   !== undefined) document.getElementById('discount').value   = d.discount;
+    } catch(e) {}
+  }
+
+  function calc() {
+    var stock      = parseFloat(document.getElementById('stock').value);
+    var dailySales = parseFloat(document.getElementById('dailySales').value);
+    var deadline   = parseFloat(document.getElementById('deadline').value);
+    var price      = parseFloat(document.getElementById('price').value);
+    var cost       = parseFloat(document.getElementById('cost').value);
+    var discount   = parseFloat(document.getElementById('discount').value);
+
+    if (isNaN(stock) || isNaN(dailySales) || isNaN(deadline) || isNaN(price) || isNaN(cost) || isNaN(discount)) {
+      showErr('商品名以外のすべての項目を入力してください');
+      return;
+    }
+    if (discount < 0 || discount > 100) { showErr('値下げ率は0〜100%で入力してください'); return; }
+    if (deadline < 1) { showErr('残日数は1日以上を入力してください'); return; }
+    if (dailySales < 0) { showErr('日販数は0以上を入力してください'); return; }
+
+    save();
+
+    // ── 計算 ──
+    var discountedPrice = price * (1 - discount / 100);          // 値下げ後価格
+    var grossProfit     = discountedPrice - cost;                 // 1個あたり粗利
+    var grossProfitRate = discountedPrice > 0
+                         ? (grossProfit / discountedPrice * 100)
+                         : -Infinity;                             // 粗利率(%)
+
+    // 採算判定
+    var level;
+    if (grossProfitRate >= 5)  level = 'ok';
+    else if (grossProfitRate >= 0) level = 'warn';
+    else level = 'ng';
+
+    var judgeTxt = level === 'ok'
+      ? '採算OK：値下げ後も黒字です'
+      : level === 'warn'
+      ? '要注意：ほぼ損益分岐点です'
+      : '採算NG：値下げ後は赤字です';
+    var noteText = level === 'ok'
+      ? '粗利率5%以上を確保できています。処分を進めて問題ありません。'
+      : level === 'warn'
+      ? '粗利率0〜5%。廃棄コストや保管コストを考慮して判断してください。'
+      : '売価が原価を下回っています。廃棄コスト・ロス比較で最善策を検討してください。';
+
+    // 期限内売り切り試算
+    var daysNeeded = dailySales > 0 ? stock / dailySales : Infinity; // 現ペースで何日かかるか
+    var canSellout = daysNeeded <= deadline;
+
+    // 逆算：期限内に売り切るための最低日販数
+    var requiredDailySales = stock / deadline;
+
+    // 値下げ後の総粗利
+    var totalProfit = grossProfit * stock;
+
+    // 期限内売り切り警告
+    var alertEl = document.getElementById('selloutAlert');
+    if (!canSellout && dailySales > 0) {
+      alertEl.innerHTML = '⚠️ 現在の販売ペース（' + fmt(dailySales, 1) + '個/日）では期限内に売り切れません。<br>'
+        + '現ペースでの売り切り日数：約' + Math.ceil(daysNeeded) + '日（残り' + deadline + '日を超過）';
+      alertEl.style.display = 'block';
+    } else if (dailySales === 0) {
+      alertEl.innerHTML = '⚠️ 日販数が0のため、売り切れ日数を計算できません。';
+      alertEl.style.display = 'block';
+    } else {
+      alertEl.style.display = 'none';
+    }
+
+    // 結論カード
+    showResult(level, fmt(grossProfitRate, 1) + ' %', judgeTxt, noteText);
+
+    // 内訳
+    showDetail([
+      ['現行販売価格',       fmt(price) + ' 円'],
+      ['値下げ率',           discount.toFixed(1) + ' %'],
+      ['値下げ後価格',       fmt(discountedPrice) + ' 円'],
+      ['原価',               fmt(cost) + ' 円'],
+      ['1個あたり粗利',      fmt(grossProfit) + ' 円', true],
+      ['粗利率',             fmt(grossProfitRate, 1) + ' %'],
+      ['在庫数',             fmt(stock) + ' 個'],
+      ['値下げ後の総粗利',   fmt(totalProfit) + ' 円'],
+    ]);
+
+    // 逆算
+    showReverse([
+      ['残日数',                     deadline + ' 日'],
+      ['現在の日販数',               fmt(dailySales, 1) + ' 個/日'],
+      ['期限内売り切り',             canSellout ? '✅ 可能' : '❌ 不可'],
+      ['現ペースでの売り切り日数',   dailySales > 0 ? '約 ' + Math.ceil(daysNeeded) + ' 日' : '—'],
+      ['期限内に売り切る最低日販数', fmt(requiredDailySales, 1) + ' 個/日', true],
+    ]);
+  }
+
+  function showResult(level, val, eval_, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('badge-area').innerHTML =
+      '<span class="badge ' + level + '">'
+      + (level === 'ok' ? '採算OK' : level === 'warn' ? '要注意' : '採算NG') + '</span>';
+    document.getElementById('rv').textContent = '粗利率 ' + val;
+    document.getElementById('re').textContent = eval_;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showReverse(rows) {
+    document.getElementById('rb').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('reverseCard').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('badge-area').innerHTML = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('reverseCard').style.display = 'none';
+    document.getElementById('selloutAlert').style.display = 'none';
+  }
+
+  function fmt(n, dec) {
+    if (!isFinite(n)) return '—';
+    if (dec !== undefined) return parseFloat(n.toFixed(dec)).toLocaleString('ja-JP');
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+
+  window.addEventListener('load', load);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+</body>
+</html>

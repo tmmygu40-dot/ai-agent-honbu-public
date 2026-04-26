@@ -308,3 +308,4 @@ commit: dea0c02
 [2026-04-27_005036] SCAN apps=車検費用概算シミュレーター（走行距離版） total=1 exit=0
 [2026-04-27_010952] SCAN apps=販促POP文ジェネレーター total=0 exit=0
 [2026-04-27_015900] SCAN apps=関税変動仕入れコスト試算アプリ total=1 exit=0
+[2026-04-27_035755] SCAN apps=在庫処分シミュレーター total=0 exit=0
