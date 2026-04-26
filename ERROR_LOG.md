@@ -311,3 +311,4 @@ commit: dea0c02
 [2026-04-27_035755] SCAN apps=在庫処分シミュレーター total=0 exit=0
 [2026-04-27_041634] SCAN apps=引越し料金相場チェッカー_v2 total=0 exit=0
 [2026-04-27_045111] SCAN apps=コスト削減手法逆引きアプリ total=0 exit=0
+[2026-04-27_064952] SCAN apps=引越し費用相場チェッカー total=0 exit=0
