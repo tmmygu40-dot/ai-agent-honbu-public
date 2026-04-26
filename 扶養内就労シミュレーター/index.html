@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>扶養内就労シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 壁カード（2列） ── */
+    .wall-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.9rem;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+    }
+    .wall-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.1rem 0.9rem;
+      box-shadow: var(--shadow);
+      text-align: center;
+    }
+    .wall-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .wall-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .wall-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .wall-name { font-size: 0.78rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .wall-remain { font-size: 1.5rem; font-weight: 900; line-height: 1.1; margin-bottom: 0.2rem; }
+    .wall-card.ok   .wall-remain { color: var(--ok);   }
+    .wall-card.warn .wall-remain { color: var(--warn); }
+    .wall-card.ng   .wall-remain { color: var(--ng);   }
+    .wall-sub { font-size: 0.75rem; color: var(--text-sub); }
+    .wall-exceeded { font-size: 0.8rem; font-weight: 700; color: var(--ng); margin-top: 0.3rem; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    @media (max-width: 400px) {
+      .wall-remain { font-size: 1.2rem; }
+    }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>扶養内就労シミュレーター</h1>
+    <p class="subtitle">時給と年収を入れて、103万・130万の壁まで残り時間を即確認</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="hourly">時給（円）</label>
+      <input type="number" id="hourly" placeholder="例: 1050" min="1">
+    </div>
+    <div class="field">
+      <label for="income">現在の年収見込み（円）</label>
+      <input type="number" id="income" placeholder="例: 800000" min="0">
+      <p class="hint">今年の1月から現時点までの収入合計（または年間見込み額）を入力</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">残り就労時間を計算する</button>
+
+  <!-- 壁カード（2列） -->
+  <div class="wall-grid" id="wallGrid" style="display:none">
+    <div class="wall-card" id="wall103">
+      <p class="wall-name">103万円の壁</p>
+      <p class="wall-remain" id="r103">—</p>
+      <p class="wall-sub" id="s103"></p>
+      <p class="wall-exceeded" id="e103"></p>
+    </div>
+    <div class="wall-card" id="wall130">
+      <p class="wall-name">130万円の壁</p>
+      <p class="wall-remain" id="r130">—</p>
+      <p class="wall-sub" id="s130"></p>
+      <p class="wall-exceeded" id="e130"></p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'fuyoSim_v1';
+
+  function calc() {
+    var hourly = parseFloat(document.getElementById('hourly').value);
+    var income = parseFloat(document.getElementById('income').value);
+
+    if (isNaN(hourly) || hourly <= 0) { alert('時給を正しく入力してください'); return; }
+    if (isNaN(income) || income < 0)  { alert('現在の年収を正しく入力してください'); return; }
+
+    // 壁の金額
+    var wall103 = 1030000;
+    var wall130 = 1300000;
+
+    // 残り金額
+    var rem103 = wall103 - income;
+    var rem130 = wall130 - income;
+
+    // 残り時間（小数点1桁）
+    var hrs103 = rem103 > 0 ? (rem103 / hourly).toFixed(1) : 0;
+    var hrs130 = rem130 > 0 ? (rem130 / hourly).toFixed(1) : 0;
+
+    // 103万カード
+    var w103el = document.getElementById('wall103');
+    if (rem103 <= 0) {
+      w103el.className = 'wall-card ng';
+      document.getElementById('r103').textContent = '超過済み';
+      document.getElementById('s103').textContent = '';
+      document.getElementById('e103').textContent = fmt(Math.abs(rem103)) + '円 超過';
+    } else if (rem103 < hourly * 10) {
+      w103el.className = 'wall-card warn';
+      document.getElementById('r103').textContent = fmt(rem103) + '円';
+      document.getElementById('s103').textContent = '残り ' + hrs103 + ' 時間';
+      document.getElementById('e103').textContent = '';
+    } else {
+      w103el.className = 'wall-card ok';
+      document.getElementById('r103').textContent = fmt(rem103) + '円';
+      document.getElementById('s103').textContent = '残り ' + hrs103 + ' 時間';
+      document.getElementById('e103').textContent = '';
+    }
+
+    // 130万カード
+    var w130el = document.getElementById('wall130');
+    if (rem130 <= 0) {
+      w130el.className = 'wall-card ng';
+      document.getElementById('r130').textContent = '超過済み';
+      document.getElementById('s130').textContent = '';
+      document.getElementById('e130').textContent = fmt(Math.abs(rem130)) + '円 超過';
+    } else if (rem130 < hourly * 10) {
+      w130el.className = 'wall-card warn';
+      document.getElementById('r130').textContent = fmt(rem130) + '円';
+      document.getElementById('s130').textContent = '残り ' + hrs130 + ' 時間';
+      document.getElementById('e130').textContent = '';
+    } else {
+      w130el.className = 'wall-card ok';
+      document.getElementById('r130').textContent = fmt(rem130) + '円';
+      document.getElementById('s130').textContent = '残り ' + hrs130 + ' 時間';
+      document.getElementById('e130').textContent = '';
+    }
+
+    document.getElementById('wallGrid').style.display = 'grid';
+
+    // 内訳テーブル
+    showDetail([
+      ['時給',              fmt(hourly) + ' 円'],
+      ['現在の年収見込み',  fmt(income) + ' 円'],
+      ['103万円の壁まで',   rem103 > 0 ? fmt(rem103) + ' 円（' + hrs103 + '時間）' : '超過'],
+      ['130万円の壁まで',   rem130 > 0 ? fmt(rem130) + ' 円（' + hrs130 + '時間）' : '超過'],
+    ]);
+
+    // localStorage 保存
+    localStorage.setItem(LS_KEY, JSON.stringify({ hourly: hourly, income: income }));
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ページ読み込み時に localStorage を復元
+  (function() {
+    var saved = localStorage.getItem(LS_KEY);
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      if (d.hourly) document.getElementById('hourly').value = d.hourly;
+      if (d.income !== undefined) document.getElementById('income').value = d.income;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

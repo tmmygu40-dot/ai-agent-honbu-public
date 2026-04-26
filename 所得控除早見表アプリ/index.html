@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>所得控除早見表アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input[type="number"], .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input[type="number"]:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+    .field-row .field { margin-bottom: 0; }
+
+    .checkbox-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem; }
+    .checkbox-item {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.88rem; cursor: pointer;
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 0.45rem 0.75rem;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .checkbox-item input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+    .checkbox-item:has(input:checked) { border-color: var(--accent); background: var(--accent-light); }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.6rem 0.4rem; }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); white-space: nowrap; }
+    .detail-table .row-name { color: var(--text); font-weight: 600; }
+    .detail-table .row-desc { font-size: 0.75rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .detail-table .row-na { opacity: 0.45; }
+    .detail-table .hl td { background: var(--accent-light); font-weight: 700; }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .badge-ok { display: inline-block; font-size: 0.7rem; background: var(--ok); color: #fff; border-radius: 4px; padding: 0.1rem 0.4rem; margin-left: 0.4rem; vertical-align: middle; }
+    .badge-na { display: inline-block; font-size: 0.7rem; background: #ccc; color: #fff; border-radius: 4px; padding: 0.1rem 0.4rem; margin-left: 0.4rem; vertical-align: middle; }
+
+    .notice {
+      background: var(--accent-light); border: 1px solid var(--border);
+      border-radius: 9px; padding: 0.75rem 1rem;
+      font-size: 0.78rem; color: var(--text-sub); line-height: 1.6;
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>所得控除早見表アプリ</h1>
+    <p class="subtitle">年収・家族構成を入力するだけで適用できる控除を即逆引き</p>
+  </header>
+
+  <!-- 入力カード：基本情報 -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="income">年収（万円）</label>
+      <input type="number" id="income" placeholder="例: 500" min="0" max="100000">
+      <p class="hint">給与所得の場合は源泉徴収票の「支払金額」を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="ageGroup">年齢</label>
+      <select id="ageGroup">
+        <option value="general">70歳未満</option>
+        <option value="elder">70歳以上（老年者）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 入力カード：家族構成 -->
+  <div class="card">
+    <p class="card-title">家族構成</p>
+    <div class="field">
+      <label for="marital">配偶者の有無</label>
+      <select id="marital" onchange="toggleSpouseIncome()">
+        <option value="none">なし</option>
+        <option value="yes">あり</option>
+      </select>
+    </div>
+    <div class="field" id="spouseIncomeField" style="display:none">
+      <label for="spouseIncome">配偶者の年収（万円）</label>
+      <input type="number" id="spouseIncome" placeholder="例: 80" min="0">
+      <p class="hint">103万円以下で配偶者控除、201.6万円以下で配偶者特別控除が適用可能です</p>
+    </div>
+    <div class="field">
+      <label>扶養家族の人数</label>
+      <div class="field-row">
+        <div class="field">
+          <label for="dep16to18">一般扶養（16〜18歳）</label>
+          <input type="number" id="dep16to18" value="0" min="0" max="20">
+        </div>
+        <div class="field">
+          <label for="dep19to22">特定扶養（19〜22歳）</label>
+          <input type="number" id="dep19to22" value="0" min="0" max="20">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="depGeneral">一般扶養（23〜69歳）</label>
+          <input type="number" id="depGeneral" value="0" min="0" max="20">
+        </div>
+        <div class="field">
+          <label for="depElder">老人扶養（70歳以上）</label>
+          <input type="number" id="depElder" value="0" min="0" max="20">
+        </div>
+      </div>
+      <div class="field">
+        <label for="depElderLive">うち同居老親（70歳以上・同居）</label>
+        <input type="number" id="depElderLive" value="0" min="0" max="20">
+        <p class="hint">老人扶養のうち同居している親族数（老人扶養の人数以内で入力）</p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="singleParent">ひとり親・寡婦</label>
+      <select id="singleParent">
+        <option value="none">該当なし</option>
+        <option value="singleParent">ひとり親（年収500万円以下）</option>
+        <option value="widow">寡婦（年収500万円以下）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 入力カード：各種控除 -->
+  <div class="card">
+    <p class="card-title">その他の控除</p>
+    <div class="field">
+      <label>生命保険料控除</label>
+      <div class="checkbox-group">
+        <label class="checkbox-item"><input type="checkbox" id="insLife"> 一般生命保険</label>
+        <label class="checkbox-item"><input type="checkbox" id="insHealth"> 介護医療保険</label>
+        <label class="checkbox-item"><input type="checkbox" id="insAnnuity"> 個人年金保険</label>
+      </div>
+      <p class="hint">各区分最大4万円（旧制度は最大5万円）。加入しているものにチェック</p>
+    </div>
+    <div class="field">
+      <label for="insEarthquake">地震保険料控除</label>
+      <select id="insEarthquake">
+        <option value="none">なし</option>
+        <option value="yes">あり</option>
+      </select>
+      <p class="hint">最大5万円（旧長期損害保険は最大1.5万円との合計で5万円上限）</p>
+    </div>
+    <div class="field">
+      <label for="medicalExp">医療費控除（概算・万円）</label>
+      <input type="number" id="medicalExp" value="0" min="0" placeholder="例: 15">
+      <p class="hint">（医療費合計 − 10万円または総所得の5%）が控除額。10万円以下は0でOK</p>
+    </div>
+    <div class="field">
+      <label for="ideco">iDeCo・小規模企業共済（年間・万円）</label>
+      <input type="number" id="ideco" value="0" min="0" placeholder="例: 27.6">
+      <p class="hint">全額控除。iDeCo は年収・職種によって上限が異なります</p>
+    </div>
+    <div class="field">
+      <label>障害者控除</label>
+      <div class="checkbox-group">
+        <label class="checkbox-item"><input type="checkbox" id="disGeneral"> 一般障害者（本人または扶養）</label>
+        <label class="checkbox-item"><input type="checkbox" id="disSpecial"> 特別障害者（本人または扶養）</label>
+      </div>
+      <p class="hint">一般：27万円 / 特別：40万円（同居特別障害者は75万円）</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">控除を逆引きする</button>
+
+  <!-- 結果カード（合計） -->
+  <div class="result-card" id="result">
+    <p class="result-label">適用可能な控除の合計</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 控除一覧カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">控除一覧</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <div class="notice">
+    ※ 本アプリは令和6年度（2024年度）の概算値を使用しています。<br>
+    ※ 社会保険料控除は給与所得者の場合の目安額（年収の約14%）を自動計算します。<br>
+    ※ 実際の控除額は確定申告書や源泉徴収票で必ずご確認ください。
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  function toggleSpouseIncome() {
+    var v = document.getElementById('marital').value;
+    document.getElementById('spouseIncomeField').style.display = v === 'yes' ? '' : 'none';
+  }
+
+  function calc() {
+    var income       = parseFloat(document.getElementById('income').value) || 0;
+    var ageGroup     = document.getElementById('ageGroup').value;
+    var marital      = document.getElementById('marital').value;
+    var spouseIncome = parseFloat(document.getElementById('spouseIncome').value) || 0;
+    var dep16to18    = parseInt(document.getElementById('dep16to18').value) || 0;
+    var dep19to22    = parseInt(document.getElementById('dep19to22').value) || 0;
+    var depGeneral   = parseInt(document.getElementById('depGeneral').value) || 0;
+    var depElder     = parseInt(document.getElementById('depElder').value) || 0;
+    var depElderLive = parseInt(document.getElementById('depElderLive').value) || 0;
+    var singleParent = document.getElementById('singleParent').value;
+    var insLife      = document.getElementById('insLife').checked;
+    var insHealth    = document.getElementById('insHealth').checked;
+    var insAnnuity   = document.getElementById('insAnnuity').checked;
+    var insEarthquake= document.getElementById('insEarthquake').value;
+    var medicalExp   = parseFloat(document.getElementById('medicalExp').value) || 0;
+    var ideco        = parseFloat(document.getElementById('ideco').value) || 0;
+    var disGeneral   = document.getElementById('disGeneral').checked;
+    var disSpecial   = document.getElementById('disSpecial').checked;
+
+    if (income <= 0) { alert('年収を入力してください'); return; }
+
+    var rows = [];
+    var totalDeduction = 0;
+
+    // 1. 基礎控除
+    var kisoKojo = 0;
+    if (income <= 2400) kisoKojo = 48;
+    else if (income <= 2450) kisoKojo = 32;
+    else if (income <= 2500) kisoKojo = 16;
+    else kisoKojo = 0;
+    rows.push({ name: '基礎控除', amount: kisoKojo, desc: '所得2,400万円以下で48万円', apply: kisoKojo > 0 });
+
+    // 2. 給与所得控除（参考）
+    var kyuyoKojo = calcKyuyoKojo(income);
+    rows.push({ name: '給与所得控除', amount: kyuyoKojo, desc: '年収に応じた控除（55〜195万円）', apply: true, ref: true });
+
+    // 3. 社会保険料控除（目安）
+    var shakaihoken = Math.round(income * 0.1426); // 健康保険・介護保険・厚生年金の合算目安
+    rows.push({ name: '社会保険料控除', amount: shakaihoken, desc: '実際の支払額が全額控除（年収の約14%目安）', apply: true });
+
+    // 4. 配偶者控除・配偶者特別控除
+    var haigusha = 0;
+    var haigushaLabel = '';
+    if (marital === 'yes') {
+      if (spouseIncome <= 103) {
+        // 配偶者控除
+        if (income <= 900) haigusha = 38;
+        else if (income <= 950) haigusha = 26;
+        else if (income <= 1000) haigusha = 13;
+        // 70歳以上の老人配偶者（ここでは配偶者が70以上かどうか入力なし → 一般で計算）
+        haigushaLabel = '配偶者控除';
+      } else if (spouseIncome <= 2016) {
+        // 配偶者特別控除（配偶者収入103〜201.6万円）
+        haigusha = calcHaigushaSpecial(income, spouseIncome);
+        haigushaLabel = '配偶者特別控除';
+      }
+      rows.push({ name: haigushaLabel || '配偶者控除', amount: haigusha, desc: haigusha > 0 ? '配偶者の年収・本人の年収に応じた控除' : '年収条件を超えているため適用外', apply: haigusha > 0 });
+    } else {
+      rows.push({ name: '配偶者控除 / 配偶者特別控除', amount: 0, desc: '配偶者なし', apply: false });
+    }
+
+    // 5. 扶養控除
+    var fuyoTotal = dep16to18 * 38 + dep19to22 * 63 + depGeneral * 38;
+    var elderNonLive = Math.max(0, depElder - depElderLive);
+    fuyoTotal += depElderLive * 58 + elderNonLive * 48;  // 同居老親58万、その他老人48万
+    var fuyoDesc = [];
+    if (dep16to18 > 0) fuyoDesc.push('一般(' + dep16to18 + '人×38万)');
+    if (dep19to22 > 0) fuyoDesc.push('特定(' + dep19to22 + '人×63万)');
+    if (depGeneral > 0) fuyoDesc.push('一般23〜69歳(' + depGeneral + '人×38万)');
+    if (depElderLive > 0) fuyoDesc.push('同居老親(' + depElderLive + '人×58万)');
+    if (elderNonLive > 0) fuyoDesc.push('その他老人(' + elderNonLive + '人×48万)');
+    rows.push({ name: '扶養控除', amount: fuyoTotal, desc: fuyoDesc.length > 0 ? fuyoDesc.join(' / ') : '扶養家族なし', apply: fuyoTotal > 0 });
+
+    // 6. ひとり親控除 / 寡婦控除
+    var singleParentKojo = 0;
+    var singleParentLabel = '';
+    if (singleParent === 'singleParent' && income <= 500) {
+      singleParentKojo = 35;
+      singleParentLabel = 'ひとり親控除';
+    } else if (singleParent === 'widow' && income <= 500) {
+      singleParentKojo = 27;
+      singleParentLabel = '寡婦控除';
+    }
+    if (singleParent !== 'none') {
+      rows.push({ name: singleParentLabel || (singleParent === 'singleParent' ? 'ひとり親控除' : '寡婦控除'), amount: singleParentKojo, desc: singleParentKojo > 0 ? '年収500万円以下で適用' : '年収500万円超のため適用外', apply: singleParentKojo > 0 });
+    }
+
+    // 7. 生命保険料控除
+    var seimeiTotal = 0;
+    if (insLife)    seimeiTotal += 4;
+    if (insHealth)  seimeiTotal += 4;
+    if (insAnnuity) seimeiTotal += 4;
+    seimeiTotal = Math.min(seimeiTotal, 12);
+    var seimeiDesc = [];
+    if (insLife)    seimeiDesc.push('一般');
+    if (insHealth)  seimeiDesc.push('介護医療');
+    if (insAnnuity) seimeiDesc.push('個人年金');
+    rows.push({ name: '生命保険料控除', amount: seimeiTotal, desc: seimeiDesc.length > 0 ? '各区分最大4万円（合計12万円上限）：' + seimeiDesc.join('・') : '加入なし', apply: seimeiTotal > 0 });
+
+    // 8. 地震保険料控除
+    var jishinKojo = insEarthquake === 'yes' ? 5 : 0;
+    rows.push({ name: '地震保険料控除', amount: jishinKojo, desc: '最大5万円', apply: jishinKojo > 0 });
+
+    // 9. 医療費控除
+    var iryoKojo = 0;
+    var threshold = Math.min(income * 0.05, 10);
+    if (medicalExp > threshold) {
+      iryoKojo = Math.min(medicalExp - threshold, 200);
+    }
+    iryoKojo = Math.round(iryoKojo * 10) / 10;
+    rows.push({ name: '医療費控除', amount: iryoKojo, desc: '（医療費合計 − min(総所得×5%, 10万円)）', apply: iryoKojo > 0 });
+
+    // 10. iDeCo・小規模企業共済掛金控除
+    rows.push({ name: 'iDeCo / 小規模企業共済等掛金控除', amount: ideco, desc: '拠出額が全額控除', apply: ideco > 0 });
+
+    // 11. 障害者控除
+    var disKojo = 0;
+    var disDesc = [];
+    if (disGeneral) { disKojo += 27; disDesc.push('一般障害者 27万円'); }
+    if (disSpecial) { disKojo += 40; disDesc.push('特別障害者 40万円'); }
+    rows.push({ name: '障害者控除', amount: disKojo, desc: disDesc.length > 0 ? disDesc.join(' / ') : '該当なし', apply: disKojo > 0 });
+
+    // 合計（参考欄の給与所得控除を除く）
+    rows.forEach(function(r) {
+      if (r.apply && !r.ref) totalDeduction += r.amount;
+    });
+    totalDeduction = Math.round(totalDeduction * 10) / 10;
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = fmt(totalDeduction) + ' 万円';
+    document.getElementById('rn').textContent = '基礎・社会保険料・各控除の合計（給与所得控除は別途）';
+
+    // 内訳テーブル
+    var html = '';
+    rows.forEach(function(r) {
+      var applyBadge = r.ref ? '<span class="badge-na">参考</span>'
+                     : r.apply ? '<span class="badge-ok">適用</span>'
+                     : '<span class="badge-na">対象外</span>';
+      var amtStr = r.apply ? fmt(r.amount) + ' 万円' : '—';
+      html += '<tr class="' + (r.ref ? '' : r.apply ? 'hl' : 'row-na') + '">'
+            + '<td><div class="row-name">' + r.name + applyBadge + '</div>'
+            + '<div class="row-desc">' + r.desc + '</div></td>'
+            + '<td>' + amtStr + '</td></tr>';
+    });
+    // 合計行
+    html += '<tr style="border-top:2px solid var(--accent)">'
+          + '<td style="font-weight:700;font-size:0.95rem">合計控除額（概算）</td>'
+          + '<td style="font-weight:900;font-size:1.1rem;color:var(--accent)">' + fmt(totalDeduction) + ' 万円</td></tr>';
+
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+
+    // localStorage 保存
+    saveState();
+  }
+
+  function calcKyuyoKojo(income) {
+    // 令和6年度 給与所得控除額
+    if (income <= 162.5) return 55;
+    if (income <= 180) return Math.round(income * 0.4 - 10);
+    if (income <= 360) return Math.round(income * 0.3 + 8);
+    if (income <= 660) return Math.round(income * 0.2 + 44);
+    if (income <= 850) return Math.round(income * 0.1 + 110);
+    return 195;
+  }
+
+  function calcHaigushaSpecial(income, spouseIncome) {
+    // 配偶者特別控除（令和6年度・本人所得900万以下での最大値で簡略化）
+    if (income > 1000) return 0;
+    var base;
+    if (spouseIncome <= 105) base = 38;
+    else if (spouseIncome <= 110) base = 36;
+    else if (spouseIncome <= 115) base = 31;
+    else if (spouseIncome <= 120) base = 26;
+    else if (spouseIncome <= 125) base = 21;
+    else if (spouseIncome <= 130) base = 16;
+    else if (spouseIncome <= 135) base = 11;
+    else if (spouseIncome <= 140) base = 6;
+    else if (spouseIncome <= 145) base = 3;
+    else if (spouseIncome <= 150) base = 2;
+    else if (spouseIncome <= 155) base = 1;
+    else base = 0;
+    // 本人所得による逓減
+    if (income <= 900) return base;
+    if (income <= 950) return Math.floor(base * 2 / 3);
+    if (income <= 1000) return Math.floor(base / 3);
+    return 0;
+  }
+
+  function fmt(n) {
+    if (n === 0) return '0';
+    return n.toLocaleString('ja-JP');
+  }
+
+  function saveState() {
+    var state = {
+      income:       document.getElementById('income').value,
+      ageGroup:     document.getElementById('ageGroup').value,
+      marital:      document.getElementById('marital').value,
+      spouseIncome: document.getElementById('spouseIncome').value,
+      dep16to18:    document.getElementById('dep16to18').value,
+      dep19to22:    document.getElementById('dep19to22').value,
+      depGeneral:   document.getElementById('depGeneral').value,
+      depElder:     document.getElementById('depElder').value,
+      depElderLive: document.getElementById('depElderLive').value,
+      singleParent: document.getElementById('singleParent').value,
+      insLife:      document.getElementById('insLife').checked,
+      insHealth:    document.getElementById('insHealth').checked,
+      insAnnuity:   document.getElementById('insAnnuity').checked,
+      insEarthquake:document.getElementById('insEarthquake').value,
+      medicalExp:   document.getElementById('medicalExp').value,
+      ideco:        document.getElementById('ideco').value,
+      disGeneral:   document.getElementById('disGeneral').checked,
+      disSpecial:   document.getElementById('disSpecial').checked
+    };
+    localStorage.setItem('shotokuKojo_state', JSON.stringify(state));
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem('shotokuKojo_state');
+      if (!raw) return;
+      var s = JSON.parse(raw);
+      if (s.income)       document.getElementById('income').value = s.income;
+      if (s.ageGroup)     document.getElementById('ageGroup').value = s.ageGroup;
+      if (s.marital)      { document.getElementById('marital').value = s.marital; toggleSpouseIncome(); }
+      if (s.spouseIncome) document.getElementById('spouseIncome').value = s.spouseIncome;
+      if (s.dep16to18)    document.getElementById('dep16to18').value = s.dep16to18;
+      if (s.dep19to22)    document.getElementById('dep19to22').value = s.dep19to22;
+      if (s.depGeneral)   document.getElementById('depGeneral').value = s.depGeneral;
+      if (s.depElder)     document.getElementById('depElder').value = s.depElder;
+      if (s.depElderLive) document.getElementById('depElderLive').value = s.depElderLive;
+      if (s.singleParent) document.getElementById('singleParent').value = s.singleParent;
+      document.getElementById('insLife').checked    = !!s.insLife;
+      document.getElementById('insHealth').checked  = !!s.insHealth;
+      document.getElementById('insAnnuity').checked = !!s.insAnnuity;
+      if (s.insEarthquake) document.getElementById('insEarthquake').value = s.insEarthquake;
+      if (s.medicalExp)   document.getElementById('medicalExp').value = s.medicalExp;
+      if (s.ideco)        document.getElementById('ideco').value = s.ideco;
+      document.getElementById('disGeneral').checked = !!s.disGeneral;
+      document.getElementById('disSpecial').checked = !!s.disSpecial;
+    } catch(e) {}
+  }
+
+  loadState();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

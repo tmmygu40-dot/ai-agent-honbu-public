@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>残業代未払い診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --danger: #7c3aed; --danger-bg: #f5f3ff;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok     { border-color: var(--ok);     background: var(--ok-bg); }
+    .result-card.warn   { border-color: var(--warn);   background: var(--warn-bg); }
+    .result-card.ng     { border-color: var(--ng);     background: var(--ng-bg); }
+    .result-card.danger { border-color: var(--danger); background: var(--danger-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok     .result-value { color: var(--ok); }
+    .result-card.warn   .result-value { color: var(--warn); }
+    .result-card.ng     .result-value { color: var(--ng); }
+    .result-card.danger .result-value { color: var(--danger); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok     .result-eval { color: var(--ok); }
+    .result-card.warn   .result-eval { color: var(--warn); }
+    .result-card.ng     .result-eval { color: var(--ng); }
+    .result-card.danger .result-eval { color: var(--danger); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── ブラック度メーター ── */
+    .meter-wrap { margin: 1rem 0 0.5rem; }
+    .meter-bar {
+      position: relative; height: 18px; background: #eee;
+      border-radius: 9px; overflow: hidden;
+    }
+    .meter-fill {
+      height: 100%; border-radius: 9px;
+      transition: width 0.6s ease;
+      background: linear-gradient(90deg, #15803d 0%, #b45309 50%, #b91c1c 75%, #7c3aed 100%);
+    }
+    .meter-labels {
+      display: flex; justify-content: space-between;
+      font-size: 0.68rem; color: var(--text-sub); margin-top: 0.3rem;
+    }
+
+    /* ── アドバイスカード ── */
+    .advice-card {
+      display: none;
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px;
+    }
+    .advice-item {
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; line-height: 1.5; color: var(--text);
+    }
+    .advice-item:last-child { border-bottom: none; }
+    .advice-item strong { color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card, .advice-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>残業代未払い診断アプリ</h1>
+    <p class="subtitle">残業・休日出勤の実態を入力してブラック企業度と未払い残業代を即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">勤務実態の入力</p>
+    <div class="field">
+      <label for="monthly_salary">基本月収（円）</label>
+      <input type="number" id="monthly_salary" placeholder="例: 250000" min="0">
+      <p class="hint">残業代を除いた基本給＋固定手当の合計額</p>
+    </div>
+    <div class="field">
+      <label for="work_hours">月の所定労働時間（時間）</label>
+      <input type="number" id="work_hours" placeholder="例: 160" min="1" value="160">
+      <p class="hint">1日8時間×20日なら160h（標準値）</p>
+    </div>
+    <div class="field">
+      <label for="overtime_h">月間残業時間（時間）</label>
+      <input type="number" id="overtime_h" placeholder="例: 60" min="0">
+      <p class="hint">残業代が支払われていない時間を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="holiday_days">休日出勤日数（日）</label>
+      <input type="number" id="holiday_days" placeholder="例: 2" min="0" value="0">
+      <p class="hint">法定休日に出勤した日数（休日出勤代が未払いの日数）</p>
+    </div>
+    <div class="field">
+      <label for="midnight_h">深夜残業時間（時間）</label>
+      <input type="number" id="midnight_h" placeholder="例: 10" min="0" value="0">
+      <p class="hint">22時〜翌5時の残業（残業時間と重複OK）</p>
+    </div>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" onclick="diagnose()">ブラック度・未払い残業代を診断する</button>
+
+  <!-- ブラック度結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">ブラック企業度</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 未払い残業代カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">未払い残業代の概算</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+    <div class="meter-wrap">
+      <div class="meter-bar"><div class="meter-fill" id="mf" style="width:0%"></div></div>
+      <div class="meter-labels">
+        <span>正常</span><span>要改善</span><span>注意</span><span>要注意</span><span>危険</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- アドバイスカード -->
+  <div class="advice-card" id="advice">
+    <p class="card-title">診断アドバイス</p>
+    <div id="advice-list"></div>
+  </div>
+
+  <p style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは労働基準法（法定割増賃金率）に基づいた概算です。実際の未払い額は勤務記録・賃金規程等により異なります。正確な請求には専門家（社労士・弁護士）への相談を推奨します。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var LS_KEY = 'zangyou_shindan_v1';
+
+  // localStorage から復元
+  (function() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      if (d.monthly_salary) document.getElementById('monthly_salary').value = d.monthly_salary;
+      if (d.work_hours)     document.getElementById('work_hours').value     = d.work_hours;
+      if (d.overtime_h)     document.getElementById('overtime_h').value     = d.overtime_h;
+      if (d.holiday_days !== undefined) document.getElementById('holiday_days').value = d.holiday_days;
+      if (d.midnight_h !== undefined)   document.getElementById('midnight_h').value   = d.midnight_h;
+    } catch(e) {}
+  })();
+
+  function diagnose() {
+    var salary     = parseFloat(document.getElementById('monthly_salary').value);
+    var workH      = parseFloat(document.getElementById('work_hours').value) || 160;
+    var overtimeH  = parseFloat(document.getElementById('overtime_h').value) || 0;
+    var holidayD   = parseFloat(document.getElementById('holiday_days').value) || 0;
+    var midnightH  = parseFloat(document.getElementById('midnight_h').value) || 0;
+
+    if (isNaN(salary) || salary <= 0) { showErr('基本月収を入力してください'); return; }
+    if (isNaN(overtimeH) || overtimeH < 0) { showErr('残業時間を入力してください'); return; }
+
+    // localStorage に保存
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        monthly_salary: salary, work_hours: workH,
+        overtime_h: overtimeH, holiday_days: holidayD, midnight_h: midnightH
+      }));
+    } catch(e) {}
+
+    // 時給計算
+    var hourlyRate = salary / workH;
+
+    // 未払い残業代計算
+    // 通常残業（月45h以下）：25%割増、月45h超：50%割増（簡略化：平均25%で計算）
+    var overtimePay   = hourlyRate * 1.25 * overtimeH;
+    var holidayPay    = hourlyRate * 1.35 * holidayD * 8;
+    var midnightExtra = hourlyRate * 0.25 * midnightH; // 深夜加算分のみ
+    var totalUnpaid   = overtimePay + holidayPay + midnightExtra;
+
+    // 年換算
+    var annualUnpaid = totalUnpaid * 12;
+
+    // ブラック度判定（月間残業時間ベース）
+    var totalOvertimeEquiv = overtimeH + holidayD * 8;
+    var level, levelText, levelClass, levelNote, meterPct;
+
+    if (totalOvertimeEquiv >= 80) {
+      level = '危険'; levelText = '⚠️ 過労死ライン超え'; levelClass = 'danger';
+      levelNote = '月80時間以上は過労死認定ラインです。今すぐ労働基準監督署に相談してください。';
+      meterPct = 100;
+    } else if (totalOvertimeEquiv >= 60) {
+      level = '要注意'; levelText = '🔴 ブラック確定ゾーン'; levelClass = 'ng';
+      levelNote = '月60時間超は法定割増率が50%に上がります。健康被害のリスクが高い状態です。';
+      meterPct = 80;
+    } else if (totalOvertimeEquiv >= 45) {
+      level = '注意'; levelText = '🟠 法定上限ギリギリ'; levelClass = 'warn';
+      levelNote = '月45時間は36協定の上限目安です。このラインを超えると法令違反の可能性があります。';
+      meterPct = 60;
+    } else if (totalOvertimeEquiv >= 20) {
+      level = '要改善'; levelText = '🟡 残業が多め'; levelClass = 'warn';
+      levelNote = '残業は多いですが、直ちに違法とはなりません。職場環境の見直しが望まれます。';
+      meterPct = 35;
+    } else {
+      level = '正常'; levelText = '🟢 適正範囲内'; levelClass = 'ok';
+      levelNote = '残業時間は概ね適正範囲です。未払いがあれば請求を検討しましょう。';
+      meterPct = 15;
+    }
+
+    // 結論カード表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + levelClass;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = level;
+    document.getElementById('re').textContent = levelText;
+    document.getElementById('rn').textContent = levelNote;
+
+    // 内訳表示
+    var rows = [
+      ['基本月収', fmt(salary) + ' 円'],
+      ['時給換算（月収÷' + workH + 'h）', fmt(Math.round(hourlyRate)) + ' 円/時'],
+      ['月間残業時間', overtimeH + ' 時間'],
+    ];
+    if (holidayD > 0) rows.push(['休日出勤（' + holidayD + '日×8h）', fmt(Math.round(holidayPay)) + ' 円']);
+    if (midnightH > 0) rows.push(['深夜残業加算分', fmt(Math.round(midnightExtra)) + ' 円']);
+    rows.push(['今月の未払い残業代（概算）', fmt(Math.round(totalUnpaid)) + ' 円', true]);
+    rows.push(['年間換算（×12ヶ月）', fmt(Math.round(annualUnpaid)) + ' 円', true]);
+
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('mf').style.width = meterPct + '%';
+    document.getElementById('detail').style.display = 'block';
+
+    // アドバイス生成
+    var advices = [];
+    if (totalOvertimeEquiv >= 80) {
+      advices.push('<strong>【緊急】労働基準監督署へ相談</strong>：過労死ラインを超えています。最寄りの労基署（0120-794-713）に今すぐ相談してください。');
+      advices.push('<strong>証拠を残す</strong>：勤怠記録・PCログ・入退室記録・メールのタイムスタンプを今すぐ保存してください。');
+    } else if (totalOvertimeEquiv >= 45) {
+      advices.push('<strong>証拠を記録する</strong>：残業時間の証拠（出退勤記録・メールの時刻）を日々メモに残しておきましょう。');
+    }
+    if (totalUnpaid >= 50000) {
+      advices.push('<strong>未払い残業代は2年分遡及請求できます</strong>：今月の推定額 ' + fmt(Math.round(totalUnpaid)) + '円 × 24ヶ月 ≒ ' + fmt(Math.round(totalUnpaid * 24)) + '円 の請求が可能な場合があります。');
+    }
+    advices.push('<strong>まず内容証明で請求</strong>：会社に内容証明郵便で未払い残業代の支払いを請求するのが第一歩です。');
+    advices.push('<strong>無料相談窓口</strong>：総合労働相談コーナー（各都道府県労働局）や弁護士の無料相談を活用しましょう。');
+
+    document.getElementById('advice-list').innerHTML = advices.map(function(a) {
+      return '<div class="advice-item">' + a + '</div>';
+    }).join('');
+    document.getElementById('advice').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('advice').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>市販薬選び逆引きアプリ</title>
+  <meta name="description" content="頭痛・発熱・鼻水・咳など症状を選ぶだけで、市販薬のカテゴリと選び方のポイントを即表示。薬局で迷わずに適切なOTC医薬品を選べる逆引きガイドです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 症状ボタングリッド ── */
+    .symptom-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.6rem;
+    }
+    .symptom-btn {
+      padding: 0.7rem 0.5rem;
+      font-size: 0.88rem; font-weight: 600;
+      background: var(--bg); color: var(--text);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; text-align: center;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .symptom-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .symptom-btn.active {
+      background: var(--accent); color: #fff;
+      border-color: var(--accent); box-shadow: 0 2px 8px rgba(224,123,0,0.3);
+    }
+    .symptom-icon { font-size: 1.3rem; display: block; margin-bottom: 0.2rem; }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.5rem; }
+    .result-title { font-size: 1.3rem; font-weight: 900; color: var(--ok); margin-bottom: 0.8rem; line-height: 1.3; }
+    .result-card.warn .result-title { color: var(--warn); }
+    .result-note { font-size: 0.88rem; color: var(--text); line-height: 1.7; }
+
+    /* ── ポイントリスト ── */
+    .point-list { margin-top: 1rem; }
+    .point-item {
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; color: var(--text); line-height: 1.5;
+    }
+    .point-item:last-child { border-bottom: none; }
+    .point-icon { font-size: 1rem; flex-shrink: 0; margin-top: 0.1rem; }
+
+    /* ── 注意バナー ── */
+    .caution-box {
+      max-width: 600px; margin: 0 auto 1rem;
+      background: var(--ng-bg); border: 1.5px solid var(--ng);
+      border-radius: var(--radius); padding: 0.9rem 1rem;
+      font-size: 0.8rem; color: #991b1b; line-height: 1.6;
+    }
+    .caution-box strong { display: block; font-weight: 700; margin-bottom: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💊 市販薬選び逆引きアプリ</h1>
+    <p class="subtitle">症状を選ぶだけ → 薬のカテゴリと選び方のポイントを即表示</p>
+  </header>
+
+  <!-- 症状選択カード -->
+  <div class="card">
+    <p class="card-title">症状を選んでください</p>
+    <div class="symptom-grid" id="symptomGrid">
+      <!-- JS で生成 -->
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="showResult()">この症状の市販薬を調べる</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label" id="resultLabel">おすすめ薬カテゴリ</p>
+    <p class="result-title" id="resultTitle">—</p>
+    <p class="result-note" id="resultNote"></p>
+    <div class="point-list" id="pointList"></div>
+  </div>
+
+  <!-- 注意事項 -->
+  <div class="caution-box">
+    <strong>⚠️ ご注意</strong>
+    症状が重い・長引く場合は医療機関を受診してください。妊娠中・授乳中・持病のある方は医師・薬剤師にご相談ください。このアプリは情報提供を目的としており、医療診断の代わりにはなりません。
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、厚生労働省・日本OTC医薬品協会・薬剤師会などの公開情報を参考に、目安として使いやすく整理しています。2026年時点の参考情報です。最新情報は薬局・薬剤師にご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var symptoms = [
+    {
+      id: 'headache',
+      icon: '🤕',
+      label: '頭痛',
+      category: '解熱鎮痛薬（鎮痛剤）',
+      type: 'ok',
+      note: '緊張型・偏頭痛など日常的な頭痛に使います。',
+      points: [
+        'イブプロフェン系（イブ・ナロン）は炎症を抑える効果が強く、緊張型頭痛に◎',
+        'アセトアミノフェン系（タイレノール）は胃への負担が少なく、空腹時でも服用しやすい',
+        '偏頭痛には市販のトリプタン系（レルパックス除く）は流通少。薬局で相談を',
+        '月10日以上鎮痛薬を使う場合は「薬物乱用頭痛」の可能性があり受診を推奨',
+      ]
+    },
+    {
+      id: 'fever',
+      icon: '🌡️',
+      label: '発熱',
+      category: '解熱鎮痛薬（解熱剤）',
+      type: 'ok',
+      note: '38.5℃以上の発熱時や体のつらさ軽減に使います。',
+      points: [
+        'アセトアミノフェン系（タイレノール・カロナール等）が安全性高く第一選択',
+        '子ども・高齢者・妊婦にはアセトアミノフェン系が推奨（イブプロフェンは要確認）',
+        '解熱剤は症状を和らげる薬。熱の原因（感染症など）は別途対処が必要',
+        '水分補給を十分に行い、体が楽なら無理に下げなくてもよい場合もある',
+      ]
+    },
+    {
+      id: 'runny_nose',
+      icon: '🤧',
+      label: '鼻水・鼻づまり',
+      category: '鼻炎薬・抗ヒスタミン薬',
+      type: 'ok',
+      note: 'アレルギー性鼻炎・風邪による鼻症状に使います。',
+      points: [
+        '眠くなりにくいものを希望→フェキソフェナジン系（アレグラFX）を選ぶ',
+        '速効性重視→第1世代抗ヒスタミン薬（クロルフェニラミン配合）だが眠気が出やすい',
+        '鼻づまりが強い場合→プソイドエフェドリン配合のコールドケア系が効果的',
+        '花粉シーズンの前から服用開始すると症状が出にくくなる（初期療法）',
+      ]
+    },
+    {
+      id: 'cough',
+      icon: '😷',
+      label: '咳・痰',
+      category: '鎮咳去痰薬',
+      type: 'ok',
+      note: '風邪などによる咳・痰に使います。',
+      points: [
+        '空咳（痰なし）→デキストロメトルファン配合の鎮咳薬（ストナ等）',
+        '痰を伴う咳→グアイフェネシン・ブロムヘキシン配合の去痰薬を選ぶ',
+        '咳止めと去痰薬を同時服用は症状によって不適切な場合も。薬剤師に相談を',
+        '3週間以上続く咳は感染症以外の原因（咳喘息・GERD等）の可能性があり受診を',
+      ]
+    },
+    {
+      id: 'stomach',
+      icon: '🫃',
+      label: '胃痛・胃もたれ',
+      category: '胃腸薬・制酸剤',
+      type: 'ok',
+      note: '胃酸過多・消化不良・胃の不快感に使います。',
+      points: [
+        '胃酸過多・胸やけ→H2ブロッカー系（ガスター10）が効果高い',
+        '食べ過ぎ・消化不良→消化酵素配合の胃腸薬（太田胃散・大正漢方胃腸薬等）',
+        '胃炎・胃の痛み→スクラルファート・アルジオキサ配合の胃粘膜保護薬',
+        '繰り返す胃痛・黒色便があれば潰瘍の疑いあり。受診を強く推奨',
+      ]
+    },
+    {
+      id: 'diarrhea',
+      icon: '🚽',
+      label: '下痢',
+      category: '止瀉薬（下痢止め）',
+      type: 'warn',
+      note: '非感染性の下痢・軟便に使います。感染性下痢への使用は注意。',
+      points: [
+        '食あたり・感染性下痢の疑いがある場合は下痢止めを使わず自然排出を優先',
+        '過敏性腸症候群・冷えによる下痢→ロペラミド系（ストッパ・トメダイン）',
+        '整腸薬（ビオフェルミン）は感染性でも安全に使えて腸内環境を整える',
+        '下痢が1日5回以上・血便・38.5℃以上の発熱を伴う場合は受診を',
+      ]
+    },
+    {
+      id: 'itch',
+      icon: '😣',
+      label: 'かゆみ・じんましん',
+      category: '抗ヒスタミン薬・外用かゆみ止め',
+      type: 'ok',
+      note: 'アレルギー・虫刺され・乾燥肌などのかゆみに使います。',
+      points: [
+        '全身のかゆみ・じんましん→内服抗ヒスタミン薬（アレグラ・ストナリニ等）',
+        '局所的なかゆみ→外用ステロイドクリーム（ロコイド等）またはジフェンヒドラミン配合クリーム',
+        '強いじんましん・顔のむくみ・呼吸困難→アナフィラキシーの可能性。すぐ救急へ',
+        '2週間以上続く慢性じんましんは皮膚科受診を推奨',
+      ]
+    },
+    {
+      id: 'eye',
+      icon: '👁️',
+      label: '目の充血・かゆみ',
+      category: '目薬（抗アレルギー・充血除去点眼薬）',
+      type: 'ok',
+      note: '花粉症・アレルギーによる目の症状に使います。',
+      points: [
+        'アレルギー性結膜炎（かゆみ・涙）→抗ヒスタミン配合点眼薬（アレジオン点眼等）',
+        '充血を素早く取りたい→血管収縮薬配合の充血除去点眼薬（短期使用に限る）',
+        'PCや読書による疲れ目→ビタミンB12・タウリン配合の目薬',
+        'コンタクトレンズ着用時は専用点眼薬か着用後に使用できる製品を選ぶ',
+      ]
+    },
+    {
+      id: 'throat',
+      icon: '🤒',
+      label: 'のどの痛み',
+      category: 'トローチ・うがい薬・のど用スプレー',
+      type: 'ok',
+      note: '風邪・乾燥によるのどの痛み・炎症に使います。',
+      points: [
+        '殺菌・消毒→ポビドンヨード含有うがい薬（イソジン等）で1日数回うがい',
+        '炎症・痛み→殺菌成分＋局所麻酔配合のトローチ（アズレン系）',
+        'のどのシュっとスプレー→塩化セチルピリジニウム配合スプレーが手軽',
+        '鎮痛剤（イブプロフェン・アセトアミノフェン）を併用すると痛み軽減効果あり',
+      ]
+    },
+    {
+      id: 'shoulder',
+      icon: '💆',
+      label: '肩こり・筋肉痛',
+      category: '外用消炎鎮痛薬（湿布・クリーム）',
+      type: 'ok',
+      note: '筋肉の炎症・疲労による痛みに使います。',
+      points: [
+        '受傷後24時間以内（急性期）→クールタイプ（冷感）湿布でまず炎症を抑える',
+        '慢性の肩こり・腰痛（慢性期）→ホットタイプ（温感）湿布や温熱プラスター',
+        'フェルビナク・ジクロフェナク・インドメタシン配合製品が消炎効果高め',
+        '皮膚が弱い・高齢者→刺激が少ない水分系パップ剤（テープ剤より剥がれやすいが低刺激）',
+      ]
+    },
+    {
+      id: 'insect',
+      icon: '🦟',
+      label: '虫刺され',
+      category: '外用かゆみ止め（虫刺され用）',
+      type: 'ok',
+      note: '蚊・ブヨ・ハチなどの虫刺されによるかゆみ・腫れに使います。',
+      points: [
+        '一般的な蚊刺され→ジフェンヒドラミン配合クリーム（ムヒ等）でかゆみを抑える',
+        '腫れが強い→ステロイド配合クリーム（ムヒアルファ等）が効果的',
+        '痛みを伴う場合（ブヨ等）→ステロイド内服か強めの外用薬。薬局で相談を',
+        'ハチに刺された・激しいアレルギー反応（呼吸困難等）→すぐに救急受診',
+      ]
+    },
+    {
+      id: 'canker',
+      icon: '😬',
+      label: '口内炎',
+      category: '口内炎治療薬（口腔内適用薬）',
+      type: 'ok',
+      note: 'アフタ性口内炎・口の中の傷に使います。',
+      points: [
+        '貼るタイプ→トリアムシノロン配合口腔用フィルム（ケナログ等）が保護力高く効果的',
+        '塗るタイプ→ステロイド配合軟膏やトリアムシノロン配合口腔用軟膏',
+        'うがい薬→アズレン含有薄め液で患部を清潔に保つと回復を助ける',
+        '2週間以上治らない・大きくなる口内炎は口腔がんの可能性もあり歯科・口腔外科へ',
+      ]
+    },
+  ];
+
+  var selected = null;
+
+  function init() {
+    var grid = document.getElementById('symptomGrid');
+    symptoms.forEach(function(s) {
+      var btn = document.createElement('button');
+      btn.className = 'symptom-btn';
+      btn.id = 'btn-' + s.id;
+      btn.innerHTML = '<span class="symptom-icon">' + s.icon + '</span>' + s.label;
+      btn.onclick = function() { selectSymptom(s.id); };
+      grid.appendChild(btn);
+    });
+
+    // localStorage から前回の選択を復元
+    var saved = localStorage.getItem('otcapp_selected');
+    if (saved) {
+      selectSymptom(saved, false);
+    }
+  }
+
+  function selectSymptom(id, autoShow) {
+    selected = id;
+    // ボタンのアクティブ状態
+    symptoms.forEach(function(s) {
+      var btn = document.getElementById('btn-' + s.id);
+      if (btn) btn.className = 'symptom-btn' + (s.id === id ? ' active' : '');
+    });
+    // localStorage 保存
+    localStorage.setItem('otcapp_selected', id);
+    // autoShow が明示的に false でなければ結果も表示
+    if (autoShow !== false) {
+      showResult();
+    } else {
+      showResult();
+    }
+  }
+
+  function showResult() {
+    if (!selected) {
+      alert('症状を選んでください');
+      return;
+    }
+    var s = symptoms.find(function(x) { return x.id === selected; });
+    if (!s) return;
+
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + s.type;
+    rc.style.display = 'block';
+    document.getElementById('resultLabel').textContent = s.icon + ' ' + s.label + ' の市販薬カテゴリ';
+    document.getElementById('resultTitle').textContent = s.category;
+    document.getElementById('resultNote').textContent = s.note;
+
+    var pl = document.getElementById('pointList');
+    pl.innerHTML = s.points.map(function(p) {
+      return '<div class="point-item"><span class="point-icon">✅</span><span>' + p + '</span></div>';
+    }).join('');
+
+    // スクロール
+    rc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

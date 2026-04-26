@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>必要保障額チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ok-row td:last-child { color: var(--ok); }
+    .detail-table .ng-row td:last-child { color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── 判定バッジ ── */
+    .badge {
+      display: inline-block; padding: 0.25rem 0.9rem;
+      border-radius: 99px; font-size: 0.85rem; font-weight: 700;
+      margin-bottom: 0.6rem;
+    }
+    .badge.ok   { background: var(--ok);   color: #fff; }
+    .badge.warn { background: var(--warn); color: #fff; }
+    .badge.ng   { background: var(--ng);   color: #fff; }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>必要保障額チェッカー</h1>
+    <p class="subtitle">年収・ローン・子どもの年齢から、必要な生命保険の保障額を即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">家族・収入情報を入力</p>
+    <div class="field">
+      <label for="income">年収（万円）</label>
+      <input type="number" id="income" placeholder="例: 500" min="0">
+      <p class="hint">税込み年収を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="loan">ローン残高（万円）</label>
+      <input type="number" id="loan" placeholder="例: 2000" min="0">
+      <p class="hint">住宅ローン等の残債合計（なければ 0）</p>
+    </div>
+    <div class="field">
+      <label for="children">子どもの人数（人）</label>
+      <input type="number" id="children" placeholder="例: 2" min="0" max="10">
+    </div>
+    <div class="field">
+      <label for="youngest">末子の現在の年齢（歳）</label>
+      <input type="number" id="youngest" placeholder="例: 5" min="0" max="22">
+      <p class="hint">子どもがいない場合は 0</p>
+    </div>
+    <div class="field">
+      <label for="savings">貯蓄・金融資産（万円）</label>
+      <input type="number" id="savings" placeholder="例: 300" min="0">
+      <p class="hint">現在の貯蓄合計（なければ 0）</p>
+    </div>
+    <div class="field">
+      <label for="current">現在の生命保険の保障額（万円）</label>
+      <input type="number" id="current" placeholder="例: 3000" min="0">
+      <p class="hint">死亡保障の合計額（証券を確認）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">必要保障額を診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">保障額の過不足</p>
+    <div id="badge-wrap"></div>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'hitsuyoHoshoChecker_v1';
+
+  function load() {
+    var data = null;
+    try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch(e) {}
+    if (!data) return;
+    var ids = ['income','loan','children','youngest','savings','current'];
+    ids.forEach(function(id) {
+      if (data[id] !== undefined) document.getElementById(id).value = data[id];
+    });
+    if (data.calculated) calc(true);
+  }
+
+  function save(vals) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(vals)); } catch(e) {}
+  }
+
+  function calc(silent) {
+    var income   = parseFloat(document.getElementById('income').value)   || 0;
+    var loan     = parseFloat(document.getElementById('loan').value)     || 0;
+    var children = parseInt(document.getElementById('children').value)   || 0;
+    var youngest = parseInt(document.getElementById('youngest').value)   || 0;
+    var savings  = parseFloat(document.getElementById('savings').value)  || 0;
+    var current  = parseFloat(document.getElementById('current').value)  || 0;
+
+    if (!silent && income <= 0) {
+      showErr('年収を入力してください'); return;
+    }
+
+    // 計算ロジック
+    var annualLivingCost = income * 0.7;  // 年間生活費 = 年収×70%
+    var yearsUntilIndep  = children > 0 ? Math.max(0, 22 - youngest) : 0; // 末子独立までの年数
+    var livingNeed       = annualLivingCost * yearsUntilIndep; // 生活費不足額
+    var required         = Math.max(0, livingNeed + loan - savings); // 必要保障額
+    var gap              = current - required; // 過不足（+が余裕、-が不足）
+
+    var level, badgeText, note;
+    if (gap >= 0) {
+      level     = 'ok';
+      badgeText = '保障が足りています';
+      note      = '現在の保険で必要保障額をカバーできています。余裕分は保険料の見直しも検討できます。';
+    } else if (gap > -1000) {
+      level     = 'warn';
+      badgeText = 'やや不足しています';
+      note      = '1,000万円未満の不足です。収支に応じて追加保障を検討してみましょう。';
+    } else {
+      level     = 'ng';
+      badgeText = '保障が不足しています';
+      note      = '大きな不足があります。定期保険などで追加保障を検討することをおすすめします。';
+    }
+
+    showResult(level, badgeText, fmt(Math.abs(gap)) + ' 万円' + (gap >= 0 ? ' の余裕' : ' の不足'), note);
+    showDetail([
+      ['年間生活費（年収×70%）',      fmt(annualLivingCost) + ' 万円'],
+      ['末子独立までの年数',           yearsUntilIndep + ' 年'],
+      ['生活費不足額合計',             fmt(livingNeed)       + ' 万円'],
+      ['ローン残高',                   fmt(loan)             + ' 万円'],
+      ['貯蓄（控除）',                 '▲ ' + fmt(savings)  + ' 万円'],
+      ['必要保障額',                   fmt(required)         + ' 万円', true],
+      ['現在の保障額',                 fmt(current)          + ' 万円'],
+      ['過不足',                       (gap >= 0 ? '+' : '') + fmt(gap) + ' 万円', false, gap >= 0 ? 'ok-row' : 'ng-row'],
+    ]);
+
+    // localStorage保存
+    save({
+      income: income, loan: loan, children: children, youngest: youngest,
+      savings: savings, current: current, calculated: true
+    });
+  }
+
+  function showResult(level, badge, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('badge-wrap').innerHTML =
+      '<span class="badge ' + level + '">' + badge + '</span>';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      var cls = r[2] ? ' class="hl"' : r[3] ? ' class="' + r[3] + '"' : '';
+      return '<tr' + cls + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('badge-wrap').innerHTML = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  window.addEventListener('DOMContentLoaded', load);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

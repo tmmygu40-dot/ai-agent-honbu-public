@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>来客予測シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* セレクト行グリッド */
+    .select-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.6rem;
+      margin-bottom: 0;
+    }
+    .select-grid .field { margin-bottom: 0; }
+
+    /* ── 曜日ボタン ── */
+    .day-btns { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.35rem; }
+    .day-btn {
+      flex: 1 1 auto; min-width: 38px;
+      padding: 0.55rem 0.3rem; font-size: 0.9rem; font-weight: 700;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text-sub); cursor: pointer;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+      text-align: center;
+    }
+    .day-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+    .day-btn.sat { color: #1d4ed8; }
+    .day-btn.sun { color: #b91c1c; }
+    .day-btn.active { color: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+
+    /* ── 仕入れ結果 ── */
+    .supply-card {
+      display: none; background: var(--card);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .supply-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .supply-value { font-size: 1.7rem; font-weight: 900; color: var(--accent); margin-bottom: 0.3rem; }
+    .supply-note { font-size: 0.8rem; color: var(--text-sub); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 設定保存ボタン ── */
+    .btn-save {
+      display: inline-block; padding: 0.5rem 1.1rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 8px; cursor: pointer;
+      margin-top: 0.5rem;
+    }
+    .save-msg { font-size: 0.75rem; color: var(--ok); margin-left: 0.5rem; display: none; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter=https://tmmygu40.goatcounter.com/count
+          async src=//gc.zgo.at/count.js></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>来客予測シミュレーター</h1>
+    <p class="subtitle">曜日・天気・イベントから来客数と仕入れ量を即算出</p>
+  </header>
+
+  <!-- 基本設定カード -->
+  <div class="card">
+    <p class="card-title">基本設定</p>
+    <div class="field">
+      <label for="baseCustomers">基準来客数（平日晴れ・イベントなし）</label>
+      <input type="number" id="baseCustomers" placeholder="例: 100" min="1" value="100">
+      <p class="hint">通常時（平日・晴れ・イベントなし）の1日の来客数</p>
+    </div>
+    <div class="field">
+      <label for="supplyPerCustomer">仕入れ係数（来客1人あたりの仕入れ単位）</label>
+      <input type="number" id="supplyPerCustomer" placeholder="例: 1.2" step="0.1" min="0.1" value="1.0">
+      <p class="hint">来客1人あたりの仕入れ量（例：1.2個、0.5kg など）</p>
+    </div>
+    <div class="field">
+      <label for="supplyUnit">仕入れの単位</label>
+      <input type="text" id="supplyUnit" placeholder="例: 個、kg、袋" value="個">
+    </div>
+    <div style="text-align:right">
+      <button class="btn-save" onclick="saveSettings()">設定を保存</button>
+      <span class="save-msg" id="saveMsg">保存しました</span>
+    </div>
+  </div>
+
+  <!-- 条件入力カード -->
+  <div class="card">
+    <p class="card-title">条件入力</p>
+    <div class="field">
+      <label>曜日</label>
+      <div class="day-btns">
+        <button class="day-btn" onclick="selectDay(this,'月','0.8')">月</button>
+        <button class="day-btn" onclick="selectDay(this,'火','0.8')">火</button>
+        <button class="day-btn" onclick="selectDay(this,'水','0.8')">水</button>
+        <button class="day-btn" onclick="selectDay(this,'木','0.8')">木</button>
+        <button class="day-btn" onclick="selectDay(this,'金','1.1')">金</button>
+        <button class="day-btn sat" onclick="selectDay(this,'土','1.3')">土</button>
+        <button class="day-btn sun" onclick="selectDay(this,'日','1.2')">日</button>
+      </div>
+      <p class="hint" style="margin-top:0.4rem">月〜木×0.8 ／ 金×1.1 ／ 土×1.3 ／ 日×1.2</p>
+    </div>
+    <div class="select-grid">
+      <div class="field">
+        <label for="weather">天気</label>
+        <select id="weather">
+          <option value="1.0">晴れ ×1.0</option>
+          <option value="0.9">曇り ×0.9</option>
+          <option value="0.7">雨  ×0.7</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="event">イベント</label>
+        <select id="event">
+          <option value="1.0">なし ×1.0</option>
+          <option value="1.3">あり ×1.3</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="manualAdj">手動調整（%）</label>
+        <input type="number" id="manualAdj" placeholder="0" value="0" step="5">
+      </div>
+    </div>
+    <div class="field" style="margin-top:0.8rem">
+      <p class="hint">手動調整：祝日・特売などに±%で補正（例：祝日なら+20、閑散期なら-10）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">予測する</button>
+
+  <!-- 来客予測カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">予測来客数</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 仕入れ量カード -->
+  <div class="supply-card" id="supplyCard">
+    <p class="supply-label">仕入れ量の目安</p>
+    <p class="supply-value" id="supplyVal">—</p>
+    <p class="supply-note" id="supplyNote"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var selectedDayCoef = null;
+  var selectedDayName = '';
+
+  function selectDay(btn, name, coef) {
+    document.querySelectorAll('.day-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    selectedDayName = name;
+    selectedDayCoef = parseFloat(coef);
+  }
+
+  function calc() {
+    var base = parseFloat(document.getElementById('baseCustomers').value);
+    if (isNaN(base) || base <= 0) { alert('基準来客数を入力してください'); return; }
+    if (selectedDayCoef === null) { alert('曜日を選択してください'); return; }
+
+    var supplyCoef = parseFloat(document.getElementById('supplyPerCustomer').value);
+    if (isNaN(supplyCoef) || supplyCoef <= 0) supplyCoef = 1.0;
+    var unit = document.getElementById('supplyUnit').value || '個';
+
+    var weatherCoef = parseFloat(document.getElementById('weather').value);
+    var eventCoef   = parseFloat(document.getElementById('event').value);
+    var manualAdj   = parseFloat(document.getElementById('manualAdj').value) || 0;
+
+    var predicted = base * selectedDayCoef * weatherCoef * eventCoef * (1 + manualAdj / 100);
+    predicted = Math.round(predicted);
+
+    var supplyAmt = predicted * supplyCoef;
+    supplyAmt = Math.round(supplyAmt * 10) / 10;
+
+    // 判定カラー（基準比）
+    var ratio = predicted / base;
+    var level = ratio >= 1.2 ? 'ok' : ratio >= 0.85 ? 'warn' : 'ng';
+    var msg = ratio >= 1.2 ? '来客多め。在庫を厚めに準備' :
+              ratio >= 0.85 ? '通常水準。標準仕入れでOK' :
+              '来客少なめ。仕入れ絞り気味で';
+
+    var weatherName = ['晴れ','曇り','雨'][['1.0','0.9','0.7'].indexOf(document.getElementById('weather').value)];
+    var eventName   = document.getElementById('event').value === '1.3' ? 'あり' : 'なし';
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = predicted.toLocaleString('ja-JP') + ' 人';
+    document.getElementById('rn').textContent = msg;
+
+    // 仕入れ量
+    document.getElementById('supplyCard').style.display = '';
+    document.getElementById('supplyVal').textContent = supplyAmt.toLocaleString('ja-JP') + ' ' + unit;
+    document.getElementById('supplyNote').textContent =
+      '来客' + predicted + '人 × ' + supplyCoef + '（仕入れ係数）';
+
+    // 内訳
+    showDetail([
+      ['基準来客数', base.toLocaleString('ja-JP') + ' 人'],
+      ['曜日係数（' + selectedDayName + '）', '×' + selectedDayCoef.toFixed(1)],
+      ['天気係数（' + weatherName + '）', '×' + weatherCoef.toFixed(1)],
+      ['イベント係数', '×' + eventCoef.toFixed(1)],
+      ['手動調整', (manualAdj >= 0 ? '+' : '') + manualAdj + '%'],
+      ['予測来客数', predicted.toLocaleString('ja-JP') + ' 人', true],
+      ['仕入れ量目安', supplyAmt.toLocaleString('ja-JP') + ' ' + unit, true],
+    ]);
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function saveSettings() {
+    var base = document.getElementById('baseCustomers').value;
+    var coef = document.getElementById('supplyPerCustomer').value;
+    var unit = document.getElementById('supplyUnit').value;
+    localStorage.setItem('raikaku_base', base);
+    localStorage.setItem('raikaku_coef', coef);
+    localStorage.setItem('raikaku_unit', unit);
+    var msg = document.getElementById('saveMsg');
+    msg.style.display = 'inline';
+    setTimeout(function(){ msg.style.display = 'none'; }, 2000);
+  }
+
+  function loadSettings() {
+    var base = localStorage.getItem('raikaku_base');
+    var coef = localStorage.getItem('raikaku_coef');
+    var unit = localStorage.getItem('raikaku_unit');
+    if (base) document.getElementById('baseCustomers').value = base;
+    if (coef) document.getElementById('supplyPerCustomer').value = coef;
+    if (unit) document.getElementById('supplyUnit').value = unit;
+  }
+
+  loadSettings();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
