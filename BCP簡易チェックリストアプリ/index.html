@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BCP簡易チェックリスト | 停電・断水時の事業継続手順</title>
+  <meta name="description" content="業種と従業員数を選ぶだけで、停電・断水時にやるべき事業継続手順をチェックリスト形式で即表示。チェック状態は自動保存。中小企業の緊急時対応に。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── チェックリストカード ── */
+    .checklist-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .checklist-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .checklist-title {
+      font-size: 0.9rem; font-weight: 700; color: var(--accent);
+    }
+    .checklist-meta {
+      font-size: 0.75rem; color: var(--text-sub);
+    }
+    .section-label {
+      font-size: 0.75rem; font-weight: 700; color: var(--text-sub);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin: 1rem 0 0.5rem;
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    /* ── チェックボックス行 ── */
+    .check-item {
+      display: flex; align-items: flex-start; gap: 0.7rem;
+      padding: 0.65rem 0.4rem; border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; margin-top: 0.1rem; }
+    .check-item .check-text { font-size: 0.9rem; color: var(--text); line-height: 1.4; }
+    .check-item input[type="checkbox"]:checked ~ .check-text {
+      text-decoration: line-through; color: var(--text-sub); opacity: 0.6;
+    }
+
+    /* ── 進捗バー ── */
+    .progress-wrap { margin-top: 1rem; }
+    .progress-label { font-size: 0.78rem; color: var(--text-sub); margin-bottom: 0.3rem; display: flex; justify-content: space-between; }
+    .progress-bar-bg { height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.3s; }
+
+    /* ── リセットボタン ── */
+    .btn-reset {
+      display: block; margin: 0.5rem auto 0; padding: 0.45rem 1rem;
+      font-size: 0.8rem; font-weight: 600;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 8px;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-reset:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-reset, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .checklist-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; display: block !important; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>BCP簡易チェックリスト</h1>
+    <p class="subtitle">業種と従業員数を選ぶだけ — 停電・断水時の事業継続手順を即表示</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">条件を選ぶ</p>
+    <div class="field">
+      <label for="industry">業種</label>
+      <select id="industry">
+        <option value="">選んでください</option>
+        <option value="製造業">製造業</option>
+        <option value="小売業">小売業</option>
+        <option value="飲食業">飲食業</option>
+        <option value="建設業">建設業</option>
+        <option value="事務サービス業">事務・サービス業</option>
+        <option value="医療介護">医療・介護</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="size">従業員数</label>
+      <select id="size">
+        <option value="">選んでください</option>
+        <option value="small">1〜5人</option>
+        <option value="medium">6〜20人</option>
+        <option value="large">21〜50人</option>
+        <option value="xlarge">51人以上</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="risk">リスク種別</label>
+      <select id="risk">
+        <option value="">選んでください</option>
+        <option value="停電">停電</option>
+        <option value="断水">断水</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 表示ボタン -->
+  <button class="btn-calc" onclick="showChecklist()">手順を表示する</button>
+
+  <!-- チェックリストカード -->
+  <div class="checklist-card" id="checklist-card">
+    <div class="checklist-header">
+      <span class="checklist-title" id="cl-title">対応手順</span>
+      <span class="checklist-meta" id="cl-meta"></span>
+    </div>
+    <div id="cl-body"></div>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>完了進捗</span>
+        <span id="progress-text">0 / 0</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="progress-bar" style="width:0%"></div>
+      </div>
+    </div>
+    <button class="btn-reset no-print" onclick="resetChecklist()">チェックをリセット</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、内閣府・経済産業省・中小企業庁の公開BCPガイドライン（2025年度版参考）をもとに、目安として整理しています。実際の対応は、各社の事業環境・設備状況に応じてご判断ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+
+  <script>
+  // ── BCPチェックリストデータ ──
+  var BCP = {
+    停電: {
+      common: [
+        '停電発生を確認し、電力会社・管理会社に連絡する',
+        '非常用照明・懐中電灯の場所と動作を確認する',
+        'UPS（無停電電源）があれば稼働状況を確認する',
+        '重要データのバックアップ状況を確認する',
+        '緊急連絡網（社員・取引先・顧客）を確認する',
+        '復旧見込み時間を入手し、対応方針を決める'
+      ],
+      製造業: [
+        '生産ラインを安全に停止する（手順書に従う）',
+        '冷却水・冷却系統の緊急停止を行う',
+        '電動機械の安全ロック・タグアウトを実施する',
+        '温度管理が必要な原材料・製品の状態を確認する',
+        '在庫・仕掛品の保管状況を記録する',
+        '重要設備の手動操作に切り替える'
+      ],
+      小売業: [
+        'レジを現金決済・手書き伝票に切り替える',
+        '冷蔵・冷凍ショーケースの温度を監視する',
+        '停電が2時間以上の場合、冷凍食品の販売を停止する',
+        '店内照明（電池式・非常灯）を配備する',
+        '入口に「停電中」の案内掲示を行う',
+        '釣り銭用現金の手元確保を確認する'
+      ],
+      飲食業: [
+        '食材の冷蔵・冷凍状況を直ちに確認する',
+        'ガスコンロへの調理切り替えを検討する',
+        '停電1時間以上の場合、食品廃棄基準に従い判断する',
+        '客への対応（提供停止・説明・返金）方針を決める',
+        '食品衛生法に基づく廃棄ルールを確認する',
+        'POS・会計システムの停止時の対応を確認する'
+      ],
+      建設業: [
+        '工事現場の作業を安全に中断する',
+        '電動工具・クレーンの電源を切り安全確認する',
+        '現場照明を確保し、安全区域を設置する',
+        '作業員の安全状況を確認・点呼する',
+        '工程遅延を踏まえ、発注者・元請けに連絡する',
+        '仮設電源（発電機）の手配を検討する'
+      ],
+      事務サービス業: [
+        'PCとサーバーを安全にシャットダウンする',
+        '作業データの保存・バックアップを確認する',
+        'クラウドサービス・モバイル回線での業務継続を検討する',
+        '顧客・取引先へ「一時対応困難」を連絡する',
+        '紙・電話による代替対応に切り替える',
+        'テレワーク・在宅勤務への切り替えを指示する'
+      ],
+      医療介護: [
+        '非常用電源（自家発電）の起動を確認する',
+        '医療機器・生命維持装置の動作状況を確認する',
+        '患者・利用者の安全確認と状態把握を行う',
+        '薬品・処置材料の冷所保管状況を確認する',
+        '停電継続の場合、他施設への搬送手順を準備する',
+        '保健所・消防・救急への連絡体制を確認する'
+      ],
+      その他: [
+        '重要機器・設備への電源供給状況を確認する',
+        '業務の優先順位を整理し、対応可能な範囲を確認する',
+        '代替手段（モバイル・手作業）への切り替えを検討する',
+        '関係者・取引先へ状況を連絡する',
+        '復旧見込み時間に応じて業務中断・継続を判断する'
+      ]
+    },
+    断水: {
+      common: [
+        '断水発生を確認し、水道局・管理会社に連絡する',
+        '飲料水（ペットボトル・備蓄水）の在庫を確認する',
+        '復旧見込み時間を入手し、対応方針を決める',
+        'トイレ使用を制限し、代替トイレ（仮設・近隣施設）を手配する',
+        '手洗い用ウェットティッシュ・手指消毒液を配備する',
+        '断水継続の場合、給水車・給水所の情報を収集する'
+      ],
+      製造業: [
+        '水使用が必要な製造工程を直ちに停止する',
+        '冷却水を使う設備の緊急停止手順を実施する',
+        '機械洗浄作業を一時停止し、乾式清掃に切り替える',
+        '水使用不要な代替工程への移行可否を確認する',
+        '排水・廃液の処理方法を確認する',
+        'タンク・貯水設備の残量を確認し、優先使用する'
+      ],
+      小売業: [
+        'トイレ使用制限の案内を店頭に掲示する',
+        '食品衛生法の基準に従い、販売制限品目を確認する',
+        '生鮮食品・惣菜の提供可否を判断する',
+        '洗浄が必要な什器・設備の使用を一時停止する',
+        '飲料水・水製品の在庫管理を強化する',
+        '断水が長引く場合、営業縮小・休業の判断をする'
+      ],
+      飲食業: [
+        '食事提供を直ちに停止し、客への説明を行う',
+        '保健所へ断水発生を報告する（義務）',
+        '仕込み済み食材の保管・廃棄を食品衛生基準で判断する',
+        '食器洗浄ができないため、使い捨て食器の手配を検討する',
+        '厨房・調理台の清潔維持方法（ウェットティッシュ等）を確保する',
+        '断水復旧後の衛生確認が完了するまで営業再開しない'
+      ],
+      建設業: [
+        '現場のトイレ・洗い場の代替手段（仮設トイレ等）を手配する',
+        '作業員の飲料水を確保する（1人1日2L目安）',
+        'セメント・コンクリート打設作業を停止する',
+        '水使用が必要な工程の代替スケジュールを検討する',
+        '洗い場不要な乾式作業に切り替える',
+        '発注者・元請けへ工程遅延を連絡する'
+      ],
+      事務サービス業: [
+        'トイレ使用制限を通知し、代替トイレを案内する',
+        '手洗い代替（ウェットティッシュ・アルコール消毒）を配備する',
+        '業務継続可否を判断する（水不要業務は継続）',
+        '顧客・来訪者への対応方針を決める',
+        '断水が数日続く場合、テレワーク・在宅勤務への切り替えを検討する',
+        '建物管理会社に断水対応・復旧見込みを確認する'
+      ],
+      医療介護: [
+        '給水タンク・貯水設備の残量を確認する',
+        '手術・処置の実施可否を医師・管理者が判断する',
+        '患者・利用者の水分補給を飲料水で確保する',
+        '感染対策（手洗い代替：速乾性手指消毒剤の使用）を徹底する',
+        '洗浄・滅菌が必要な医療器具の使用を停止・代替品に切り替える',
+        '保健所・消防・行政への断水報告と支援要請を行う'
+      ],
+      その他: [
+        '飲料水の在庫を確認し、必要量を調達する',
+        'トイレ代替手段（仮設・近隣施設）を確保する',
+        '衛生維持（手洗い代替）の代替手段を整備する',
+        '水使用業務を一時停止し、継続可能業務を確認する',
+        '断水継続の場合、業務縮小・休業の判断をする'
+      ]
+    }
+  };
+
+  var SIZE_EXTRA = {
+    large: ['担当部署・チームごとに対応責任者を割り当てる', '社員への一斉連絡（メール・社内チャット）を行う'],
+    xlarge: ['担当部署・チームごとに対応責任者を割り当てる', '社員への一斉連絡（メール・社内チャット）を行う', '経営層へ状況報告し、重要意思決定を仰ぐ', '取引先・顧客への公式通知文を準備する']
+  };
+
+  var LS_KEY = 'bcp-checklist-state';
+  var currentKeys = [];
+
+  function showChecklist() {
+    var industry = document.getElementById('industry').value;
+    var size     = document.getElementById('size').value;
+    var risk     = document.getElementById('risk').value;
+
+    if (!industry || !size || !risk) {
+      alert('業種・従業員数・リスク種別をすべて選んでください');
+      return;
+    }
+
+    var commonItems   = BCP[risk].common;
+    var industryItems = BCP[risk][industry] || BCP[risk]['その他'];
+    var sizeItems     = SIZE_EXTRA[size] || [];
+
+    var sections = [
+      { label: '共通手順（全業種）', items: commonItems, prefix: 'common' },
+      { label: industry + ' 業種別手順', items: industryItems, prefix: 'industry' }
+    ];
+    if (sizeItems.length > 0) {
+      sections.push({ label: '規模別追加手順（' + (size === 'large' ? '21〜50人' : '51人以上') + '）', items: sizeItems, prefix: 'size' });
+    }
+
+    currentKeys = [];
+    var html = '';
+    sections.forEach(function(sec) {
+      html += '<p class="section-label">' + escHtml(sec.label) + '</p>';
+      sec.items.forEach(function(item, i) {
+        var key = sec.prefix + '_' + i;
+        currentKeys.push(key);
+        html += '<label class="check-item">'
+             + '<input type="checkbox" data-key="' + key + '" onchange="onCheck()">'
+             + '<span class="check-text">' + escHtml(item) + '</span>'
+             + '</label>';
+      });
+    });
+
+    document.getElementById('cl-title').textContent = risk + '時 対応チェックリスト';
+    document.getElementById('cl-meta').textContent  = industry + ' / ' + sizeLabel(size);
+    document.getElementById('cl-body').innerHTML = html;
+
+    // localStorage 復元
+    var saved = loadState();
+    document.querySelectorAll('#cl-body input[type="checkbox"]').forEach(function(cb) {
+      if (saved[cb.dataset.key]) cb.checked = true;
+    });
+
+    document.getElementById('checklist-card').style.display = 'block';
+    updateProgress();
+    document.getElementById('checklist-card').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function onCheck() {
+    saveState();
+    updateProgress();
+  }
+
+  function updateProgress() {
+    var all  = document.querySelectorAll('#cl-body input[type="checkbox"]');
+    var done = document.querySelectorAll('#cl-body input[type="checkbox"]:checked');
+    var total = all.length, checked = done.length;
+    var pct = total > 0 ? Math.round(checked / total * 100) : 0;
+    document.getElementById('progress-text').textContent = checked + ' / ' + total;
+    document.getElementById('progress-bar').style.width  = pct + '%';
+  }
+
+  function saveState() {
+    var state = {};
+    document.querySelectorAll('#cl-body input[type="checkbox"]').forEach(function(cb) {
+      if (cb.checked) state[cb.dataset.key] = true;
+    });
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); } catch(e) {}
+  }
+
+  function loadState() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); } catch(e) { return {}; }
+  }
+
+  function resetChecklist() {
+    document.querySelectorAll('#cl-body input[type="checkbox"]').forEach(function(cb) {
+      cb.checked = false;
+    });
+    try { localStorage.removeItem(LS_KEY); } catch(e) {}
+    updateProgress();
+  }
+
+  function sizeLabel(s) {
+    return { small: '1〜5人', medium: '6〜20人', large: '21〜50人', xlarge: '51人以上' }[s] || s;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  </script>
+
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
