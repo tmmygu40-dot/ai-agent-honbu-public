@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>集客ROIチェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 2カラム入力 ── */
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+    .row2 .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── サマリーグリッド ── */
+    .summary-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin: 0 auto 1rem; max-width: 600px;
+    }
+    .sg-item {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 0.9rem 1rem;
+      box-shadow: var(--shadow); text-align: center;
+    }
+    .sg-label { font-size: 0.7rem; color: var(--text-sub); font-weight: 600; margin-bottom: 0.3rem; }
+    .sg-value { font-size: 1.3rem; font-weight: 900; color: var(--accent); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── シナリオテーブル ── */
+    .scenario-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .scenario-table th {
+      background: var(--accent-light); color: var(--accent);
+      font-size: 0.75rem; font-weight: 700; padding: 0.5rem 0.4rem;
+      text-align: center; border-bottom: 2px solid var(--border);
+    }
+    .scenario-table td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border); text-align: right; color: var(--text-sub); }
+    .scenario-table td:first-child { text-align: left; font-weight: 600; color: var(--text); }
+    .scenario-table tr:last-child td { border-bottom: none; }
+    .scenario-table .cur td { background: #fffbeb; font-weight: 700; color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>集客ROIチェッカー</h1>
+    <p class="subtitle">チラシ・広告の費用対効果と回収日数を即計算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">広告・集客情報を入力</p>
+    <div class="field">
+      <label for="adCost">広告・集客費用（円）</label>
+      <input type="number" id="adCost" placeholder="例: 50000" min="0">
+      <p class="hint">チラシ印刷＋配布費・ネット広告費など</p>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="newCustomers">来客増加数（人）</label>
+        <input type="number" id="newCustomers" placeholder="例: 30" min="0">
+        <p class="hint">広告による増加分</p>
+      </div>
+      <div class="field">
+        <label for="visitDays">集客期間（日）</label>
+        <input type="number" id="visitDays" placeholder="例: 30" min="1">
+        <p class="hint">広告の効果期間</p>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="unitPrice">客単価（円）</label>
+        <input type="number" id="unitPrice" placeholder="例: 3000" min="0">
+      </div>
+      <div class="field">
+        <label for="marginRate">粗利率（%）</label>
+        <input type="number" id="marginRate" placeholder="例: 60" min="0" max="100">
+        <p class="hint">飲食60%・小売30%目安</p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="repeatRate">リピート率（%）</label>
+      <input type="number" id="repeatRate" placeholder="例: 30" min="0" max="100" value="0">
+      <p class="hint">再来店する割合（0で計算可）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">回収日数を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">広告費回収日数</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- サマリーグリッド -->
+  <div class="summary-grid" id="summaryGrid" style="display:none">
+    <div class="sg-item">
+      <p class="sg-label">期間中 売上貢献</p>
+      <p class="sg-value" id="sgSales">—</p>
+    </div>
+    <div class="sg-item">
+      <p class="sg-label">期間中 粗利貢献</p>
+      <p class="sg-value" id="sgProfit">—</p>
+    </div>
+    <div class="sg-item">
+      <p class="sg-label">ROI</p>
+      <p class="sg-value" id="sgRoi">—</p>
+    </div>
+    <div class="sg-item">
+      <p class="sg-label">1人あたり集客コスト</p>
+      <p class="sg-value" id="sgCpa">—</p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- シナリオ比較カード -->
+  <div class="card" id="scenarioCard" style="display:none">
+    <p class="card-title">来客数シナリオ比較</p>
+    <table class="scenario-table">
+      <thead>
+        <tr>
+          <th>シナリオ</th>
+          <th>来客増加</th>
+          <th>粗利貢献</th>
+          <th>回収日数</th>
+          <th>ROI</th>
+        </tr>
+      </thead>
+      <tbody id="scenarioBody"></tbody>
+    </table>
+  </div>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'shukyaku_roi_v1';
+
+  window.addEventListener('DOMContentLoaded', function() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      var ids = ['adCost','newCustomers','visitDays','unitPrice','marginRate','repeatRate'];
+      ids.forEach(function(id) {
+        if (d[id] !== undefined) document.getElementById(id).value = d[id];
+      });
+    } catch(e) {}
+  });
+
+  function saveValues() {
+    var d = {};
+    ['adCost','newCustomers','visitDays','unitPrice','marginRate','repeatRate'].forEach(function(id) {
+      d[id] = document.getElementById(id).value;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+  }
+
+  function calc() {
+    var adCost       = parseFloat(document.getElementById('adCost').value);
+    var newCustomers = parseFloat(document.getElementById('newCustomers').value);
+    var visitDays    = parseFloat(document.getElementById('visitDays').value);
+    var unitPrice    = parseFloat(document.getElementById('unitPrice').value);
+    var marginRate   = parseFloat(document.getElementById('marginRate').value);
+    var repeatRate   = parseFloat(document.getElementById('repeatRate').value) || 0;
+
+    if (isNaN(adCost) || isNaN(newCustomers) || isNaN(visitDays) || isNaN(unitPrice) || isNaN(marginRate)) {
+      showErr('リピート率以外の項目をすべて入力してください');
+      return;
+    }
+    if (adCost <= 0) { showErr('広告費は1円以上を入力してください'); return; }
+    if (newCustomers <= 0) { showErr('来客増加数は1人以上を入力してください'); return; }
+    if (visitDays <= 0) { showErr('集客期間は1日以上を入力してください'); return; }
+
+    saveValues();
+
+    // 1日あたり来客増加数
+    var dailyNew = newCustomers / visitDays;
+    // リピーター数（初回来店者 × リピート率 / 100）
+    var repeaters = newCustomers * (repeatRate / 100);
+    // 有効来客数（初回 + リピーター）
+    var totalCustomers = newCustomers + repeaters;
+    // 売上貢献額（期間）
+    var salesContrib = totalCustomers * unitPrice;
+    // 粗利貢献額（期間）
+    var profitContrib = salesContrib * (marginRate / 100);
+    // 1日あたり粗利貢献
+    var dailyProfit = profitContrib / visitDays;
+    // 回収日数
+    var recoveryDays;
+    if (dailyProfit <= 0) {
+      recoveryDays = Infinity;
+    } else {
+      recoveryDays = adCost / dailyProfit;
+    }
+    // ROI（%）
+    var roi = profitContrib > 0 ? ((profitContrib - adCost) / adCost * 100) : -100;
+    // CPA（1人あたり集客コスト）
+    var cpa = adCost / newCustomers;
+
+    // 判定
+    var level, note;
+    if (!isFinite(recoveryDays) || recoveryDays < 0) {
+      level = 'ng';
+      note = '粗利がゼロまたはマイナスのため回収不可。単価・粗利率を見直してください。';
+    } else if (recoveryDays <= visitDays * 0.5) {
+      level = 'ok';
+      note = '集客期間の半分以内に回収できます。広告効果は良好です。';
+    } else if (recoveryDays <= visitDays) {
+      level = 'warn';
+      note = '集客期間内に回収できますが余裕が薄い状況です。';
+    } else if (recoveryDays <= visitDays * 2) {
+      level = 'warn';
+      note = '集客期間内では回収できません。リピーターの増加が回収のカギです。';
+    } else {
+      level = 'ng';
+      note = '広告費の回収が難しい状況です。費用・来客数・単価を見直してください。';
+    }
+
+    var rvText = isFinite(recoveryDays) ? (Math.ceil(recoveryDays) + ' 日') : '回収不可';
+    showResult(level, rvText, note);
+
+    // サマリー
+    document.getElementById('sgSales').textContent  = fmt(salesContrib) + ' 円';
+    document.getElementById('sgProfit').textContent = fmt(profitContrib) + ' 円';
+    document.getElementById('sgRoi').textContent    = roi.toFixed(1) + ' %';
+    document.getElementById('sgCpa').textContent    = fmt(cpa) + ' 円';
+    document.getElementById('summaryGrid').style.display = '';
+
+    // 内訳
+    showDetail([
+      ['広告・集客費用', fmt(adCost) + ' 円'],
+      ['来客増加数（新規）', fmt(newCustomers) + ' 人'],
+      ['リピーター数', fmt(repeaters) + ' 人'],
+      ['有効来客数合計', fmt(totalCustomers) + ' 人'],
+      ['客単価', fmt(unitPrice) + ' 円'],
+      ['売上貢献額（期間）', fmt(salesContrib) + ' 円'],
+      ['粗利率', marginRate.toFixed(1) + ' %'],
+      ['粗利貢献額（期間）', fmt(profitContrib) + ' 円'],
+      ['1日あたり粗利貢献', fmt(dailyProfit) + ' 円/日'],
+      ['広告費回収日数', isFinite(recoveryDays) ? (Math.ceil(recoveryDays) + ' 日') : '回収不可', true],
+      ['ROI', roi.toFixed(1) + ' %'],
+    ]);
+
+    // シナリオ比較（来客数 50% / 現在 / 150% / 200%）
+    var scenarios = [0.5, 1.0, 1.5, 2.0];
+    var rows = scenarios.map(function(r) {
+      var nc  = Math.round(newCustomers * r);
+      var rep = nc * (repeatRate / 100);
+      var tot = nc + rep;
+      var pc  = tot * unitPrice * (marginRate / 100);
+      var dp  = pc / visitDays;
+      var rd  = dp > 0 ? adCost / dp : Infinity;
+      var ri  = pc > 0 ? ((pc - adCost) / adCost * 100) : -100;
+      var isCur = r === 1.0;
+      return '<tr' + (isCur ? ' class="cur"' : '') + '>'
+           + '<td>' + (r * 100).toFixed(0) + '% (' + nc + '人' + (isCur ? ' ★現在' : '') + ')</td>'
+           + '<td>' + nc + ' 人</td>'
+           + '<td>' + fmt(pc) + ' 円</td>'
+           + '<td>' + (isFinite(rd) ? Math.ceil(rd) + ' 日' : '回収不可') + '</td>'
+           + '<td>' + ri.toFixed(1) + '%</td>'
+           + '</tr>';
+    });
+    document.getElementById('scenarioBody').innerHTML = rows.join('');
+    document.getElementById('scenarioCard').style.display = '';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('summaryGrid').style.display = 'none';
+    document.getElementById('scenarioCard').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+</body>
+</html>

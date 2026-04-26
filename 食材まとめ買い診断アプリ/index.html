@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="食材名・現在価格・通常価格・賞味期限・週あたり消費量を入力するだけで、まとめ買いすべきか即診断。値上がり中の食材を賞味期限内に消費できるか数値で確認できる生活防衛アプリ。">
+  <title>食材まとめ買い診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🛒 食材まとめ買い診断アプリ</h1>
+    <p class="subtitle">賞味期限・消費量から「今買い置きすべきか」を即診断</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">食材情報を入力</p>
+    <div class="field">
+      <label for="fname">食材名</label>
+      <input type="text" id="fname" placeholder="例：豚バラ肉、小麦粉">
+    </div>
+    <div class="field">
+      <label for="price_now">現在価格（円）</label>
+      <input type="number" id="price_now" placeholder="例: 198" min="0" step="1">
+      <p class="hint">今日のセール・特売価格を入力</p>
+    </div>
+    <div class="field">
+      <label for="price_normal">通常価格（円）</label>
+      <input type="number" id="price_normal" placeholder="例: 280" min="0" step="1">
+      <p class="hint">普段の定番価格を入力</p>
+    </div>
+    <div class="field">
+      <label for="exp_days">賞味期限（日）</label>
+      <input type="number" id="exp_days" placeholder="例: 7" min="1" step="1">
+      <p class="hint">購入日から何日後まで食べられるか</p>
+    </div>
+    <div class="field">
+      <label for="use_per_week">週あたり使用回数（回/週）</label>
+      <input type="number" id="use_per_week" placeholder="例: 3" min="0.1" step="0.5">
+      <p class="hint">週に何回この食材を使うか（0.5=2週に1回）</p>
+    </div>
+    <div class="field">
+      <label for="buy_qty">まとめ買い個数（個/パック）</label>
+      <input type="number" id="buy_qty" placeholder="例: 3" min="1" step="1">
+      <p class="hint">まとめ買いしようとしている個数</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">まとめ買いすべきか診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">診断結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">診断の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは農林水産省・消費者庁の食品ロス・食材管理に関する情報を参考に、家庭での判断の目安として使いやすく整理しています。実際の賞味期限は商品表示でご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+
+  <script>
+  var STORAGE_KEY = 'syokuzai-matomegai-v1';
+
+  // ページ読み込み時にlocalStorageから復元
+  window.addEventListener('load', function() {
+    var saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return;
+    try {
+      var d = JSON.parse(saved);
+      if (d.fname)        document.getElementById('fname').value        = d.fname;
+      if (d.price_now)    document.getElementById('price_now').value    = d.price_now;
+      if (d.price_normal) document.getElementById('price_normal').value = d.price_normal;
+      if (d.exp_days)     document.getElementById('exp_days').value     = d.exp_days;
+      if (d.use_per_week) document.getElementById('use_per_week').value = d.use_per_week;
+      if (d.buy_qty)      document.getElementById('buy_qty').value      = d.buy_qty;
+    } catch(e) {}
+  });
+
+  function save() {
+    var d = {
+      fname:        document.getElementById('fname').value,
+      price_now:    document.getElementById('price_now').value,
+      price_normal: document.getElementById('price_normal').value,
+      exp_days:     document.getElementById('exp_days').value,
+      use_per_week: document.getElementById('use_per_week').value,
+      buy_qty:      document.getElementById('buy_qty').value
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
+  }
+
+  function calc() {
+    var fname       = document.getElementById('fname').value.trim() || '食材';
+    var priceNow    = parseFloat(document.getElementById('price_now').value);
+    var priceNormal = parseFloat(document.getElementById('price_normal').value);
+    var expDays     = parseFloat(document.getElementById('exp_days').value);
+    var usePerWeek  = parseFloat(document.getElementById('use_per_week').value);
+    var buyQty      = parseFloat(document.getElementById('buy_qty').value);
+
+    if (isNaN(priceNow) || isNaN(priceNormal) || isNaN(expDays) || isNaN(usePerWeek) || isNaN(buyQty)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (usePerWeek <= 0 || expDays <= 0 || buyQty <= 0) {
+      showErr('0より大きい値を入力してください');
+      return;
+    }
+
+    save();
+
+    // 1個あたり消費日数（7日 ÷ 週あたり使用回数）
+    var daysPerUnit = 7 / usePerWeek;
+    // まとめ買い個数を消費しきるのに必要な日数
+    var daysToConsume = daysPerUnit * buyQty;
+    // 賞味期限内に消費できるか
+    var canConsume = daysToConsume <= expDays;
+
+    // 割引率
+    var discountPct = priceNormal > 0 ? ((priceNormal - priceNow) / priceNormal * 100) : 0;
+    var isDiscount  = discountPct >= 10; // 10%以上割引をお得と判定
+
+    // 節約額
+    var savings = (priceNormal - priceNow) * buyQty;
+
+    // 総合判定
+    var level, verdict, evalText, noteText;
+    if (canConsume && isDiscount) {
+      level = 'ok';
+      verdict = 'まとめ買い推奨！';
+      evalText = fname + 'は今が買い時です';
+      noteText = '賞味期限内に消費でき、' + discountPct.toFixed(0) + '%引きとお得です。'
+               + (savings > 0 ? '合計 ' + fmt(savings) + '円の節約になります。' : '');
+    } else if (canConsume && !isDiscount) {
+      level = 'warn';
+      verdict = '様子見で OK';
+      evalText = '期限内に消費できますが特にお得ではありません';
+      noteText = '賞味期限内に消費できます（' + daysToConsume.toFixed(0) + '日で消費見込み）。'
+               + '割引が' + discountPct.toFixed(0) + '%未満のため、通常購入でも問題ありません。';
+    } else {
+      level = 'ng';
+      verdict = 'まとめ買い不要';
+      evalText = '賞味期限内に消費しきれません';
+      noteText = fname + 'を' + buyQty + '個まとめ買いすると消費に約' + daysToConsume.toFixed(0) + '日かかります。'
+               + '賞味期限（' + expDays + '日）を' + Math.ceil(daysToConsume - expDays) + '日超えるため、食品ロスになる可能性があります。';
+    }
+
+    showResult(level, verdict, evalText, noteText);
+    showDetail([
+      ['食材名',               fname],
+      ['現在価格',             fmt(priceNow) + '円/個'],
+      ['通常価格',             fmt(priceNormal) + '円/個'],
+      ['割引率',               discountPct.toFixed(1) + '%'],
+      ['まとめ買い個数',       buyQty + '個'],
+      ['週あたり消費回数',     usePerWeek + '回/週'],
+      ['1個あたり消費日数',    daysPerUnit.toFixed(1) + '日'],
+      ['消費完了までの日数',   daysToConsume.toFixed(0) + '日', true],
+      ['賞味期限',             expDays + '日'],
+      ['期限内消費',           canConsume ? '✅ 可能' : '❌ 不可'],
+      ['節約額（まとめ買い）', savings > 0 ? fmt(savings) + '円節約' : savings < 0 ? fmt(-savings) + '円損', savings !== 0],
+    ]);
+  }
+
+  function showResult(level, val, evalText, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+</body>
+</html>

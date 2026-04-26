@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="食材名を選ぶか検索するだけで、常温・冷蔵・冷凍の保存方法と保存日数の目安、冷凍可否をすぐ確認できる食材保存方法逆引きアプリです。">
+  <title>食材保存方法逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* カテゴリフィルター */
+    .cat-btns {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    .cat-btn {
+      padding: 0.35rem 0.85rem; font-size: 0.82rem; font-weight: 600;
+      border: 1.5px solid var(--border); border-radius: 999px;
+      background: var(--bg); color: var(--text-sub);
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cat-btn.active {
+      background: var(--accent); color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* 食材リスト */
+    .food-list {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.5rem; max-height: 320px; overflow-y: auto;
+      padding: 0.2rem;
+    }
+    .food-item {
+      padding: 0.6rem 0.75rem; border-radius: 10px;
+      background: var(--bg); border: 1.5px solid var(--border);
+      cursor: pointer; font-size: 0.9rem; font-weight: 600;
+      text-align: center; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .food-item:hover, .food-item:active { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+    .food-item.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .no-result { color: var(--text-sub); font-size: 0.88rem; text-align: center; padding: 1.5rem 0; }
+
+    /* 結果カード */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.visible { display: block; }
+    .result-food-name {
+      font-size: 1.5rem; font-weight: 900; color: var(--accent);
+      margin-bottom: 1rem; padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--border); text-align: center;
+    }
+    .result-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .result-item {
+      background: var(--bg); border-radius: 10px;
+      padding: 0.85rem 0.9rem; text-align: center;
+    }
+    .result-item-label { font-size: 0.7rem; color: var(--text-sub); font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.3rem; }
+    .result-item-value { font-size: 1.1rem; font-weight: 800; color: var(--text); }
+    .result-item.full { grid-column: 1 / -1; }
+    .result-item.freeze-ok .result-item-value { color: var(--ok); }
+    .result-item.freeze-partial .result-item-value { color: var(--warn); }
+    .result-item.freeze-ng .result-item-value { color: var(--ng); }
+    .result-note-box {
+      background: var(--accent-light); border: 1px solid #fde8c0;
+      border-radius: 10px; padding: 0.75rem 0.9rem;
+      font-size: 0.84rem; color: var(--text); line-height: 1.6;
+    }
+    .result-note-box strong { color: var(--accent); }
+
+    /* 最近みた食材 */
+    .history-list {
+      display: flex; flex-wrap: wrap; gap: 0.4rem;
+    }
+    .history-item {
+      padding: 0.3rem 0.75rem; border-radius: 999px;
+      background: var(--accent-light); border: 1.5px solid #fde8c0;
+      font-size: 0.82rem; color: var(--accent); font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .history-item:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .history-empty { font-size: 0.82rem; color: var(--text-sub); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .back-link, #fav-widget, .no-print { display: none !important; }
+      .btn-pdf { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🥦 食材保存方法逆引きアプリ</h1>
+    <p class="subtitle">食材を選ぶだけ — 保存方法・日数・冷凍可否をすぐ確認</p>
+  </header>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <!-- 検索・カテゴリ -->
+  <div class="card">
+    <p class="card-title">食材を選ぶ</p>
+    <div class="field">
+      <label for="searchInput">食材名で検索</label>
+      <input type="text" id="searchInput" placeholder="例：じゃがいも、鶏肉、牛乳…" oninput="filterFoods()" autocomplete="off">
+      <p class="hint">ひらがな・漢字どちらでも検索できます</p>
+    </div>
+    <div class="cat-btns" id="catBtns"></div>
+    <div class="food-list" id="foodList"></div>
+  </div>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <div class="result-food-name" id="resultName">—</div>
+    <div class="result-grid">
+      <div class="result-item">
+        <div class="result-item-label">保存場所</div>
+        <div class="result-item-value" id="resultStorage">—</div>
+      </div>
+      <div class="result-item">
+        <div class="result-item-label">保存日数の目安</div>
+        <div class="result-item-value" id="resultDuration">—</div>
+      </div>
+      <div class="result-item full" id="resultFreezeBox">
+        <div class="result-item-label">冷凍保存</div>
+        <div class="result-item-value" id="resultFreeze">—</div>
+      </div>
+    </div>
+    <div class="result-note-box" id="resultNote"></div>
+  </div>
+
+  <!-- 最近みた食材 -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">最近みた食材</p>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 保存日数はあくまで目安です。農林水産省・消費者庁が公開する食品保存に関する資料や、一般的な食品衛生の考え方をもとに整理しています。食材の状態・保存環境によって異なります。最新情報は各公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 食材データ ──────────────────────────────
+  var FOODS = [
+    // 野菜
+    {name:'じゃがいも', cat:'野菜', storage:'常温', duration:'1〜2ヶ月', freeze:'可（加熱後）', freezeLevel:'partial', note:'冷暗所・風通しのよい場所で保存。芽が出たら取り除く。冷凍する場合は加熱してつぶしてから。'},
+    {name:'玉ねぎ', cat:'野菜', storage:'常温', duration:'1〜2ヶ月', freeze:'可（カット後）', freezeLevel:'partial', note:'風通しのよい冷暗所で吊るして保存が理想。カットしたものは冷蔵で2〜3日。'},
+    {name:'にんじん', cat:'野菜', storage:'冷蔵', duration:'2〜3週間', freeze:'可', freezeLevel:'ok', note:'ペーパータオルで包んでポリ袋に入れ冷蔵庫へ。冷凍は薄切りや乱切りにしてから。'},
+    {name:'キャベツ', cat:'野菜', storage:'冷蔵', duration:'2週間', freeze:'可', freezeLevel:'ok', note:'切り口にラップを当てて冷蔵保存。外葉でくるむとより長持ち。冷凍後は炒め物向き。'},
+    {name:'ほうれん草', cat:'野菜', storage:'冷蔵', duration:'3〜5日', freeze:'可（下茹で後）', freezeLevel:'partial', note:'湿らせたペーパータオルで包んで立てて保存。冷凍は下茹でしてから小分けに。'},
+    {name:'ブロッコリー', cat:'野菜', storage:'冷蔵', duration:'3〜5日', freeze:'可（下茹で後）', freezeLevel:'partial', note:'湿らせたペーパータオルで包む。冷凍は小房に分けて軽く茹でてから。'},
+    {name:'トマト', cat:'野菜', storage:'常温', duration:'4〜5日', freeze:'可', freezeLevel:'ok', note:'完熟前は常温で追熟。完熟後は冷蔵へ。冷凍は丸ごとまたは刻んでから。火を通す料理向き。'},
+    {name:'きゅうり', cat:'野菜', storage:'冷蔵', duration:'4〜5日', freeze:'不可', freezeLevel:'ng', note:'ペーパータオルで包んでポリ袋に立てて冷蔵保存。水分が多く冷凍には不向き。'},
+    {name:'なす', cat:'野菜', storage:'冷蔵', duration:'4〜5日', freeze:'可（塩もみ後）', freezeLevel:'partial', note:'冷やしすぎに弱いため、野菜室での保存が理想。冷凍は塩もみして水気を絞ってから。'},
+    {name:'ピーマン', cat:'野菜', storage:'冷蔵', duration:'1週間', freeze:'可', freezeLevel:'ok', note:'ペーパータオルで包んでポリ袋に入れ野菜室へ。冷凍はワタと種を取り薄切りにしてから。'},
+    {name:'大根', cat:'野菜', storage:'冷蔵', duration:'1〜2週間', freeze:'可（下茹で後）', freezeLevel:'partial', note:'葉を切り落とし、ペーパータオルで包んで冷蔵保存。冷凍は輪切りにして下茹でしてから。'},
+    {name:'白菜', cat:'野菜', storage:'冷蔵', duration:'2〜3週間', freeze:'可（塩もみ後）', freezeLevel:'partial', note:'切り口にラップを当てて冷蔵保存。丸ごとなら新聞紙で包み立てて冷暗所でも可。'},
+    {name:'長ねぎ', cat:'野菜', storage:'冷蔵', duration:'1週間', freeze:'可', freezeLevel:'ok', note:'湿らせた新聞紙やペーパータオルに包んで野菜室で立てて保存。冷凍は刻んでバラバラに。'},
+    {name:'レタス', cat:'野菜', storage:'冷蔵', duration:'4〜5日', freeze:'不可', freezeLevel:'ng', note:'芯に濡らしたペーパータオルを詰めてポリ袋へ。解凍後はべちゃべちゃになるため冷凍不向き。'},
+    {name:'ごぼう', cat:'野菜', storage:'冷蔵', duration:'1週間', freeze:'可（下茹で後）', freezeLevel:'partial', note:'泥付きのまま新聞紙で包んで冷暗所か野菜室へ。冷凍は下茹でしてから。'},
+    {name:'里芋', cat:'野菜', storage:'常温', duration:'2〜3週間', freeze:'可（加熱後）', freezeLevel:'partial', note:'冷えに弱いため冷暗所での常温保存が基本。冷凍は茹でてから。'},
+    {name:'さつまいも', cat:'野菜', storage:'常温', duration:'2〜3週間', freeze:'可（加熱後）', freezeLevel:'partial', note:'冷蔵庫に入れるとかえって傷むため、常温・冷暗所で保存。冷凍は焼いてからが美味。'},
+    // 果物
+    {name:'りんご', cat:'果物', storage:'冷蔵', duration:'1〜2ヶ月', freeze:'可（カット後）', freezeLevel:'partial', note:'ポリ袋に入れて冷蔵庫の野菜室へ。他の果物や野菜を傷めるため別保管が望ましい。'},
+    {name:'バナナ', cat:'果物', storage:'常温', duration:'4〜7日', freeze:'可（皮をむいて）', freezeLevel:'ok', note:'冷蔵すると皮が黒くなるため常温保存。熟れすぎたものは皮をむいて冷凍するとスムージーに最適。'},
+    {name:'みかん', cat:'果物', storage:'常温', duration:'2〜3週間', freeze:'不可', freezeLevel:'ng', note:'通気性のよい容器に入れ冷暗所で保存。重ねると傷みやすいため、間にペーパーを挟む。'},
+    {name:'いちご', cat:'果物', storage:'冷蔵', duration:'2〜3日', freeze:'可', freezeLevel:'ok', note:'洗わずにヘタをつけたまま容器に並べ冷蔵保存。食べる直前に洗う。冷凍は洗って水気を拭いてから。'},
+    {name:'キウイ', cat:'果物', storage:'冷蔵', duration:'1〜2週間', freeze:'不可', freezeLevel:'ng', note:'完熟前は常温で追熟させ、熟したら冷蔵庫へ。解凍後に食感が悪くなるため冷凍不向き。'},
+    {name:'ぶどう', cat:'果物', storage:'冷蔵', duration:'4〜5日', freeze:'可（粒をバラして）', freezeLevel:'ok', note:'軸が乾燥しないようラップでくるんで冷蔵庫へ。粒をバラして洗って拭いてから冷凍するとシャーベット感覚で食べられる。'},
+    {name:'もも', cat:'果物', storage:'常温', duration:'3〜4日', freeze:'不可', freezeLevel:'ng', note:'冷蔵すると低温障害で味が落ちるため常温保存。熟したらなるべく早く食べる。'},
+    // 肉
+    {name:'鶏もも肉', cat:'肉', storage:'冷蔵', duration:'1〜2日', freeze:'可', freezeLevel:'ok', note:'購入後すぐに使わない場合は冷凍保存推奨。1枚ずつラップに包んでから冷凍袋へ。'},
+    {name:'鶏むね肉', cat:'肉', storage:'冷蔵', duration:'1〜2日', freeze:'可', freezeLevel:'ok', note:'薄切りや一口大に切ってから冷凍すると使いやすい。下味をつけてから冷凍してもよい。'},
+    {name:'豚バラ肉', cat:'肉', storage:'冷蔵', duration:'2〜3日', freeze:'可', freezeLevel:'ok', note:'使いやすい分量に小分けし、ラップで包んでから冷凍袋へ。下味冷凍もおすすめ。'},
+    {name:'豚ひき肉', cat:'肉', storage:'冷蔵', duration:'1日', freeze:'可', freezeLevel:'ok', note:'傷みが早いため当日中に使うか冷凍へ。薄く平らにして冷凍すると解凍しやすい。'},
+    {name:'牛肉（薄切り）', cat:'肉', storage:'冷蔵', duration:'2〜3日', freeze:'可', freezeLevel:'ok', note:'小分けにしてラップで包み冷凍袋へ。空気を抜いてから冷凍することで酸化・冷凍焼けを防ぐ。'},
+    {name:'合いびき肉', cat:'肉', storage:'冷蔵', duration:'1〜2日', freeze:'可', freezeLevel:'ok', note:'空気に触れると傷みやすいため当日中に使うか冷凍推奨。薄く平らにして冷凍。'},
+    // 魚
+    {name:'鮭（切り身）', cat:'魚', storage:'冷蔵', duration:'1〜2日', freeze:'可', freezeLevel:'ok', note:'塩を振って水気を拭き、ラップで包んで冷凍すると風味が保たれる。解凍は冷蔵庫内でゆっくりと。'},
+    {name:'マグロ（刺身）', cat:'魚', storage:'冷蔵', duration:'1日', freeze:'可', freezeLevel:'ok', note:'当日中に食べることが理想。冷凍は小分けにしてラップで包んでから冷凍袋へ。解凍後は加熱調理推奨。'},
+    {name:'あじ（干物）', cat:'魚', storage:'冷蔵', duration:'2〜3日', freeze:'可', freezeLevel:'ok', note:'乾燥を防ぐためラップで包んで冷蔵保存。冷凍すれば1ヶ月程度保存可能。'},
+    {name:'さば（切り身）', cat:'魚', storage:'冷蔵', duration:'1〜2日', freeze:'可', freezeLevel:'ok', note:'塩を振って水気を拭き取り、ラップで包んで冷凍。味噌煮など調理後に冷凍しても可。'},
+    {name:'えび', cat:'魚', storage:'冷蔵', duration:'1〜2日', freeze:'可', freezeLevel:'ok', note:'殻付きのまま冷凍するか、殻をむいて塩水に浸してから冷凍。背わたを取ってから冷凍がおすすめ。'},
+    {name:'あさり', cat:'魚', storage:'冷蔵', duration:'2〜3日', freeze:'可（砂抜き後）', freezeLevel:'ok', note:'砂抜き後に塩水で洗い、水気を切って冷凍袋へ。冷凍のまま調理可。'},
+    // 乳製品
+    {name:'牛乳', cat:'乳製品', storage:'冷蔵', duration:'開封後2〜3日', freeze:'不可', freezeLevel:'ng', note:'開封後は早めに使い切る。冷凍すると成分が分離するため不可。常温放置厳禁。'},
+    {name:'ヨーグルト', cat:'乳製品', storage:'冷蔵', duration:'開封後2〜3日', freeze:'不可', freezeLevel:'ng', note:'開封後は清潔なスプーンを使い蓋をして冷蔵庫へ。冷凍すると分離するため不可。'},
+    {name:'チーズ（スライス）', cat:'乳製品', storage:'冷蔵', duration:'開封後1週間', freeze:'可', freezeLevel:'ok', note:'1枚ずつラップで包んでチャック付き袋へ。冷凍は2〜3ヶ月保存可能。解凍後に料理へ直接使える。'},
+    {name:'バター', cat:'乳製品', storage:'冷蔵', duration:'1〜2ヶ月', freeze:'可', freezeLevel:'ok', note:'空気に触れると酸化するためラップで包んで保存。冷凍は使いやすい大きさに切り分けてから。'},
+    {name:'生クリーム', cat:'乳製品', storage:'冷蔵', duration:'開封後2〜3日', freeze:'可（ホイップ後）', freezeLevel:'partial', note:'開封後は早めに使い切る。液状のまま冷凍すると分離するが、ホイップしてから冷凍は可。'},
+    // 調味料
+    {name:'醤油', cat:'調味料', storage:'冷蔵', duration:'開封後1ヶ月', freeze:'不可', freezeLevel:'ng', note:'開封後は冷蔵保存で風味を保つ。未開封は常温可。'},
+    {name:'みそ', cat:'調味料', storage:'冷蔵', duration:'開封後3〜6ヶ月', freeze:'可', freezeLevel:'ok', note:'空気に触れないようラップを密着させて冷蔵保存。冷凍は風味が保たれ凍りにくいため使いやすい。'},
+    {name:'マヨネーズ', cat:'調味料', storage:'冷蔵', duration:'開封後1〜2ヶ月', freeze:'不可', freezeLevel:'ng', note:'開封後は冷蔵保存。冷凍すると乳化が壊れ分離するため不可。'},
+    {name:'ケチャップ', cat:'調味料', storage:'冷蔵', duration:'開封後1〜2ヶ月', freeze:'不可', freezeLevel:'ng', note:'開封後は冷蔵庫へ。中身を出してから容器の蓋を下にして保存すると出やすくなる。'},
+    {name:'オリーブオイル', cat:'調味料', storage:'常温', duration:'開封後1〜2ヶ月', freeze:'不可', freezeLevel:'ng', note:'冷蔵庫に入れると白く固まるが品質には問題なし。常温の冷暗所で保存が基本。光・熱・酸化に注意。'},
+    {name:'砂糖', cat:'調味料', storage:'常温', duration:'無期限（密閉保存）', freeze:'不可', freezeLevel:'ng', note:'湿気を避けた密閉容器で常温保存。固まった場合は電子レンジで加熱すると戻る。'},
+    {name:'塩', cat:'調味料', storage:'常温', duration:'無期限（密閉保存）', freeze:'不可', freezeLevel:'ng', note:'湿気を避けた密閉容器で常温保存。固まりやすいため乾燥剤を入れると便利。'},
+    // その他
+    {name:'豆腐', cat:'その他', storage:'冷蔵', duration:'開封後2〜3日', freeze:'可', freezeLevel:'ok', note:'開封後は水を毎日替えて冷蔵保存。冷凍すると高野豆腐のような食感になり、煮物や炒め物向きになる。'},
+    {name:'卵', cat:'その他', storage:'冷蔵', duration:'3〜4週間', freeze:'可（割りほぐして）', freezeLevel:'partial', note:'尖った方を下にして冷蔵庫で保存。賞味期限内でも生食は早めに。冷凍は割りほぐしてから。'},
+    {name:'納豆', cat:'その他', storage:'冷蔵', duration:'賞味期限まで', freeze:'可', freezeLevel:'ok', note:'冷蔵庫で保存。冷凍すれば賞味期限を大幅に延ばせる。自然解凍してから食べる。'},
+    {name:'こんにゃく', cat:'その他', storage:'冷蔵', duration:'開封後3〜4日', freeze:'不可', freezeLevel:'ng', note:'水に浸して冷蔵保存。水は毎日替える。冷凍すると食感がスポンジ状になり食べにくくなるため不可。'},
+    {name:'ごはん', cat:'その他', storage:'冷蔵', duration:'1〜2日', freeze:'可', freezeLevel:'ok', note:'炊き立てを1食分ずつラップで包み、荒熱を取ってから冷凍が理想。冷蔵は硬くなりやすいため冷凍推奨。'},
+    {name:'食パン', cat:'その他', storage:'常温', duration:'2〜3日', freeze:'可', freezeLevel:'ok', note:'袋のまま常温保存か、乾燥・においを防ぐため密閉容器へ。長期保存は1枚ずつラップで包み冷凍。'},
+    {name:'にんにく', cat:'その他', storage:'常温', duration:'1〜2ヶ月', freeze:'可', freezeLevel:'ok', note:'ネットや籠に入れて風通しのよい冷暗所で保存。皮をむいてラップで包めば冷蔵1週間。冷凍は皮をむいた状態で。'},
+    {name:'しょうが', cat:'その他', storage:'冷蔵', duration:'3〜4週間', freeze:'可', freezeLevel:'ok', note:'濡らしたペーパータオルで包んでポリ袋に入れ冷蔵保存。すり下ろして薄く伸ばして冷凍すると使いやすい。'},
+    {name:'豆乳', cat:'その他', storage:'冷蔵', duration:'開封後2〜3日', freeze:'不可', freezeLevel:'ng', note:'未開封は常温可。開封後は冷蔵庫へ早めに使い切る。冷凍すると成分が分離するため不可。'},
+  ];
+
+  var CATEGORIES = ['すべて','野菜','果物','肉','魚','乳製品','調味料','その他'];
+  var currentCat = 'すべて';
+  var currentFood = null;
+  var HISTORY_KEY = 'shokuhin-history-v1';
+
+  // カテゴリボタン生成
+  function renderCatBtns() {
+    var el = document.getElementById('catBtns');
+    el.innerHTML = CATEGORIES.map(function(c) {
+      return '<button class="cat-btn' + (c === currentCat ? ' active' : '') + '" onclick="setCat(\'' + c + '\')">' + c + '</button>';
+    }).join('');
+  }
+
+  function setCat(cat) {
+    currentCat = cat;
+    renderCatBtns();
+    filterFoods();
+  }
+
+  // 食材リスト描画
+  function filterFoods() {
+    var query = document.getElementById('searchInput').value.trim();
+    var list = FOODS.filter(function(f) {
+      var catOk = (currentCat === 'すべて') || (f.cat === currentCat);
+      var searchOk = !query || f.name.includes(query) || f.cat.includes(query);
+      return catOk && searchOk;
+    });
+
+    var el = document.getElementById('foodList');
+    if (list.length === 0) {
+      el.innerHTML = '<div class="no-result">「' + (query || currentCat) + '」の食材が見つかりませんでした</div>';
+      return;
+    }
+    el.innerHTML = list.map(function(f) {
+      var sel = (currentFood && currentFood.name === f.name) ? ' selected' : '';
+      return '<div class="food-item' + sel + '" onclick="showFood(\'' + f.name + '\')">' + f.name + '</div>';
+    }).join('');
+  }
+
+  // 食材詳細表示
+  function showFood(name) {
+    var food = FOODS.find(function(f) { return f.name === name; });
+    if (!food) return;
+    currentFood = food;
+
+    document.getElementById('resultName').textContent = food.name;
+    document.getElementById('resultStorage').textContent = food.storage;
+    document.getElementById('resultDuration').textContent = food.duration;
+
+    var freezeBox = document.getElementById('resultFreezeBox');
+    freezeBox.className = 'result-item full freeze-' + food.freezeLevel;
+    document.getElementById('resultFreeze').textContent = food.freeze;
+    document.getElementById('resultNote').innerHTML = '<strong>💡 保存のコツ：</strong>' + food.note;
+
+    var rc = document.getElementById('resultCard');
+    rc.style.display = 'block';
+    rc.scrollIntoView({behavior:'smooth', block:'nearest'});
+
+    filterFoods(); // 選択状態を更新
+    saveHistory(name);
+  }
+
+  // localStorage 履歴
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function saveHistory(name) {
+    var h = loadHistory().filter(function(n) { return n !== name; });
+    h.unshift(name);
+    if (h.length > 10) h = h.slice(0, 10);
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); } catch(e) {}
+    renderHistory();
+  }
+  function renderHistory() {
+    var h = loadHistory();
+    var card = document.getElementById('historyCard');
+    var list = document.getElementById('historyList');
+    if (h.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    list.innerHTML = h.map(function(name) {
+      return '<span class="history-item" onclick="showFood(\'' + name + '\')">' + name + '</span>';
+    }).join('');
+  }
+
+  // 初期化
+  renderCatBtns();
+  filterFoods();
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>防災備蓄日数診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .section-label {
+      font-size: 0.8rem; font-weight: 700; color: var(--text);
+      margin: 1.2rem 0 0.6rem; padding-bottom: 0.3rem;
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    .two-results {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;
+      max-width: 600px; margin: 0 auto 1rem;
+    }
+    .mini-result {
+      background: var(--card); border: 2px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 0.8rem;
+      text-align: center; box-shadow: var(--shadow);
+    }
+    .mini-result.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .mini-result.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .mini-result.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .mini-label { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .mini-value { font-size: 1.6rem; font-weight: 900; }
+    .mini-result.ok   .mini-value { color: var(--ok); }
+    .mini-result.warn .mini-value { color: var(--warn); }
+    .mini-result.ng   .mini-value { color: var(--ng); }
+    .mini-note { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.2rem; }
+
+    .advice-card {
+      display: none; background: var(--card);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .advice-list { list-style: none; }
+    .advice-list li {
+      padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; line-height: 1.5; color: var(--text);
+    }
+    .advice-list li:last-child { border-bottom: none; }
+    .advice-list li::before { content: "▶ "; color: var(--accent); font-size: 0.75rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card, .mini-result, .advice-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🏠 防災備蓄日数診断アプリ</h1>
+    <p class="subtitle">家族人数と在庫量を入力するだけで、備蓄が何日分あるか即チェック</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="members">家族人数</label>
+      <input type="number" id="members" placeholder="例: 4" min="1" step="1">
+      <p class="hint">同居している人数を入力してください</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">水の在庫</p>
+    <div class="field">
+      <label for="water">水の合計量（リットル）</label>
+      <input type="number" id="water" placeholder="例: 30" min="0" step="0.5">
+      <p class="hint">ペットボトル・ポリタンクなど合計。目安：1人あたり1日3L（飲料2L＋生活用1L）</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">食料の在庫</p>
+    <p class="section-label">📦 主食類</p>
+    <div class="field">
+      <label for="rice">米（合）</label>
+      <input type="number" id="rice" placeholder="例: 10" min="0" step="0.5">
+      <p class="hint">目安：1人あたり1日3合（1食1合×3食）</p>
+    </div>
+    <div class="field">
+      <label for="retort">レトルトご飯・パックご飯（個）</label>
+      <input type="number" id="retort" placeholder="例: 6" min="0" step="1">
+      <p class="hint">1個＝1食分として計算</p>
+    </div>
+    <div class="field">
+      <label for="noodle">カップ麺・インスタント麺（個）</label>
+      <input type="number" id="noodle" placeholder="例: 12" min="0" step="1">
+      <p class="hint">1個＝1食分として計算</p>
+    </div>
+    <div class="field">
+      <label for="bread">パン缶・乾パン（個）</label>
+      <input type="number" id="bread" placeholder="例: 3" min="0" step="1">
+      <p class="hint">1個＝1食分として計算</p>
+    </div>
+
+    <p class="section-label">🥫 おかず・タンパク質類</p>
+    <div class="field">
+      <label for="can">缶詰（個）</label>
+      <input type="number" id="can" placeholder="例: 10" min="0" step="1">
+      <p class="hint">1個＝1食分のおかずとして計算</p>
+    </div>
+    <div class="field">
+      <label for="retort_dish">レトルトカレー・シチュー等（個）</label>
+      <input type="number" id="retort_dish" placeholder="例: 5" min="0" step="1">
+      <p class="hint">1個＝1食分として計算</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">🔍 備蓄日数を診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">総合評価</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 水・食料の個別結果 -->
+  <div class="two-results" id="two-results" style="display:none">
+    <div class="mini-result" id="water-result">
+      <p class="mini-label">💧 水</p>
+      <p class="mini-value" id="water-days">—</p>
+      <p class="mini-note">日分</p>
+    </div>
+    <div class="mini-result" id="food-result">
+      <p class="mini-label">🍚 食料</p>
+      <p class="mini-value" id="food-days">—</p>
+      <p class="mini-note">日分</p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- アドバイスカード -->
+  <div class="advice-card" id="advice">
+    <p class="card-title">補充アドバイス</p>
+    <ul class="advice-list" id="advice-list"></ul>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 備蓄基準は内閣府・農林水産省の推奨（1人1日3L・最低3日〜1週間分の備蓄）を参考にしています。あくまで目安としてご活用ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← トップへ戻る</a>
+
+  <script>
+  var WATER_PER_PERSON = 3;  // 1人1日あたりの水 (L)
+  var MEALS_PER_DAY = 3;     // 1日の食事回数
+
+  function calc() {
+    var members = parseInt(document.getElementById('members').value);
+    var water   = parseFloat(document.getElementById('water').value) || 0;
+    var rice    = parseFloat(document.getElementById('rice').value) || 0;
+    var retort  = parseInt(document.getElementById('retort').value) || 0;
+    var noodle  = parseInt(document.getElementById('noodle').value) || 0;
+    var bread   = parseInt(document.getElementById('bread').value) || 0;
+    var can     = parseInt(document.getElementById('can').value) || 0;
+    var retort_dish = parseInt(document.getElementById('retort_dish').value) || 0;
+
+    if (!members || members < 1) { showErr('家族人数を入力してください'); return; }
+
+    // 水の日数計算
+    var waterDays = water / (members * WATER_PER_PERSON);
+
+    // 食料の日数計算
+    // 主食：米は1食1合として換算、その他は1個=1食
+    var mealServings = (rice / 1) + retort + noodle + bread; // 合計食数（食）
+    // おかず類（1食分補完として）
+    var dishServings = can + retort_dish;
+
+    // 主食の日数
+    var mainDays = mealServings / (members * MEALS_PER_DAY);
+    // おかずは参考表示
+    var dishDays = dishServings / (members * MEALS_PER_DAY);
+
+    // 食料の総合日数は主食ベース
+    var foodDays = mainDays;
+
+    // 最低ラインは水と食料のうち短い方
+    var minDays = Math.min(waterDays, foodDays);
+
+    waterDays = Math.round(waterDays * 10) / 10;
+    foodDays  = Math.round(foodDays  * 10) / 10;
+    minDays   = Math.round(minDays   * 10) / 10;
+
+    var level, eval_msg, note;
+    if (minDays >= 7) {
+      level    = 'ok';
+      eval_msg = '1週間以上の備蓄があります';
+      note     = '政府推奨の最低ライン（3日分）を十分に上回っています。定期的に入れ替えて鮮度を保ちましょう。';
+    } else if (minDays >= 3) {
+      level    = 'warn';
+      eval_msg = '最低ラインはクリア。余裕を持つと安心';
+      note     = '政府推奨の3日分はあります。できれば1週間分を目標に追加備蓄しましょう。';
+    } else {
+      level    = 'ng';
+      eval_msg = '備蓄が不足しています';
+      note     = '政府推奨の最低3日分を下回っています。早めに補充してください。';
+    }
+
+    // 総合結果
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = minDays + ' 日分';
+    document.getElementById('re').textContent = eval_msg;
+    document.getElementById('rn').textContent = note;
+
+    // 水・食料の個別結果
+    document.getElementById('two-results').style.display = 'grid';
+    setMini('water-result', 'water-days', waterDays, waterDays);
+    setMini('food-result',  'food-days',  foodDays,  foodDays);
+
+    // 内訳
+    var rows = [
+      ['家族人数', members + ' 人'],
+      ['水の在庫', water + ' L'],
+      ['水の備蓄日数', waterDays + ' 日分'],
+      ['米', rice + ' 合'],
+      ['レトルトご飯', retort + ' 個'],
+      ['カップ麺', noodle + ' 個'],
+      ['パン缶・乾パン', bread + ' 個'],
+      ['缶詰', can + ' 個'],
+      ['レトルトカレー等', retort_dish + ' 個'],
+      ['食料の備蓄日数（主食）', foodDays + ' 日分'],
+      ['最短の備蓄日数（総合）', minDays + ' 日分', true],
+    ];
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+
+    // アドバイス
+    var advices = [];
+    if (waterDays < 7) advices.push('水を補充しましょう。目標：' + Math.ceil(members * WATER_PER_PERSON * 7) + 'L（7日分）');
+    if (foodDays < 7)  advices.push('主食を補充しましょう。目標：主食' + Math.ceil(members * MEALS_PER_DAY * 7) + '食分（7日分）');
+    if (dishDays < 3)  advices.push('おかず類（缶詰・レトルト）が少なめです。追加備蓄を検討しましょう');
+    if (minDays >= 7)  advices.push('備蓄は十分です。賞味期限を確認して古いものから使い切りましょう');
+    advices.push('定期的（年1〜2回）に在庫を確認・ローテーションしましょう');
+
+    var ul = document.getElementById('advice-list');
+    ul.innerHTML = advices.map(function(a){ return '<li>' + a + '</li>'; }).join('');
+    document.getElementById('advice').style.display = 'block';
+
+    saveToStorage(members, water, rice, retort, noodle, bread, can, retort_dish);
+  }
+
+  function setMini(cardId, valId, days, forLevel) {
+    var el = document.getElementById(cardId);
+    var lv = forLevel >= 7 ? 'ok' : forLevel >= 3 ? 'warn' : 'ng';
+    el.className = 'mini-result ' + lv;
+    document.getElementById(valId).textContent = days;
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('two-results').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('advice').style.display = 'none';
+  }
+
+  function saveToStorage(members, water, rice, retort, noodle, bread, can, retort_dish) {
+    try {
+      localStorage.setItem('bousai_members', members);
+      localStorage.setItem('bousai_water', water);
+      localStorage.setItem('bousai_rice', rice);
+      localStorage.setItem('bousai_retort', retort);
+      localStorage.setItem('bousai_noodle', noodle);
+      localStorage.setItem('bousai_bread', bread);
+      localStorage.setItem('bousai_can', can);
+      localStorage.setItem('bousai_retort_dish', retort_dish);
+    } catch(e) {}
+  }
+
+  function loadFromStorage() {
+    try {
+      var f = function(k){ return localStorage.getItem(k); };
+      if (f('bousai_members')) document.getElementById('members').value = f('bousai_members');
+      if (f('bousai_water'))   document.getElementById('water').value   = f('bousai_water');
+      if (f('bousai_rice'))    document.getElementById('rice').value    = f('bousai_rice');
+      if (f('bousai_retort'))  document.getElementById('retort').value  = f('bousai_retort');
+      if (f('bousai_noodle'))  document.getElementById('noodle').value  = f('bousai_noodle');
+      if (f('bousai_bread'))   document.getElementById('bread').value   = f('bousai_bread');
+      if (f('bousai_can'))     document.getElementById('can').value     = f('bousai_can');
+      if (f('bousai_retort_dish')) document.getElementById('retort_dish').value = f('bousai_retort_dish');
+    } catch(e) {}
+  }
+
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="日次売上・廃棄数・単価・原価率を入力して廃棄ロス金額・ロス率・利益への影響を即試算できる食品廃棄ロス削減シミュレーター。飲食・小売の廃棄削減判断に活用できます。">
+  <title>食品廃棄ロス削減シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 入力行2列 */
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1rem; }
+    .field-row .field { margin-bottom: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .ng-row td:last-child { color: var(--ng); font-weight: 700; }
+    .detail-table .ok-row td:last-child { color: var(--ok); font-weight: 700; }
+    .detail-table .warn-row td:last-child { color: var(--warn); font-weight: 700; }
+
+    /* ── 改善提案 ── */
+    .tips-card {
+      display: none;
+      background: var(--accent-light);
+      border: 1.5px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .tips-title { font-size: 0.82rem; font-weight: 700; color: var(--accent); margin-bottom: 0.7rem; }
+    .tips-list { list-style: none; }
+    .tips-list li { font-size: 0.84rem; color: var(--text); line-height: 1.6; padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
+    .tips-list li:last-child { border-bottom: none; }
+    .tips-list li::before { content: "💡 "; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <a class="back-link" href="../index.html" style="display:block;text-align:left;margin:0 0 0.5rem;font-size:0.78rem;color:var(--text-sub);text-decoration:none;">← アプリ一覧に戻る</a>
+    <h1>食品廃棄ロス削減シミュレーター</h1>
+    <p class="subtitle">廃棄数・原価を入力 → 廃棄ロス金額・利益への影響を即試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">売上・廃棄データを入力</p>
+    <div class="field">
+      <label for="sales">日次売上（円）</label>
+      <input type="number" id="sales" placeholder="例: 80000" min="0">
+      <p class="hint">廃棄分を除いた実際の売上金額</p>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="waste_qty">廃棄数（個）</label>
+        <input type="number" id="waste_qty" placeholder="例: 15" min="0">
+      </div>
+      <div class="field">
+        <label for="unit_price">単価（円/個）</label>
+        <input type="number" id="unit_price" placeholder="例: 300" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="cost_rate">原価率（%）</label>
+      <input type="number" id="cost_rate" placeholder="例: 35" min="0" max="100" step="0.1">
+      <p class="hint">一般的な飲食店: 30〜40%、小売: 50〜70%</p>
+    </div>
+    <div class="field">
+      <label for="work_days">月間営業日数（日）</label>
+      <input type="number" id="work_days" placeholder="例: 25" min="1" max="31">
+      <p class="hint">月次換算のために使用します</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">廃棄ロスを試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">廃棄ロス率（売上比）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">試算結果・内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 月次試算カード -->
+  <div class="card" id="monthly" style="display:none">
+    <p class="card-title">月次換算（参考）</p>
+    <table class="detail-table"><tbody id="mb"></tbody></table>
+  </div>
+
+  <!-- 改善提案 -->
+  <div class="tips-card" id="tips">
+    <p class="tips-title">📋 廃棄ロス削減アクション</p>
+    <ul class="tips-list" id="tips-list"></ul>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 農林水産省・消費者庁・中小企業庁の公開データを参考に構成しています。廃棄ロス率の目安は業種・業態により異なります。最新情報は各機関の公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'food-waste-sim-v1';
+
+  // 保存・復元
+  function save() {
+    var d = {
+      sales:      document.getElementById('sales').value,
+      waste_qty:  document.getElementById('waste_qty').value,
+      unit_price: document.getElementById('unit_price').value,
+      cost_rate:  document.getElementById('cost_rate').value,
+      work_days:  document.getElementById('work_days').value
+    };
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch(e) {}
+  }
+  function restore() {
+    try {
+      var d = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+      if (d.sales)      document.getElementById('sales').value      = d.sales;
+      if (d.waste_qty)  document.getElementById('waste_qty').value  = d.waste_qty;
+      if (d.unit_price) document.getElementById('unit_price').value = d.unit_price;
+      if (d.cost_rate)  document.getElementById('cost_rate').value  = d.cost_rate;
+      if (d.work_days)  document.getElementById('work_days').value  = d.work_days;
+    } catch(e) {}
+  }
+  ['sales','waste_qty','unit_price','cost_rate','work_days'].forEach(function(id) {
+    document.getElementById(id).addEventListener('input', save);
+  });
+
+  function calc() {
+    var sales      = parseFloat(document.getElementById('sales').value);
+    var waste_qty  = parseFloat(document.getElementById('waste_qty').value);
+    var unit_price = parseFloat(document.getElementById('unit_price').value);
+    var cost_rate  = parseFloat(document.getElementById('cost_rate').value);
+    var work_days  = parseFloat(document.getElementById('work_days').value);
+
+    if (isNaN(sales) || isNaN(waste_qty) || isNaN(unit_price) || isNaN(cost_rate) || isNaN(work_days)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (cost_rate < 0 || cost_rate > 100) {
+      showErr('原価率は0〜100の範囲で入力してください');
+      return;
+    }
+    if (work_days < 1) {
+      showErr('営業日数は1以上を入力してください');
+      return;
+    }
+
+    var cr = cost_rate / 100;
+
+    // 廃棄ロス計算
+    var waste_loss = waste_qty * unit_price * cr;          // 廃棄ロス金額（廃棄品の原価）
+    var waste_sales_loss = waste_qty * unit_price;          // 廃棄品の機会損失（売上ベース）
+    var loss_rate = sales > 0 ? (waste_loss / sales * 100) : 0; // 廃棄ロス率
+
+    // 利益計算
+    var profit_ideal = sales * (1 - cr) + waste_sales_loss * (1 - cr); // 廃棄ゼロ時の粗利
+    var profit_actual = sales * (1 - cr) - waste_loss;                  // 実際の粗利
+    var profit_diff = profit_ideal - profit_actual;                     // 廃棄による利益損失
+
+    // 月次換算
+    var monthly_loss = waste_loss * work_days;
+    var monthly_sales = sales * work_days;
+    var monthly_profit_actual = profit_actual * work_days;
+    var monthly_profit_ideal = profit_ideal * work_days;
+
+    // 判定
+    var level, evalText, noteText;
+    if (loss_rate < 3) {
+      level = 'ok';
+      evalText = '廃棄ロスは許容範囲内です';
+      noteText = '引き続き発注精度を維持しましょう。さらなる削減で利益率向上が可能です。';
+    } else if (loss_rate < 7) {
+      level = 'warn';
+      evalText = '廃棄ロスが利益を圧迫しています';
+      noteText = '発注量の見直し・値引き販売・在庫管理強化で削減できる余地があります。';
+    } else {
+      level = 'ng';
+      evalText = '廃棄ロスが深刻な水準です！';
+      noteText = '早急な発注管理・仕込み量の見直しが必要です。利益の大部分が廃棄で消えています。';
+    }
+
+    // 表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = loss_rate.toFixed(1) + '%';
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = noteText;
+
+    // 内訳
+    var rows = [
+      ['日次売上', fmt(sales) + ' 円'],
+      ['廃棄数 × 単価', fmt(waste_qty) + ' 個 × ' + fmt(unit_price) + ' 円'],
+      ['廃棄品の機会損失（売上）', fmt(waste_sales_loss) + ' 円', 'warn-row'],
+      ['廃棄ロス額（原価ベース）', fmt(waste_loss) + ' 円', 'ng-row'],
+      ['廃棄ロス率（売上比）', loss_rate.toFixed(1) + ' %', level + '-row'],
+      ['実際の粗利', fmt(profit_actual) + ' 円'],
+      ['廃棄ゼロ時の粗利', fmt(profit_ideal) + ' 円', 'ok-row'],
+      ['廃棄による利益損失', '▲ ' + fmt(profit_diff) + ' 円', 'ng-row'],
+    ];
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr class="' + (r[2] || '') + '"><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+
+    // 月次換算
+    var mrows = [
+      ['月間売上（推定）', fmt(monthly_sales) + ' 円'],
+      ['月間廃棄ロス額', fmt(monthly_loss) + ' 円', 'ng-row'],
+      ['月間実際粗利', fmt(monthly_profit_actual) + ' 円'],
+      ['廃棄ゼロ時の月間粗利', fmt(monthly_profit_ideal) + ' 円', 'ok-row'],
+      ['月間利益損失', '▲ ' + fmt(monthly_profit_ideal - monthly_profit_actual) + ' 円', 'ng-row'],
+    ];
+    document.getElementById('mb').innerHTML = mrows.map(function(r) {
+      return '<tr class="' + (r[2] || '') + '"><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('monthly').style.display = 'block';
+
+    // 改善提案
+    var tips = [];
+    if (loss_rate >= 3) {
+      tips.push('発注量を直近3日間の実績平均に基づいて決め、過剰仕入れを減らす');
+      tips.push('閉店1〜2時間前に値引き販売を実施して廃棄を減らす');
+    }
+    if (loss_rate >= 5) {
+      tips.push('廃棄数・廃棄金額を毎日記録し、多い品目を優先的に見直す');
+      tips.push('メニューを廃棄しにくい食材に絞ることを検討する');
+    }
+    if (loss_rate >= 7) {
+      tips.push('廃棄率の高い商品の販売を縮小または廃止する');
+      tips.push('在庫の先入れ先出し（FIFO）を徹底して鮮度管理を改善する');
+      tips.push('仕入れ先と発注単位を見直し、小ロット仕入れに切り替えることを検討する');
+    }
+    if (tips.length === 0) {
+      tips.push('現状を維持しながら、さらに廃棄ロス率1〜2%の削減を目指しましょう');
+      tips.push('定期的に廃棄数を記録して傾向を把握しておくと安心です');
+    }
+    document.getElementById('tips-list').innerHTML = tips.map(function(t) {
+      return '<li>' + t + '</li>';
+    }).join('');
+    document.getElementById('tips').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('monthly').style.display = 'none';
+    document.getElementById('tips').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  restore();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
