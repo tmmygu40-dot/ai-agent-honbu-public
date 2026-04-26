@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="地震・火災・水害の正しい行動を4択クイズで学べる防災知識アプリ。全30問（各カテゴリ10問）＋全問混合モード付き。正誤判定・解説・スコア履歴をlocalStorageに保存。いざという時に役立つ防災知識を楽しく習得できます。">
+  <title>防災知識クイズアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8; --card: #ffffff; --border: #e8ddd0;
+      --accent: #e07b00; --accent-light: #fff8ee;
+      --text: #1c1917; --text-sub: #78716c;
+      --ok: #15803d; --ok-bg: #f0fdf4;
+      --warn: #b45309; --warn-bg: #fffbeb;
+      --ng: #b91c1c; --ng-bg: #fef2f2;
+      --radius: 14px; --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 0 0 3rem; }
+    .app-header { background: var(--card); border-bottom: 3px solid var(--accent); padding: 1.2rem 1.2rem 1rem; margin-bottom: 1.5rem; }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .card { background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.2rem; box-shadow: var(--shadow); margin: 0 auto 1rem; max-width: 600px; }
+    .card-title { font-size: 0.78rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+
+    /* カテゴリ選択 */
+    .cat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+    @media (max-width: 400px) { .cat-grid { grid-template-columns: 1fr; } }
+    .cat-btn { padding: 1rem 0.5rem; font-size: 1rem; font-weight: 800; border: 2px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); cursor: pointer; text-align: center; transition: all 0.15s; -webkit-tap-highlight-color: transparent; }
+    .cat-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .cat-btn .cat-icon { font-size: 1.8rem; display: block; margin-bottom: 0.3rem; }
+    .cat-btn .cat-count { font-size: 0.72rem; color: var(--text-sub); font-weight: 600; }
+
+    /* 進捗バー */
+    .prog-wrap { max-width: 600px; margin: 0 auto 0.75rem; }
+    .prog-bar { height: 6px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .prog-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width 0.4s; }
+    .prog-label { font-size: 0.75rem; color: var(--text-sub); display: flex; justify-content: space-between; margin-bottom: 0.3rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+
+    /* 問題カード */
+    .q-meta { font-size: 0.72rem; color: var(--text-sub); font-weight: 700; letter-spacing: 0.06em; margin-bottom: 0.6rem; }
+    .q-text { font-size: 1rem; font-weight: 700; line-height: 1.6; margin-bottom: 1.1rem; }
+    .choices { display: flex; flex-direction: column; gap: 0.55rem; }
+    .choice-btn {
+      padding: 0.8rem 1rem; font-size: 0.92rem; font-weight: 600; text-align: left;
+      border: 2px solid var(--border); border-radius: 10px; background: var(--bg); color: var(--text);
+      cursor: pointer; transition: all 0.15s; -webkit-tap-highlight-color: transparent; line-height: 1.4;
+    }
+    .choice-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-light); }
+    .choice-btn.correct { border-color: var(--ok); background: var(--ok-bg); color: var(--ok); }
+    .choice-btn.wrong   { border-color: var(--ng); background: var(--ng-bg); color: var(--ng); }
+    .choice-btn:disabled { cursor: default; }
+
+    /* 解説 */
+    .explain-box { display: none; margin-top: 0.9rem; padding: 0.85rem 1rem; border-radius: 10px; font-size: 0.88rem; line-height: 1.65; }
+    .explain-box.ok-box { background: var(--ok-bg); border: 1.5px solid var(--ok); color: var(--text); }
+    .explain-box.ng-box { background: var(--ng-bg); border: 1.5px solid var(--ng); color: var(--text); }
+    .explain-title { font-weight: 800; margin-bottom: 0.35rem; }
+    .explain-box.ok-box .explain-title { color: var(--ok); }
+    .explain-box.ng-box .explain-title { color: var(--ng); }
+
+    /* 次へボタン */
+    .btn-next { display: none; width: 100%; max-width: 600px; margin: 0.75rem auto 0; padding: 0.85rem; font-size: 1rem; font-weight: 800; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); cursor: pointer; box-shadow: 0 3px 0 #b35e00; transition: transform 0.1s; -webkit-tap-highlight-color: transparent; }
+    .btn-next:active { transform: translateY(2px); box-shadow: 0 1px 0 #b35e00; }
+
+    /* 結果 */
+    .score-big { font-size: 3rem; font-weight: 900; color: var(--accent); text-align: center; margin: 0.5rem 0; }
+    .score-sub { font-size: 0.9rem; color: var(--text-sub); text-align: center; margin-bottom: 1rem; }
+    .score-eval { font-size: 1.1rem; font-weight: 700; text-align: center; padding: 0.75rem; border-radius: 10px; margin-bottom: 1rem; }
+    .score-eval.ok   { background: var(--ok-bg);   color: var(--ok);   }
+    .score-eval.warn { background: var(--warn-bg); color: var(--warn); }
+    .score-eval.ng   { background: var(--ng-bg);   color: var(--ng);   }
+
+    /* 履歴テーブル */
+    .hist-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .hist-table th { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); padding: 0.35rem 0.3rem; border-bottom: 2px solid var(--border); text-align: left; }
+    .hist-table td { padding: 0.45rem 0.3rem; border-bottom: 1px solid var(--border); color: var(--text-sub); }
+    .hist-table tr:last-child td { border-bottom: none; }
+
+    .btn-retry { display: block; width: 100%; max-width: 600px; margin: 0.75rem auto 0; padding: 0.85rem; font-size: 1rem; font-weight: 800; background: var(--card); color: var(--accent); border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    .btn-pdf { display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem; font-size: 0.85rem; font-weight: 700; background: var(--card); color: var(--text-sub); border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; max-width: 600px; width: 100%; transition: border-color 0.15s, color 0.15s; }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .back-link, #fav-widget, .no-print { display: none !important; }
+      .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>防災知識クイズアプリ</h1>
+    <p class="subtitle">地震・火災・水害の正しい行動を4択クイズで学ぼう</p>
+  </header>
+
+  <!-- カテゴリ選択画面 -->
+  <div id="screen-select">
+    <div class="card">
+      <p class="card-title">カテゴリを選んでください</p>
+      <div class="cat-grid">
+        <button class="cat-btn" onclick="startQuiz('quake')">
+          <span class="cat-icon">🏚️</span>地震<br><span class="cat-count">10問</span>
+        </button>
+        <button class="cat-btn" onclick="startQuiz('fire')">
+          <span class="cat-icon">🔥</span>火災<br><span class="cat-count">10問</span>
+        </button>
+        <button class="cat-btn" onclick="startQuiz('flood')">
+          <span class="cat-icon">🌊</span>水害<br><span class="cat-count">10問</span>
+        </button>
+        <button class="cat-btn" onclick="startQuiz('mix')">
+          <span class="cat-icon">🎯</span>全問混合<br><span class="cat-count">30問</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 成績履歴 -->
+    <div class="card" id="history-card" style="display:none">
+      <p class="card-title">過去の成績</p>
+      <table class="hist-table">
+        <thead><tr><th>日時</th><th>カテゴリ</th><th>スコア</th><th>評価</th></tr></thead>
+        <tbody id="hist-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- クイズ画面 -->
+  <div id="screen-quiz" style="display:none">
+    <div class="prog-label">
+      <span id="prog-text">問題 1 / 10</span>
+      <span id="prog-score">正解: 0</span>
+    </div>
+    <div class="prog-wrap">
+      <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+    </div>
+    <div class="card">
+      <p class="q-meta" id="q-meta">🏚️ 地震 · Q1</p>
+      <p class="q-text" id="q-text"></p>
+      <div class="choices" id="choices"></div>
+      <div class="explain-box" id="explain-box">
+        <p class="explain-title" id="explain-title"></p>
+        <p id="explain-text"></p>
+      </div>
+    </div>
+    <button class="btn-next" id="btn-next" onclick="nextQ()">次の問題へ →</button>
+  </div>
+
+  <!-- 結果画面 -->
+  <div id="screen-result" style="display:none">
+    <div class="card">
+      <p class="card-title">クイズ結果</p>
+      <p class="score-big" id="res-score">—</p>
+      <p class="score-sub" id="res-sub"></p>
+      <div class="score-eval" id="res-eval"></div>
+      <p style="font-size:0.85rem;color:var(--text-sub);line-height:1.6;" id="res-msg"></p>
+    </div>
+    <button class="btn-retry no-print" onclick="backToSelect()">← カテゴリ選択に戻る</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、内閣府・総務省消防庁・国土交通省・気象庁等の防災ガイドラインをもとに整理しています。実際の行動は状況に応じて判断してください。最新の避難情報は自治体や気象庁の情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'bousai_quiz_hist_v1';
+
+  // ── クイズデータ ──
+  var QB = {
+    quake: [
+      { q: '地震発生時、屋内にいる場合に最初にすべき行動はどれですか？',
+        choices: ['すぐに外へ逃げる', 'テーブルの下に隠れて頭を守る', '火を消しに台所へ向かう', '家族を集めて話し合う'],
+        ans: 1, explain: 'まずは「身の安全」を確保します。机の下や頭を守れる場所に移動し、揺れが収まるまで待ちましょう。揺れの最中に走ると転倒・落下物に当たる危険があります。' },
+      { q: '地震後に火の始末をするのは、どのタイミングが適切ですか？',
+        choices: ['揺れている最中に消しに行く', '揺れが収まった直後すぐ', '揺れが大きい間は待ち、小さくなったら消す', '避難後でよい'],
+        ans: 2, explain: '大きな揺れが収まってから落ち着いて消火します。揺れの最中はやけどや転倒の危険があり、無理に消火しようとするのは危険です。' },
+      { q: '震度5強以上の地震後、エレベーターを使ってはいけない理由として正しいものはどれですか？',
+        choices: ['電力が落ちるから', '閉じ込め・転落のリスクがあるから', '法律で禁止されているから', '速度が遅くなるから'],
+        ans: 1, explain: '地震後のエレベーターは、ドアが開かなくなる「閉じ込め」事故が発生しやすい状態です。点検が完了するまでは使用せず、階段を使いましょう。' },
+      { q: '津波の危険がある地震が発生したとき、まず何をすべきですか？',
+        choices: ['海の様子を確認しに行く', '家族に連絡する', '高台や高い建物の上に逃げる', 'テレビをつけて情報を集める'],
+        ans: 2, explain: '「津波てんでんこ」の言葉通り、津波発生時はまず自分の命を守ります。海岸付近にいる場合は情報収集より先に高台へ逃げることが最優先です。' },
+      { q: '地震の際、外にいて建物の近くにいた場合の正しい行動はどれですか？',
+        choices: ['建物の入口に入り込む', '建物から離れて広い場所へ移動する', '車の中に逃げ込む', 'その場にしゃがんで動かない'],
+        ans: 1, explain: '建物の外壁・窓ガラス・看板が落下する危険があります。建物から離れ、頭を守りながら広い場所（公園など）へ移動しましょう。' },
+      { q: '「緊急地震速報」が鳴った場合の正しい行動はどれですか？',
+        choices: ['外へ飛び出す', '頭を守り揺れに備える', '車を運転中なら急停車する', 'スマホを持って逃げる'],
+        ans: 1, explain: '緊急地震速報が鳴ったら、揺れが来る前に頭を守る・火を消す・ドアを開けるなどの行動を取ります。外へ飛び出すと落下物に当たる危険があります。' },
+      { q: '地震後、ガスの臭いがする場合の正しい行動はどれですか？',
+        choices: ['換気扇をつけて換気する', '電気のスイッチを操作しない・すぐに窓を開けて逃げる', '火をつけて確認する', 'ガス栓を全開にして流す'],
+        ans: 1, explain: 'ガス漏れが疑われる場合、電気スイッチの操作（スパーク）が爆発の引き金になる可能性があります。スイッチを触らず、窓を開けて外に出てガス会社に連絡しましょう。' },
+      { q: '「震度7」の地震が発生した場合、どのような揺れになりますか？',
+        choices: ['立っていられないほど激しく揺れ、ほとんどの建物が倒壊する', '立っていられないほど揺れ、耐震性の低い建物が倒壊することがある', '座っていられず、重い家具が動く', 'ガラスが割れ、壁にひびが入る'],
+        ans: 1, explain: '震度7は気象庁の最大震度です。耐震性の低い建物が倒壊し、耐震性の高い建物でも壁・柱が損傷することがあります。「ほとんどの建物が倒壊する」は誇張で、2016年熊本地震でも半壊・全壊が多数でした。' },
+      { q: '家具の転倒防止として最も効果的な対策はどれですか？',
+        choices: ['重い物を上に置く', '家具を壁際に置く', '家具を壁に固定する転倒防止器具を設置する', '家具を部屋の中央に置く'],
+        ans: 2, explain: '転倒防止器具（L字金具・突っ張り棒等）で壁に固定することが最も効果的です。壁際に置くだけでは転倒を防げません。冷蔵庫・本棚・タンスは特に注意が必要です。' },
+      { q: '地震後の避難場所として正しいのはどれですか？',
+        choices: ['川や海の近くの広い場所', '市区町村が指定する避難場所・避難所', '近くの公共施設なら何でもよい', '高速道路の高架下'],
+        ans: 1, explain: '市区町村が指定する「指定避難場所」「指定緊急避難場所」が正しい避難場所です。川の近くは洪水・土砂崩れの危険があり、高架下は余震による落下物の危険があります。' },
+    ],
+    fire: [
+      { q: '家庭で火災が発生したとき、最初にすべきことは何ですか？',
+        choices: ['財産を守るために荷物をまとめる', '大声で周囲に知らせ、119番通報する', '1人で消火を試みる', '窓を全開にして煙を逃がす'],
+        ans: 1, explain: '火災発生時は「まず逃げる」「大声で知らせる」「119番通報する」が基本です。初期消火は1〜2分以内・小さな火の場合に限り、煙が出たら消火より避難を優先します。' },
+      { q: '煙が充満した廊下を避難する場合の正しい行動はどれですか？',
+        choices: ['立ったまま素早く走り抜ける', '姿勢を低くしてハンカチで口を覆い進む', '煙を吸わないよう息を止めて一気に走る', 'タオルを口に当てて立ったまま進む'],
+        ans: 1, explain: '煙は上に溜まるため、姿勢を低くして（できれば這って）進みます。ハンカチ・タオルを濡らして口・鼻を覆うと有毒ガスを少し防げます。' },
+      { q: '消火器の使い方として正しい順番はどれですか？',
+        choices: ['①安全ピンを抜く → ②レバーを握る → ③ホースを火元に向ける', '①ホースを火元に向ける → ②安全ピンを抜く → ③レバーを握る', '①レバーを握る → ②安全ピンを抜く → ③ホースを向ける', '①安全ピンを抜く → ②ホースを火元に向ける → ③レバーを握る'],
+        ans: 3, explain: '「ピン・ホース・レバー」の順が正しい手順です。①安全ピンを抜く → ②ホースを火元に向ける → ③レバーを握って放射します。「アームを握る前にホースを向ける」のがポイントです。' },
+      { q: '天ぷら油が発火した場合の正しい対処法はどれですか？',
+        choices: ['水をかけて消す', '濡れたタオルや蓋で覆い酸素を遮断する', '扇風機で風を送って冷やす', 'そのままにして逃げる'],
+        ans: 1, explain: '天ぷら油火災に水をかけると、水が瞬時に蒸発して油が飛び散り爆発的に広がる「油火災」になります。蓋や濡れたタオルで覆って酸素を遮断するか、消火器を使いましょう。' },
+      { q: '集合住宅の廊下で火事が発生した場合、扉（玄関ドア）はどうすべきですか？',
+        choices: ['すぐに開けて逃げる', 'ドアを触って熱さを確認してから対処する', '内側からドアを蹴破って逃げる', '窓から逃げる'],
+        ans: 1, explain: 'ドアを開ける前に手でドアノブや扉の熱を確認します。熱い場合はドアの向こうが炎・煙で充満している可能性があり、開けると逆に危険です。別のルート（バルコニー等）を探しましょう。' },
+      { q: '火災報知器が鳴ったとき、まず確認すべきことは何ですか？',
+        choices: ['報知器の電池を抜く', '窓を全開にする', '煙や火の手の有無を目視・臭いで確認する', 'すぐに119番に電話する'],
+        ans: 2, explain: 'まず煙・火の有無を自分の目で確認します。誤作動の場合もありますが、煙・火を確認したらすぐに避難・通報します。確認せずに放置するのは危険です。' },
+      { q: '火災時に避難する際、エレベーターを使ってはいけない理由として正しいものはどれですか？',
+        choices: ['混雑して時間がかかるから', '停電・ドア閉鎖で閉じ込められる危険があるから', '揺れて落下するから', '速度制限がかかるから'],
+        ans: 1, explain: '火災時は停電・煙の侵入・扉の熱変形などでエレベーターが止まり閉じ込められる危険があります。必ず非常階段を使って避難してください。' },
+      { q: '「防炎カーテン」が有効な理由はどれですか？',
+        choices: ['火を完全に消すことができるから', '燃えにくく炎の拡大を遅らせるから', '隣室への煙を防ぐから', '消火器の代わりになるから'],
+        ans: 1, explain: '防炎カーテンは「燃えにくい」素材で作られており、小さな火源（タバコ・ろうそく等）からの着火・延焼を遅らせる効果があります。完全に火を防ぐものではありません。' },
+      { q: '住宅用火災警報器の設置が法律で義務付けられている場所はどこですか？',
+        choices: ['キッチン（台所）のみ', '寝室と台所（市区町村条例により異なる）', '玄関のみ', 'すべての部屋'],
+        ans: 1, explain: '消防法により、寝室と台所（および階段等）への設置が義務付けられています（市区町村条例でさらに追加される場合もあります）。10年を目安に交換が推奨されています。' },
+      { q: '火災保険と地震保険の関係として正しいものはどれですか？',
+        choices: ['火災保険に加入すれば地震による火災も補償される', '地震による火災は地震保険でなければ補償されない', 'どちらかに加入すれば両方カバーされる', '地震保険は単独で加入できる'],
+        ans: 1, explain: '地震・噴火・津波を原因とする火災・倒壊等は「地震保険」でしか補償されません。火災保険だけでは地震火災は補償対象外です。地震保険は火災保険に付帯する形で加入します。' },
+    ],
+    flood: [
+      { q: '「避難指示」が発令された場合の正しい行動はどれですか？',
+        choices: ['様子を見てから判断する', '直ちに危険な場所から全員避難する', '2階以上に移動して待機する', '行政からの指示を待つ'],
+        ans: 1, explain: '「避難指示」は最も強いレベルの避難情報（警戒レベル4）です。発令されたら直ちに危険な場所から避難します。「様子を見る」「2階待機」ではなく、指定避難場所への避難が原則です。' },
+      { q: 'ゲリラ豪雨時に「アンダーパス（立体交差の低い部分）」が危険な理由はどれですか？',
+        choices: ['雷が落ちやすいから', '短時間で水が溜まり脱出できなくなるから', '路面が滑りやすいから', '交通量が増えるから'],
+        ans: 1, explain: 'アンダーパスは周囲より低い構造のため雨水が集まりやすく、短時間で水没します。車で侵入した場合、水圧でドアが開かなくなり脱出できなくなる死亡事故が多発しています。' },
+      { q: '洪水ハザードマップで「浸水3m以上」の地域に住んでいる場合、最も適切な避難行動はどれですか？',
+        choices: ['2階に上がって垂直避難する', '早めに指定避難場所へ水平避難する', '屋上に逃げる', '隣の家に避難する'],
+        ans: 1, explain: '浸水3m以上の地域では2階も浸水する恐れがあります。早い段階で指定避難場所へ「水平避難」することが重要です。危険が迫ってから逃げようとすると間に合わなくなります。' },
+      { q: '台風が接近している場合、屋外の物干し竿や植木鉢はどうすべきですか？',
+        choices: ['そのままにして様子を見る', '室内に取り込むか固定する', '地面に降ろすだけでよい', '隣の建物の陰に移動する'],
+        ans: 1, explain: '強風で飛ばされた物干し竿や植木鉢は凶器になります。台風接近前に室内に取り込むか、しっかり固定しておきましょう。' },
+      { q: '避難時に水位が膝（ひざ）以上になっている場合の正しい行動はどれですか？',
+        choices: ['急いで歩いて避難する', 'できるだけ高い建物の上階へ垂直避難する', '水中を泳いで逃げる', '車で逃げる'],
+        ans: 1, explain: '膝以上の水位では歩行が困難になり、流れがあると足を取られて転倒する危険があります。また車は30cm程度の浸水でエンジンが止まります。移動が困難な場合は垂直避難が正解です。' },
+      { q: '「土砂災害警戒情報」が発令された地域に住んでいる場合の正しい行動はどれですか？',
+        choices: ['土砂崩れが見えたら逃げる', '早めに避難を完了させる', '2階に上がって様子を見る', '窓を閉めて室内に待機する'],
+        ans: 1, explain: '土砂崩れは前兆なく突然発生することがあります。「土砂災害警戒情報」が出たら、崩れる前に早めに避難を完了させることが重要です。前兆を確認してからでは間に合わない場合があります。' },
+      { q: '水害後の片付けで注意すべきことはどれですか？',
+        choices: ['電気が復旧したらすぐに使用を再開する', '感電・衛生上のリスクがあるため、専門家の確認後に作業する', '泥は自然に乾くので放置してよい', '窓を締め切って室内で作業する'],
+        ans: 1, explain: '水害後は電気系統への浸水（感電リスク）、汚染水による感染症リスクがあります。電気は専門家の確認後に使用し、泥の片付けはマスク・ゴム手袋を着用して行います。' },
+      { q: '河川の「氾濫注意情報」の意味として正しいものはどれですか？',
+        choices: ['すでに氾濫が発生している', '氾濫のおそれがあり注意が必要（避難の準備を）', '洪水の危険はないが注意が必要', '数時間以内に氾濫が発生する'],
+        ans: 1, explain: '「氾濫注意情報（洪水注意報）」は氾濫の危険が高まっており、避難の準備をすべき段階です。ハザードマップで自宅の危険度を確認し、避難の準備を始めましょう。' },
+      { q: '「マイ・タイムライン」とは何ですか？',
+        choices: ['SNSの投稿履歴', '台風・洪水時の行動計画表', '避難訓練の参加記録', '気象情報アプリ'],
+        ans: 1, explain: '「マイ・タイムライン」は、台風や豪雨の際にいつ・何をするかを事前に決めておく個人の行動計画表です。国土交通省が普及を推進しており、自治体のハザードマップと合わせて作成します。' },
+      { q: '洪水ハザードマップで確認すべき情報として最も重要なものはどれですか？',
+        choices: ['近くのコンビニの場所', '自宅の浸水深と指定避難場所の位置', '最寄り駅の標高', '近隣の人口密度'],
+        ans: 1, explain: 'ハザードマップでは「自宅がどの程度浸水するか（浸水深）」と「どこに避難すべきか（指定避難場所）」を事前に確認しておくことが最重要です。お住まいの市区町村のハザードマップを今すぐ確認しましょう。' },
+    ],
+  };
+
+  var CAT_NAMES = { quake: '🏚️ 地震', fire: '🔥 火災', flood: '🌊 水害', mix: '🎯 全問混合' };
+  var state = { questions: [], current: 0, score: 0, category: '' };
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+
+  function startQuiz(cat) {
+    state.category = cat;
+    state.current  = 0;
+    state.score    = 0;
+    var qs;
+    if (cat === 'mix') {
+      qs = shuffle(QB.quake.concat(QB.fire).concat(QB.flood));
+    } else {
+      qs = shuffle(QB[cat].slice());
+    }
+    // 各問のchoicesもシャッフル（正解インデックスを保持）
+    state.questions = qs.map(function(q) {
+      var idxMap = [0,1,2,3];
+      var shuffled = shuffle(idxMap);
+      var newAns = shuffled.indexOf(q.ans);
+      return {
+        q: q.q,
+        choices: shuffled.map(function(i) { return q.choices[i]; }),
+        ans: newAns,
+        explain: q.explain,
+      };
+    });
+    document.getElementById('screen-select').style.display = 'none';
+    document.getElementById('screen-result').style.display = 'none';
+    document.getElementById('screen-quiz').style.display   = 'block';
+    renderQ();
+  }
+
+  function renderQ() {
+    var total = state.questions.length;
+    var cur   = state.current;
+    var q     = state.questions[cur];
+    var pct   = (cur / total * 100).toFixed(0);
+    document.getElementById('prog-text').textContent  = '問題 ' + (cur+1) + ' / ' + total;
+    document.getElementById('prog-score').textContent = '正解: ' + state.score;
+    document.getElementById('prog-fill').style.width  = pct + '%';
+    document.getElementById('q-meta').textContent = CAT_NAMES[state.category] + ' · Q' + (cur+1);
+    document.getElementById('q-text').textContent = q.q;
+
+    var html = '';
+    q.choices.forEach(function(c, i) {
+      html += '<button class="choice-btn" onclick="answer(' + i + ')">　' + c + '</button>';
+    });
+    document.getElementById('choices').innerHTML = html;
+    document.getElementById('explain-box').style.display = 'none';
+    document.getElementById('btn-next').style.display = 'none';
+  }
+
+  function answer(idx) {
+    var q = state.questions[state.current];
+    var correct = (idx === q.ans);
+    if (correct) state.score++;
+
+    // ボタンを色付け・無効化
+    var btns = document.querySelectorAll('.choice-btn');
+    btns.forEach(function(b, i) {
+      b.disabled = true;
+      if (i === q.ans)  b.classList.add('correct');
+      if (i === idx && !correct) b.classList.add('wrong');
+    });
+
+    // 解説表示
+    var box = document.getElementById('explain-box');
+    box.className = 'explain-box ' + (correct ? 'ok-box' : 'ng-box');
+    box.style.display = 'block';
+    document.getElementById('explain-title').textContent = correct ? '✅ 正解！' : '❌ 不正解';
+    document.getElementById('explain-text').textContent  = q.explain;
+
+    // 次へボタン
+    var isLast = (state.current >= state.questions.length - 1);
+    var btn = document.getElementById('btn-next');
+    btn.textContent = isLast ? '結果を見る' : '次の問題へ →';
+    btn.style.display = 'block';
+  }
+
+  function nextQ() {
+    state.current++;
+    if (state.current >= state.questions.length) {
+      showResult();
+    } else {
+      renderQ();
+    }
+  }
+
+  function showResult() {
+    var total = state.questions.length;
+    var score = state.score;
+    var pct   = score / total;
+    var level, evalText, msg;
+    if (pct >= 0.8) {
+      level = 'ok'; evalText = '🏆 防災マスター！';
+      msg = '素晴らしい！防災の正しい知識を持っています。この知識を家族にも共有しましょう。';
+    } else if (pct >= 0.6) {
+      level = 'warn'; evalText = '📚 もう少し学ぼう';
+      msg = '基本的な知識はありますが、間違えた問題を復習しておきましょう。いざというときのために再チャレンジを！';
+    } else {
+      level = 'ng'; evalText = '⚠️ 要復習';
+      msg = '防災知識を身につけることで、いざというときの行動が変わります。ぜひ再チャレンジしてみてください。';
+    }
+
+    document.getElementById('res-score').textContent = score + ' / ' + total;
+    document.getElementById('res-sub').textContent   = '正解率 ' + Math.round(pct * 100) + '%';
+    var ev = document.getElementById('res-eval');
+    ev.className = 'score-eval ' + level;
+    ev.textContent = evalText;
+    document.getElementById('res-msg').textContent = msg;
+
+    document.getElementById('screen-quiz').style.display  = 'none';
+    document.getElementById('screen-result').style.display = 'block';
+
+    // 履歴保存
+    saveHistory(state.category, score, total, level);
+  }
+
+  function saveHistory(cat, score, total, level) {
+    var hist = [];
+    try { hist = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) {}
+    var now = new Date();
+    var ts = now.getMonth()+1 + '/' + now.getDate() + ' ' + now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+    hist.unshift({ ts: ts, cat: CAT_NAMES[cat], score: score + '/' + total, level: level });
+    if (hist.length > 20) hist = hist.slice(0, 20);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(hist)); } catch(e) {}
+  }
+
+  function backToSelect() {
+    document.getElementById('screen-result').style.display = 'none';
+    document.getElementById('screen-quiz').style.display   = 'none';
+    document.getElementById('screen-select').style.display = 'block';
+    loadHistory();
+  }
+
+  function loadHistory() {
+    var hist = [];
+    try { hist = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) {}
+    var card = document.getElementById('history-card');
+    var body = document.getElementById('hist-body');
+    if (!hist.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    body.innerHTML = hist.slice(0, 10).map(function(h) {
+      var icon = h.level === 'ok' ? '🏆' : h.level === 'warn' ? '📚' : '⚠️';
+      return '<tr><td>' + h.ts + '</td><td>' + h.cat + '</td><td>' + h.score + '</td><td>' + icon + '</td></tr>';
+    }).join('');
+  }
+
+  // 起動時
+  loadHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
