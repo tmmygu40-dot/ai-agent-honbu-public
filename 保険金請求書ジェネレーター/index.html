@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="被害種別・発生日時・契約プランを入力するだけで、保険金請求書の文面を自動生成してコピーできる便利ツールです。火災・水災・風災など主要な被害に対応。">
+  <title>保険金請求書ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; text-align: center; }
+    .result-value { font-size: 1.1rem; font-weight: 700; line-height: 1.4; margin-bottom: 0.4rem; text-align: center; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+
+    /* ── 生成文面 ── */
+    .output-area {
+      display: none;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+    }
+    .output-text {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-shadow: var(--shadow);
+      min-height: 200px;
+    }
+    .btn-copy {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0.8rem auto 0; padding: 0.85rem;
+      font-size: 1rem; font-weight: 700;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 3px 0 #0f5e2d, 0 4px 12px rgba(21,128,61,0.2);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-copy:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #0f5e2d, 0 2px 6px rgba(21,128,61,0.15);
+    }
+    .btn-copy.copied {
+      background: var(--text-sub);
+      box-shadow: 0 3px 0 #555, 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>保険金請求書ジェネレーター</h1>
+    <p class="subtitle">被害状況と契約プランを入力するだけで請求書の文面を即生成 ― 最新情報は各保険会社の公式情報をご確認ください</p>
+  </header>
+
+  <!-- 契約情報カード -->
+  <div class="card">
+    <p class="card-title">契約情報</p>
+    <div class="field">
+      <label for="insurerName">保険会社名</label>
+      <input type="text" id="insurerName" placeholder="例: 東京海上日動">
+    </div>
+    <div class="field">
+      <label for="policyNo">証券番号</label>
+      <input type="text" id="policyNo" placeholder="例: ABC-1234567">
+    </div>
+    <div class="field">
+      <label for="planName">契約プラン名</label>
+      <input type="text" id="planName" placeholder="例: 火災保険ベーシック">
+    </div>
+    <div class="field">
+      <label for="holderName">契約者名</label>
+      <input type="text" id="holderName" placeholder="例: 山田 太郎">
+    </div>
+    <div class="field">
+      <label for="holderAddress">契約者住所</label>
+      <input type="text" id="holderAddress" placeholder="例: 東京都千代田区1-1-1">
+    </div>
+    <div class="field">
+      <label for="holderPhone">連絡先電話番号</label>
+      <input type="tel" id="holderPhone" placeholder="例: 090-1234-5678">
+    </div>
+  </div>
+
+  <!-- 被害状況カード -->
+  <div class="card">
+    <p class="card-title">被害状況</p>
+    <div class="field">
+      <label for="damageType">被害種別</label>
+      <select id="damageType">
+        <option value="">選択してください</option>
+        <option value="火災">火災</option>
+        <option value="水災（洪水・床上浸水）">水災（洪水・床上浸水）</option>
+        <option value="風災（台風・暴風）">風災（台風・暴風）</option>
+        <option value="雹災">雹災</option>
+        <option value="雪災">雪災</option>
+        <option value="落雷">落雷</option>
+        <option value="盗難">盗難</option>
+        <option value="破損・汚損">破損・汚損</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="damageDate">被害発生日</label>
+      <input type="date" id="damageDate">
+    </div>
+    <div class="field">
+      <label for="damageLocation">被害場所</label>
+      <input type="text" id="damageLocation" placeholder="例: 自宅1階リビング">
+    </div>
+    <div class="field">
+      <label for="damageDetail">被害の詳細</label>
+      <textarea id="damageDetail" placeholder="例: 台風による強風で屋根瓦が飛散し、雨漏りが発生。リビングの天井と壁紙に水シミが広がった。"></textarea>
+      <p class="hint">具体的な被害内容・範囲・程度を記入</p>
+    </div>
+    <div class="field">
+      <label for="damageItems">損害品目・概算金額</label>
+      <textarea id="damageItems" placeholder="例:&#10;屋根瓦修理 約30万円&#10;天井・壁紙張替え 約15万円&#10;家具（テーブル）買替え 約5万円"></textarea>
+      <p class="hint">品目ごとに概算金額を記入（分かる範囲でOK）</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">📝 請求書文面を生成する</button>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成結果</p>
+    <p class="result-value" id="rv">—</p>
+  </div>
+
+  <!-- 生成された文面 -->
+  <div class="output-area" id="outputArea">
+    <div class="output-text" id="outputText"></div>
+    <button class="btn-copy no-print" id="btnCopy" onclick="copyText()">📋 文面をコピー</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは一般的な保険金請求書の文面例を生成する参考ツールです。実際の請求手続きは各保険会社の書式・手順に従ってください。金融庁・各損害保険会社の公式情報もご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── localStorage キー ──
+  var LS_KEY = 'insurance_claim_generator_data';
+
+  // ── フィールドID一覧 ──
+  var FIELDS = ['insurerName','policyNo','planName','holderName','holderAddress','holderPhone',
+                'damageType','damageDate','damageLocation','damageDetail','damageItems'];
+
+  // ── 初期化：保存データを復元 ──
+  (function(){
+    try {
+      var saved = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!saved) return;
+      FIELDS.forEach(function(id){
+        if (saved[id]) document.getElementById(id).value = saved[id];
+      });
+    } catch(e){}
+  })();
+
+  // ── 入力データを保存 ──
+  function saveData(){
+    var data = {};
+    FIELDS.forEach(function(id){
+      data[id] = document.getElementById(id).value;
+    });
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e){}
+  }
+
+  // ── 入力変更時に自動保存 ──
+  FIELDS.forEach(function(id){
+    var el = document.getElementById(id);
+    el.addEventListener('input', saveData);
+    el.addEventListener('change', saveData);
+  });
+
+  // ── 日付フォーマット ──
+  function fmtDate(dateStr){
+    if (!dateStr) return '____年__月__日';
+    var d = new Date(dateStr);
+    return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+  }
+
+  // ── 今日の日付 ──
+  function todayStr(){
+    var d = new Date();
+    return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+  }
+
+  // ── 生成 ──
+  function generate(){
+    var insurerName = document.getElementById('insurerName').value.trim();
+    var policyNo    = document.getElementById('policyNo').value.trim();
+    var planName    = document.getElementById('planName').value.trim();
+    var holderName  = document.getElementById('holderName').value.trim();
+    var holderAddr  = document.getElementById('holderAddress').value.trim();
+    var holderPhone = document.getElementById('holderPhone').value.trim();
+    var damageType  = document.getElementById('damageType').value;
+    var damageDate  = document.getElementById('damageDate').value;
+    var damageLoc   = document.getElementById('damageLocation').value.trim();
+    var damageDetail= document.getElementById('damageDetail').value.trim();
+    var damageItems = document.getElementById('damageItems').value.trim();
+
+    // バリデーション
+    if (!insurerName || !holderName || !damageType || !damageDate || !damageDetail) {
+      showError('保険会社名・契約者名・被害種別・発生日・被害詳細は必須です');
+      return;
+    }
+
+    // 請求書文面を生成
+    var text = '';
+    text += '保険金請求書\n';
+    text += '━━━━━━━━━━━━━━━━━━━━\n\n';
+    text += '                        ' + todayStr() + '\n\n';
+    text += insurerName + ' 御中\n\n';
+    text += '下記のとおり、保険金の支払いを請求いたします。\n\n';
+    text += '━━━━━━━━━━━━━━━━━━━━\n\n';
+
+    text += '【契約情報】\n';
+    text += '  保険会社名：' + insurerName + '\n';
+    if (policyNo)  text += '  証券番号　：' + policyNo + '\n';
+    if (planName)  text += '  契約プラン：' + planName + '\n';
+    text += '  契約者名　：' + holderName + '\n';
+    if (holderAddr)  text += '  住所　　　：' + holderAddr + '\n';
+    if (holderPhone) text += '  電話番号　：' + holderPhone + '\n';
+    text += '\n';
+
+    text += '【被害状況】\n';
+    text += '  被害種別　：' + damageType + '\n';
+    text += '  発生日　　：' + fmtDate(damageDate) + '\n';
+    if (damageLoc) text += '  被害場所　：' + damageLoc + '\n';
+    text += '  被害詳細　：\n';
+    text += '    ' + damageDetail.replace(/\n/g, '\n    ') + '\n';
+    text += '\n';
+
+    if (damageItems) {
+      text += '【損害品目・概算金額】\n';
+      text += '    ' + damageItems.replace(/\n/g, '\n    ') + '\n';
+      text += '\n';
+    }
+
+    text += '━━━━━━━━━━━━━━━━━━━━\n\n';
+    text += '上記の被害につきまして、保険契約に基づく保険金の\n';
+    text += 'お支払いをお願い申し上げます。\n\n';
+    text += '必要な追加書類等がございましたら、ご連絡ください。\n';
+    text += '速やかに対応いたします。\n\n';
+    text += '                        以上\n\n';
+    text += '請求者：' + holderName + '\n';
+    if (holderAddr)  text += '住　所：' + holderAddr + '\n';
+    if (holderPhone) text += '電　話：' + holderPhone + '\n';
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '✅ 請求書文面を生成しました';
+
+    document.getElementById('outputText').textContent = text;
+    document.getElementById('outputArea').style.display = 'block';
+
+    // コピーボタンをリセット
+    var btn = document.getElementById('btnCopy');
+    btn.textContent = '📋 文面をコピー';
+    btn.classList.remove('copied');
+
+    // 結果位置へスクロール
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── エラー表示 ──
+  function showError(msg){
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️ ' + msg;
+    document.getElementById('outputArea').style.display = 'none';
+  }
+
+  // ── コピー ──
+  function copyText(){
+    var text = document.getElementById('outputText').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){
+        showCopied();
+      }).catch(function(){
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text){
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showCopied(); } catch(e){}
+    document.body.removeChild(ta);
+  }
+
+  function showCopied(){
+    var btn = document.getElementById('btnCopy');
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function(){
+      btn.textContent = '📋 文面をコピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
