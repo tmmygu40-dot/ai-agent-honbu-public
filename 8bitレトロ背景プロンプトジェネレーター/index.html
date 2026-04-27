@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="背景シーン・時間帯・天気・パレットを選ぶだけで、8bit RPG風の背景画像を生成するAIプロンプトを即作成・コピーできるツールです。">
+  <title>8bitレトロ背景プロンプトジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field textarea { resize: vertical; min-height: 3rem; font-family: inherit; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; text-align: center; }
+    .result-value { font-size: 1rem; font-weight: 600; line-height: 1.6; margin-bottom: 0.4rem; white-space: pre-wrap; word-break: break-all; }
+
+    /* ── プロンプト表示エリア ── */
+    #prompt-text {
+      background: var(--bg); border: 1.5px solid var(--border); border-radius: 9px;
+      padding: 1rem; font-size: 0.92rem; line-height: 1.6; color: var(--text);
+      white-space: pre-wrap; word-break: break-word; margin-bottom: 0.8rem;
+      min-height: 60px;
+    }
+    .btn-copy {
+      display: block; width: 100%; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.8; }
+    .btn-copy.copied { background: var(--text-sub); }
+
+    /* ── 履歴カード ── */
+    .history-item {
+      padding: 0.7rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.85rem; color: var(--text-sub); line-height: 1.5;
+      cursor: pointer; transition: background 0.1s;
+    }
+    .history-item:hover { background: var(--accent-light); }
+    .history-item:last-child { border-bottom: none; }
+    .history-label { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.2rem; }
+    .history-prompt { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .history-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.8rem; }
+    .btn-sm {
+      padding: 0.4rem 0.8rem; font-size: 0.78rem; font-weight: 600;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: var(--card); color: var(--text-sub); cursor: pointer;
+    }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm.danger:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>8bitレトロ背景プロンプトジェネレーター</h1>
+    <p class="subtitle">シーンとスタイルを選ぶだけで、8bit RPG風の背景画像生成AIプロンプトを即作成</p>
+  </header>
+
+  <!-- シーン選択カード -->
+  <div class="card">
+    <p class="card-title">背景シーン</p>
+    <div class="field">
+      <label for="scene">シーン</label>
+      <select id="scene">
+        <option value="forest">森・深い森</option>
+        <option value="cave">洞窟・ダンジョン</option>
+        <option value="castle">城・城壁</option>
+        <option value="town">町・村</option>
+        <option value="sea">海・海岸</option>
+        <option value="desert">砂漠</option>
+        <option value="mountain">山・山脈</option>
+        <option value="volcano">火山・溶岩</option>
+        <option value="snow">雪原・氷の洞窟</option>
+        <option value="sky">空・浮遊大陸</option>
+        <option value="swamp">沼・毒の湿地</option>
+        <option value="ruins">遺跡・古代神殿</option>
+        <option value="field">草原・平原</option>
+        <option value="river">川・滝</option>
+        <option value="tower">塔・魔王城</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="sub-scene">サブ要素（任意）</label>
+      <input type="text" id="sub-scene" placeholder="例: 宝箱、NPC、橋、廃墟">
+      <p class="hint">背景に追加したい要素があれば入力</p>
+    </div>
+  </div>
+
+  <!-- スタイル設定カード -->
+  <div class="card">
+    <p class="card-title">スタイル設定</p>
+    <div class="field">
+      <label for="time">時間帯</label>
+      <select id="time">
+        <option value="daytime">昼（明るい）</option>
+        <option value="sunset">夕方（オレンジ）</option>
+        <option value="night">夜（暗い・星空）</option>
+        <option value="dawn">夜明け（薄紫〜ピンク）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="weather">天気</label>
+      <select id="weather">
+        <option value="clear">晴れ</option>
+        <option value="cloudy">曇り</option>
+        <option value="rain">雨</option>
+        <option value="storm">嵐・雷</option>
+        <option value="fog">霧</option>
+        <option value="snow-weather">雪</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="palette">カラーパレット</label>
+      <select id="palette">
+        <option value="nes">NES（ファミコン）風</option>
+        <option value="gameboy">ゲームボーイ風（4色グリーン）</option>
+        <option value="snes">SFC（スーファミ）風</option>
+        <option value="msx">MSX風</option>
+        <option value="cga">CGA風（4色レトロPC）</option>
+        <option value="custom">カスタム（指定なし）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="resolution">解像度感</label>
+      <select id="resolution">
+        <option value="low">低解像度（16x16タイル風）</option>
+        <option value="mid">中解像度（32x32タイル風）</option>
+        <option value="high">高解像度（64x64タイル風）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="mood">雰囲気</label>
+      <select id="mood">
+        <option value="peaceful">穏やか・平和</option>
+        <option value="mysterious">神秘的・ミステリアス</option>
+        <option value="dangerous">危険・不穏</option>
+        <option value="epic">壮大・冒険</option>
+        <option value="nostalgic">懐かしい・ノスタルジック</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="extra">追加指示（任意）</label>
+      <textarea id="extra" rows="2" placeholder="例: アニメーションフレーム風、パララックス対応"></textarea>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">🎮 プロンプトを生成</button>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成されたプロンプト</p>
+    <div id="prompt-text"></div>
+    <button class="btn-copy" id="btn-copy" onclick="copyPrompt()">📋 コピーする</button>
+  </div>
+
+  <!-- 設定サマリー -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">設定サマリー</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="history-card" style="display:none">
+    <p class="card-title">生成履歴</p>
+    <div id="history-list"></div>
+    <div class="history-actions">
+      <button class="btn-sm danger" onclick="clearHistory()">履歴を全削除</button>
+    </div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    🎮 このツールは、レトロゲーム・ピクセルアートの一般的なスタイル定義を参考にしています。画像生成AIの種類やバージョンにより出力結果は異なります。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var SCENES = {
+    forest:   { en: 'dense pixel art forest', jp: '森・深い森', details: 'tall trees, thick canopy, mossy ground, scattered light rays' },
+    cave:     { en: 'dark pixel art cave dungeon', jp: '洞窟・ダンジョン', details: 'stalactites, glowing crystals, stone walls, torch light' },
+    castle:   { en: 'grand pixel art medieval castle', jp: '城・城壁', details: 'stone walls, towers, banners, drawbridge, moat' },
+    town:     { en: 'cozy pixel art RPG village town', jp: '町・村', details: 'wooden houses, cobblestone roads, market stalls, NPCs walking' },
+    sea:      { en: 'pixel art ocean coastline', jp: '海・海岸', details: 'waves, sandy beach, seashells, lighthouse in distance' },
+    desert:   { en: 'vast pixel art desert landscape', jp: '砂漠', details: 'sand dunes, cacti, heat haze, ancient pyramid in background' },
+    mountain: { en: 'towering pixel art mountain range', jp: '山・山脈', details: 'snow-capped peaks, winding paths, eagles, cliff edges' },
+    volcano:  { en: 'erupting pixel art volcano with lava', jp: '火山・溶岩', details: 'flowing lava rivers, volcanic rocks, smoke plumes, ember particles' },
+    snow:     { en: 'frozen pixel art snow field ice cave', jp: '雪原・氷の洞窟', details: 'icicles, frozen lake, snow-covered trees, aurora' },
+    sky:      { en: 'floating pixel art sky islands', jp: '空・浮遊大陸', details: 'floating landmasses, cloud bridges, waterfalls into void, airships' },
+    swamp:    { en: 'murky pixel art poisonous swamp', jp: '沼・毒の湿地', details: 'bubbling mud, dead trees, toxic fog, glowing mushrooms' },
+    ruins:    { en: 'ancient pixel art temple ruins', jp: '遺跡・古代神殿', details: 'crumbling pillars, overgrown vines, mysterious glyphs, shafts of light' },
+    field:    { en: 'open pixel art grassland plains', jp: '草原・平原', details: 'rolling hills, wildflowers, windmill, distant horizon' },
+    river:    { en: 'pixel art river with waterfall', jp: '川・滝', details: 'flowing water, stepping stones, lush banks, rainbow mist' },
+    tower:    { en: 'ominous pixel art dark tower demon castle', jp: '塔・魔王城', details: 'spiraling tower, dark clouds, lightning, gargoyles, eerie glow' }
+  };
+
+  var TIMES = {
+    daytime: { en: 'bright daytime lighting, clear blue sky', jp: '昼' },
+    sunset:  { en: 'golden sunset lighting, warm orange sky, long shadows', jp: '夕方' },
+    night:   { en: 'dark nighttime, starry sky, moonlight', jp: '夜' },
+    dawn:    { en: 'early dawn lighting, purple and pink sky, soft mist', jp: '夜明け' }
+  };
+
+  var WEATHERS = {
+    clear:         { en: '', jp: '晴れ' },
+    cloudy:        { en: 'overcast cloudy sky', jp: '曇り' },
+    rain:          { en: 'rain falling, puddles, wet surfaces', jp: '雨' },
+    storm:         { en: 'thunderstorm, lightning bolts, heavy rain, dramatic', jp: '嵐・雷' },
+    fog:           { en: 'dense fog, low visibility, eerie atmosphere', jp: '霧' },
+    'snow-weather': { en: 'snowfall, gentle snow particles', jp: '雪' }
+  };
+
+  var PALETTES = {
+    nes:     { en: 'NES color palette, limited 54-color palette, classic 8-bit', jp: 'NES（ファミコン）風' },
+    gameboy: { en: 'Game Boy 4-color green palette, monochrome green tones', jp: 'ゲームボーイ風' },
+    snes:    { en: 'SNES 16-bit color palette, richer colors than NES', jp: 'SFC風' },
+    msx:     { en: 'MSX palette, 16-color retro computer', jp: 'MSX風' },
+    cga:     { en: 'CGA 4-color palette, cyan-magenta-white-black', jp: 'CGA風' },
+    custom:  { en: '', jp: 'カスタム' }
+  };
+
+  var RESOLUTIONS = {
+    low:  { en: '16x16 pixel tile-based, very chunky pixels, low resolution', jp: '低解像度' },
+    mid:  { en: '32x32 pixel tile-based, medium pixel density', jp: '中解像度' },
+    high: { en: '64x64 pixel tile-based, detailed pixel art', jp: '高解像度' }
+  };
+
+  var MOODS = {
+    peaceful:   { en: 'peaceful, serene, calm atmosphere', jp: '穏やか' },
+    mysterious: { en: 'mysterious, enigmatic, ethereal atmosphere', jp: '神秘的' },
+    dangerous:  { en: 'dangerous, ominous, foreboding atmosphere', jp: '危険・不穏' },
+    epic:       { en: 'epic, grand, adventurous atmosphere', jp: '壮大・冒険' },
+    nostalgic:  { en: 'nostalgic, warm, retro atmosphere', jp: 'ノスタルジック' }
+  };
+
+  var currentPrompt = '';
+
+  function generate() {
+    var sceneKey = document.getElementById('scene').value;
+    var subScene = document.getElementById('sub-scene').value.trim();
+    var timeKey = document.getElementById('time').value;
+    var weatherKey = document.getElementById('weather').value;
+    var paletteKey = document.getElementById('palette').value;
+    var resKey = document.getElementById('resolution').value;
+    var moodKey = document.getElementById('mood').value;
+    var extra = document.getElementById('extra').value.trim();
+
+    var scene = SCENES[sceneKey];
+    var parts = [];
+
+    // メイン構造
+    parts.push('8-bit pixel art RPG background');
+    parts.push(scene.en);
+    parts.push(scene.details);
+
+    // サブ要素
+    if (subScene) parts.push('with ' + subScene);
+
+    // 時間帯
+    parts.push(TIMES[timeKey].en);
+
+    // 天気
+    if (WEATHERS[weatherKey].en) parts.push(WEATHERS[weatherKey].en);
+
+    // パレット
+    if (PALETTES[paletteKey].en) parts.push(PALETTES[paletteKey].en);
+
+    // 解像度
+    parts.push(RESOLUTIONS[resKey].en);
+
+    // 雰囲気
+    parts.push(MOODS[moodKey].en);
+
+    // 共通修飾
+    parts.push('top-down or side-view perspective, tile-based game background, clean pixel edges, no anti-aliasing, retro video game aesthetic');
+
+    // 追加指示
+    if (extra) parts.push(extra);
+
+    currentPrompt = parts.join(', ');
+
+    // 表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = 'block';
+    document.getElementById('prompt-text').textContent = currentPrompt;
+    document.getElementById('btn-copy').textContent = '📋 コピーする';
+    document.getElementById('btn-copy').className = 'btn-copy';
+
+    // サマリー表示
+    var rows = [
+      ['シーン', scene.jp],
+      ['時間帯', TIMES[timeKey].jp],
+      ['天気', WEATHERS[weatherKey].jp],
+      ['パレット', PALETTES[paletteKey].jp],
+      ['解像度', RESOLUTIONS[resKey].jp],
+      ['雰囲気', MOODS[moodKey].jp]
+    ];
+    if (subScene) rows.push(['サブ要素', subScene]);
+    if (extra) rows.push(['追加指示', extra]);
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+
+    // 履歴保存
+    saveHistory(currentPrompt, scene.jp, TIMES[timeKey].jp);
+  }
+
+  function copyPrompt() {
+    if (!currentPrompt) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(currentPrompt).then(function() { showCopied(); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = currentPrompt;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showCopied();
+    }
+  }
+
+  function showCopied() {
+    var btn = document.getElementById('btn-copy');
+    btn.textContent = '✅ コピーしました！';
+    btn.className = 'btn-copy copied';
+    setTimeout(function() {
+      btn.textContent = '📋 コピーする';
+      btn.className = 'btn-copy';
+    }, 2000);
+  }
+
+  // ── 履歴（localStorage） ──
+  var STORAGE_KEY = '8bit_bg_prompt_history';
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch(e) { return []; }
+  }
+
+  function saveHistory(prompt, scene, time) {
+    var list = loadHistory();
+    list.unshift({ prompt: prompt, scene: scene, time: time, date: new Date().toLocaleString('ja-JP') });
+    if (list.length > 20) list = list.slice(0, 20);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    renderHistory();
+  }
+
+  function renderHistory() {
+    var list = loadHistory();
+    var card = document.getElementById('history-card');
+    var container = document.getElementById('history-list');
+    if (list.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    container.innerHTML = list.map(function(item, i) {
+      return '<div class="history-item" onclick="useHistory(' + i + ')">'
+           + '<div class="history-label">' + item.date + ' — ' + item.scene + '・' + item.time + '</div>'
+           + '<div class="history-prompt">' + escHtml(item.prompt) + '</div>'
+           + '</div>';
+    }).join('');
+  }
+
+  function useHistory(idx) {
+    var list = loadHistory();
+    if (!list[idx]) return;
+    currentPrompt = list[idx].prompt;
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = 'block';
+    document.getElementById('prompt-text').textContent = currentPrompt;
+    document.getElementById('btn-copy').textContent = '📋 コピーする';
+    document.getElementById('btn-copy').className = 'btn-copy';
+    window.scrollTo({ top: rc.offsetTop - 20, behavior: 'smooth' });
+  }
+
+  function clearHistory() {
+    if (!confirm('履歴を全て削除しますか？')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    renderHistory();
+  }
+
+  function escHtml(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  // 初期表示
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

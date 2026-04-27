@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="地震被害の損害程度（全損・大半損・小半損・一部損）と火災保険・地震保険の金額を入力するだけで、受取見込額を即試算できるシミュレーターです。2026年時点の制度を参考。">
+  <title>地震保険受取額試算アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ─�� */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── 損害認定区分解説 ── */
+    .guide-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 0.5rem; }
+    .guide-table th { background: var(--accent-light); color: var(--accent); font-weight: 700; padding: 0.5rem 0.4rem; text-align: left; border-bottom: 2px solid var(--border); }
+    .guide-table td { padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border); color: var(--text-sub); }
+    .guide-table tr:last-child td { border-bottom: none; }
+    .guide-table td:nth-child(2) { text-align: right; font-weight: 600; color: var(--text); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>地震保険受取額試算アプリ</h1>
+    <p class="subtitle">損害程度と保険金額から受取見込額を即試算（2026年4月時点の制度を参考）</p>
+  </header>
+
+  <!-- 損害認定区分ガイド -->
+  <div class="card">
+    <p class="card-title">損害認定区分ガイド</p>
+    <table class="guide-table">
+      <tr><th>区分</th><th>支払割合</th><th>目安</th></tr>
+      <tr><td>全損</td><td>100%</td><td>建物の時価50%以上の損害、または延床面積70%以上の焼失・流失</td></tr>
+      <tr><td>大半損</td><td>60%</td><td>建物の時価40〜50%の損害、または延床面積50〜70%の焼失・流失</td></tr>
+      <tr><td>小半損</td><td>30%</td><td>建物の時価20〜40%の損害、または延床面積20〜50%の焼失・流失</td></tr>
+      <tr><td>一部損</td><td>5%</td><td>建物の時価3〜20%の損害、または全損・半損に至らない一定の損害</td></tr>
+    </table>
+  </div>
+
+  <!-- 入力カード：保険情報 -->
+  <div class="card">
+    <p class="card-title">保険情報</p>
+    <div class="field">
+      <label for="fireInsurance">火災保険金額（万円）</label>
+      <input type="number" id="fireInsurance" placeholder="例: 2000" min="0">
+      <p class="hint">建物の火災保険金額を入力</p>
+    </div>
+    <div class="field">
+      <label for="quakeRate">地震保険の付帯割合</label>
+      <select id="quakeRate">
+        <option value="50">50%（上限）</option>
+        <option value="40">40%</option>
+        <option value="30" selected>30%（標準的）</option>
+      </select>
+      <p class="hint">火災保険金額の30〜50%の範囲で設定（上限は建物5,000万円・家財1,000万円）</p>
+    </div>
+    <div class="field">
+      <label for="quakeInsurance">地震保険金額（万円）</label>
+      <input type="number" id="quakeInsurance" placeholder="自動計算" readonly style="background:#eee;">
+      <p class="hint">火災保険金額 × 付帯割合で自動計算されます</p>
+    </div>
+  </div>
+
+  <!-- 入力カード：損害程度 -->
+  <div class="card">
+    <p class="card-title">損害程度</p>
+    <div class="field">
+      <label for="damageLevel">建物の損害認定区分</label>
+      <select id="damageLevel">
+        <option value="">-- 選択してください --</option>
+        <option value="total">全損（支払割合 100%）</option>
+        <option value="majorHalf">大半損（支払割合 60%）</option>
+        <option value="minorHalf">小半損（支払割合 30%）</option>
+        <option value="partial">一部損（支払割合 5%）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="householdInsurance">家財の地震保険金額（万円・任意）</label>
+      <input type="number" id="householdInsurance" placeholder="例: 500" min="0">
+      <p class="hint">家財にも地震保険をかけている場合のみ入力（上限1,000万円）</p>
+    </div>
+    <div class="field">
+      <label for="householdDamage">家財の損害認定区分（任意）</label>
+      <select id="householdDamage">
+        <option value="">-- 家財の損害なし --</option>
+        <option value="total">全損（支払割合 100%）</option>
+        <option value="majorHalf">大半損（支払割合 60%）</option>
+        <option value="minorHalf">小半損（支払割合 30%）</option>
+        <option value="partial">一部損（支払割合 5%）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">受取見込額を試算する</button>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">受取見込額（合計）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 結果別Q&A -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、財務省・金融庁・損害保険料率算出機構の公開資料を参考に、目安として使いやすく整理しています。最新の制度内容は保険会社や公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 結果別Q&A ──
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: 'まとまった保険金が見込めそうです' },
+    warn: { e: '🤔', t: '一定の保険金は出ますが、復旧費用に足りるか要確認' },
+    ng:   { e: '😱', t: '受取額が少なめ…補償内容の見直しを検討しましょう' }
+  };
+
+  var QA = {
+    ok: [
+      { q: '全額で修理できる？', a: '地震保険は損害額そのものではなく、契約金額×支払割合で計算されます。実際の修理費と比較して確認しましょう。' },
+      { q: '請求の流れは？', a: '被害発生後すぐに保険会社に連絡。損害調査（鑑定人訪問）→認定→支払い、の流れです。写真を撮っておくと手続きがスムーズです。' },
+      { q: '税金はかかる？', a: '地震保険の保険金は非課税です。確定申告も不要です。' },
+      { q: '火災保険との違いは？', a: '火災保険は地震・津波・噴火の被害は対象外。地震保険は火災保険とセットで加入する必要があります。' }
+    ],
+    warn: [
+      { q: '足りない分はどうする？', a: '自治体の被災者生活再建支援金（最大300万円）や災害援護資金の貸付なども確認しましょう。' },
+      { q: '認定区分を上げてもらえる？', a: '損害調査の結果に納得できない場合は、保険会社に再調査を依頼できます。異議申立制度もあります。' },
+      { q: '家財の補償は十分？', a: '家財は上限1,000万円。高額品が多い場合は付帯割合を上げることも検討しましょう。' },
+      { q: '保険料を抑えるには？', a: '耐震等級割引・免震建築物割引・建築年割引などが適用できる場合があります。' }
+    ],
+    ng: [
+      { q: '一部損でも請求できる？', a: 'はい。一部損（5%）でも請求可能です。基礎のひび割れや傾きなど、見落としがちな損害も対象になります。' },
+      { q: '付帯割合を上げるべき？', a: '保険料は上がりますが、50%まで上げると受取額が大きく変わります。次回更新時に検討しましょう。' },
+      { q: '地震保険に入っていない場合は？', a: '公的支援（被災者生活再建支援金 最大300万円）が頼りになります。次の更新時には地震保険の加入を検討しましょう。' },
+      { q: '地震保険料控除って何？', a: '年間の地震保険料は、所得税で最大5万円・住民税で最大2.5万円の控除対象です。' }
+    ]
+  };
+
+  // ── 支払割合マスタ ──
+  var RATE = {
+    total: { label: '全損', rate: 1.00 },
+    majorHalf: { label: '大半損', rate: 0.60 },
+    minorHalf: { label: '小半損', rate: 0.30 },
+    partial: { label: '一部損', rate: 0.05 }
+  };
+
+  // ── 火災保険金額変更時に地震保険金額を自動計算 ──
+  document.getElementById('fireInsurance').addEventListener('input', updateQuakeAmount);
+  document.getElementById('quakeRate').addEventListener('change', updateQuakeAmount);
+
+  function updateQuakeAmount() {
+    var fire = parseFloat(document.getElementById('fireInsurance').value) || 0;
+    var rate = parseFloat(document.getElementById('quakeRate').value) / 100;
+    var quake = fire * rate;
+    // 上限: 建物5,000万円
+    if (quake > 5000) quake = 5000;
+    document.getElementById('quakeInsurance').value = quake > 0 ? quake : '';
+  }
+
+  // ── localStorage保存・復元 ──
+  var STORAGE_KEY = 'earthquake_insurance_calc';
+
+  function saveInputs() {
+    var data = {
+      fireInsurance: document.getElementById('fireInsurance').value,
+      quakeRate: document.getElementById('quakeRate').value,
+      damageLevel: document.getElementById('damageLevel').value,
+      householdInsurance: document.getElementById('householdInsurance').value,
+      householdDamage: document.getElementById('householdDamage').value
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function loadInputs() {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try {
+      var data = JSON.parse(raw);
+      if (data.fireInsurance) document.getElementById('fireInsurance').value = data.fireInsurance;
+      if (data.quakeRate) document.getElementById('quakeRate').value = data.quakeRate;
+      if (data.damageLevel) document.getElementById('damageLevel').value = data.damageLevel;
+      if (data.householdInsurance) document.getElementById('householdInsurance').value = data.householdInsurance;
+      if (data.householdDamage) document.getElementById('householdDamage').value = data.householdDamage;
+      updateQuakeAmount();
+    } catch(e) {}
+  }
+
+  loadInputs();
+
+  // ── 入力変更時に自動保存 ──
+  ['fireInsurance', 'quakeRate', 'damageLevel', 'householdInsurance', 'householdDamage'].forEach(function(id) {
+    document.getElementById(id).addEventListener('change', saveInputs);
+    document.getElementById(id).addEventListener('input', saveInputs);
+  });
+
+  // ── メイン計算 ──
+  function calc() {
+    var fireVal = parseFloat(document.getElementById('fireInsurance').value);
+    var damageKey = document.getElementById('damageLevel').value;
+
+    if (isNaN(fireVal) || fireVal <= 0) { showErr('火災保険金額を入力してください'); return; }
+    if (!damageKey) { showErr('損害認定区分を選択してください'); return; }
+
+    var quakeRate = parseFloat(document.getElementById('quakeRate').value) / 100;
+    var quakeAmount = fireVal * quakeRate;
+    if (quakeAmount > 5000) quakeAmount = 5000;
+
+    var damage = RATE[damageKey];
+    var buildingPayout = quakeAmount * damage.rate;
+
+    // 家財
+    var householdIns = parseFloat(document.getElementById('householdInsurance').value) || 0;
+    if (householdIns > 1000) householdIns = 1000;
+    var householdKey = document.getElementById('householdDamage').value;
+    var householdPayout = 0;
+    var householdDamageLabel = '—';
+    if (householdKey && householdIns > 0) {
+      var hDamage = RATE[householdKey];
+      householdPayout = householdIns * hDamage.rate;
+      householdDamageLabel = hDamage.label + '（' + (hDamage.rate * 100) + '%）';
+    }
+
+    var totalPayout = buildingPayout + householdPayout;
+
+    // 判定レベル
+    var level;
+    if (damage.rate >= 0.60) {
+      level = 'ok';
+    } else if (damage.rate >= 0.30) {
+      level = 'warn';
+    } else {
+      level = 'ng';
+    }
+
+    var evalText = damage.label + '認定 → 保険金額の ' + (damage.rate * 100) + '% が支払われます';
+
+    showResult(level, fmt(totalPayout) + ' 万円', evalText);
+
+    var rows = [
+      ['火災保険金額', fmt(fireVal) + ' 万円'],
+      ['地震保険 付帯割合', (quakeRate * 100) + '%'],
+      ['地震保険金額（建物）', fmt(quakeAmount) + ' 万円'],
+      ['建物の損害認定', damage.label + '（' + (damage.rate * 100) + '%）'],
+      ['建物 受取見込額', fmt(buildingPayout) + ' 万円', true]
+    ];
+
+    if (householdIns > 0) {
+      rows.push(['家財 地震保険金額', fmt(householdIns) + ' 万円']);
+      rows.push(['家財の損害認定', householdDamageLabel]);
+      rows.push(['家財 受取見込額', fmt(householdPayout) + ' 万円', true]);
+    }
+
+    rows.push(['受取見込額 合計', fmt(totalPayout) + ' 万円', true]);
+
+    showDetail(rows);
+    showQA(level);
+    saveInputs();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    var re = document.getElementById('re');
+    if (re) re.textContent = '';
+    document.getElementById('rn').textContent = note;
+  }
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x){
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    var qaCard = document.getElementById('qa-card');
+    if (qaCard) qaCard.style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
