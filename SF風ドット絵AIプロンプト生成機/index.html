@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="愛車の車種・ボディカラー・SF背景を選ぶだけで、AI画像生成で使えるSF風ドット絵プロンプトをワンタップで作成・コピーできるツールです。">
+  <title>SF風ドット絵AIプロンプト生成機</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── プロンプト出力エリア ── */
+    .prompt-output {
+      width: 100%; min-height: 120px; padding: 0.9rem;
+      font-size: 0.92rem; line-height: 1.6;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      background: var(--bg); color: var(--text);
+      resize: vertical; font-family: inherit;
+    }
+    .btn-copy {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0.8rem auto 0; padding: 0.8rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.8; }
+    .btn-copy.copied { background: var(--text-sub); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🚗 SF風ドット絵AIプロンプト生成機</h1>
+    <p class="subtitle">愛車の車種とカラーを選ぶだけで、SF風ドット絵のAI画像プロンプトをサクッと作れます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">車の情報</p>
+    <div class="field">
+      <label for="carName">車種名</label>
+      <input type="text" id="carName" placeholder="例: Toyota Supra, Nissan GT-R, Honda NSX">
+      <p class="hint">英語・日本語どちらでもOK</p>
+    </div>
+    <div class="field">
+      <label for="carColor">ボディカラー</label>
+      <select id="carColor">
+        <option value="">選んでください</option>
+        <option value="white">ホワイト</option>
+        <option value="black">ブラック</option>
+        <option value="silver">シルバー</option>
+        <option value="red">レッド</option>
+        <option value="blue">ブルー</option>
+        <option value="green">グリーン</option>
+        <option value="yellow">イエロー</option>
+        <option value="orange">オレンジ</option>
+        <option value="purple">パープル</option>
+        <option value="custom">その他（自由入力）</option>
+      </select>
+    </div>
+    <div class="field" id="customColorField" style="display:none">
+      <label for="customColor">カラー名（英語）</label>
+      <input type="text" id="customColor" placeholder="例: metallic pink, matte gray">
+    </div>
+  </div>
+
+  <!-- SF設定カード -->
+  <div class="card">
+    <p class="card-title">SF設定</p>
+    <div class="field">
+      <label for="bgTheme">背景テーマ</label>
+      <select id="bgTheme">
+        <option value="cyber_city">サイバーシティ</option>
+        <option value="space_station">宇宙ステーション</option>
+        <option value="neon_street">ネオン街</option>
+        <option value="post_apocalyptic">荒廃都市</option>
+        <option value="future_highway">未来高速道路</option>
+        <option value="alien_planet">異星の荒野</option>
+        <option value="underwater_dome">海底ドーム都市</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="pixelStyle">ドット絵スタイル</label>
+      <select id="pixelStyle">
+        <option value="16bit">16bit風（レトロ）</option>
+        <option value="32bit">32bit風（リッチ）</option>
+        <option value="isometric">アイソメトリック</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="mood">雰囲気</label>
+      <select id="mood">
+        <option value="cool">クール・スタイリッシュ</option>
+        <option value="epic">壮大・ドラマチック</option>
+        <option value="retro">レトロフューチャー</option>
+        <option value="dark">ダーク・ディストピア</option>
+        <option value="pop">ポップ・カラフル</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">🎮 プロンプトを生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成されたプロンプト</p>
+    <p class="result-value" id="rv" style="font-size:1rem;line-height:1.5;letter-spacing:0">—</p>
+  </div>
+
+  <!-- プロンプト出力 -->
+  <div class="card" id="promptCard" style="display:none">
+    <p class="card-title">プロンプト（編集可）</p>
+    <textarea class="prompt-output" id="promptText" readonly></textarea>
+    <button class="btn-copy" id="copyBtn" onclick="copyPrompt()">📋 プロンプトをコピー</button>
+  </div>
+
+  <!-- 設定内訳 -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">設定内容</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、AI画像生成サービスで使えるプロンプトを参考例として生成します。実際の生成結果はご利用のAIサービスにより異なります。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── カラー自由入力の表示切替 ──
+  document.getElementById('carColor').addEventListener('change', function() {
+    document.getElementById('customColorField').style.display =
+      this.value === 'custom' ? 'block' : 'none';
+  });
+
+  // ── プロンプト構成パーツ ──
+  var COLOR_MAP = {
+    white: 'white', black: 'black', silver: 'silver metallic',
+    red: 'red', blue: 'blue', green: 'green',
+    yellow: 'yellow', orange: 'orange', purple: 'purple'
+  };
+
+  var BG_MAP = {
+    cyber_city:       { en: 'futuristic cyberpunk city skyline with holographic billboards and flying vehicles', ja: 'サイバーシティ' },
+    space_station:    { en: 'orbital space station hangar bay with Earth visible through panoramic windows', ja: '宇宙ステーション' },
+    neon_street:      { en: 'rain-soaked neon-lit street at night with glowing signs and steam rising', ja: 'ネオン街' },
+    post_apocalyptic: { en: 'post-apocalyptic ruined cityscape with overgrown vegetation and crumbling buildings', ja: '荒廃都市' },
+    future_highway:   { en: 'elevated futuristic highway with transparent barriers and a sprawling megacity below', ja: '未来高速道路' },
+    alien_planet:     { en: 'alien desert planet with twin suns, strange rock formations and purple sky', ja: '異星の荒野' },
+    underwater_dome:  { en: 'underwater glass dome city with bioluminescent sea creatures swimming outside', ja: '海底ドーム都市' }
+  };
+
+  var STYLE_MAP = {
+    '16bit': { en: '16-bit retro pixel art style, limited color palette, chunky pixels', ja: '16bit風（レトロ）' },
+    '32bit': { en: '32-bit pixel art style, rich colors, detailed shading, smooth gradients', ja: '32bit風（リッチ）' },
+    isometric: { en: 'isometric pixel art style, 3/4 top-down view, clean geometric shapes', ja: 'アイソメトリック' }
+  };
+
+  var MOOD_MAP = {
+    cool:  { en: 'cool and stylish atmosphere, sleek lighting, cinematic composition', ja: 'クール・スタイリッシュ' },
+    epic:  { en: 'epic and dramatic scene, volumetric lighting, heroic angle', ja: '壮大・ドラマチック' },
+    retro: { en: 'retro-futuristic vibe, 80s synthwave colors, nostalgic tone', ja: 'レトロフューチャー' },
+    dark:  { en: 'dark dystopian mood, moody shadows, gritty textures', ja: 'ダーク・ディストピア' },
+    pop:   { en: 'pop and colorful, vibrant saturated colors, playful energy', ja: 'ポップ・カラフル' }
+  };
+
+  function generate() {
+    var carName = document.getElementById('carName').value.trim();
+    if (!carName) {
+      showErr('車種名を入力してください');
+      return;
+    }
+
+    var colorSel = document.getElementById('carColor').value;
+    if (!colorSel) {
+      showErr('ボディカラーを選んでください');
+      return;
+    }
+
+    var color = colorSel === 'custom'
+      ? document.getElementById('customColor').value.trim() || 'custom color'
+      : COLOR_MAP[colorSel];
+
+    var bgKey = document.getElementById('bgTheme').value;
+    var styleKey = document.getElementById('pixelStyle').value;
+    var moodKey = document.getElementById('mood').value;
+
+    var bg = BG_MAP[bgKey];
+    var style = STYLE_MAP[styleKey];
+    var mood = MOOD_MAP[moodKey];
+
+    var prompt = style.en + ', '
+      + 'a ' + color + ' ' + carName + ' parked in front of ' + bg.en + ', '
+      + mood.en + ', '
+      + 'high quality, detailed, no text, clean composition';
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '✅ プロンプト生成完了！';
+
+    // プロンプト出力
+    var promptCard = document.getElementById('promptCard');
+    promptCard.style.display = 'block';
+    document.getElementById('promptText').value = prompt;
+
+    // コピーボタンリセット
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '📋 プロンプトをコピー';
+    btn.classList.remove('copied');
+
+    // 設定内訳
+    showDetail([
+      ['車種', carName],
+      ['カラー', colorSel === 'custom' ? document.getElementById('customColor').value.trim() || '自由入力' : document.querySelector('#carColor option:checked').textContent],
+      ['背景', bg.ja],
+      ['スタイル', style.ja],
+      ['雰囲気', mood.ja]
+    ]);
+
+    // localStorage 保存
+    saveToStorage(carName, colorSel, bgKey, styleKey, moodKey);
+  }
+
+  function copyPrompt() {
+    var text = document.getElementById('promptText').value;
+    if (!text) return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        showCopied();
+      }).catch(function() {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.getElementById('promptText');
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    document.execCommand('copy');
+    showCopied();
+  }
+
+  function showCopied() {
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = '📋 プロンプトをコピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️ ' + msg;
+    document.getElementById('promptCard').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  // ── localStorage ──
+  var STORAGE_KEY = 'sf_pixel_car_prompt';
+
+  function saveToStorage(carName, colorSel, bgKey, styleKey, moodKey) {
+    var data = {
+      carName: carName,
+      colorSel: colorSel,
+      customColor: document.getElementById('customColor').value.trim(),
+      bgKey: bgKey,
+      styleKey: styleKey,
+      moodKey: moodKey
+    };
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadFromStorage() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (d.carName) document.getElementById('carName').value = d.carName;
+      if (d.colorSel) {
+        document.getElementById('carColor').value = d.colorSel;
+        if (d.colorSel === 'custom') {
+          document.getElementById('customColorField').style.display = 'block';
+          if (d.customColor) document.getElementById('customColor').value = d.customColor;
+        }
+      }
+      if (d.bgKey) document.getElementById('bgTheme').value = d.bgKey;
+      if (d.styleKey) document.getElementById('pixelStyle').value = d.styleKey;
+      if (d.moodKey) document.getElementById('mood').value = d.moodKey;
+    } catch(e) {}
+  }
+
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
