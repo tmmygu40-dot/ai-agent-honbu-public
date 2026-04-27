@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="世帯年収と子どもの年齢を入力するだけで、認可保育園の月額保育料の目安をすぐに確認できるシミュレーターです。2025年度の一般的な自治体データを参考にしています。">
+  <title>保育料早見チェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+
+    /* ── 無償化バッジ ── */
+    .free-badge {
+      display: inline-block; padding: 0.2rem 0.7rem;
+      background: var(--ok); color: #fff;
+      border-radius: 6px; font-size: 0.85rem; font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🏫 保育料早見チェッカー</h1>
+    <p class="subtitle">世帯年収と子どもの年齢を入れるだけで、保育園の月額目安がパッとわかります。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="income">世帯年収（万円）</label>
+      <input type="number" id="income" placeholder="例: 500" min="0" step="10">
+      <p class="hint">共働きの場合は合算額を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="age">子どもの年齢</label>
+      <select id="age">
+        <option value="">選択してください</option>
+        <option value="0">0歳児</option>
+        <option value="1">1歳児</option>
+        <option value="2">2歳児</option>
+        <option value="3">3歳児（無償化対象）</option>
+        <option value="4">4歳児（無償化対象）</option>
+        <option value="5">5歳児（無償化対象）</option>
+      </select>
+      <p class="hint">2019年10月〜 3〜5歳児クラスは保育料無償化</p>
+    </div>
+    <div class="field">
+      <label for="childOrder">何番目の子ども？</label>
+      <select id="childOrder">
+        <option value="1">第1子</option>
+        <option value="2">第2子（半額）</option>
+        <option value="3">第3子以降（無料）</option>
+      </select>
+      <p class="hint">同時在園の上の子がいる場合の軽減です</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">保育料を確認する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月額保育料の目安</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、内閣府・こども家庭庁の公開資料や一般的な自治体の保育料階層表を参考に、目安として整理しています。2025年度時点の参考データです。実際の保育料はお住まいの自治体により異なります。最新情報は各自治体の公式情報をご確認ください。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 保育料階層テーブル（一般的な自治体の標準保育・月額） ──
+  // [市区町村民税所得割額の上限, 0-2歳の月額保育料]
+  // 3〜5歳は無償化のため0円
+  // 世帯年収→所得割額の概算: 年収×0.06（簡易換算）
+  var FEE_TABLE = [
+    // [所得割上限(円), 0歳児, 1-2歳児]
+    { maxTax: 0,      fee0: 0,     fee12: 0     , label: '非課税世帯' },
+    { maxTax: 48600,  fee0: 9000,  fee12: 8000  , label: '〜約80万' },
+    { maxTax: 57700,  fee0: 11000, fee12: 10000 , label: '〜約96万' },
+    { maxTax: 67000,  fee0: 15000, fee12: 14000 , label: '〜約110万' },
+    { maxTax: 77101,  fee0: 19500, fee12: 18500 , label: '〜約130万' },
+    { maxTax: 97000,  fee0: 23100, fee12: 21800 , label: '〜約160万' },
+    { maxTax: 121000, fee0: 27000, fee12: 25400 , label: '〜約200万' },
+    { maxTax: 145000, fee0: 33000, fee12: 30800 , label: '〜約240万' },
+    { maxTax: 169000, fee0: 38000, fee12: 35500 , label: '〜約280万' },
+    { maxTax: 213000, fee0: 44500, fee12: 41500 , label: '〜約350万' },
+    { maxTax: 257000, fee0: 50000, fee12: 47000 , label: '〜約430万' },
+    { maxTax: 301000, fee0: 55000, fee12: 52000 , label: '〜約500万' },
+    { maxTax: 349000, fee0: 58000, fee12: 55000 , label: '〜約580万' },
+    { maxTax: 397000, fee0: 61000, fee12: 58000 , label: '〜約660万' },
+    { maxTax: 449000, fee0: 67000, fee12: 63000 , label: '〜約750万' },
+    { maxTax: 500000, fee0: 72000, fee12: 68000 , label: '〜約830万' },
+    { maxTax: 600000, fee0: 77000, fee12: 73000 , label: '〜約1000万' },
+    { maxTax: Infinity,fee0: 80000, fee12: 76000, label: '約1000万超' }
+  ];
+
+  function incomeToTax(incomeMan) {
+    // 世帯年収(万円)→市区町村民税所得割額の概算
+    // 給与所得控除・基礎控除・社保控除を簡易的に差し引き
+    var income = incomeMan * 10000;
+    var shotoku;
+    if (income <= 1625000) shotoku = income - 550000;
+    else if (income <= 1800000) shotoku = income * 0.6 - 100000;
+    else if (income <= 3600000) shotoku = income * 0.7 - 280000;
+    else if (income <= 6600000) shotoku = income * 0.8 - 640000;
+    else if (income <= 8500000) shotoku = income * 0.9 - 1300000;
+    else shotoku = income - 1950000;
+    if (shotoku < 0) shotoku = 0;
+    // 社会保険料控除（年収の約15%概算）+ 基礎控除43万
+    var taxableIncome = shotoku - income * 0.15 - 430000;
+    if (taxableIncome < 0) taxableIncome = 0;
+    // 市区町村民税所得割: 税率6%
+    return Math.floor(taxableIncome * 0.06);
+  }
+
+  function calc() {
+    var incomeVal = document.getElementById('income').value;
+    var ageVal = document.getElementById('age').value;
+    var orderVal = parseInt(document.getElementById('childOrder').value);
+
+    if (!incomeVal || ageVal === '') {
+      showErr('世帯年収と年齢を入力してください');
+      return;
+    }
+
+    var income = parseFloat(incomeVal);
+    if (isNaN(income) || income < 0) {
+      showErr('世帯年収を正しく入力してください');
+      return;
+    }
+
+    var age = parseInt(ageVal);
+
+    // 3〜5歳は無償化
+    if (age >= 3) {
+      showResult('ok', '0 円', '無償化対象');
+      document.getElementById('re').textContent = '3〜5歳児クラスは保育料無償化です！';
+      showDetail([
+        ['世帯年収', fmt(income) + ' 万円'],
+        ['子どもの年齢', age + '歳児'],
+        ['制度', '幼児教育・保育の無償化（2019年10月〜）', true],
+        ['月額保育料', '0 円', true],
+      ]);
+      saveToStorage(income, age, orderVal);
+      return;
+    }
+
+    // 0〜2歳：所得割額から保育料を算出
+    var tax = incomeToTax(income);
+    var fee = 0;
+    var tierLabel = '';
+
+    for (var i = 0; i < FEE_TABLE.length; i++) {
+      if (tax <= FEE_TABLE[i].maxTax) {
+        fee = age === 0 ? FEE_TABLE[i].fee0 : FEE_TABLE[i].fee12;
+        tierLabel = FEE_TABLE[i].label;
+        break;
+      }
+    }
+
+    // 第2子半額・第3子以降無料
+    var originalFee = fee;
+    var discountNote = '';
+    if (orderVal === 2) {
+      fee = Math.floor(fee / 2);
+      discountNote = '第2子のため半額適用';
+    } else if (orderVal >= 3) {
+      fee = 0;
+      discountNote = '第3子以降のため無料';
+    }
+
+    // 年額
+    var annual = fee * 12;
+
+    // 判定レベル
+    var level = fee === 0 ? 'ok' : fee <= 30000 ? 'ok' : fee <= 55000 ? 'warn' : 'ng';
+    var evalText = fee === 0 ? '保育料無料です！'
+                 : fee <= 20000 ? '比較的低めの保育料です'
+                 : fee <= 40000 ? '平均的な保育料水準です'
+                 : fee <= 60000 ? 'やや高めの保育料です'
+                 : '高めの保育料水準です';
+
+    showResult(level, fmt(fee) + ' 円/月', '');
+    document.getElementById('re').textContent = evalText;
+
+    var rows = [
+      ['世帯年収', fmt(income) + ' 万円'],
+      ['所得割額（概算）', fmt(tax) + ' 円'],
+      ['階層区分', tierLabel],
+      ['子どもの年齢', age + '歳児'],
+    ];
+    if (orderVal === 1) {
+      rows.push(['月額保育料', fmt(fee) + ' 円', true]);
+    } else {
+      rows.push(['標準保育料', fmt(originalFee) + ' 円']);
+      rows.push([discountNote, fmt(fee) + ' 円', true]);
+    }
+    rows.push(['年間保育料（概算）', fmt(annual) + ' 円']);
+
+    showDetail(rows);
+    saveToStorage(income, age, orderVal);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('re').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── localStorage ──
+  var LS_KEY = 'hoikuryo_checker';
+  function saveToStorage(income, age, order) {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({ income: income, age: age, order: order }));
+    } catch(e) {}
+  }
+  function loadFromStorage() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      if (d) {
+        if (d.income !== undefined) document.getElementById('income').value = d.income;
+        if (d.age !== undefined) document.getElementById('age').value = d.age;
+        if (d.order !== undefined) document.getElementById('childOrder').value = d.order;
+      }
+    } catch(e) {}
+  }
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
