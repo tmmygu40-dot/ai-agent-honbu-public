@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="年収・家族構成・子供の年齢を入力するだけで、生命保険の必要保障額を即計算。現在の保障額との過不足を一目で診断できる生活防衛アプリです。">
+  <title>生命保険 必要保障額診断</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 子供入力エリア ── */
+    .children-area { margin-top: 0.5rem; }
+    .child-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .child-row input { width: 80px; flex-shrink: 0; }
+    .child-row span { font-size: 0.85rem; color: var(--text-sub); white-space: nowrap; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>生命保険 必要保障額診断</h1>
+    <p class="subtitle">年収・家族構成から「いくら必要か」をサッと診断。最新の公的保障は公式情報をご確認ください。</p>
+  </header>
+
+  <!-- 入力カード：基本情報 -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="income">世帯主の年収（万円）</label>
+      <input type="number" id="income" placeholder="例: 500" min="0">
+      <p class="hint">額面（税込）の年収</p>
+    </div>
+    <div class="field">
+      <label for="age">世帯主の年齢</label>
+      <input type="number" id="age" placeholder="例: 35" min="18" max="70">
+    </div>
+    <div class="field">
+      <label for="spouse">配偶者</label>
+      <select id="spouse">
+        <option value="none">いない</option>
+        <option value="no-work">いる（専業主婦/主夫）</option>
+        <option value="work">いる（共働き）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 入力カード：子供 -->
+  <div class="card">
+    <p class="card-title">子供</p>
+    <div class="field">
+      <label for="childCount">子供の人数</label>
+      <select id="childCount" onchange="renderChildren()">
+        <option value="0">0人</option>
+        <option value="1">1人</option>
+        <option value="2">2人</option>
+        <option value="3">3人</option>
+        <option value="4">4人</option>
+      </select>
+    </div>
+    <div class="children-area" id="childrenArea"></div>
+  </div>
+
+  <!-- 入力カード：現在の保障 -->
+  <div class="card">
+    <p class="card-title">現在の保障</p>
+    <div class="field">
+      <label for="currentCover">現在の死亡保障額（万円）</label>
+      <input type="number" id="currentCover" placeholder="例: 3000" min="0">
+      <p class="hint">加入中の生命保険の死亡保障合計額</p>
+    </div>
+    <div class="field">
+      <label for="savings">貯蓄額（万円）</label>
+      <input type="number" id="savings" placeholder="例: 500" min="0">
+      <p class="hint">すぐに使える預貯金・有価証券など</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">診断結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">必要保障額の内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 準備済み資金カード -->
+  <div class="card" id="fundDetail" style="display:none">
+    <p class="card-title">準備済み資金</p>
+    <table class="detail-table"><tbody id="fb"></tbody></table>
+  </div>
+
+  <!-- 結果別Q&A -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、厚生労働省・日本年金機構・生命保険文化センターなどの公開データを参考に、目安として使いやすく整理しています。実際の保障額は保険会社・ファイナンシャルプランナーにご相談ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: '保障は十分。今のままで安心です' },
+    warn: { e: '🤔', t: '少し不足気味。見直すと安心かも' },
+    ng:   { e: '😱', t: '保障が大きく不足しています' }
+  };
+
+  var QA = {
+    ok: [
+      { q: '保障が十分なのに見直しは必要？', a: '今は十分ですが、転職・出産・住宅購入など生活が変わったら再診断がおすすめです。' },
+      { q: '保障を減らして保険料を節約できる？', a: '過剰な分は減額や払済にすることで月々の保険料を抑えられます。' },
+      { q: '次にチェックするタイミングは？', a: '年1回、または大きなライフイベントがあったときに再診断しましょう。' },
+      { q: '貯蓄と保険のバランスは？', a: '貯蓄が増えれば保険を減らしてもOK。資産形成と保障は表裏一体です。' }
+    ],
+    warn: [
+      { q: 'すぐ保険に入るべき？', a: '緊急ではありませんが、早めに検討すると保険料も安く済みます。' },
+      { q: '何から見直す？', a: '死亡保障の増額か、収入保障保険の追加が効果的です。' },
+      { q: '共働きなら大丈夫？', a: '配偶者の収入があれば必要保障額は下がりますが、片方に何かあった時の備えも重要です。' },
+      { q: '住宅ローンがある場合は？', a: '団信（団体信用生命保険）があれば住居費の保障は不要になります。' }
+    ],
+    ng: [
+      { q: 'どのくらい不足している？', a: '上の内訳を見て、一番大きな項目から手当てすると効果的です。' },
+      { q: '保険以外の備え方は？', a: '遺族年金・団信・企業の弔慰金なども保障に含まれます。漏れがないか確認しましょう。' },
+      { q: '保険料が心配…', a: '掛け捨ての収入保障保険なら月2,000〜4,000円程度で大きな保障が得られます。' },
+      { q: '相談先は？', a: '保険ショップやFP（ファイナンシャルプランナー）の無料相談を活用しましょう。' }
+    ]
+  };
+
+  // ── 子供入力欄の動的生成 ──
+  function renderChildren() {
+    var n = parseInt(document.getElementById('childCount').value) || 0;
+    var area = document.getElementById('childrenArea');
+    area.innerHTML = '';
+    for (var i = 0; i < n; i++) {
+      var row = document.createElement('div');
+      row.className = 'child-row';
+      row.innerHTML = '<span>' + (i + 1) + '人目</span>'
+        + '<input type="number" id="childAge' + i + '" placeholder="年齢" min="0" max="22">'
+        + '<span>歳</span>';
+      area.appendChild(row);
+    }
+    saveToStorage();
+  }
+
+  // ── メイン計算 ──
+  function calc() {
+    var income = parseFloat(document.getElementById('income').value);
+    var age = parseInt(document.getElementById('age').value);
+    var spouse = document.getElementById('spouse').value;
+    var childCount = parseInt(document.getElementById('childCount').value) || 0;
+    var currentCover = parseFloat(document.getElementById('currentCover').value) || 0;
+    var savings = parseFloat(document.getElementById('savings').value) || 0;
+
+    if (isNaN(income) || isNaN(age)) { showErr('年収と年齢を入力してください'); return; }
+    if (age < 18 || age > 70) { showErr('年齢は18〜70歳で入力してください'); return; }
+
+    var childAges = [];
+    for (var i = 0; i < childCount; i++) {
+      var ca = parseInt(document.getElementById('childAge' + i).value);
+      if (isNaN(ca)) { showErr((i + 1) + '人目の子供の年齢を入力してください'); return; }
+      childAges.push(ca);
+    }
+
+    // 退職までの年数（65歳定年想定）
+    var yearsToRetire = Math.max(65 - age, 0);
+
+    // ①遺族の生活費（年収の50〜70% × 残り年数）
+    var livingRate = spouse === 'no-work' ? 0.7 : spouse === 'work' ? 0.5 : 0.5;
+    var livingCost = income * livingRate * yearsToRetire;
+
+    // ②教育費（子供1人あたり：大学卒業22歳までの残り年数 × 年間教育費目安）
+    var eduCost = 0;
+    for (var j = 0; j < childAges.length; j++) {
+      var yearsLeft = Math.max(22 - childAges[j], 0);
+      // 年齢帯別の教育費目安（万円/年）
+      var annualEdu = 0;
+      if (childAges[j] < 6) annualEdu = 50;       // 幼稚園・保育園
+      else if (childAges[j] < 12) annualEdu = 60;  // 小学校
+      else if (childAges[j] < 15) annualEdu = 80;  // 中学校
+      else if (childAges[j] < 18) annualEdu = 100;  // 高校
+      else annualEdu = 150;                          // 大学
+      eduCost += annualEdu * yearsLeft;
+    }
+
+    // ③住居費（賃貸想定：月8万 × 残り年数）
+    var housingCost = 8 * 12 * yearsToRetire / 10000 * 10000; // 万円換算のまま
+    housingCost = 8 * 12 * yearsToRetire; // 月8万円 = 年96万円 × 年数
+
+    // ④葬儀・整理資金
+    var funeralCost = 200;
+
+    // ⑤予備費
+    var reserveCost = 200;
+
+    // 必要保障額合計
+    var totalNeed = livingCost + eduCost + housingCost + funeralCost + reserveCost;
+
+    // 準備済み資金
+    // 遺族基礎年金（配偶者+子供がいる場合の概算：年約120万 × 子供が18歳になるまで）
+    var survivorPension = 0;
+    if (spouse !== 'none' && childCount > 0) {
+      var youngestAge = Math.min.apply(null, childAges);
+      var pensionYears = Math.max(18 - youngestAge, 0);
+      survivorPension = 120 * pensionYears;
+    }
+
+    // 遺族厚生年金（年収の約0.5% × 勤続年数概算 × 受給年数）
+    // 簡易計算：年収 × 0.005481 × 加入月数(min300) / 12 × 3/4 × 受給年数
+    var workYears = Math.max(age - 22, 1);
+    var months = Math.max(workYears * 12, 300);
+    var annualWelfarePension = income * 10000 * 0.005481 * months / 12 * 0.75 / 10000; // 万円
+    // 受給期間は配偶者が65歳まで（配偶者年齢を世帯主と同じと仮定）
+    var welfarePensionTotal = spouse !== 'none' ? annualWelfarePension * yearsToRetire : 0;
+
+    var totalPrepared = currentCover + savings + survivorPension + welfarePensionTotal;
+
+    // 過不足
+    var gap = totalPrepared - totalNeed;
+    var level = gap >= 0 ? 'ok' : gap >= -1000 ? 'warn' : 'ng';
+    var evalText = gap >= 0
+      ? '保障は十分です（' + fmt(Math.round(gap)) + '万円の余裕）'
+      : '保障が ' + fmt(Math.round(Math.abs(gap))) + ' 万円不足しています';
+    var noteText = gap >= 0
+      ? '現在の保障と貯蓄で必要保障額をカバーできています'
+      : '死亡保障の増額や収入保障保険の検討をおすすめします';
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '必要保障額 ' + fmt(Math.round(totalNeed)) + ' 万円';
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = noteText;
+
+    // 内訳
+    showDetail([
+      ['遺族の生活費', fmt(Math.round(livingCost)) + ' 万円'],
+      ['教育費', fmt(Math.round(eduCost)) + ' 万円'],
+      ['住居費', fmt(Math.round(housingCost)) + ' 万円'],
+      ['葬儀・整理資金', fmt(funeralCost) + ' 万円'],
+      ['予備費', fmt(reserveCost) + ' 万円'],
+      ['必要保障額 合計', fmt(Math.round(totalNeed)) + ' 万円', true]
+    ]);
+
+    // 準備済み資金
+    var fb = document.getElementById('fb');
+    var fundRows = [
+      ['死亡保障額（加入中）', fmt(Math.round(currentCover)) + ' 万円'],
+      ['貯蓄額', fmt(Math.round(savings)) + ' 万円'],
+      ['遺族基礎年金（概算）', fmt(Math.round(survivorPension)) + ' 万円'],
+      ['遺族厚生年金（概算）', fmt(Math.round(welfarePensionTotal)) + ' 万円'],
+      ['準備済み 合計', fmt(Math.round(totalPrepared)) + ' 万円', true],
+      ['過不足', (gap >= 0 ? '+' : '') + fmt(Math.round(gap)) + ' 万円', true]
+    ];
+    fb.innerHTML = fundRows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+        + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('fundDetail').style.display = 'block';
+
+    showQA(level);
+    saveToStorage();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x){
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('fundDetail').style.display = 'none';
+    document.getElementById('qa-card').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── localStorage ──
+  var STORAGE_KEY = '生命保険必要保障額診断アプリ_v2';
+
+  function saveToStorage() {
+    var data = {
+      income: document.getElementById('income').value,
+      age: document.getElementById('age').value,
+      spouse: document.getElementById('spouse').value,
+      childCount: document.getElementById('childCount').value,
+      currentCover: document.getElementById('currentCover').value,
+      savings: document.getElementById('savings').value
+    };
+    var n = parseInt(data.childCount) || 0;
+    data.childAges = [];
+    for (var i = 0; i < n; i++) {
+      var el = document.getElementById('childAge' + i);
+      data.childAges.push(el ? el.value : '');
+    }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadFromStorage() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (data.income) document.getElementById('income').value = data.income;
+      if (data.age) document.getElementById('age').value = data.age;
+      if (data.spouse) document.getElementById('spouse').value = data.spouse;
+      if (data.childCount) {
+        document.getElementById('childCount').value = data.childCount;
+        renderChildren();
+        if (data.childAges) {
+          for (var i = 0; i < data.childAges.length; i++) {
+            var el = document.getElementById('childAge' + i);
+            if (el && data.childAges[i]) el.value = data.childAges[i];
+          }
+        }
+      }
+      if (data.currentCover) document.getElementById('currentCover').value = data.currentCover;
+      if (data.savings) document.getElementById('savings').value = data.savings;
+    } catch(e) {}
+  }
+
+  // 入力変更時に自動保存
+  document.addEventListener('change', saveToStorage);
+  document.addEventListener('input', saveToStorage);
+
+  // 初期読み込み
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
