@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="料理や食べ物の名前を入れるだけで、浮世絵風のAI画像生成プロンプトをワンタップで作成・コピーできるツールです。">
+  <title>浮世絵料理プロンプトメーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.show { display: block; }
+
+    /* ── プロンプト表示エリア ── */
+    .prompt-box {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      padding: 1rem;
+      font-size: 0.92rem;
+      line-height: 1.6;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-bottom: 0.8rem;
+      min-height: 60px;
+      cursor: text;
+      user-select: all;
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: block; width: 100%; padding: 0.7rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.8; }
+    .btn-copy.copied { background: var(--text-sub); }
+
+    /* ── スタイルタグ ── */
+    .style-tags {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .style-tag {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.82rem; font-weight: 600;
+      background: var(--accent-light);
+      border: 1.5px solid var(--border);
+      border-radius: 20px; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .style-tag.active {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* ── 履歴カード ── */
+    .history-item {
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-food { font-weight: 600; color: var(--text); }
+    .history-style { font-size: 0.75rem; }
+    .btn-reuse {
+      padding: 0.3rem 0.7rem;
+      font-size: 0.75rem; font-weight: 600;
+      background: var(--accent-light);
+      border: 1px solid var(--border);
+      border-radius: 6px; cursor: pointer;
+      color: var(--accent);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎨 浮世絵料理プロンプトメーカー</h1>
+    <p class="subtitle">好きな料理を入れるだけで、浮世絵風AI画像プロンプトをサクッと生成できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">料理・食べ物を入力</p>
+    <div class="field">
+      <label for="foodInput">料理名・食べ物</label>
+      <input type="text" id="foodInput" placeholder="例: 寿司、ラーメン、カレーライス">
+      <p class="hint">日本語でも英語でもOK</p>
+    </div>
+  </div>
+
+  <!-- スタイル選択カード -->
+  <div class="card">
+    <p class="card-title">浮世絵スタイル</p>
+    <div class="style-tags" id="styleTags"></div>
+    <div class="field" style="margin-top:0.8rem">
+      <label for="langSelect">プロンプト言語</label>
+      <select id="langSelect">
+        <option value="en">English（英語）</option>
+        <option value="ja">日本語</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">🖌️ プロンプトを生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="resultCard">
+    <p class="card-title">生成されたプロンプト</p>
+    <div class="prompt-box" id="promptBox"></div>
+    <button class="btn-copy" id="copyBtn" onclick="copyPrompt()">📋 コピーする</button>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">生成履歴（最新10件）</p>
+    <div id="historyList"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 生成されるプロンプトはAI画像生成サービス（Midjourney, DALL-E, Stable Diffusion等）向けの参考テンプレートです。各サービスの利用規約に従ってご利用ください。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 浮世絵スタイル定義 ──
+  var STYLES = [
+    {
+      id: 'hiroshige',
+      label: '歌川広重風',
+      en: {
+        base: 'in the style of Utagawa Hiroshige ukiyo-e woodblock print',
+        details: 'soft gradients, atmospheric perspective, delicate rain or mist effects, seasonal nature backgrounds, Tokaido road series aesthetic'
+      },
+      ja: {
+        base: '歌川広重風の浮世絵木版画スタイルで',
+        details: '柔らかなグラデーション、遠近感のある空気感、繊細な雨や霧の表現、四季の自然背景、東海道シリーズの美学'
+      }
+    },
+    {
+      id: 'hokusai',
+      label: '葛飾北斎風',
+      en: {
+        base: 'in the style of Katsushika Hokusai ukiyo-e woodblock print',
+        details: 'bold dynamic composition, powerful wave-like energy, Mt. Fuji in background, vivid Prussian blue and indigo tones, dramatic nature elements'
+      },
+      ja: {
+        base: '葛飾北斎風の浮世絵木版画スタイルで',
+        details: '大胆でダイナミックな構図、力強い波のようなエネルギー、背景に富士山、鮮やかな藍色とプルシアンブルー、劇的な自然要素'
+      }
+    },
+    {
+      id: 'kuniyoshi',
+      label: '歌川国芳風',
+      en: {
+        base: 'in the style of Utagawa Kuniyoshi ukiyo-e woodblock print',
+        details: 'playful and humorous composition, anthropomorphic elements, lively action scenes, rich warm colors, storytelling narrative style'
+      },
+      ja: {
+        base: '歌川国芳風の浮世絵木版画スタイルで',
+        details: '遊び心とユーモアのある構図、擬人化要素、活き活きとしたアクション、豊かな暖色系、物語的な構成'
+      }
+    },
+    {
+      id: 'utamaro',
+      label: '喜多川歌麿風',
+      en: {
+        base: 'in the style of Kitagawa Utamaro ukiyo-e woodblock print',
+        details: 'elegant and refined composition, beautiful flowing lines, subtle color palette, intimate close-up perspective, graceful aesthetic'
+      },
+      ja: {
+        base: '喜多川歌麿風の浮世絵木版画スタイルで',
+        details: '優美で洗練された構図、美しい流線、繊細な色彩、親密なクローズアップ視点、上品な美意識'
+      }
+    },
+    {
+      id: 'sharaku',
+      label: '東洲斎写楽風',
+      en: {
+        base: 'in the style of Toshusai Sharaku ukiyo-e woodblock print',
+        details: 'dramatic close-up portrait style, exaggerated expressive features, dark mica background, bold outlines, theatrical intensity'
+      },
+      ja: {
+        base: '東洲斎写楽風の浮世絵木版画スタイルで',
+        details: '劇的なクローズアップ構図、誇張された表情豊かな特徴、暗い雲母摺りの背景、太い輪郭線、歌舞伎的な迫力'
+      }
+    }
+  ];
+
+  // ── 構図バリエーション ──
+  var COMPOSITIONS_EN = [
+    'centered on a lacquered tray with scattered cherry blossoms',
+    'arranged on a wooden table with a bamboo mat underneath',
+    'presented on fine porcelain with a garden view in the background',
+    'displayed alongside sake cups and autumn maple leaves',
+    'laid out on a woven basket near a flowing stream',
+    'served on a stone plate with pine branches as garnish',
+    'placed on a tiered stand with plum blossoms',
+    'set against a moonlit window with hanging wisteria'
+  ];
+  var COMPOSITIONS_JA = [
+    '漆塗りの盆の上に散り桜とともに配置',
+    '竹の簾を敷いた木のテーブルに並べて',
+    '庭園を背景にした上質な磁器の上に盛り付け',
+    '酒杯と紅葉の葉を添えて',
+    '流水のそばの編み籠に盛って',
+    '松の枝をあしらった石皿の上に',
+    '梅の花を添えた重箱に盛り付けて',
+    '藤棚の垂れる月明かりの窓辺に置いて'
+  ];
+
+  // ── 仕上げフレーズ ──
+  var FINISHES_EN = [
+    'traditional woodblock print texture, visible grain lines, hand-carved aesthetic',
+    'flat color areas with precise registration marks, nishiki-e multi-color printing',
+    'washi paper texture, subtle embossing effect, karazuri blind printing technique',
+    'bokashi gradient shading, smooth color transitions, masterful ink work'
+  ];
+  var FINISHES_JA = [
+    '伝統的な木版画のテクスチャ、木目の線が見える、手彫りの風合い',
+    '平面的な色面と正確な見当合わせ、錦絵の多色摺り',
+    '和紙のテクスチャ、繊細な浮き出し効果、空摺りの技法',
+    'ぼかし摺りのグラデーション、滑らかな色の移り変わり、巧みな墨使い'
+  ];
+
+  var selectedStyle = 0;
+  var history = [];
+
+  // ── 初期化 ──
+  function init() {
+    var container = document.getElementById('styleTags');
+    STYLES.forEach(function(s, i) {
+      var tag = document.createElement('span');
+      tag.className = 'style-tag' + (i === 0 ? ' active' : '');
+      tag.textContent = s.label;
+      tag.onclick = function() { selectStyle(i); };
+      container.appendChild(tag);
+    });
+    loadHistory();
+    renderHistory();
+  }
+
+  function selectStyle(idx) {
+    selectedStyle = idx;
+    var tags = document.querySelectorAll('.style-tag');
+    tags.forEach(function(t, i) {
+      t.className = 'style-tag' + (i === idx ? ' active' : '');
+    });
+  }
+
+  function pick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  // ── プロンプト生成 ──
+  function generate() {
+    var food = document.getElementById('foodInput').value.trim();
+    if (!food) {
+      alert('料理名を入力してください');
+      return;
+    }
+
+    var lang = document.getElementById('langSelect').value;
+    var style = STYLES[selectedStyle];
+    var prompt;
+
+    if (lang === 'en') {
+      prompt = food + ', ' + style.en.base + ', '
+        + pick(COMPOSITIONS_EN) + ', '
+        + style.en.details + ', '
+        + pick(FINISHES_EN)
+        + ', masterpiece quality, highly detailed, 4K resolution';
+    } else {
+      prompt = food + '、' + style.ja.base + '、'
+        + pick(COMPOSITIONS_JA) + '、'
+        + style.ja.details + '、'
+        + pick(FINISHES_JA)
+        + '、傑作品質、高精細、4K解像度';
+    }
+
+    document.getElementById('promptBox').textContent = prompt;
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card show';
+
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '📋 コピーする';
+    btn.className = 'btn-copy';
+
+    addHistory(food, style.label, prompt);
+  }
+
+  // ── コピー機能 ──
+  function copyPrompt() {
+    var text = document.getElementById('promptBox').textContent;
+    if (!text) return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        showCopied();
+      }).catch(function() {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showCopied(); }
+    catch(e) { alert('コピーに失敗しました。手動でコピーしてください。'); }
+    document.body.removeChild(ta);
+  }
+
+  function showCopied() {
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ コピーしました！';
+    btn.className = 'btn-copy copied';
+    setTimeout(function() {
+      btn.textContent = '📋 コピーする';
+      btn.className = 'btn-copy';
+    }, 2000);
+  }
+
+  // ── 履歴管理（localStorage） ──
+  var STORAGE_KEY = 'ukiyoe_food_prompt_history';
+
+  function loadHistory() {
+    try {
+      var data = localStorage.getItem(STORAGE_KEY);
+      if (data) history = JSON.parse(data);
+    } catch(e) { history = []; }
+  }
+
+  function saveHistory() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); }
+    catch(e) {}
+  }
+
+  function addHistory(food, styleName, prompt) {
+    history.unshift({ food: food, style: styleName, prompt: prompt, date: new Date().toLocaleString('ja-JP') });
+    if (history.length > 10) history = history.slice(0, 10);
+    saveHistory();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    var list = document.getElementById('historyList');
+    var card = document.getElementById('historyCard');
+    if (history.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    list.innerHTML = history.map(function(h, i) {
+      return '<div class="history-item">'
+        + '<div><span class="history-food">' + escHtml(h.food) + '</span>'
+        + ' <span class="history-style">（' + escHtml(h.style) + '）</span></div>'
+        + '<button class="btn-reuse" onclick="reuse(' + i + ')">再利用</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function reuse(idx) {
+    var h = history[idx];
+    if (!h) return;
+    document.getElementById('promptBox').textContent = h.prompt;
+    var rc = document.getElementById('resultCard');
+    rc.className = 'result-card show';
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '📋 コピーする';
+    btn.className = 'btn-copy';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  init();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

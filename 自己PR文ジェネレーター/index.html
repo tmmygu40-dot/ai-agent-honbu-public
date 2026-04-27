@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="職種と3つの強みを入力するだけで、面接・履歴書に使える自己PR文を複数パターン即生成。コピーしてそのまま使えるジェネレーターです。">
+  <title>自己PR文ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+
+    /* ── PR文結果エリア ── */
+    .pr-result-area {
+      display: none;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+    }
+    .pr-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1rem;
+    }
+    .pr-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .pr-pattern {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em;
+    }
+    .btn-copy {
+      padding: 0.4rem 0.9rem;
+      font-size: 0.78rem; font-weight: 700;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent);
+      border-radius: 8px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: var(--accent); color: #fff; }
+    .btn-copy.copied { background: var(--ok); color: #fff; border-color: var(--ok); }
+    .pr-text {
+      font-size: 0.92rem;
+      line-height: 1.7;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+    .pr-char-count {
+      text-align: right;
+      font-size: 0.72rem;
+      color: var(--text-sub);
+      margin-top: 0.5rem;
+    }
+
+    /* ── 文体選択 ── */
+    .tone-selector {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+    }
+    .tone-btn {
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem; font-weight: 600;
+      background: var(--bg); color: var(--text-sub);
+      border: 1.5px solid var(--border);
+      border-radius: 9px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tone-btn.active {
+      background: var(--accent); color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card, .pr-item { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💼 自己PR文ジェネレーター</h1>
+    <p class="subtitle">職種と強みを入れるだけで、面接・履歴書に使えるPR文をサクッと生成します。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="job">職種・志望職種</label>
+      <input type="text" id="job" placeholder="例: 営業職、Webエンジニア、事務職">
+    </div>
+    <div class="field">
+      <label for="s1">強み 1</label>
+      <input type="text" id="s1" placeholder="例: コミュニケーション力">
+    </div>
+    <div class="field">
+      <label for="s2">強み 2</label>
+      <input type="text" id="s2" placeholder="例: 粘り強さ">
+    </div>
+    <div class="field">
+      <label for="s3">強み 3</label>
+      <input type="text" id="s3" placeholder="例: チームワーク">
+    </div>
+    <div class="field">
+      <label>文体</label>
+      <div class="tone-selector">
+        <button class="tone-btn active" data-tone="formal" onclick="setTone(this)">丁寧・フォーマル</button>
+        <button class="tone-btn" data-tone="casual" onclick="setTone(this)">やわらかめ</button>
+        <button class="tone-btn" data-tone="passionate" onclick="setTone(this)">熱意アピール</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">自己PR文を生成する</button>
+
+  <!-- エラー表示 -->
+  <div class="result-card" id="result">
+    <p class="result-label">エラー</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- PR文結果 -->
+  <div class="pr-result-area" id="pr-results"></div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは一般的な自己PR文の構成パターンを参考に、入力内容から文章を組み立てています。最終的な内容は必ずご自身で確認・調整してください。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定。広告コードは未実装。結果と補足を見た後の位置に配置） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var currentTone = 'formal';
+
+  function setTone(btn) {
+    document.querySelectorAll('.tone-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentTone = btn.dataset.tone;
+  }
+
+  // テンプレート定義
+  var TEMPLATES = {
+    formal: [
+      {
+        name: 'パターンA｜結論先行型',
+        fn: function(job, s1, s2, s3) {
+          return '私の強みは「' + s1 + '」「' + s2 + '」「' + s3 + '」の3つです。\n\n' +
+            'まず「' + s1 + '」については、これまでの経験を通じて常に意識し、実践してまいりました。' +
+            '周囲との信頼関係を築くうえで、この力が大きな役割を果たしてきたと考えております。\n\n' +
+            '次に「' + s2 + '」に関しては、困難な状況でも諦めずに取り組むことで成果に結びつけてきました。' +
+            '目標に向けて粘り強く行動する姿勢は、' + job + 'の業務においても必ず活かせると確信しております。\n\n' +
+            'そして「' + s3 + '」を活かし、チームの力を最大限に引き出すことに注力してまいりました。\n\n' +
+            'これら3つの強みを活かし、' + job + 'として貴社に貢献できるよう全力で取り組んでまいります。';
+        }
+      },
+      {
+        name: 'パターンB｜PREP型',
+        fn: function(job, s1, s2, s3) {
+          return '私は' + job + 'として、「' + s1 + '」を最大の強みとしております。\n\n' +
+            'その理由は、これまでの経験において「' + s1 + '」を発揮することで、多くの課題を乗り越えてきたからです。' +
+            '具体的には、「' + s2 + '」を持って粘り強く取り組み、「' + s3 + '」を大切にしながらチーム全体の成果向上に貢献してまいりました。\n\n' +
+            '例えば、困難な局面においても「' + s2 + '」の姿勢で取り組み、' +
+            '「' + s3 + '」を意識して周囲と連携することで、期待以上の結果を出すことができました。\n\n' +
+            'このように「' + s1 + '」「' + s2 + '」「' + s3 + '」を兼ね備えた人材として、' +
+            job + 'の現場で即戦力として貢献する所存です。';
+        }
+      },
+      {
+        name: 'パターンC｜ストーリー型',
+        fn: function(job, s1, s2, s3) {
+          return 'これまでの経験を振り返ると、私を成長させてきたのは「' + s1 + '」「' + s2 + '」「' + s3 + '」の3つの力です。\n\n' +
+            '最初に身についたのは「' + s1 + '」です。日々の業務の中で、この力の重要性を実感し、意識的に磨いてまいりました。\n\n' +
+            'さらに「' + s2 + '」が加わることで、一つひとつの仕事に対してより深く向き合えるようになりました。' +
+            '簡単に諦めず、最後までやり遂げる姿勢は私の大きな財産です。\n\n' +
+            'そして「' + s3 + '」によって、個人の力だけでなく組織全体の力を引き出すことを学びました。\n\n' +
+            'これら3つの強みは、' + job + 'の業務において必ず価値を発揮できると考えております。' +
+            '貴社の一員として、これまでの経験と強みを最大限に活かしてまいります。';
+        }
+      }
+    ],
+    casual: [
+      {
+        name: 'パターンA｜結論先行型',
+        fn: function(job, s1, s2, s3) {
+          return '自分の一番の強みは「' + s1 + '」「' + s2 + '」「' + s3 + '」の3つだと思っています。\n\n' +
+            '「' + s1 + '」は、人と関わる中で自然と身についた力です。' +
+            '相手の立場に立って考えることを大切にしてきました。\n\n' +
+            '「' + s2 + '」があるおかげで、大変な時期も乗り越えてこられました。' +
+            '途中で投げ出さずにやりきる力は、' + job + 'でもきっと役立つと思います。\n\n' +
+            '「' + s3 + '」では、みんなで協力して良い結果を出すことにやりがいを感じてきました。\n\n' +
+            'この3つの強みを活かして、' + job + 'として成長していきたいです。';
+        }
+      },
+      {
+        name: 'パターンB｜エピソード型',
+        fn: function(job, s1, s2, s3) {
+          return '私が' + job + 'を目指すうえで大事にしているのは、「' + s1 + '」です。\n\n' +
+            'これまでの経験で、「' + s1 + '」があったからこそうまくいった場面がたくさんあります。' +
+            'それに加えて「' + s2 + '」で最後まで粘れること、「' + s3 + '」でみんなと力を合わせられることも自分の持ち味です。\n\n' +
+            '壁にぶつかっても「' + s2 + '」の気持ちで乗り越え、' +
+            '「' + s3 + '」を意識して周りと一緒に前に進む。そんな働き方をしてきました。\n\n' +
+            'この経験を活かして、' + job + 'としてしっかり貢献していきたいと考えています。';
+        }
+      },
+      {
+        name: 'パターンC｜自然体型',
+        fn: function(job, s1, s2, s3) {
+          return '自分を一言で表すなら、「' + s1 + '」と「' + s2 + '」と「' + s3 + '」を持っている人間だと思います。\n\n' +
+            '「' + s1 + '」は、普段から人と接するなかで自然と鍛えられました。' +
+            '「' + s2 + '」は、うまくいかない時こそ発揮できる自分の特徴です。' +
+            'そして「' + s3 + '」は、一人より複数人で取り組むほうが好きな性格から来ています。\n\n' +
+            job + 'の仕事では、この3つがきっと武器になると感じています。' +
+            '地に足のついた働き方で、着実に成果を出していきたいです。';
+        }
+      }
+    ],
+    passionate: [
+      {
+        name: 'パターンA｜情熱アピール型',
+        fn: function(job, s1, s2, s3) {
+          return '私には、' + job + 'への強い想いと、それを裏付ける3つの力があります。' +
+            '「' + s1 + '」「' + s2 + '」「' + s3 + '」です。\n\n' +
+            '「' + s1 + '」は、どんな場面でも周囲と信頼関係を築くことに全力を注いできた結果、確実に身についた力です。\n\n' +
+            '「' + s2 + '」は、困難に直面した時にこそ真価を発揮します。' +
+            '何度壁にぶつかっても、絶対に最後までやり抜く覚悟があります。\n\n' +
+            '「' + s3 + '」を通じて、チーム全体を巻き込み、一人では到達できない高い成果を実現してきました。\n\n' +
+            'この3つの力を武器に、' + job + 'として全力で挑戦し、必ず貴社に貢献いたします。';
+        }
+      },
+      {
+        name: 'パターンB｜決意表明型',
+        fn: function(job, s1, s2, s3) {
+          return '「' + s1 + '」「' + s2 + '」「' + s3 + '」——この3つの強みこそ、' +
+            '私が' + job + 'として活躍できる最大の根拠です。\n\n' +
+            'これまで「' + s1 + '」を磨き続け、人との関わりの中で確かな手応えを得てきました。' +
+            '「' + s2 + '」があるからこそ、どんなに厳しい状況でも前を向いて走り続けることができます。' +
+            'そして「' + s3 + '」で仲間と力を合わせ、大きな成果を生み出してきた自負があります。\n\n' +
+            '私は' + job + 'の仕事に本気で向き合う覚悟です。' +
+            '持てる力のすべてを注ぎ込み、期待を超える結果を出してみせます。';
+        }
+      },
+      {
+        name: 'パターンC｜挑戦型',
+        fn: function(job, s1, s2, s3) {
+          return '挑戦し続けること。それが私の生き方です。\n\n' +
+            'その挑戦を支えてきたのが「' + s1 + '」「' + s2 + '」「' + s3 + '」の3つの力です。\n\n' +
+            '「' + s1 + '」で人の心を掴み、「' + s2 + '」で最後まで走り切り、' +
+            '「' + s3 + '」で仲間と共に高みを目指す。このサイクルが、これまでの私の原動力でした。\n\n' +
+            job + 'という新たなフィールドでも、この3つの力を存分に発揮し、' +
+            '誰よりも熱く、誰よりも泥臭く、成果にこだわり抜きます。' +
+            '必ず貴社の戦力となることをお約束いたします。';
+        }
+      }
+    ]
+  };
+
+  function generate() {
+    var job = document.getElementById('job').value.trim();
+    var s1 = document.getElementById('s1').value.trim();
+    var s2 = document.getElementById('s2').value.trim();
+    var s3 = document.getElementById('s3').value.trim();
+
+    if (!job || !s1 || !s2 || !s3) {
+      var rc = document.getElementById('result');
+      rc.className = 'result-card ng';
+      rc.style.display = 'block';
+      document.getElementById('rv').textContent = '⚠️';
+      document.getElementById('rn').textContent = 'すべての項目を入力してください';
+      document.getElementById('pr-results').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('result').style.display = 'none';
+
+    var templates = TEMPLATES[currentTone];
+    var area = document.getElementById('pr-results');
+    area.innerHTML = '';
+
+    templates.forEach(function(t, i) {
+      var text = t.fn(job, s1, s2, s3);
+      var charCount = text.replace(/\n/g, '').length;
+
+      var item = document.createElement('div');
+      item.className = 'pr-item';
+      item.innerHTML =
+        '<div class="pr-item-header">' +
+          '<span class="pr-pattern">' + t.name + '</span>' +
+          '<button class="btn-copy" onclick="copyText(this)" data-index="' + i + '">コピー</button>' +
+        '</div>' +
+        '<div class="pr-text" id="pr-text-' + i + '">' + escapeHtml(text) + '</div>' +
+        '<div class="pr-char-count">' + charCount + '文字</div>';
+      area.appendChild(item);
+    });
+
+    area.style.display = 'block';
+
+    // localStorage に保存
+    saveToStorage(job, s1, s2, s3);
+  }
+
+  function copyText(btn) {
+    var idx = btn.dataset.index;
+    var el = document.getElementById('pr-text-' + idx);
+    var text = el.textContent;
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() {
+        showCopied(btn);
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showCopied(btn);
+    }
+  }
+
+  function showCopied(btn) {
+    btn.textContent = 'コピーしました!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'コピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+  }
+
+  // localStorage
+  function saveToStorage(job, s1, s2, s3) {
+    try {
+      localStorage.setItem('selfpr_job', job);
+      localStorage.setItem('selfpr_s1', s1);
+      localStorage.setItem('selfpr_s2', s2);
+      localStorage.setItem('selfpr_s3', s3);
+      localStorage.setItem('selfpr_tone', currentTone);
+    } catch(e) {}
+  }
+
+  function loadFromStorage() {
+    try {
+      var job = localStorage.getItem('selfpr_job');
+      var s1 = localStorage.getItem('selfpr_s1');
+      var s2 = localStorage.getItem('selfpr_s2');
+      var s3 = localStorage.getItem('selfpr_s3');
+      var tone = localStorage.getItem('selfpr_tone');
+      if (job) document.getElementById('job').value = job;
+      if (s1) document.getElementById('s1').value = s1;
+      if (s2) document.getElementById('s2').value = s2;
+      if (s3) document.getElementById('s3').value = s3;
+      if (tone) {
+        currentTone = tone;
+        document.querySelectorAll('.tone-btn').forEach(function(b) {
+          b.classList.toggle('active', b.dataset.tone === tone);
+        });
+      }
+    } catch(e) {}
+  }
+
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
