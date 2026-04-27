@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="平均気温と部屋数・エアコン台数を入力するだけで、猛暑日の電気代がどれだけ増えるかを日額・月額・夏季3ヶ月分で即試算できる生活防衛アプリです。">
+  <title>猛暑日エアコン電気代増分試算アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── レンジスライダー ── */
+    .range-wrap { display: flex; align-items: center; gap: 0.7rem; }
+    .range-wrap input[type="range"] {
+      flex: 1; height: 6px; -webkit-appearance: none; appearance: none;
+      background: var(--border); border-radius: 3px; outline: none;
+      border: none; padding: 0;
+    }
+    .range-wrap input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 22px; height: 22px;
+      background: var(--accent); border-radius: 50%; cursor: pointer;
+      box-shadow: 0 2px 6px rgba(224,123,0,0.3);
+    }
+    .range-val {
+      min-width: 3.5rem; text-align: center; font-size: 1.1rem;
+      font-weight: 800; color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>猛暑日エアコン電気代増分試算アプリ</h1>
+    <p class="subtitle">平均気温と部屋数から、猛暑日のエアコン電気代増加分をサッと試算（2025年時点の目安）</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="temp">平均気温（℃）</label>
+      <div class="range-wrap">
+        <input type="range" id="temp" min="28" max="42" step="0.5" value="35" oninput="document.getElementById('tempVal').textContent=this.value+'℃'">
+        <span class="range-val" id="tempVal">35℃</span>
+      </div>
+      <p class="hint">猛暑日の基準は35℃以上。28〜42℃で設定できます</p>
+    </div>
+    <div class="field">
+      <label for="rooms">エアコン使用部屋数</label>
+      <select id="rooms">
+        <option value="1">1部屋</option>
+        <option value="2" selected>2部屋</option>
+        <option value="3">3部屋</option>
+        <option value="4">4部屋</option>
+        <option value="5">5部屋</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">詳細設定</p>
+    <div class="field">
+      <label for="watt">エアコン1台の平均消費電力（W）</label>
+      <input type="number" id="watt" value="600" min="100" max="3000" step="50">
+      <p class="hint">一般的な6〜10畳用：400〜800W 程度</p>
+    </div>
+    <div class="field">
+      <label for="hours">1日の使用時間（時間）</label>
+      <input type="number" id="hours" value="12" min="1" max="24" step="1">
+      <p class="hint">猛暑日は12〜18時間の連続運転が多いです</p>
+    </div>
+    <div class="field">
+      <label for="rate">電力単価（円/kWh）</label>
+      <input type="number" id="rate" value="31" min="10" max="80" step="0.1">
+      <p class="hint">全国平均は約31円/kWh（2025年時点の目安）</p>
+    </div>
+    <div class="field">
+      <label for="baseTemp">基準気温（通常日の平均、℃）</label>
+      <input type="number" id="baseTemp" value="28" min="20" max="35" step="0.5">
+      <p class="hint">通常日の気温。この気温との差分から増加分を計算します</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">猛暑日の電気代増加分を計算する</button>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">猛暑日の電気代増加分（月額）</p>
+    <p class="result-value" id="rv">-</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- Q&Aカード -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、経済産業省・資源エネルギー庁・環境省などの省エネ関連資料を参考に、目安として使いやすく整理しています。最新の電力単価は各電力会社の公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: '増加分は控えめ。今の使い方で大丈夫そう' },
+    warn: { e: '🤔', t: 'けっこう増えるかも。節電の工夫を検討しよう' },
+    ng:   { e: '😱', t: 'かなりの増加！電気代の備えが必要です' }
+  };
+
+  var QA = {
+    ok: [
+      { q: '今のままで大丈夫？', a: '増加分が控えめなので、今の使い方を続けて問題ありません。設定温度を28℃前後にしておくのが効果的です。' },
+      { q: 'さらに節約するには？', a: 'サーキュレーターの併用や、カーテン・すだれで日差しを遮ると、さらに電気代を抑えられます。' },
+      { q: '猛暑日が続いたら？', a: '猛暑日が何日続くかで月間の増加額が変わります。天気予報をチェックして備えましょう。' },
+      { q: '電力プランの見直しは？', a: '増加が小さいうちは現状のプランで問題ないですが、年に一度は比較サイトでチェックがおすすめです。' }
+    ],
+    warn: [
+      { q: 'どのくらい節約できる？', a: '設定温度を1℃上げると約10%の節電効果があります。28℃設定でもサーキュレーターで体感は涼しくなります。' },
+      { q: '部屋数を減らす効果は？', a: '家族がいる時間帯はリビングに集まるなど、稼働台数を1台減らすだけでかなりの節約になります。' },
+      { q: '古いエアコンは買い替えるべき？', a: '10年以上前のモデルなら、最新機種に替えると消費電力が20〜40%減ることもあります。' },
+      { q: '電力プランを変えるべき？', a: '使用量が増える夏は、時間帯別プランや従量電灯の見直しで数百円〜数千円の差が出る場合があります。' }
+    ],
+    ng: [
+      { q: '月の電気代がいくら増える？', a: '結果の月額増加分がそのまま上乗せされます。夏前に家計の予備費として確保しておくと安心です。' },
+      { q: '今すぐできる対策は？', a: '遮熱カーテン・すだれの設置、サーキュレーター併用、不在部屋のエアコンOFFが即効性のある対策です。' },
+      { q: '熱中症と節電のバランスは？', a: '無理な節電は熱中症リスクを高めます。寝室・リビングは28℃で運転し、不在の部屋だけOFFにしましょう。' },
+      { q: '補助金や支援策はある？', a: '自治体によっては省エネ家電買い替え補助や電力料金補助があります。お住まいの自治体HPを確認してみてください。' }
+    ]
+  };
+
+  function calc() {
+    var temp = parseFloat(document.getElementById('temp').value);
+    var rooms = parseInt(document.getElementById('rooms').value);
+    var watt = parseFloat(document.getElementById('watt').value);
+    var hours = parseFloat(document.getElementById('hours').value);
+    var rate = parseFloat(document.getElementById('rate').value);
+    var baseTemp = parseFloat(document.getElementById('baseTemp').value);
+
+    if (isNaN(temp) || isNaN(rooms) || isNaN(watt) || isNaN(hours) || isNaN(rate) || isNaN(baseTemp)) {
+      showErr('すべての項目を入力してください');
+      return;
+    }
+    if (temp <= baseTemp) {
+      showErr('平均気温は基準気温より高く設定してください');
+      return;
+    }
+
+    // 計算ロジック
+    // 通常日の消費電力 = エアコンは基準気温で一定の稼働率（50%）
+    // 猛暑日は気温が上がるほど稼働率が上がる
+    // 稼働率 = 基準50% + (気温差 × 7%)  ※最大100%
+    var tempDiff = temp - baseTemp;
+    var baseLoad = 0.50; // 通常日の稼働率
+    var heatLoad = Math.min(1.0, baseLoad + tempDiff * 0.07); // 猛暑日の稼働率
+
+    // 通常日の1台あたり電気代（日額）
+    var normalDaily = (watt / 1000) * hours * baseLoad * rate;
+    // 猛暑日の1台あたり電気代（日額）
+    var hotDaily = (watt / 1000) * hours * heatLoad * rate;
+    // 増加分（1台・日額）
+    var diffDaily1 = hotDaily - normalDaily;
+    // 全台・日額増加分
+    var diffDailyAll = diffDaily1 * rooms;
+    // 月額増加分（30日として）
+    var diffMonthly = diffDailyAll * 30;
+    // 夏季3ヶ月分
+    var diffSummer = diffMonthly * 3;
+
+    // レベル判定
+    var level;
+    if (diffMonthly < 1500) {
+      level = 'ok';
+    } else if (diffMonthly < 4000) {
+      level = 'warn';
+    } else {
+      level = 'ng';
+    }
+
+    var evalText = level === 'ok'   ? '増加分は控えめです'
+                 : level === 'warn' ? 'やや負担が増えそうです'
+                 : '大きな増加！早めの対策を';
+
+    showResult(level, '+' + fmt(Math.round(diffMonthly)) + ' 円/月', evalText);
+
+    showDetail([
+      ['設定気温', temp + '℃（基準 ' + baseTemp + '℃との差: +' + tempDiff.toFixed(1) + '℃）'],
+      ['エアコン台数', rooms + ' 台'],
+      ['1台の消費電力', fmt(watt) + ' W'],
+      ['1日の使用時間', hours + ' 時間'],
+      ['電力単価', rate + ' 円/kWh'],
+      ['通常日の稼働率', (baseLoad * 100).toFixed(0) + '%'],
+      ['猛暑日の稼働率', (heatLoad * 100).toFixed(0) + '%'],
+      ['通常日の電気代（全台・日額）', fmt(Math.round(normalDaily * rooms)) + ' 円'],
+      ['猛暑日の電気代（全台・日額）', fmt(Math.round(hotDaily * rooms)) + ' 円'],
+      ['日額増加分', '+' + fmt(Math.round(diffDailyAll)) + ' 円', true],
+      ['月額増加分（30日）', '+' + fmt(Math.round(diffMonthly)) + ' 円', true],
+      ['夏季3ヶ月分の増加', '+' + fmt(Math.round(diffSummer)) + ' 円', true],
+    ]);
+
+    showQA(level);
+    saveInputs();
+  }
+
+  function showResult(level, val, evalText) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = '猛暑日が続くほど、この増加分が家計に効いてきます';
+  }
+
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x){
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = '';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('qa-card').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage
+  function saveInputs() {
+    var data = {
+      temp: document.getElementById('temp').value,
+      rooms: document.getElementById('rooms').value,
+      watt: document.getElementById('watt').value,
+      hours: document.getElementById('hours').value,
+      rate: document.getElementById('rate').value,
+      baseTemp: document.getElementById('baseTemp').value
+    };
+    try { localStorage.setItem('moushobi_aircon_inputs', JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadInputs() {
+    try {
+      var data = JSON.parse(localStorage.getItem('moushobi_aircon_inputs'));
+      if (!data) return;
+      if (data.temp) { document.getElementById('temp').value = data.temp; document.getElementById('tempVal').textContent = data.temp + '℃'; }
+      if (data.rooms) document.getElementById('rooms').value = data.rooms;
+      if (data.watt) document.getElementById('watt').value = data.watt;
+      if (data.hours) document.getElementById('hours').value = data.hours;
+      if (data.rate) document.getElementById('rate').value = data.rate;
+      if (data.baseTemp) document.getElementById('baseTemp').value = data.baseTemp;
+    } catch(e) {}
+  }
+
+  loadInputs();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
