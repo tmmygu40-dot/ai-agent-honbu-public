@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="副業の年間収入と経費を入力するだけで、20万円ラインの確定申告要否を即判定。経費区分の早見表付きで、どの支出がどの勘定科目か一目で分かります。">
+  <title>📋 確定申告早見アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 経費区分早見表 ── */
+    .expense-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .expense-table th {
+      text-align: left; padding: 0.5rem 0.3rem;
+      font-weight: 700; font-size: 0.78rem; color: var(--accent);
+      border-bottom: 2px solid var(--border);
+    }
+    .expense-table td {
+      padding: 0.5rem 0.3rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-sub); line-height: 1.4;
+    }
+    .expense-table td:first-child { font-weight: 600; color: var(--text); white-space: nowrap; }
+    .expense-table tr:last-child td { border-bottom: none; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📋 確定申告早見アプリ</h1>
+    <p class="subtitle">副業の収入と経費を入れるだけ。20万円ラインの判定と経費区分がすぐ分かります。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">副業の収入と経費を入力</p>
+    <div class="field">
+      <label for="income">年間の副業収入（売上）</label>
+      <input type="number" id="income" placeholder="例: 500000" min="0">
+      <p class="hint">1月〜12月の副業による総収入額（税込）</p>
+    </div>
+    <div class="field">
+      <label for="expense">年間の経費合計</label>
+      <input type="number" id="expense" placeholder="例: 150000" min="0">
+      <p class="hint">副業に使った必要経費の合計額</p>
+    </div>
+    <div class="field">
+      <label for="hasMain">本業の給与所得</label>
+      <select id="hasMain">
+        <option value="yes">あり（会社員・パート等）</option>
+        <option value="no">なし（副業のみ）</option>
+      </select>
+      <p class="hint">給与所得がある場合、副業所得20万円以下で確定申告不要（住民税は別途必要）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">判定する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">判定結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 経費区分早見表 -->
+  <div class="card">
+    <p class="card-title">経費区分 早見表（副業でよく使う勘定科目）</p>
+    <table class="expense-table">
+      <thead>
+        <tr><th>勘定科目</th><th>具体例</th><th>バレにくさ</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>通信費</td><td>スマホ代・Wi-Fi・サーバー代</td><td>◎</td></tr>
+        <tr><td>消耗品費</td><td>文房具・USB・10万円未満のPC周辺機器</td><td>◎</td></tr>
+        <tr><td>新聞図書費</td><td>参考書・専門書・有料記事</td><td>◎</td></tr>
+        <tr><td>地代家賃</td><td>家賃の事業使用分（按分）</td><td>○</td></tr>
+        <tr><td>水道光熱費</td><td>電気代の事業使用分（按分）</td><td>○</td></tr>
+        <tr><td>旅費交通費</td><td>打ち合わせ交通費・取材移動費</td><td>○</td></tr>
+        <tr><td>広告宣伝費</td><td>SNS広告・チラシ・名刺作成</td><td>◎</td></tr>
+        <tr><td>外注費</td><td>デザイン外注・翻訳依頼</td><td>◎</td></tr>
+        <tr><td>接待交際費</td><td>クライアントとの食事代</td><td>△</td></tr>
+        <tr><td>減価償却費</td><td>10万円以上のPC・カメラ等</td><td>○</td></tr>
+        <tr><td>支払手数料</td><td>振込手数料・プラットフォーム手数料</td><td>◎</td></tr>
+        <tr><td>雑費</td><td>上記に当てはまらない少額支出</td><td>△</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:0.72rem;color:var(--text-sub);margin-top:0.8rem;line-height:1.5;">
+      ※ バレにくさ：◎＝副業と分かりにくい ○＝按分や用途説明が必要 △＝理由の説明を求められやすい<br>
+      ※ 住民税を「普通徴収（自分で納付）」にすると会社にバレにくくなります
+    </p>
+  </div>
+
+  <!-- 20万円ルール解説 -->
+  <div class="card">
+    <p class="card-title">20万円ルール 早わかり</p>
+    <table class="detail-table">
+      <tr><td>対象者</td><td>給与所得者（会社員・パート等）</td></tr>
+      <tr><td>条件</td><td>副業の「所得」が年間20万円以下</td></tr>
+      <tr><td>所得とは</td><td>収入 − 経費 ＝ 所得</td></tr>
+      <tr><td>申告不要</td><td>所得税の確定申告は不要</td></tr>
+      <tr><td>注意①</td><td>住民税の申告は別途必要（市区町村へ）</td></tr>
+      <tr><td>注意②</td><td>医療費控除やふるさと納税で確定申告する場合、副業所得も合算必須</td></tr>
+      <tr><td>注意③</td><td>給与が2か所以上ある場合は別ルール</td></tr>
+    </table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、国税庁の公開情報を参考に、2026年4月時点の目安として整理しています。最新情報は国税庁の公式サイトをご確認ください。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var LS_KEY = 'tax_hayami_data';
+
+  function saveData() {
+    var data = {
+      income: document.getElementById('income').value,
+      expense: document.getElementById('expense').value,
+      hasMain: document.getElementById('hasMain').value
+    };
+    try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadData() {
+    try {
+      var d = JSON.parse(localStorage.getItem(LS_KEY));
+      if (!d) return;
+      if (d.income) document.getElementById('income').value = d.income;
+      if (d.expense) document.getElementById('expense').value = d.expense;
+      if (d.hasMain) document.getElementById('hasMain').value = d.hasMain;
+    } catch(e) {}
+  }
+
+  function calc() {
+    var income = parseFloat(document.getElementById('income').value);
+    var expense = parseFloat(document.getElementById('expense').value);
+    var hasMain = document.getElementById('hasMain').value;
+
+    if (isNaN(income) || income < 0) { showErr('副業収入を入力してください'); return; }
+    if (isNaN(expense)) expense = 0;
+    if (expense < 0) { showErr('経費は0以上で入力してください'); return; }
+    if (expense > income) { showErr('経費が収入を超えています。確認してください'); return; }
+
+    var shotoku = income - expense;
+    var level, title, msg;
+
+    if (hasMain === 'yes') {
+      if (shotoku <= 200000) {
+        level = 'ok';
+        title = '確定申告 不要';
+        msg = '副業所得が20万円以下のため、所得税の確定申告は不要です。ただし住民税の申告は必要です。';
+      } else if (shotoku <= 300000) {
+        level = 'warn';
+        title = '確定申告 必要';
+        msg = '副業所得が20万円を超えています。確定申告が必要です。住民税は「普通徴収」を選ぶと会社にバレにくくなります。';
+      } else {
+        level = 'ng';
+        title = '確定申告 必要';
+        msg = '副業所得が ' + fmt(shotoku) + ' 円です。確定申告が必要です。節税対策として青色申告の検討もおすすめです。';
+      }
+    } else {
+      if (shotoku <= 480000) {
+        level = 'ok';
+        title = '基礎控除内';
+        msg = '所得が48万円以下のため、基礎控除の範囲内です。ただし、住民税は別途確認が必要です。';
+      } else {
+        level = 'ng';
+        title = '確定申告 必要';
+        msg = '所得が48万円を超えています。確定申告が必要です。';
+      }
+    }
+
+    showResult(level, title, msg);
+    showDetail([
+      ['副業収入（売上）', fmt(income) + ' 円'],
+      ['経費合計', fmt(expense) + ' 円'],
+      ['副業所得（収入−経費）', fmt(shotoku) + ' 円', true],
+      ['20万円ラインまで', hasMain === 'yes' ? (shotoku <= 200000 ? 'あと ' + fmt(200000 - shotoku) + ' 円余裕' : fmt(shotoku - 200000) + ' 円オーバー') : '—（給与所得なし）'],
+    ]);
+    saveData();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+    var evalEl = document.getElementById('re');
+    if (level === 'ok') evalEl.textContent = '安心ゾーンです';
+    else if (level === 'warn') evalEl.textContent = '要注意ゾーンです';
+    else evalEl.textContent = '対応が必要です';
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // 初期読み込み
+  loadData();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
