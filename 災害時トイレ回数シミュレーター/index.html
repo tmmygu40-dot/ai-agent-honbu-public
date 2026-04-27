@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="家族人数・大人子ども高齢者の内訳と備蓄日数を入力するだけで、災害時に必要な簡易トイレ袋数と凝固剤の目安を即計算。防災備蓄の見直しに。">
+  <title>災害時トイレ回数シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>災害時トイレ回数シミュレーター</h1>
+    <p class="subtitle">家族人数と備蓄日数から必要な簡易トイレ袋数を即計算（内閣府防災ガイドライン参考）</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">家族構成</p>
+    <div class="field">
+      <label for="adults">大人（中学生以上）</label>
+      <input type="number" id="adults" min="0" value="2" placeholder="例: 2">
+      <p class="hint">1人あたり約7回/日で計算</p>
+    </div>
+    <div class="field">
+      <label for="children">子ども（小学生以下）</label>
+      <input type="number" id="children" min="0" value="0" placeholder="例: 1">
+      <p class="hint">1人あたり約5回/日で計算</p>
+    </div>
+    <div class="field">
+      <label for="elderly">高齢者（頻尿傾向）</label>
+      <input type="number" id="elderly" min="0" value="0" placeholder="例: 1">
+      <p class="hint">1人あたり約9回/日で計算</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">備蓄設定</p>
+    <div class="field">
+      <label for="days">備蓄日数</label>
+      <select id="days">
+        <option value="3">3日間（最低限）</option>
+        <option value="5">5日間（推奨）</option>
+        <option value="7" selected>7日間（安心）</option>
+        <option value="10">10日間（大規模災害想定）</option>
+        <option value="14">14日間（長期断水想定）</option>
+      </select>
+      <p class="hint">内閣府は最低3日分、できれば7日分を推奨</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">必要袋数を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">必要な簡易トイレ袋数</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 買い物メモカード -->
+  <div class="card" id="shopping" style="display:none">
+    <p class="card-title">買い物メモ</p>
+    <table class="detail-table"><tbody id="sb"></tbody></table>
+  </div>
+
+  <!-- 結果別Q&A -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、内閣府「防災情報のページ」・総務省消防庁の防災マニュアル等を参考に、目安として使いやすく整理しています。最新情報は各公的機関の公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: '備蓄は十分！このまま定期点検を続けましょう' },
+    warn: { e: '🤔', t: '少し足りないかも…早めに買い足すと安心です' },
+    ng:   { e: '😱', t: '備蓄不足！今すぐ準備を始めましょう' }
+  };
+
+  var QA = {
+    ok: [
+      { q: '簡易トイレの使用期限は？', a: '一般的に5〜10年です。購入時に確認し、期限が近づいたら入れ替えましょう。' },
+      { q: '保管場所はどこがいい？', a: 'トイレの近く・玄関・車のトランクなど、すぐ取り出せる場所に分散保管がおすすめです。' },
+      { q: '他に備えておくものは？', a: 'トイレ用の目隠し（ポンチョ）・消臭袋・ウェットティッシュ・手指消毒液もあると安心です。' },
+      { q: '凝固剤は別途必要？', a: '簡易トイレセットに含まれている場合が多いですが、バラ購入時は凝固剤も忘れずに。' }
+    ],
+    warn: [
+      { q: '最低限どれだけ必要？', a: 'まず3日分を目標に。その後7日分まで増やしていくと安心です。' },
+      { q: '安く揃えるには？', a: '100枚入りなどまとめ買いが割安です。防災の日（9/1）前後はセールも多いです。' },
+      { q: '代用品はある？', a: '緊急時はゴミ袋＋新聞紙＋猫砂で代用可能ですが、衛生面では専用品が安心です。' },
+      { q: '家族で練習すべき？', a: '一度は実際に使ってみましょう。災害時のストレス軽減になります。' }
+    ],
+    ng: [
+      { q: '今日できることは？', a: 'まず最低3日分の簡易トイレを購入しましょう。ネット通販で翌日届く商品も多いです。' },
+      { q: '災害時トイレが使えないとどうなる？', a: '断水するとトイレが流せません。我慢は健康被害に直結します。簡易トイレは命を守る備蓄です。' },
+      { q: 'マンションは特に注意？', a: 'はい。排水管損傷で階下に汚水が漏れるため、断水時は絶対に水洗トイレを使わないでください。' },
+      { q: '自治体の支援は？', a: '避難所の仮設トイレは設置まで数日かかります。最低3日分は自宅備蓄が必要です。' }
+    ]
+  };
+
+  // トイレ回数/日の目安
+  var RATE = { adults: 7, children: 5, elderly: 9 };
+
+  function calc() {
+    var adults   = parseInt(document.getElementById('adults').value) || 0;
+    var children = parseInt(document.getElementById('children').value) || 0;
+    var elderly  = parseInt(document.getElementById('elderly').value) || 0;
+    var days     = parseInt(document.getElementById('days').value) || 7;
+
+    var total = adults + children + elderly;
+    if (total <= 0) { showErr('家族人数を1人以上入力してください'); return; }
+
+    var adultBags   = adults * RATE.adults * days;
+    var childBags   = children * RATE.children * days;
+    var elderlyBags = elderly * RATE.elderly * days;
+    var totalBags   = adultBags + childBags + elderlyBags;
+
+    // 予備10%加算
+    var spare = Math.ceil(totalBags * 0.1);
+    var grandTotal = totalBags + spare;
+
+    // 凝固剤（1袋に1個使用）
+    var solidifier = grandTotal;
+
+    // 消臭袋（5回分をまとめて1袋目安）
+    var deodorBags = Math.ceil(grandTotal / 5);
+
+    // 評価
+    var level, msg;
+    if (days >= 7) {
+      level = 'ok';
+      msg = days + '日分の備蓄で安心レベルです';
+    } else if (days >= 3) {
+      level = 'warn';
+      msg = '最低限はクリア。できれば7日分を目指しましょう';
+    } else {
+      level = 'ng';
+      msg = '備蓄日数が不足しています。最低3日分を確保しましょう';
+    }
+
+    showResult(level, grandTotal + ' 袋', msg);
+
+    showDetail([
+      ['大人 ' + adults + '人 × ' + RATE.adults + '回 × ' + days + '日', adultBags + ' 袋'],
+      ['子ども ' + children + '人 × ' + RATE.children + '回 × ' + days + '日', childBags + ' 袋'],
+      ['高齢者 ' + elderly + '人 × ' + RATE.elderly + '回 × ' + days + '日', elderlyBags + ' 袋'],
+      ['小計', totalBags + ' 袋'],
+      ['予備（+10%）', '+' + spare + ' 袋'],
+      ['合計', grandTotal + ' 袋', true]
+    ]);
+
+    // 買い物メモ
+    var shopRows = [
+      ['簡易トイレ袋', grandTotal + ' 枚'],
+      ['凝固剤', solidifier + ' 個'],
+      ['消臭袋（大）', deodorBags + ' 枚'],
+      ['トイレ用ポンチョ', total + ' 枚（あると安心）'],
+      ['ウェットティッシュ', Math.ceil(grandTotal / 10) + ' パック目安']
+    ];
+    document.getElementById('sb').innerHTML = shopRows.map(function(r) {
+      return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('shopping').style.display = 'block';
+
+    showQA(level);
+
+    // localStorage保存
+    try {
+      localStorage.setItem('toilet_sim_input', JSON.stringify({
+        adults: adults, children: children, elderly: elderly, days: days
+      }));
+    } catch(e) {}
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = '';
+    document.getElementById('rn').textContent = note;
+  }
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x){
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('shopping').style.display = 'none';
+    document.getElementById('qa-card').style.display = 'none';
+  }
+
+  // 起動時にlocalStorage読み込み
+  (function() {
+    try {
+      var saved = JSON.parse(localStorage.getItem('toilet_sim_input'));
+      if (saved) {
+        if (saved.adults !== undefined) document.getElementById('adults').value = saved.adults;
+        if (saved.children !== undefined) document.getElementById('children').value = saved.children;
+        if (saved.elderly !== undefined) document.getElementById('elderly').value = saved.elderly;
+        if (saved.days !== undefined) document.getElementById('days').value = saved.days;
+      }
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
