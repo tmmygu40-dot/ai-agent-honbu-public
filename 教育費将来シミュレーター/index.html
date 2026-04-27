@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教育費将来シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>教育費将来シミュレーター</h1>
+    <p class="subtitle">小学〜大学までの教育費を一発試算</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="currentAge">お子さんの現在の年齢</label>
+      <select id="currentAge">
+        <option value="">— 選択してください —</option>
+        <option value="0">0才（未就学）</option>
+        <option value="1">1才</option>
+        <option value="2">2才</option>
+        <option value="3">3才（年少）</option>
+        <option value="4">4才（年中）</option>
+        <option value="5">5才（年長）</option>
+        <option value="6">6才（小1）</option>
+        <option value="7">7才（小2）</option>
+        <option value="8">8才（小3）</option>
+        <option value="9">9才（小4）</option>
+        <option value="10">10才（小5）</option>
+        <option value="11">11才（小6）</option>
+        <option value="12">12才（中1）</option>
+        <option value="13">13才（中2）</option>
+        <option value="14">14才（中3）</option>
+        <option value="15">15才（高1）</option>
+        <option value="16">16才（高2）</option>
+        <option value="17">17才（高3）</option>
+        <option value="18">18才（大学1）</option>
+        <option value="19">19才（大学2）</option>
+        <option value="20">20才（大学3）</option>
+        <option value="21">21才（大学4）</option>
+      </select>
+      <p class="hint">現在の学年をお選びください</p>
+    </div>
+    <div class="field">
+      <label for="universityType">大学進学予定</label>
+      <select id="universityType">
+        <option value="national">国立大学（文系）</option>
+        <option value="private-lib">私立大学（文系）</option>
+        <option value="private-sci">私立大学（理系）</option>
+      </select>
+      <p class="hint">進学予定の大学タイプを選択</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">シミュレーションする</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">小学〜大学までの総教育費</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">段階別費用</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、文部科学省の「子どもの学習費調査」および一般的な教育費統計を参考に、目安として計算しています。実際の費用は進学先や選択により異なります。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // 教育費のデータ（年間あたりのおおよその金額）
+  var COSTS = {
+    preschool: 45,        // 幼保：45万/年 × 3年 = 135万
+    elementary: 28,       // 小学：28万/年 × 6年 = 168万
+    junior: 49,           // 中学：49万/年 × 3年 = 147万
+    highschool: 60,       // 高校：60万/年 × 3年 = 180万
+    university: {
+      national: 61,       // 国立大：61万/年 × 4年 = 244万
+      'private-lib': 75,  // 私立大文系：75万/年 × 4年 = 300万
+      'private-sci': 90   // 私立大理系：90万/年 × 4年 = 360万
+    }
+  };
+
+  function getStages(age) {
+    // 年齢から必要な段階を計算
+    var stages = [];
+
+    // 未就学児（0～5才）
+    if (age <= 5) {
+      stages.push({ name: '幼保園', years: 6 - age, cost: COSTS.preschool });
+      stages.push({ name: '小学', years: 6, cost: COSTS.elementary });
+      stages.push({ name: '中学', years: 3, cost: COSTS.junior });
+      stages.push({ name: '高校', years: 3, cost: COSTS.highschool });
+      stages.push({ name: '大学', years: 4, cost: 0 }); // 大学は別途設定
+    }
+    // 小学生（6～11才）
+    else if (age >= 6 && age <= 11) {
+      var remainElem = 11 - age;
+      if (remainElem >= 0) {
+        stages.push({ name: '小学', years: remainElem + 1, cost: COSTS.elementary });
+      }
+      stages.push({ name: '中学', years: 3, cost: COSTS.junior });
+      stages.push({ name: '高校', years: 3, cost: COSTS.highschool });
+      stages.push({ name: '大学', years: 4, cost: 0 }); // 大学は別途設定
+    }
+    // 中学生（12～14才）
+    else if (age >= 12 && age <= 14) {
+      var remainJr = 14 - age;
+      if (remainJr >= 0) {
+        stages.push({ name: '中学', years: remainJr + 1, cost: COSTS.junior });
+      }
+      stages.push({ name: '高校', years: 3, cost: COSTS.highschool });
+      stages.push({ name: '大学', years: 4, cost: 0 }); // 大学は別途設定
+    }
+    // 高校生（15～17才）
+    else if (age >= 15 && age <= 17) {
+      var remainHs = 17 - age;
+      if (remainHs >= 0) {
+        stages.push({ name: '高校', years: remainHs + 1, cost: COSTS.highschool });
+      }
+      stages.push({ name: '大学', years: 4, cost: 0 }); // 大学は別途設定
+    }
+    // 大学生（18～21才）
+    else if (age >= 18 && age <= 21) {
+      var remainUniv = 21 - age;
+      if (remainUniv >= 0) {
+        stages.push({ name: '大学', years: remainUniv + 1, cost: 0 }); // 大学は別途設定
+      }
+    }
+
+    return stages;
+  }
+
+  function calc() {
+    var ageStr = document.getElementById('currentAge').value;
+    var univType = document.getElementById('universityType').value;
+
+    if (ageStr === '') {
+      showErr('お子さんの年齢を選択してください');
+      return;
+    }
+
+    var age = parseInt(ageStr, 10);
+    var stages = getStages(age);
+    var totalCost = 0;
+    var rows = [];
+
+    // 各段階の費用を計算
+    for (var i = 0; i < stages.length; i++) {
+      var s = stages[i];
+      var cost = s.name === '大学' ? COSTS.university[univType] : s.cost;
+      var stageCost = cost * s.years;
+      totalCost += stageCost;
+      rows.push([s.name, s.years + '年間', fmt(cost) + '万/年', fmt(stageCost) + '万']);
+    }
+
+    rows.push(['小学〜大学 合計', '', '', fmt(totalCost) + '万']);
+
+    var eval_msg = totalCost > 1500 ? '大学までかかる教育費は' : 'お子さんの教育費は';
+    var note = eval_msg + fmt(totalCost) + '万円が目安です。計画的に準備しましょう。';
+
+    showResult('ok', fmt(totalCost) + '万円', note);
+    showDetail(rows);
+
+    // localStorage に保存
+    localStorage.setItem('edu-sim-age', ageStr);
+    localStorage.setItem('edu-sim-univ', univType);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    var html = rows.map(function(r) {
+      var isTotal = r[0].indexOf('合計') >= 0;
+      var rowClass = isTotal ? 'hl' : '';
+      return '<tr' + (rowClass ? ' class="' + rowClass + '"' : '') + '>' +
+             '<td>' + r[0] + '</td>' +
+             '<td style="text-align:center">' + r[1] + '</td>' +
+             '<td style="text-align:right">' + r[2] + '</td>' +
+             '<td style="text-align:right">' + r[3] + '</td>' +
+             '</tr>';
+    }).join('');
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+
+  // ページロード時に localStorage から復元
+  window.addEventListener('load', function() {
+    var savedAge = localStorage.getItem('edu-sim-age');
+    var savedUniv = localStorage.getItem('edu-sim-univ');
+    if (savedAge) document.getElementById('currentAge').value = savedAge;
+    if (savedUniv) document.getElementById('universityType').value = savedUniv;
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
