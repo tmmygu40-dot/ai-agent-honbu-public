@@ -17,6 +17,27 @@
     return n;
   }
 
+  function pickEmoji(name){
+    // 上から順に評価 (具体的なカテゴリ → 汎用)
+    var rules = [
+      { e: '🩺', kw: ['健康','体調','血圧','体重','ダイエット','カロリー','栄養','睡眠','運動','病気','医療','診察','予防接種'] },
+      { e: '🎒', kw: ['防災','災害','地震','備蓄','避難','停電','非常','ハザード'] },
+      { e: '💰', kw: ['保険','年金','資産','投資','貯蓄','税','確定申告','所得','給与','損益','利益','利率','ローン','預金','為替','収入','報酬','資金','補助金'] },
+      { e: '✉️', kw: ['メール','文例','文書','テンプレ','送付','案内','通知','宛名','返信','お詫び','挨拶','文章','案内文'] },
+      { e: '⚖️', kw: ['クレーム','苦情','相談','法律','契約','相続','トラブル','労基','違反','コンプライアンス','就業規則','通知書'] },
+      { e: '🏠', kw: ['家計','食費','生活費','買い物','節約','暮らし','引越','賃貸','住宅','光熱','家賃'] },
+      { e: '📋', kw: ['業務','勤怠','有給','シフト','経費','在庫','売上','顧客','営業','報告','議事録','受注','発注','管理','作業','稟議','立替','精算','見積','請求'] },
+      { e: '🔍', kw: ['診断','チェック','判定','クイズ','確認','検査','計算','チェッカー','シミュレーター','比較','逆引き'] }
+    ];
+    for(var i=0; i<rules.length; i++){
+      var r = rules[i];
+      for(var j=0; j<r.kw.length; j++){
+        if(name.indexOf(r.kw[j]) !== -1) return r.e;
+      }
+    }
+    return '🔗';
+  }
+
   function fetchAppList(){
     return fetch('../index.html').then(function(r){ return r.text(); }).then(function(html){
       var apps = [], re = /<a[^>]+href="\.\/([^\/"?#]+)\/?"[^>]*>([^<]+)<\/a>/g, m;
@@ -62,7 +83,7 @@
     items.forEach(function(a){
       var link = document.createElement('a');
       link.href = '../' + encodeURIComponent(a.folder) + '/';
-      link.textContent = a.name;
+      link.textContent = pickEmoji(a.name) + ' ' + a.name;
       link.style.cssText = 'display:block;padding:0.6rem 0.8rem;font-size:0.92rem;color:#1c1917;background:#f5f0e8;border:1px solid #e8ddd0;border-radius:9px;text-decoration:none;';
       list.appendChild(link);
     });
