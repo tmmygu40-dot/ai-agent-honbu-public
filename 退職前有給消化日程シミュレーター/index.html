@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="退職予定日と残りの有給日数を入力するだけで、最終出社日・有給消化開始日を即逆算。円満退職のスケジュール計画に役立つ無料シミュレーターです。">
+  <title>退職前有給消化日程シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── カレンダー ── */
+    .cal-month { font-size: 0.92rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--text); }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 1rem; }
+    .cal-head { font-size: 0.7rem; font-weight: 700; text-align: center; padding: 0.3rem 0; color: var(--text-sub); }
+    .cal-day {
+      font-size: 0.75rem; text-align: center; padding: 0.35rem 0;
+      border-radius: 6px; line-height: 1.3;
+    }
+    .cal-day.empty { background: transparent; }
+    .cal-day.work { background: #e8f5e9; color: var(--ok); font-weight: 600; }
+    .cal-day.yukyu { background: var(--accent-light); color: var(--accent); font-weight: 700; }
+    .cal-day.holiday { background: #f3f4f6; color: #9ca3af; }
+    .cal-day.last-work { background: var(--ok); color: #fff; font-weight: 800; border-radius: 6px; }
+    .cal-day.retire-day { background: var(--ng); color: #fff; font-weight: 800; border-radius: 6px; }
+    .cal-legend { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 0.5rem; font-size: 0.72rem; color: var(--text-sub); }
+    .cal-legend span { display: flex; align-items: center; gap: 0.3rem; }
+    .cal-legend .dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>退職前有給消化日程シミュレーター</h1>
+    <p class="subtitle">退職日と有給残を入れるだけ。最終出社日がすぐわかる、円満退職のお供に。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="retireDate">退職予定日</label>
+      <input type="date" id="retireDate">
+      <p class="hint">会社に届け出る退職日（最終在籍日）</p>
+    </div>
+    <div class="field">
+      <label for="yukyuDays">残り有給日数</label>
+      <input type="number" id="yukyuDays" min="0" max="40" placeholder="例: 20">
+      <p class="hint">現在残っている有給休暇の日数（0〜40日）</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">逆算する</button>
+
+  <!-- 広告枠（仮・将来差し替え予定。広告コードは未実装） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">最終出社日</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">スケジュール内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- カレンダーカード -->
+  <div class="card" id="calCard" style="display:none">
+    <p class="card-title">有給消化カレンダー</p>
+    <div class="cal-legend">
+      <span><span class="dot" style="background:#e8f5e9;border:1px solid var(--ok)"></span> 出勤日</span>
+      <span><span class="dot" style="background:var(--accent-light);border:1px solid var(--accent)"></span> 有給消化</span>
+      <span><span class="dot" style="background:#f3f4f6;border:1px solid #d1d5db"></span> 休日・祝日</span>
+      <span><span class="dot" style="background:var(--ok)"></span> 最終出社日</span>
+      <span><span class="dot" style="background:var(--ng)"></span> 退職日</span>
+    </div>
+    <div id="calBody" style="margin-top:1rem"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、厚生労働省の労働基準法（年次有給休暇）に基づき、平日のみを有給消化日として逆算しています。祝日は内閣府の祝日データを参考にしています。実際の有給付与・消化は就業規則をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 日本の祝日（2025〜2027年） ──
+  var HOLIDAYS = [
+    // 2025
+    '2025-01-01','2025-01-13','2025-02-11','2025-02-23','2025-02-24',
+    '2025-03-20','2025-04-29','2025-05-03','2025-05-04','2025-05-05',
+    '2025-05-06','2025-07-21','2025-08-11','2025-09-15','2025-09-23',
+    '2025-10-13','2025-11-03','2025-11-23','2025-11-24','2025-12-23',
+    // 2026
+    '2026-01-01','2026-01-12','2026-02-11','2026-02-23','2026-03-20',
+    '2026-04-29','2026-05-03','2026-05-04','2026-05-05','2026-05-06',
+    '2026-07-20','2026-08-11','2026-09-21','2026-09-22','2026-09-23',
+    '2026-10-12','2026-11-03','2026-11-23','2026-12-23',
+    // 2027
+    '2027-01-01','2027-01-11','2027-02-11','2027-02-23','2027-03-21',
+    '2027-03-22','2027-04-29','2027-05-03','2027-05-04','2027-05-05',
+    '2027-07-19','2027-08-11','2027-09-20','2027-09-23','2027-10-11',
+    '2027-11-03','2027-11-23'
+  ];
+  var holidaySet = {};
+  HOLIDAYS.forEach(function(d){ holidaySet[d] = true; });
+
+  function dateStr(d) {
+    var y = d.getFullYear();
+    var m = ('0' + (d.getMonth()+1)).slice(-2);
+    var dd = ('0' + d.getDate()).slice(-2);
+    return y + '-' + m + '-' + dd;
+  }
+
+  function isWeekday(d) {
+    var day = d.getDay();
+    return day !== 0 && day !== 6;
+  }
+
+  function isHoliday(d) {
+    return !!holidaySet[dateStr(d)];
+  }
+
+  function isBusinessDay(d) {
+    return isWeekday(d) && !isHoliday(d);
+  }
+
+  function addDays(d, n) {
+    var r = new Date(d);
+    r.setDate(r.getDate() + n);
+    return r;
+  }
+
+  function formatDate(d) {
+    var days = ['日','月','火','水','木','金','土'];
+    return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日（' + days[d.getDay()] + '）';
+  }
+
+  function calc() {
+    var retireDateStr = document.getElementById('retireDate').value;
+    var yukyuDays = parseInt(document.getElementById('yukyuDays').value, 10);
+
+    if (!retireDateStr) { showErr('退職予定日を入力してください'); return; }
+    if (isNaN(yukyuDays) || yukyuDays < 0) { showErr('有給日数を0以上で入力してください'); return; }
+    if (yukyuDays > 40) { showErr('有給日数は40日以下で入力してください'); return; }
+
+    var retireDate = new Date(retireDateStr + 'T00:00:00');
+
+    // 退職日から逆算: 平日（祝日除く）をyukyuDays分遡る
+    var yukyuUsed = 0;
+    var current = new Date(retireDate);
+    var yukyuStartDate = null;
+    var lastWorkDate = null;
+    var yukyuDateList = [];
+
+    if (yukyuDays === 0) {
+      // 有給0日: 退職日が最終出社日（平日なら）、平日でなければ直前の平日
+      lastWorkDate = new Date(retireDate);
+      while (!isBusinessDay(lastWorkDate)) {
+        lastWorkDate = addDays(lastWorkDate, -1);
+      }
+      yukyuStartDate = null;
+    } else {
+      // 退職日から1日ずつ遡り、平日（祝日除く）を有給日としてカウント
+      current = addDays(retireDate, 0);
+      while (yukyuUsed < yukyuDays) {
+        if (isBusinessDay(current)) {
+          yukyuUsed++;
+          yukyuDateList.unshift(dateStr(current));
+          if (yukyuUsed === yukyuDays) {
+            yukyuStartDate = new Date(current);
+          }
+        }
+        if (yukyuUsed < yukyuDays) {
+          current = addDays(current, -1);
+        }
+      }
+
+      // 最終出社日 = 有給消化開始日の前の営業日
+      lastWorkDate = addDays(yukyuStartDate, -1);
+      while (!isBusinessDay(lastWorkDate)) {
+        lastWorkDate = addDays(lastWorkDate, -1);
+      }
+    }
+
+    // 今日から最終出社日までの営業日数
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var daysUntilLastWork = 0;
+    var tmp = new Date(today);
+    while (tmp < lastWorkDate) {
+      tmp = addDays(tmp, 1);
+      if (isBusinessDay(tmp)) daysUntilLastWork++;
+    }
+
+    // 判定レベル
+    var level;
+    if (yukyuDays === 0) {
+      level = 'ok';
+    } else if (daysUntilLastWork >= 20) {
+      level = 'ok';
+    } else if (daysUntilLastWork >= 10) {
+      level = 'warn';
+    } else {
+      level = 'ng';
+    }
+
+    var evalMsg;
+    if (yukyuDays === 0) {
+      evalMsg = '有給消化なしのスケジュールです';
+    } else if (level === 'ok') {
+      evalMsg = '引き継ぎ期間に余裕があります';
+    } else if (level === 'warn') {
+      evalMsg = '引き継ぎ期間がやや短めです';
+    } else {
+      evalMsg = '引き継ぎ期間がかなり短いです。早めに相談を！';
+    }
+
+    showResult(level, formatDate(lastWorkDate), evalMsg);
+
+    // 内訳
+    var rows = [
+      ['退職日（最終在籍日）', formatDate(retireDate)],
+    ];
+    if (yukyuStartDate) {
+      rows.push(['有給消化開始日', formatDate(yukyuStartDate)]);
+      rows.push(['有給消化日数', yukyuDays + ' 日（平日のみ）']);
+    }
+    rows.push(['最終出社日', formatDate(lastWorkDate), true]);
+    rows.push(['今日から最終出社日まで', daysUntilLastWork + ' 営業日']);
+    showDetail(rows);
+
+    // カレンダー描画
+    renderCalendar(lastWorkDate, retireDate, yukyuDateList);
+
+    // localStorage保存
+    try {
+      localStorage.setItem('yukyu_sim', JSON.stringify({
+        retireDate: retireDateStr,
+        yukyuDays: yukyuDays
+      }));
+    } catch(e) {}
+  }
+
+  function renderCalendar(lastWorkDate, retireDate, yukyuDateList) {
+    var calCard = document.getElementById('calCard');
+    var calBody = document.getElementById('calBody');
+    calCard.style.display = 'block';
+    calBody.innerHTML = '';
+
+    var yukyuSet = {};
+    yukyuDateList.forEach(function(d){ yukyuSet[d] = true; });
+
+    var lastWorkStr = dateStr(lastWorkDate);
+    var retireStr = dateStr(retireDate);
+
+    // カレンダー範囲: 最終出社日の月初 〜 退職日の月末
+    var startMonth = new Date(lastWorkDate.getFullYear(), lastWorkDate.getMonth(), 1);
+    var endMonth = new Date(retireDate.getFullYear(), retireDate.getMonth() + 1, 0);
+
+    var current = new Date(startMonth);
+    var dayNames = ['日','月','火','水','木','金','土'];
+
+    while (current <= endMonth) {
+      var year = current.getFullYear();
+      var month = current.getMonth();
+      var firstDay = new Date(year, month, 1);
+      var lastDay = new Date(year, month + 1, 0);
+
+      var html = '<p class="cal-month">' + year + '年' + (month+1) + '月</p>';
+      html += '<div class="cal-grid">';
+
+      // 曜日ヘッダー
+      for (var h = 0; h < 7; h++) {
+        html += '<div class="cal-head">' + dayNames[h] + '</div>';
+      }
+
+      // 空白セル（月初の曜日まで）
+      for (var e = 0; e < firstDay.getDay(); e++) {
+        html += '<div class="cal-day empty"></div>';
+      }
+
+      // 日付セル
+      for (var d = 1; d <= lastDay.getDate(); d++) {
+        var thisDate = new Date(year, month, d);
+        var ds = dateStr(thisDate);
+        var cls = 'cal-day';
+
+        if (ds === retireStr) {
+          cls += ' retire-day';
+        } else if (ds === lastWorkStr) {
+          cls += ' last-work';
+        } else if (yukyuSet[ds]) {
+          cls += ' yukyu';
+        } else if (!isWeekday(thisDate) || isHoliday(thisDate)) {
+          cls += ' holiday';
+        } else if (thisDate >= lastWorkDate && thisDate <= retireDate) {
+          cls += ' holiday';
+        } else {
+          cls += ' work';
+        }
+
+        html += '<div class="' + cls + '">' + d + '</div>';
+      }
+
+      html += '</div>';
+      calBody.innerHTML += html;
+
+      current = new Date(year, month + 1, 1);
+    }
+  }
+
+  function showResult(level, val, evalMsg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalMsg;
+    document.getElementById('rn').textContent = '';
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = '';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('calCard').style.display = 'none';
+  }
+
+  // localStorage復元
+  (function(){
+    try {
+      var saved = JSON.parse(localStorage.getItem('yukyu_sim'));
+      if (saved) {
+        if (saved.retireDate) document.getElementById('retireDate').value = saved.retireDate;
+        if (saved.yukyuDays !== undefined) document.getElementById('yukyuDays').value = saved.yukyuDays;
+      }
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="寄付額とジャンルを選ぶだけで、ふるさと納税の人気お礼品候補を即逆引き。還元率の目安や寄付額帯も一覧で比較できる生活お得アプリです。">
+  <title>ふるさと納税お礼品逆引きアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── プリセットボタン ── */
+    .preset-btns { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .preset-btn {
+      padding: 0.45rem 0.85rem; font-size: 0.85rem; font-weight: 600;
+      background: var(--accent-light); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: 8px;
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .preset-btn:hover, .preset-btn.active { background: var(--accent); color: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── お礼品カード ── */
+    .item-list { max-width: 600px; margin: 0 auto; }
+    .item-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.2rem;
+      box-shadow: var(--shadow); margin-bottom: 0.8rem;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem;
+    }
+    .item-info { flex: 1; }
+    .item-name { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.3rem; line-height: 1.4; }
+    .item-detail { font-size: 0.78rem; color: var(--text-sub); line-height: 1.5; }
+    .item-detail span { display: inline-block; margin-right: 0.8rem; }
+    .item-badge {
+      flex-shrink: 0; padding: 0.3rem 0.6rem;
+      font-size: 0.72rem; font-weight: 700;
+      border-radius: 6px; white-space: nowrap;
+    }
+    .badge-high { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+    .badge-mid { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .badge-low { background: #f3f4f6; color: var(--text-sub); border: 1px solid var(--border); }
+
+    .fav-btn {
+      background: none; border: none; font-size: 1.3rem; cursor: pointer;
+      padding: 0.2rem; flex-shrink: 0; transition: transform 0.15s;
+    }
+    .fav-btn:hover { transform: scale(1.2); }
+    .fav-btn.saved { filter: none; }
+    .fav-btn:not(.saved) { filter: grayscale(1) opacity(0.4); }
+
+    .no-result { text-align: center; color: var(--text-sub); font-size: 0.9rem; padding: 2rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card, .item-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>ふるさと納税お礼品逆引きアプリ</h1>
+    <p class="subtitle">寄付額とジャンルを選ぶだけ。人気のお礼品候補をサッと逆引き!</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">条件をえらぶ</p>
+    <div class="field">
+      <label for="amount">寄付額（円）</label>
+      <input type="number" id="amount" placeholder="例: 10000" min="1000" step="1000">
+      <div class="preset-btns" id="presets">
+        <button class="preset-btn" data-val="5000">5,000</button>
+        <button class="preset-btn" data-val="10000">10,000</button>
+        <button class="preset-btn" data-val="20000">20,000</button>
+        <button class="preset-btn" data-val="30000">30,000</button>
+        <button class="preset-btn" data-val="50000">50,000</button>
+        <button class="preset-btn" data-val="100000">100,000</button>
+      </div>
+      <p class="hint">プリセットボタンで選ぶか、直接入力してください</p>
+    </div>
+    <div class="field">
+      <label for="genre">ジャンル</label>
+      <select id="genre">
+        <option value="all">すべて</option>
+        <option value="meat">肉・ハム</option>
+        <option value="seafood">魚介・海産物</option>
+        <option value="rice">米・パン</option>
+        <option value="fruit">果物・フルーツ</option>
+        <option value="sweets">スイーツ・菓子</option>
+        <option value="drink">飲料・酒</option>
+        <option value="daily">日用品・雑貨</option>
+        <option value="electronics">家電・電子機器</option>
+        <option value="travel">旅行・体験</option>
+        <option value="craft">工芸品・地域特産</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 検索ボタン -->
+  <button class="btn-calc" onclick="search()">お礼品を探す</button>
+
+  <!-- 広告枠（仮・将来差し替え予定。広告コードは未実装） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">検索結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- お礼品一覧 -->
+  <div class="item-list" id="itemList"></div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、総務省の「ふるさと納税に関する現況調査結果」等を参考に、お礼品の目安として整理した参考データです。実際のお礼品は各自治体・ふるさと納税サイトで最新情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── お礼品サンプルデータ ──
+  var ITEMS = [
+    // 肉・ハム
+    { name: '黒毛和牛 切り落とし 500g', genre: 'meat', minAmount: 5000, rate: 35, area: '宮崎県都城市', popular: true },
+    { name: '黒毛和牛 すき焼き用 600g', genre: 'meat', minAmount: 10000, rate: 32, area: '佐賀県嬉野市', popular: true },
+    { name: '博多和牛 ステーキ 400g', genre: 'meat', minAmount: 15000, rate: 30, area: '福岡県飯塚市', popular: false },
+    { name: '鹿児島黒豚 しゃぶしゃぶセット 1kg', genre: 'meat', minAmount: 10000, rate: 33, area: '鹿児島県志布志市', popular: true },
+    { name: '飛騨牛 焼肉用 500g', genre: 'meat', minAmount: 20000, rate: 28, area: '岐阜県高山市', popular: false },
+    { name: '松阪牛 ハンバーグ 8個セット', genre: 'meat', minAmount: 12000, rate: 30, area: '三重県松阪市', popular: true },
+    { name: '米沢牛 切り落とし 800g', genre: 'meat', minAmount: 15000, rate: 30, area: '山形県米沢市', popular: false },
+    { name: '国産ハム・ソーセージ詰め合わせ', genre: 'meat', minAmount: 10000, rate: 28, area: '群馬県前橋市', popular: false },
+    { name: '黒毛和牛 ローストビーフ 300g', genre: 'meat', minAmount: 10000, rate: 25, area: '兵庫県加古川市', popular: false },
+    { name: '宮崎牛 サーロインステーキ 2枚', genre: 'meat', minAmount: 30000, rate: 27, area: '宮崎県都城市', popular: true },
+
+    // 魚介・海産物
+    { name: 'いくら醤油漬け 250g', genre: 'seafood', minAmount: 10000, rate: 35, area: '北海道白糠町', popular: true },
+    { name: 'ズワイガニ脚 1kg', genre: 'seafood', minAmount: 20000, rate: 30, area: '北海道紋別市', popular: true },
+    { name: 'ホタテ貝柱 1kg', genre: 'seafood', minAmount: 10000, rate: 33, area: '北海道別海町', popular: true },
+    { name: 'うなぎ蒲焼 3尾', genre: 'seafood', minAmount: 15000, rate: 28, area: '鹿児島県大崎町', popular: true },
+    { name: '明太子 切れ子 1kg', genre: 'seafood', minAmount: 10000, rate: 32, area: '福岡県福智町', popular: false },
+    { name: 'マグロ赤身・中トロセット 500g', genre: 'seafood', minAmount: 15000, rate: 27, area: '静岡県焼津市', popular: false },
+    { name: '干物セット 10枚', genre: 'seafood', minAmount: 5000, rate: 30, area: '静岡県沼津市', popular: false },
+    { name: 'エビ むきえび 1kg', genre: 'seafood', minAmount: 10000, rate: 28, area: '福岡県飯塚市', popular: false },
+
+    // 米・パン
+    { name: '新潟コシヒカリ 10kg', genre: 'rice', minAmount: 10000, rate: 35, area: '新潟県南魚沼市', popular: true },
+    { name: 'あきたこまち 20kg（5kg×4）', genre: 'rice', minAmount: 15000, rate: 33, area: '秋田県横手市', popular: true },
+    { name: 'ななつぼし 10kg', genre: 'rice', minAmount: 8000, rate: 32, area: '北海道当麻町', popular: false },
+    { name: 'ひとめぼれ 15kg', genre: 'rice', minAmount: 10000, rate: 30, area: '宮城県登米市', popular: false },
+    { name: '無洗米 はえぬき 10kg', genre: 'rice', minAmount: 10000, rate: 30, area: '山形県寒河江市', popular: false },
+    { name: '天然酵母パン 詰め合わせ 8個', genre: 'rice', minAmount: 5000, rate: 25, area: '長野県安曇野市', popular: false },
+
+    // 果物・フルーツ
+    { name: 'シャインマスカット 1房', genre: 'fruit', minAmount: 10000, rate: 30, area: '山梨県笛吹市', popular: true },
+    { name: '博多あまおう 2パック', genre: 'fruit', minAmount: 10000, rate: 28, area: '福岡県新宮町', popular: true },
+    { name: '温州みかん 5kg', genre: 'fruit', minAmount: 5000, rate: 35, area: '和歌山県有田市', popular: true },
+    { name: '佐藤錦さくらんぼ 500g', genre: 'fruit', minAmount: 10000, rate: 25, area: '山形県天童市', popular: true },
+    { name: 'デコポン 5kg', genre: 'fruit', minAmount: 10000, rate: 30, area: '熊本県宇城市', popular: false },
+    { name: '桃 白鳳 2kg', genre: 'fruit', minAmount: 10000, rate: 27, area: '山梨県山梨市', popular: false },
+    { name: 'マンゴー 2玉', genre: 'fruit', minAmount: 15000, rate: 25, area: '宮崎県宮崎市', popular: false },
+    { name: 'メロン 赤肉 2玉', genre: 'fruit', minAmount: 15000, rate: 28, area: '北海道夕張市', popular: false },
+
+    // スイーツ・菓子
+    { name: '生チョコ 20粒入り', genre: 'sweets', minAmount: 5000, rate: 28, area: '北海道砂川市', popular: false },
+    { name: 'ロールケーキ 2本セット', genre: 'sweets', minAmount: 5000, rate: 25, area: '大分県豊後高田市', popular: false },
+    { name: '和菓子詰め合わせ 12個', genre: 'sweets', minAmount: 5000, rate: 27, area: '京都府宇治市', popular: false },
+    { name: 'チーズケーキ ホール', genre: 'sweets', minAmount: 5000, rate: 30, area: '長崎県長崎市', popular: true },
+    { name: 'アイスクリーム 12個セット', genre: 'sweets', minAmount: 10000, rate: 28, area: '高知県四万十市', popular: true },
+    { name: 'カステラ 2本セット', genre: 'sweets', minAmount: 5000, rate: 25, area: '長崎県長崎市', popular: false },
+
+    // 飲料・酒
+    { name: '地ビール 12本セット', genre: 'drink', minAmount: 10000, rate: 30, area: '長野県東御市', popular: true },
+    { name: '焼酎 飲み比べ 3本セット', genre: 'drink', minAmount: 10000, rate: 28, area: '鹿児島県霧島市', popular: false },
+    { name: '日本酒 大吟醸 720ml 2本', genre: 'drink', minAmount: 10000, rate: 25, area: '新潟県長岡市', popular: false },
+    { name: 'ミネラルウォーター 500ml×48本', genre: 'drink', minAmount: 5000, rate: 35, area: '山梨県富士吉田市', popular: true },
+    { name: '果汁100% ジュース 12本', genre: 'drink', minAmount: 10000, rate: 28, area: '青森県弘前市', popular: false },
+    { name: 'コーヒー ドリップパック 50袋', genre: 'drink', minAmount: 10000, rate: 27, area: '福岡県飯塚市', popular: false },
+
+    // 日用品・雑貨
+    { name: 'トイレットペーパー 48ロール', genre: 'daily', minAmount: 10000, rate: 35, area: '静岡県富士宮市', popular: true },
+    { name: 'ティッシュペーパー 60箱', genre: 'daily', minAmount: 10000, rate: 33, area: '栃木県小山市', popular: true },
+    { name: '洗濯洗剤セット', genre: 'daily', minAmount: 10000, rate: 30, area: '和歌山県和歌山市', popular: false },
+    { name: '今治タオル セット', genre: 'daily', minAmount: 10000, rate: 28, area: '愛媛県今治市', popular: true },
+    { name: 'ハンドソープ・ボディソープ セット', genre: 'daily', minAmount: 5000, rate: 27, area: '大阪府大阪市', popular: false },
+
+    // 家電・電子機器
+    { name: '空気清浄機', genre: 'electronics', minAmount: 50000, rate: 25, area: '新潟県燕市', popular: false },
+    { name: 'ホットプレート', genre: 'electronics', minAmount: 30000, rate: 28, area: '大阪府大東市', popular: false },
+    { name: '電動歯ブラシ', genre: 'electronics', minAmount: 20000, rate: 25, area: '滋賀県草津市', popular: false },
+    { name: 'ヘッドホン ワイヤレス', genre: 'electronics', minAmount: 30000, rate: 22, area: '神奈川県厚木市', popular: false },
+    { name: 'モバイルバッテリー 大容量', genre: 'electronics', minAmount: 10000, rate: 25, area: '長野県伊那市', popular: true },
+
+    // 旅行・体験
+    { name: '温泉宿泊券 1泊2食付き', genre: 'travel', minAmount: 30000, rate: 30, area: '大分県別府市', popular: true },
+    { name: 'ゴルフ場利用券 1ラウンド', genre: 'travel', minAmount: 20000, rate: 28, area: '千葉県長南町', popular: false },
+    { name: 'グランピング体験チケット', genre: 'travel', minAmount: 30000, rate: 25, area: '三重県志摩市', popular: false },
+    { name: '遊園地ペアチケット', genre: 'travel', minAmount: 15000, rate: 27, area: '三重県桑名市', popular: false },
+    { name: 'クルーズ体験 2名', genre: 'travel', minAmount: 50000, rate: 22, area: '長崎県長崎市', popular: false },
+
+    // 工芸品・地域特産
+    { name: '有田焼 マグカップ ペア', genre: 'craft', minAmount: 10000, rate: 25, area: '佐賀県有田町', popular: false },
+    { name: '南部鉄器 急須', genre: 'craft', minAmount: 15000, rate: 22, area: '岩手県奥州市', popular: true },
+    { name: '輪島塗 お箸 2膳', genre: 'craft', minAmount: 10000, rate: 23, area: '石川県輪島市', popular: false },
+    { name: '甲州印伝 小銭入れ', genre: 'craft', minAmount: 15000, rate: 20, area: '山梨県甲府市', popular: false },
+    { name: '木製カッティングボード', genre: 'craft', minAmount: 10000, rate: 25, area: '岐阜県高山市', popular: false },
+  ];
+
+  var GENRE_NAMES = {
+    all: 'すべて', meat: '肉・ハム', seafood: '魚介・海産物', rice: '米・パン',
+    fruit: '果物・フルーツ', sweets: 'スイーツ・菓子', drink: '飲料・酒',
+    daily: '日用品・雑貨', electronics: '家電・電子機器', travel: '旅行・体験', craft: '工芸品・地域特産'
+  };
+
+  // ── お気に入り（localStorage） ──
+  var FAV_KEY = 'furusato_fav';
+  function loadFav() {
+    try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch(e) { return []; }
+  }
+  function saveFav(arr) { localStorage.setItem(FAV_KEY, JSON.stringify(arr)); }
+  function toggleFav(name) {
+    var arr = loadFav();
+    var idx = arr.indexOf(name);
+    if (idx >= 0) arr.splice(idx, 1); else arr.push(name);
+    saveFav(arr);
+    renderResults(lastResults);
+  }
+
+  var lastResults = [];
+
+  // ── プリセットボタン ──
+  document.getElementById('presets').addEventListener('click', function(e) {
+    if (!e.target.classList.contains('preset-btn')) return;
+    document.getElementById('amount').value = e.target.dataset.val;
+    document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+    e.target.classList.add('active');
+  });
+
+  // ── 検索 ──
+  function search() {
+    var amount = parseInt(document.getElementById('amount').value);
+    var genre = document.getElementById('genre').value;
+
+    if (!amount || amount < 1000) {
+      showResult('ng', '⚠️', '寄付額を1,000円以上で入力してください');
+      document.getElementById('itemList').innerHTML = '';
+      return;
+    }
+
+    var results = ITEMS.filter(function(item) {
+      var genreOk = genre === 'all' || item.genre === genre;
+      var amountOk = item.minAmount <= amount;
+      return genreOk && amountOk;
+    });
+
+    // 人気順 → 還元率順
+    results.sort(function(a, b) {
+      if (a.popular !== b.popular) return a.popular ? -1 : 1;
+      return b.rate - a.rate;
+    });
+
+    lastResults = results;
+
+    var genreName = GENRE_NAMES[genre];
+    if (results.length === 0) {
+      showResult('warn', '0件', amount.toLocaleString() + '円 × ' + genreName + ' の条件に合うお礼品が見つかりません。寄付額を上げるか、ジャンルを変えてみてください');
+      document.getElementById('itemList').innerHTML = '<p class="no-result">条件を変えて再検索してください</p>';
+    } else {
+      showResult('ok', results.length + '件ヒット', amount.toLocaleString() + '円以下 × ' + genreName + ' のお礼品候補です');
+      renderResults(results);
+    }
+  }
+
+  function renderResults(results) {
+    var favs = loadFav();
+    var html = results.map(function(item) {
+      var isFav = favs.indexOf(item.name) >= 0;
+      var badgeClass = item.rate >= 30 ? 'badge-high' : item.rate >= 25 ? 'badge-mid' : 'badge-low';
+      var badgeText = item.rate >= 30 ? '高還元' : item.rate >= 25 ? '標準' : '体験型';
+      return '<div class="item-card">'
+        + '<div class="item-info">'
+        + '<p class="item-name">' + (item.popular ? '🔥 ' : '') + esc(item.name) + '</p>'
+        + '<p class="item-detail">'
+        + '<span>💰 ' + item.minAmount.toLocaleString() + '円〜</span>'
+        + '<span>📊 還元率 約' + item.rate + '%</span>'
+        + '<span>📍 ' + esc(item.area) + '</span>'
+        + '</p></div>'
+        + '<span class="item-badge ' + badgeClass + '">' + badgeText + '</span>'
+        + '<button class="fav-btn ' + (isFav ? 'saved' : '') + '" onclick="toggleFav(\'' + esc(item.name).replace(/'/g, "\\'") + '\')" title="お気に入り">⭐</button>'
+        + '</div>';
+    }).join('');
+    document.getElementById('itemList').innerHTML = html;
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function esc(s) {
+    var d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
