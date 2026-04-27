@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="推しの名前と誕生日を入力するだけで、次の誕生日までのリアルタイムカウントダウンと応援メッセージを自動表示。推し活を毎日盛り上げよう。">
+  <title>推し誕カウントダウン</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── カウントダウンカード ── */
+    .countdown-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--accent); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .countdown-name {
+      font-size: 1.1rem; font-weight: 800; color: var(--accent); margin-bottom: 0.3rem;
+    }
+    .countdown-label {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.6rem;
+    }
+    .countdown-timer {
+      display: flex; justify-content: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.8rem;
+    }
+    .timer-unit {
+      background: var(--accent-light); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 0.6rem 0.8rem; min-width: 70px; text-align: center;
+    }
+    .timer-num { font-size: 1.8rem; font-weight: 900; color: var(--accent); line-height: 1.1; }
+    .timer-label { font-size: 0.68rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .countdown-msg {
+      font-size: 0.95rem; font-weight: 600; color: var(--text); line-height: 1.5; margin-top: 0.5rem;
+      padding: 0.8rem; background: var(--accent-light); border-radius: 10px;
+    }
+
+    /* ── 誕生日当日 ── */
+    .birthday-card {
+      display: none; background: linear-gradient(135deg, #fff0db, #ffe4c4);
+      border: 2px solid var(--accent); border-radius: var(--radius);
+      padding: 2rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .birthday-emoji { font-size: 3rem; margin-bottom: 0.5rem; }
+    .birthday-msg { font-size: 1.2rem; font-weight: 900; color: var(--accent); line-height: 1.5; }
+    .birthday-sub { font-size: 0.9rem; color: var(--text-sub); margin-top: 0.5rem; line-height: 1.5; }
+
+    /* ── 推しリスト ── */
+    .oshi-list { margin-top: 1rem; }
+    .oshi-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border); gap: 0.5rem;
+    }
+    .oshi-item:last-child { border-bottom: none; }
+    .oshi-info { flex: 1; cursor: pointer; }
+    .oshi-info .name { font-weight: 700; font-size: 0.95rem; }
+    .oshi-info .bday { font-size: 0.78rem; color: var(--text-sub); }
+    .oshi-item .active-mark { color: var(--accent); font-weight: 900; font-size: 1.1rem; margin-right: 0.3rem; }
+    .btn-delete {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--ng); font-size: 0.75rem; padding: 0.25rem 0.5rem; cursor: pointer;
+    }
+    .btn-delete:hover { background: var(--ng-bg); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .countdown-card, .birthday-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎂 推し誕カウントダウン</h1>
+    <p class="subtitle">推しの誕生日まであと何日？リアルタイムで残り時間を刻んで推し活を盛り上げよう。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">推しを登録</p>
+    <div class="field">
+      <label for="oshiName">推しの名前</label>
+      <input type="text" id="oshiName" placeholder="例: 推太郎" maxlength="30">
+    </div>
+    <div class="field">
+      <label for="oshiBday">誕生日（月/日）</label>
+      <input type="date" id="oshiBday">
+      <p class="hint">年は不要ですが、入力フォームの都合で任意の年を選んでください（月日のみ使用します）</p>
+    </div>
+  </div>
+
+  <!-- 登録ボタン -->
+  <button class="btn-calc" onclick="addOshi()">🎉 推しを登録してカウントダウン開始</button>
+
+  <!-- カウントダウン表示 -->
+  <div class="countdown-card" id="countdownCard">
+    <p class="countdown-name" id="cdName"></p>
+    <p class="countdown-label">次の誕生日まで</p>
+    <div class="countdown-timer">
+      <div class="timer-unit"><div class="timer-num" id="cdDays">--</div><div class="timer-label">日</div></div>
+      <div class="timer-unit"><div class="timer-num" id="cdHours">--</div><div class="timer-label">時間</div></div>
+      <div class="timer-unit"><div class="timer-num" id="cdMins">--</div><div class="timer-label">分</div></div>
+      <div class="timer-unit"><div class="timer-num" id="cdSecs">--</div><div class="timer-label">秒</div></div>
+    </div>
+    <div class="countdown-msg" id="cdMsg"></div>
+  </div>
+
+  <!-- 誕生日当日カード -->
+  <div class="birthday-card" id="birthdayCard">
+    <div class="birthday-emoji">🎉🎂🎊</div>
+    <p class="birthday-msg" id="bdMsg"></p>
+    <p class="birthday-sub">最高の1日を推しと一緒に！</p>
+  </div>
+
+  <!-- 登録済み推しリスト -->
+  <div class="card" id="oshiListCard" style="display:none">
+    <p class="card-title">登録中の推し</p>
+    <div class="oshi-list" id="oshiList"></div>
+  </div>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var oshiData = [];
+  var activeIdx = 0;
+  var timerInterval = null;
+
+  // 応援メッセージ
+  var MESSAGES = {
+    far: [
+      '{{name}}の誕生日まであと{{days}}日！今から楽しみにして過ごそう🌟',
+      'まだ{{days}}日もある…じっくりプレゼント選びができるね🎁',
+      '{{name}}の誕生日まで{{days}}日。毎日がカウントダウン！💫',
+      'あと{{days}}日。{{name}}への想いを温めながら待とう💕',
+    ],
+    mid: [
+      '{{name}}の誕生日まであと{{days}}日！そろそろ準備を始めよう🎊',
+      'あと{{days}}日で{{name}}の日！ワクワクが止まらない✨',
+      '{{days}}日後に{{name}}の誕生日。お祝いの計画は順調？🎈',
+      'カウントダウン{{days}}日！{{name}}のために何を用意する？🎀',
+    ],
+    near: [
+      'あと{{days}}日！！{{name}}の誕生日がすぐそこ！心の準備OK？🔥',
+      '{{name}}の誕生日まで残り{{days}}日！テンション上がってきた⬆️',
+      'もう{{days}}日しかない！{{name}}の誕生日まで全力で待機🚀',
+      'あと{{days}}日で{{name}}の特別な日。最高のお祝いにしよう🎉',
+    ],
+    tomorrow: [
+      '明日は{{name}}の誕生日！！！眠れないくらい楽しみ😆🎂',
+      'いよいよ明日！{{name}}の誕生日イブ！準備万端？🌙✨',
+    ],
+    today: [
+      '🎂 今日は{{name}}の誕生日！！おめでとう！！🎉🎊',
+      '{{name}}、お誕生日おめでとう！最高の1日になりますように🥳💕',
+    ]
+  };
+
+  function getMsg(name, days) {
+    var pool;
+    if (days === 0) pool = MESSAGES.today;
+    else if (days === 1) pool = MESSAGES.tomorrow;
+    else if (days <= 7) pool = MESSAGES.near;
+    else if (days <= 30) pool = MESSAGES.mid;
+    else pool = MESSAGES.far;
+    var tpl = pool[Math.floor(Math.random() * pool.length)];
+    return tpl.replace(/\{\{name\}\}/g, name).replace(/\{\{days\}\}/g, days);
+  }
+
+  function getNextBirthday(month, day) {
+    var now = new Date();
+    var thisYear = now.getFullYear();
+    var bday = new Date(thisYear, month - 1, day, 0, 0, 0, 0);
+    if (bday.getTime() < now.getTime() - 86400000) {
+      // 今日より前ならば来年（ただし当日はOK）
+      var todayStart = new Date(thisYear, now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      if (bday < todayStart) {
+        bday = new Date(thisYear + 1, month - 1, day, 0, 0, 0, 0);
+      }
+    }
+    return bday;
+  }
+
+  function addOshi() {
+    var nameEl = document.getElementById('oshiName');
+    var bdayEl = document.getElementById('oshiBday');
+    var name = nameEl.value.trim();
+    var bdayVal = bdayEl.value;
+    if (!name) { alert('推しの名前を入力してください'); return; }
+    if (!bdayVal) { alert('誕生日を選択してください'); return; }
+    var parts = bdayVal.split('-');
+    var month = parseInt(parts[1], 10);
+    var day = parseInt(parts[2], 10);
+
+    oshiData.push({ name: name, month: month, day: day });
+    activeIdx = oshiData.length - 1;
+    saveData();
+    nameEl.value = '';
+    bdayEl.value = '';
+    renderAll();
+  }
+
+  function selectOshi(idx) {
+    activeIdx = idx;
+    saveData();
+    renderAll();
+  }
+
+  function deleteOshi(idx) {
+    oshiData.splice(idx, 1);
+    if (activeIdx >= oshiData.length) activeIdx = Math.max(0, oshiData.length - 1);
+    saveData();
+    renderAll();
+  }
+
+  function renderList() {
+    var listEl = document.getElementById('oshiList');
+    var listCard = document.getElementById('oshiListCard');
+    if (oshiData.length === 0) {
+      listCard.style.display = 'none';
+      return;
+    }
+    listCard.style.display = 'block';
+    listEl.innerHTML = oshiData.map(function(o, i) {
+      var isActive = i === activeIdx;
+      return '<div class="oshi-item">'
+        + (isActive ? '<span class="active-mark">▶</span>' : '<span style="width:1.4rem;display:inline-block"></span>')
+        + '<div class="oshi-info" onclick="selectOshi(' + i + ')">'
+        + '<span class="name">' + esc(o.name) + '</span> '
+        + '<span class="bday">' + o.month + '月' + o.day + '日</span>'
+        + '</div>'
+        + '<button class="btn-delete" onclick="deleteOshi(' + i + ')">削除</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function startCountdown() {
+    if (timerInterval) clearInterval(timerInterval);
+    if (oshiData.length === 0) {
+      document.getElementById('countdownCard').style.display = 'none';
+      document.getElementById('birthdayCard').style.display = 'none';
+      return;
+    }
+    var o = oshiData[activeIdx];
+    var target = getNextBirthday(o.month, o.day);
+    document.getElementById('cdName').textContent = '🌟 ' + o.name + ' 🌟';
+
+    function tick() {
+      var now = new Date();
+      var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      var targetStart = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 0, 0, 0, 0);
+      var diffDays = Math.round((targetStart - todayStart) / 86400000);
+
+      if (diffDays === 0) {
+        // 誕生日当日
+        document.getElementById('countdownCard').style.display = 'none';
+        document.getElementById('birthdayCard').style.display = 'block';
+        document.getElementById('bdMsg').textContent = getMsg(o.name, 0);
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+        return;
+      }
+
+      document.getElementById('birthdayCard').style.display = 'none';
+      document.getElementById('countdownCard').style.display = 'block';
+
+      // 次の誕生日の0:00までの残り
+      var diff = target.getTime() - now.getTime();
+      if (diff < 0) diff = 0;
+      var totalSecs = Math.floor(diff / 1000);
+      var days = Math.floor(totalSecs / 86400);
+      var hours = Math.floor((totalSecs % 86400) / 3600);
+      var mins = Math.floor((totalSecs % 3600) / 60);
+      var secs = totalSecs % 60;
+
+      document.getElementById('cdDays').textContent = days;
+      document.getElementById('cdHours').textContent = String(hours).padStart(2, '0');
+      document.getElementById('cdMins').textContent = String(mins).padStart(2, '0');
+      document.getElementById('cdSecs').textContent = String(secs).padStart(2, '0');
+    }
+
+    tick();
+    timerInterval = setInterval(tick, 1000);
+
+    // メッセージ（初回のみ）
+    var now2 = new Date();
+    var todayStart2 = new Date(now2.getFullYear(), now2.getMonth(), now2.getDate(), 0, 0, 0, 0);
+    var targetStart2 = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 0, 0, 0, 0);
+    var daysLeft = Math.round((targetStart2 - todayStart2) / 86400000);
+    document.getElementById('cdMsg').textContent = getMsg(o.name, daysLeft);
+  }
+
+  function renderAll() {
+    renderList();
+    startCountdown();
+  }
+
+  function saveData() {
+    localStorage.setItem('oshi_countdown_data', JSON.stringify({ list: oshiData, active: activeIdx }));
+  }
+
+  function loadData() {
+    try {
+      var raw = localStorage.getItem('oshi_countdown_data');
+      if (raw) {
+        var d = JSON.parse(raw);
+        oshiData = d.list || [];
+        activeIdx = d.active || 0;
+        if (activeIdx >= oshiData.length) activeIdx = 0;
+      }
+    } catch(e) {}
+  }
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // 初期化
+  loadData();
+  renderAll();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
