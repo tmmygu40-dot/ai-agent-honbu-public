@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="メルカリなどフリマアプリの販売価格・送料・仕入れ値を入力するだけで、手数料を自動計算し実際の手取り額と利益をズバリ試算できる計算ツールです。">
+  <title>フリマ手取り計算機</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 履歴カード ── */
+    .history-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.5rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item .hi-left { color: var(--text-sub); }
+    .history-item .hi-right { font-weight: 700; }
+    .history-item .hi-right.positive { color: var(--ok); }
+    .history-item .hi-right.negative { color: var(--ng); }
+    .btn-clear-history {
+      display: block; margin: 0.8rem auto 0; padding: 0.4rem 0.8rem;
+      font-size: 0.75rem; background: none; color: var(--text-sub);
+      border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+    }
+    .btn-clear-history:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 フリマ手取り計算機</h1>
+    <p class="subtitle">販売価格と送料を入れるだけ。手数料込みの手取り額がズバリ分かります。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">出品情報</p>
+    <div class="field">
+      <label for="price">販売価格（円）</label>
+      <input type="number" id="price" placeholder="例: 3000" min="0" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label for="platform">販売プラットフォーム</label>
+      <select id="platform">
+        <option value="10">メルカリ（手数料 10%）</option>
+        <option value="10">ラクマ（手数料 10%）</option>
+        <option value="5">Yahoo!フリマ（手数料 5%）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="shipping">送料（円）</label>
+      <select id="shipping" onchange="toggleCustomShipping()">
+        <option value="230">ネコポス / ゆうパケット（230円）</option>
+        <option value="450">ゆうパケットポスト（450円）</option>
+        <option value="750">宅急便コンパクト（750円）</option>
+        <option value="850">ゆうパック 60（850円）</option>
+        <option value="1050">ゆうパック 80（1,050円）</option>
+        <option value="1350">ゆうパック 100（1,350円）</option>
+        <option value="1600">宅急便 120（1,600円）</option>
+        <option value="0">送料なし（着払い）</option>
+        <option value="custom">手動で入力</option>
+      </select>
+    </div>
+    <div class="field" id="customShippingField" style="display:none">
+      <label for="customShipping">送料を入力（円）</label>
+      <input type="number" id="customShipping" placeholder="例: 500" min="0" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label for="cost">仕入れ値・原価（円）</label>
+      <input type="number" id="cost" placeholder="例: 500（任意・空欄OK）" min="0" inputmode="numeric">
+      <p class="hint">利益を計算したい場合に入力してください</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">手取りを計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">あなたの手取り額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card no-print" id="historyCard" style="display:none">
+    <p class="card-title">計算履歴</p>
+    <div id="historyList"></div>
+    <button class="btn-clear-history" onclick="clearHistory()">履歴をクリア</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 手数料率は2026年4月時点の各フリマサービス公式情報を参考にした目安です。最新情報は各サービスの公式サイトをご確認ください。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var HISTORY_KEY = 'freemarket_tedori_history';
+
+  function toggleCustomShipping() {
+    var sel = document.getElementById('shipping');
+    var cf = document.getElementById('customShippingField');
+    cf.style.display = sel.value === 'custom' ? 'block' : 'none';
+  }
+
+  function getShipping() {
+    var sel = document.getElementById('shipping');
+    if (sel.value === 'custom') {
+      return parseFloat(document.getElementById('customShipping').value) || 0;
+    }
+    return parseFloat(sel.value) || 0;
+  }
+
+  function calc() {
+    var price = parseFloat(document.getElementById('price').value);
+    if (isNaN(price) || price <= 0) { showErr('販売価格を入力してください'); return; }
+
+    var feeRate = parseFloat(document.getElementById('platform').value) / 100;
+    var shipping = getShipping();
+    var cost = parseFloat(document.getElementById('cost').value) || 0;
+
+    var fee = Math.floor(price * feeRate);
+    var tedori = price - fee - shipping;
+    var profit = tedori - cost;
+    var profitRate = price > 0 ? (profit / price * 100) : 0;
+    var hasCost = document.getElementById('cost').value !== '';
+
+    var level;
+    if (hasCost) {
+      level = profit <= 0 ? 'ng' : profitRate >= 20 ? 'ok' : 'warn';
+    } else {
+      level = tedori <= 0 ? 'ng' : tedori >= price * 0.5 ? 'ok' : 'warn';
+    }
+
+    var evalText, noteText;
+    if (hasCost) {
+      if (level === 'ok') {
+        evalText = '利益しっかり出ます！';
+        noteText = '利益率 ' + profitRate.toFixed(1) + '%。いい感じの値付けです。';
+      } else if (level === 'warn') {
+        evalText = '利益は出るけど薄利です';
+        noteText = '利益率 ' + profitRate.toFixed(1) + '%。送料や値付けを見直すと改善できるかも。';
+      } else {
+        evalText = '赤字です…値付け要見直し';
+        noteText = '手取りが仕入れ値を下回っています。価格アップか送料削減を検討しましょう。';
+      }
+    } else {
+      if (level === 'ok') {
+        evalText = '手取り十分！出品GOです';
+        noteText = '手数料と送料を引いても半額以上が手元に残ります。';
+      } else if (level === 'warn') {
+        evalText = '手取りはそこそこ';
+        noteText = '送料の割合が大きめです。配送方法を見直すと手取りが増えるかも。';
+      } else {
+        evalText = '手取りがマイナスです…';
+        noteText = '手数料+送料が販売価格を超えています。値上げか送料削減が必要です。';
+      }
+    }
+
+    showResult(level, fmt(tedori) + ' 円', noteText);
+    document.getElementById('re').textContent = evalText;
+
+    var rows = [
+      ['販売価格', fmt(price) + ' 円'],
+      ['手数料（' + (feeRate * 100) + '%）', '−' + fmt(fee) + ' 円'],
+      ['送料', shipping > 0 ? '−' + fmt(shipping) + ' 円' : '0 円'],
+      ['手取り額', fmt(tedori) + ' 円', true]
+    ];
+    if (hasCost) {
+      rows.push(['仕入れ値', '−' + fmt(cost) + ' 円']);
+      rows.push(['純利益', fmt(profit) + ' 円', true]);
+      rows.push(['利益率', profitRate.toFixed(1) + ' %']);
+    }
+    showDetail(rows);
+
+    saveHistory(price, tedori, profit, hasCost);
+    renderHistory();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('re').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── 履歴 ──
+  function getHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+    catch(e) { return []; }
+  }
+  function saveHistory(price, tedori, profit, hasCost) {
+    var h = getHistory();
+    h.unshift({
+      date: new Date().toLocaleDateString('ja-JP'),
+      price: price,
+      tedori: tedori,
+      profit: hasCost ? profit : null
+    });
+    if (h.length > 20) h = h.slice(0, 20);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  }
+  function renderHistory() {
+    var h = getHistory();
+    if (h.length === 0) { document.getElementById('historyCard').style.display = 'none'; return; }
+    document.getElementById('historyCard').style.display = 'block';
+    document.getElementById('historyList').innerHTML = h.map(function(item){
+      var rightVal = item.profit !== null ? fmt(item.profit) + '円' : fmt(item.tedori) + '円';
+      var rightNum = item.profit !== null ? item.profit : item.tedori;
+      var cls = rightNum >= 0 ? 'positive' : 'negative';
+      var label = item.profit !== null ? '利益' : '手取り';
+      return '<div class="history-item">'
+        + '<span class="hi-left">' + item.date + '　' + fmt(item.price) + '円出品</span>'
+        + '<span class="hi-right ' + cls + '">' + label + ' ' + rightVal + '</span>'
+        + '</div>';
+    }).join('');
+  }
+  function clearHistory() {
+    localStorage.removeItem(HISTORY_KEY);
+    document.getElementById('historyCard').style.display = 'none';
+  }
+
+  // 起動時に履歴表示
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
