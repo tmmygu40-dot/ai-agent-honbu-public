@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="商品名・カテゴリ・状態を入力するだけで、メルカリで売れやすいキャッチーな商品タイトルを5パターン即生成。ワンタップでコピーしてそのまま出品できます。">
+  <title>メルカリ商品名ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+
+    /* ── 生成結果リスト ── */
+    .gen-list {
+      max-width: 600px; margin: 0 auto 1rem;
+    }
+    .gen-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 0.8rem;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s;
+      position: relative;
+    }
+    .gen-item:hover { border-color: var(--accent); }
+    .gen-item:active { transform: scale(0.98); }
+    .gen-item-num {
+      font-size: 0.7rem; font-weight: 700; color: var(--accent);
+      letter-spacing: 0.06em; margin-bottom: 0.3rem;
+    }
+    .gen-item-text {
+      font-size: 0.95rem; font-weight: 600; color: var(--text);
+      line-height: 1.5; word-break: break-all;
+    }
+    .gen-item-len {
+      font-size: 0.7rem; color: var(--text-sub); margin-top: 0.3rem;
+    }
+    .gen-item-copy {
+      font-size: 0.72rem; color: var(--accent); font-weight: 700;
+      margin-top: 0.25rem;
+    }
+    .gen-item.copied {
+      border-color: var(--ok); background: var(--ok-bg);
+    }
+    .gen-item.copied .gen-item-copy { color: var(--ok); }
+
+    /* ── 履歴カード ── */
+    .history-item {
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.82rem; color: var(--text-sub);
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-product { font-weight: 600; color: var(--text); }
+    .history-date { font-size: 0.7rem; color: var(--text-sub); }
+    .history-titles { margin-top: 0.2rem; line-height: 1.5; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── クリアボタン ── */
+    .btn-clear {
+      display: block; margin: 0.5rem auto 0; padding: 0.5rem 1rem;
+      font-size: 0.78rem; font-weight: 600;
+      background: transparent; color: var(--text-sub);
+      border: 1px solid var(--border); border-radius: 8px;
+      cursor: pointer; max-width: 600px; width: 100%;
+    }
+    .btn-clear:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🛒 メルカリ商品名ジェネレーター</h1>
+    <p class="subtitle">商品情報を入力するだけで、思わずポチりたくなるタイトルを5パターン即生成！</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品情報を入力</p>
+    <div class="field">
+      <label for="productName">商品名（必須）</label>
+      <input type="text" id="productName" placeholder="例: ワイヤレスイヤホン">
+    </div>
+    <div class="field">
+      <label for="category">カテゴリ</label>
+      <select id="category">
+        <option value="">選択してください</option>
+        <option value="ファッション">ファッション</option>
+        <option value="家電・スマホ">家電・スマホ</option>
+        <option value="本・雑誌">本・雑誌</option>
+        <option value="ゲーム・おもちゃ">ゲーム・おもちゃ</option>
+        <option value="コスメ・美容">コスメ・美容</option>
+        <option value="インテリア・雑貨">インテリア・雑貨</option>
+        <option value="スポーツ">スポーツ</option>
+        <option value="ベビー・キッズ">ベビー・キッズ</option>
+        <option value="食品・飲料">食品・飲料</option>
+        <option value="ハンドメイド">ハンドメイド</option>
+        <option value="その他">その他</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="condition">商品の状態</label>
+      <select id="condition">
+        <option value="">選択してください</option>
+        <option value="新品未使用">新品未使用</option>
+        <option value="未使用に近い">未使用に近い</option>
+        <option value="目立った傷や汚れなし">目立った傷や汚れなし</option>
+        <option value="やや傷や汚れあり">やや傷や汚れあり</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="brand">ブランド名（任意）</label>
+      <input type="text" id="brand" placeholder="例: Sony, UNIQLO">
+    </div>
+    <div class="field">
+      <label for="features">アピールポイント（任意）</label>
+      <textarea id="features" placeholder="例: 限定品、箱付き、即日発送、値下げ交渉OK"></textarea>
+      <p class="hint">カンマ区切りで複数入力OK</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">🔥 売れるタイトルを生成</button>
+
+  <!-- エラー表示 -->
+  <div class="result-card" id="result">
+    <p class="result-label">エラー</p>
+    <p class="result-value" id="rv">—</p>
+  </div>
+
+  <!-- 生成結果リスト -->
+  <div class="gen-list" id="genList"></div>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">生成履歴</p>
+    <div id="historyList"></div>
+    <button class="btn-clear no-print" onclick="clearHistory()">履歴をクリア</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 メルカリの出品ガイドラインに沿った商品名のヒントを自動生成します。実際の出品時は規約をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  /* ── タイトル生成テンプレート ── */
+  var TEMPLATES = [
+    // パターン1: 【状態】＋ブランド＋商品名＋特徴
+    function(p) {
+      var parts = [];
+      if (p.condition) parts.push('【' + p.condition + '】');
+      if (p.brand) parts.push(p.brand);
+      parts.push(p.name);
+      if (p.feats.length > 0) parts.push(p.feats[0]);
+      return parts.join(' ');
+    },
+    // パターン2: 絵文字＋キャッチ＋商品名＋ブランド＋状態
+    function(p) {
+      var catches = getCatches(p);
+      var parts = ['✨' + catches[0] + '✨'];
+      if (p.brand) parts.push(p.brand);
+      parts.push(p.name);
+      if (p.condition) parts.push(p.condition);
+      return parts.join(' ');
+    },
+    // パターン3: ブランド＋商品名＋特徴列挙＋状態
+    function(p) {
+      var parts = [];
+      if (p.brand) parts.push(p.brand);
+      parts.push(p.name);
+      if (p.feats.length > 0) parts.push(p.feats.join('/'));
+      if (p.condition) parts.push('◆' + p.condition);
+      return parts.join(' ');
+    },
+    // パターン4: 🔥売れ筋ワード＋商品名＋ブランド＋特徴
+    function(p) {
+      var hooks = getHooks(p);
+      var parts = ['🔥' + hooks[0]];
+      parts.push(p.name);
+      if (p.brand) parts.push(p.brand);
+      if (p.feats.length > 0) parts.push('| ' + p.feats.slice(0, 2).join(' '));
+      return parts.join(' ');
+    },
+    // パターン5: 【キャッチ】商品名＋ブランド＋状態＋特徴
+    function(p) {
+      var catches = getCatches(p);
+      var parts = ['【' + catches[1] + '】'];
+      if (p.brand) parts.push(p.brand);
+      parts.push(p.name);
+      if (p.condition) parts.push('(' + p.condition + ')');
+      if (p.feats.length > 1) parts.push(p.feats[1]);
+      return parts.join(' ');
+    }
+  ];
+
+  /* ── カテゴリ別キャッチフレーズ ── */
+  var CATCH_MAP = {
+    'ファッション': ['大人気', 'トレンド', '着回し抜群', 'おしゃれ', 'モテ服'],
+    '家電・スマホ': ['高性能', 'コスパ最強', '大人気', '即戦力', '話題の'],
+    '本・雑誌': ['ベストセラー', '話題作', '美品', '読みやすい', '名作'],
+    'ゲーム・おもちゃ': ['大人気', 'レア', '激アツ', '話題の', 'コレクター必見'],
+    'コスメ・美容': ['大人気', 'リピ買い', '話題コスメ', '美肌', 'モテコスメ'],
+    'インテリア・雑貨': ['おしゃれ', '映える', '大人気', 'SNSで話題', '便利'],
+    'スポーツ': ['本格派', '大人気', 'プロ仕様', 'コスパ◎', '即戦力'],
+    'ベビー・キッズ': ['大人気', 'かわいい', '安心素材', 'ママに人気', 'お買い得'],
+    '食品・飲料': ['大人気', '期間限定', 'リピ確定', 'お得', '話題の'],
+    'ハンドメイド': ['一点もの', 'オリジナル', '手作り', 'こだわり', '世界に一つ'],
+    'その他': ['大人気', 'お買い得', '話題の', 'コスパ◎', '即決歓迎']
+  };
+
+  /* ── フックワード（緊急性・限定性） ── */
+  var HOOK_MAP = {
+    'ファッション': ['今だけ値下げ中', '早い者勝ち', '残り1点', '週末限定価格', 'セール中'],
+    '家電・スマホ': ['売り切れ御免', '在庫ラスト', '今だけ特価', '早い者勝ち', '値下げ中'],
+    '本・雑誌': ['早い者勝ち', 'お買い得', '今だけ値下げ', 'まとめ買い歓迎', 'セット割'],
+    'ゲーム・おもちゃ': ['入手困難', '早い者勝ち', '売り切れ続出', 'プレミア', '在庫ラスト'],
+    'コスメ・美容': ['残りわずか', '今だけ値下げ', '限定品', '早い者勝ち', 'お得セット'],
+    'インテリア・雑貨': ['早い者勝ち', '今だけ値下げ', 'ラスト1点', '即購入OK', 'お買い得'],
+    'スポーツ': ['早い者勝ち', '今だけ値下げ', 'シーズン特価', '在庫ラスト', 'お買い得'],
+    'ベビー・キッズ': ['早い者勝ち', '今だけ値下げ', 'まとめ買い歓迎', 'お買い得', 'すぐ届く'],
+    '食品・飲料': ['賞味期限余裕あり', '早い者勝ち', 'まとめ買い歓迎', '今だけ特価', '数量限定'],
+    'ハンドメイド': ['再販なし', '早い者勝ち', '受注生産終了', 'ラスト1点', 'オーダー品'],
+    'その他': ['早い者勝ち', '今だけ値下げ', '即購入OK', 'お買い得', '在庫限り']
+  };
+
+  function getCatches(p) {
+    var list = CATCH_MAP[p.category] || CATCH_MAP['その他'];
+    return shuffle(list).slice(0, 2);
+  }
+  function getHooks(p) {
+    var list = HOOK_MAP[p.category] || HOOK_MAP['その他'];
+    return shuffle(list).slice(0, 1);
+  }
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function generate() {
+    var name = document.getElementById('productName').value.trim();
+    if (!name) {
+      var rc = document.getElementById('result');
+      rc.className = 'result-card ng';
+      rc.style.display = 'block';
+      document.getElementById('rv').textContent = '商品名を入力してください';
+      document.getElementById('genList').innerHTML = '';
+      return;
+    }
+    document.getElementById('result').style.display = 'none';
+
+    var category = document.getElementById('category').value || 'その他';
+    var condition = document.getElementById('condition').value;
+    var brand = document.getElementById('brand').value.trim();
+    var featText = document.getElementById('features').value.trim();
+    var feats = featText ? featText.split(/[,、，\s]+/).filter(function(f){ return f; }) : [];
+
+    var params = { name: name, category: category, condition: condition, brand: brand, feats: feats };
+
+    var titles = TEMPLATES.map(function(fn) { return fn(params); });
+    // 40文字超えたら末尾を切る（メルカリ推奨40文字以内）
+    titles = titles.map(function(t) { return t.length > 40 ? t.substring(0, 40) : t; });
+
+    var html = titles.map(function(t, i) {
+      return '<div class="gen-item" onclick="copyTitle(this, \'' + escAttr(t) + '\')">'
+        + '<p class="gen-item-num">パターン ' + (i + 1) + '</p>'
+        + '<p class="gen-item-text">' + esc(t) + '</p>'
+        + '<p class="gen-item-len">' + t.length + '文字</p>'
+        + '<p class="gen-item-copy">タップでコピー</p>'
+        + '</div>';
+    }).join('');
+    document.getElementById('genList').innerHTML = html;
+
+    // 履歴保存
+    saveHistory(name, titles);
+    renderHistory();
+  }
+
+  function copyTitle(el, text) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() { showCopied(el); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showCopied(el);
+    }
+  }
+  function showCopied(el) {
+    el.classList.add('copied');
+    el.querySelector('.gen-item-copy').textContent = '✅ コピーしました！';
+    setTimeout(function() {
+      el.classList.remove('copied');
+      el.querySelector('.gen-item-copy').textContent = 'タップでコピー';
+    }, 1500);
+  }
+
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function escAttr(s) { return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+  /* ── 履歴（localStorage） ── */
+  var HIST_KEY = 'mercari_name_gen_history';
+
+  function saveHistory(product, titles) {
+    var hist = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+    hist.unshift({ product: product, titles: titles, date: new Date().toLocaleString('ja-JP') });
+    if (hist.length > 20) hist = hist.slice(0, 20);
+    localStorage.setItem(HIST_KEY, JSON.stringify(hist));
+  }
+
+  function renderHistory() {
+    var hist = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+    var card = document.getElementById('historyCard');
+    if (hist.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    document.getElementById('historyList').innerHTML = hist.map(function(h) {
+      return '<div class="history-item">'
+        + '<span class="history-product">' + esc(h.product) + '</span>'
+        + ' <span class="history-date">' + esc(h.date) + '</span>'
+        + '<div class="history-titles">' + h.titles.map(function(t){ return '・' + esc(t); }).join('<br>') + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function clearHistory() {
+    localStorage.removeItem(HIST_KEY);
+    document.getElementById('historyCard').style.display = 'none';
+  }
+
+  // 初期表示
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
