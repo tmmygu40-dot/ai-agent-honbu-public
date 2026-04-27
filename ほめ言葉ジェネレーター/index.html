@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="名前とシーンを選ぶだけで、その場にぴったりのほめ言葉をサクッと生成。仕事・日常・恋愛・お祝いなど6シーン対応のほめ言葉ジェネレーターです。">
+  <title>ほめ言葉ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.3; margin-bottom: 0.4rem; color: var(--accent); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-name { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 0.6rem; }
+
+    /* ── 履歴カード ── */
+    .history-item {
+      padding: 0.7rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; line-height: 1.5;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-meta { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.2rem; }
+    .history-praise { color: var(--text); font-weight: 600; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── クリアボタン ── */
+    .btn-clear {
+      display: block; margin: 0.6rem auto 0; padding: 0.5rem 1rem;
+      font-size: 0.8rem; font-weight: 600;
+      background: transparent; color: var(--text-sub);
+      border: 1px solid var(--border); border-radius: 8px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-clear:hover { border-color: var(--ng); color: var(--ng); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🌟 ほめ言葉ジェネレーター</h1>
+    <p class="subtitle">名前とシーンを選ぶだけで、心あたたまるほめ言葉をサクッと生成できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="nameInput">ほめたい人の名前</label>
+      <input type="text" id="nameInput" placeholder="例: たろう">
+      <p class="hint">ニックネームでもOK</p>
+    </div>
+    <div class="field">
+      <label for="sceneSelect">シーン</label>
+      <select id="sceneSelect">
+        <option value="仕事">仕事</option>
+        <option value="日常">日常</option>
+        <option value="恋愛">恋愛</option>
+        <option value="お祝い">お祝い</option>
+        <option value="子育て">子育て</option>
+        <option value="友達">友達</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ほめるボタン -->
+  <button class="btn-calc" onclick="generate()">ほめる！</button>
+
+  <!-- 広告枠（仮・将来差し替え予定。広告コードは未実装） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">ほめ言葉</p>
+    <p class="result-name" id="rName"></p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">生成履歴</p>
+    <div id="historyList"></div>
+  </div>
+
+  <button class="btn-clear no-print" id="clearBtn" style="display:none" onclick="clearHistory()">履歴をクリア</button>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    💡 ほめ言葉はランダム生成です。状況に合わせてアレンジしてお使いください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var PRAISE_DATA = {
+    '仕事': [
+      '{name}さんの仕事ぶりは、いつも周りに安心感を与えてます',
+      '{name}さんがいると、チーム全体の雰囲気が良くなりますね',
+      '{name}さんの報告はいつも分かりやすくて助かります',
+      '{name}さんの気配りのおかげで、仕事がスムーズに進んでます',
+      '{name}さんの段取り力、見習いたいです',
+      '{name}さんに任せると安心できるって、みんな思ってますよ',
+      '{name}さんのアイデア、いつも目からウロコです',
+      '{name}さんの粘り強さは本当にすごい。尊敬します',
+      '{name}さんがいてくれるから、難しい案件も乗り越えられます',
+      '{name}さんのプレゼン、毎回引き込まれます',
+      '{name}さんの冷静な判断力にはいつも助けられてます',
+      '{name}さんのリーダーシップがあるから安心して進められます',
+      '{name}さんの丁寧な仕事、いつもクオリティが高いですね',
+      '{name}さんの資料はいつも完璧で、そのまま使えます',
+      '{name}さんのフォロー力、チームの大きな支えです'
+    ],
+    '日常': [
+      '{name}さんの笑顔は、周りをパッと明るくしますね',
+      '{name}さんと話してると元気が出ます',
+      '{name}さんの優しさにいつも救われてます',
+      '{name}さんのセンスの良さ、さりげなくて素敵です',
+      '{name}さんの言葉選びがいつも温かくて好きです',
+      '{name}さんがいるだけで場が和みますね',
+      '{name}さんの料理の腕前、プロ級ですね',
+      '{name}さんの気遣い力、マジで天才だと思います',
+      '{name}さんのポジティブさにいつも元気をもらってます',
+      '{name}さんの話、いつも面白くてつい聞き入っちゃいます',
+      '{name}さんの行動力、見ててワクワクします',
+      '{name}さんの穏やかさは周りの人をホッとさせますね',
+      '{name}さんの好奇心旺盛なところ、すごく魅力的です',
+      '{name}さんのファッションセンス、いつもお洒落ですね',
+      '{name}さんの礼儀正しさ、見ていて気持ちがいいです'
+    ],
+    '恋愛': [
+      '{name}さんの隣にいると、時間があっという間に過ぎます',
+      '{name}さんの声を聞くだけで、疲れが吹き飛びます',
+      '{name}さんの笑った顔が世界で一番好きです',
+      '{name}さんと出会えたのは人生で一番のラッキーです',
+      '{name}さんのことを考えるだけで、自然と笑顔になれます',
+      '{name}さんの優しさは、何よりも心に響きます',
+      '{name}さんと一緒だと何でも楽しくなるんです',
+      '{name}さんの存在が、毎日を特別にしてくれます',
+      '{name}さんの思いやりに、いつもキュンとします',
+      '{name}さんのそういう真っ直ぐなところが大好きです',
+      '{name}さんの目を見ると安心します',
+      '{name}さんの何気ない気遣いが、一番嬉しいんです',
+      '{name}さんと過ごす時間は、何物にも代えられません',
+      '{name}さんの手料理、世界一おいしいです',
+      '{name}さんのそばにいるだけで幸せを感じます'
+    ],
+    'お祝い': [
+      '{name}さん、おめでとうございます！あなたの努力が実を結びましたね',
+      '{name}さんの頑張りを知っているから、本当に嬉しいです',
+      '{name}さんにふさわしい素晴らしい結果ですね。おめでとう！',
+      '{name}さんの新たな門出を心からお祝いします',
+      '{name}さんなら、きっとこれからもっと輝けますよ',
+      '{name}さんの成長を見られて、自分のことのように嬉しいです',
+      '{name}さんの努力は誰よりも知ってます。最高の結果ですね',
+      '{name}さんのこれからが楽しみでなりません。おめでとう！',
+      '{name}さん、誕生日おめでとう！素敵な1年になりますように',
+      '{name}さんの節目をお祝いできて光栄です',
+      '{name}さんの挑戦する姿勢が、この結果を引き寄せましたね',
+      '{name}さんにピッタリの大きな一歩ですね。おめでとうございます',
+      '{name}さんの夢が形になった瞬間、感動しました',
+      '{name}さんの記念すべき日を、一緒に喜べて幸せです',
+      '{name}さんの未来はもっと明るい。自信を持って進んでください'
+    ],
+    '子育て': [
+      '{name}さん、毎日の子育て本当にお疲れさまです。すごいですよ',
+      '{name}さんのお子さんは、こんな素敵な親御さんで幸せですね',
+      '{name}さんの愛情、お子さんにしっかり届いてますよ',
+      '{name}さんの粘り強い子育て、本当に尊敬します',
+      '{name}さんの子育て力、マジで超人だと思います',
+      '{name}さんのお弁当、いつも愛情たっぷりで美味しそう',
+      '{name}さんの子どもへの声かけ、すごく上手ですね',
+      '{name}さんのバランス感覚、子育ても仕事も両立してて尊敬です',
+      '{name}さんの笑顔が、お子さんの安心の源ですね',
+      '{name}さん、完璧じゃなくていいんです。十分素敵なお母さん/お父さんです',
+      '{name}さんのお子さん思いの姿勢に、いつも感心しています',
+      '{name}さんの忍耐力は子育ての鑑ですね',
+      '{name}さんの手作りおやつ、プロ級ですね',
+      '{name}さんの家庭は温かさが溢れていますね',
+      '{name}さんの子どもと向き合う姿勢が素晴らしいです'
+    ],
+    '友達': [
+      '{name}さんは一緒にいると心からリラックスできる存在です',
+      '{name}さんの友達思いなところ、マジで感謝してます',
+      '{name}さんに出会えて本当に良かった',
+      '{name}さんのノリの良さ、最高です',
+      '{name}さんの相談に乗ってくれる姿勢に何度も救われました',
+      '{name}さんの正直なところが信頼できるんですよね',
+      '{name}さんとの時間は、いつも笑いが絶えません',
+      '{name}さんの面白さは天性のものですね',
+      '{name}さんのさりげない優しさに、いつも気づいてますよ',
+      '{name}さんは誰に対しても平等で、本当にかっこいい',
+      '{name}さんの行動力には毎回驚かされます',
+      '{name}さんのおすすめは外さないから信頼してます',
+      '{name}さんの人を楽しませる才能、ピカイチですね',
+      '{name}さんとの付き合いは、人生の宝物です',
+      '{name}さんの気さくさに、いつも助けられてます'
+    ]
+  };
+
+  var STORAGE_KEY = 'praise_generator_history';
+
+  function generate() {
+    var name = document.getElementById('nameInput').value.trim();
+    var scene = document.getElementById('sceneSelect').value;
+
+    if (!name) {
+      var rc = document.getElementById('result');
+      rc.className = 'result-card ng';
+      rc.style.display = 'block';
+      document.getElementById('rName').textContent = '';
+      document.getElementById('rv').textContent = '⚠️';
+      document.getElementById('rn').textContent = '名前を入力してください';
+      return;
+    }
+
+    var list = PRAISE_DATA[scene];
+    var template = list[Math.floor(Math.random() * list.length)];
+    var praise = template.replace(/\{name\}/g, name);
+
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = 'block';
+    document.getElementById('rName').textContent = name + 'さんへ（' + scene + '）';
+    document.getElementById('rv').textContent = praise;
+    document.getElementById('rn').textContent = 'もう一度押すと別のほめ言葉が出ます';
+
+    saveHistory(name, scene, praise);
+    renderHistory();
+  }
+
+  function saveHistory(name, scene, praise) {
+    var history = loadHistory();
+    history.unshift({
+      name: name,
+      scene: scene,
+      praise: praise,
+      date: new Date().toLocaleString('ja-JP')
+    });
+    if (history.length > 50) history = history.slice(0, 50);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  }
+
+  function loadHistory() {
+    try {
+      var data = localStorage.getItem(STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function renderHistory() {
+    var history = loadHistory();
+    var card = document.getElementById('historyCard');
+    var list = document.getElementById('historyList');
+    var clearBtn = document.getElementById('clearBtn');
+
+    if (history.length === 0) {
+      card.style.display = 'none';
+      clearBtn.style.display = 'none';
+      return;
+    }
+
+    card.style.display = 'block';
+    clearBtn.style.display = 'block';
+    list.innerHTML = history.slice(0, 20).map(function(h) {
+      return '<div class="history-item">'
+        + '<p class="history-praise">' + escHtml(h.praise) + '</p>'
+        + '<p class="history-meta">' + escHtml(h.scene) + ' ／ ' + escHtml(h.date) + '</p>'
+        + '</div>';
+    }).join('');
+  }
+
+  function clearHistory() {
+    if (!confirm('履歴をすべて削除しますか？')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    renderHistory();
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
