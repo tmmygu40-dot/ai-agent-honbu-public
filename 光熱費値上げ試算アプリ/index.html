@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ガス・電気の使用量と値上げ前後の単価を入力するだけで、月額・年間の光熱費増加額をすぐに試算できるシミュレーターです。">
+  <title>光熱費値上げ試算アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💡 光熱費値上げ試算アプリ</h1>
+    <p class="subtitle">ガス・電気の使用量と単価を入れるだけで、値上げの家計インパクトがすぐ分かります。</p>
+  </header>
+
+  <!-- 電気 入力カード -->
+  <div class="card">
+    <p class="card-title">電気</p>
+    <div class="field">
+      <label for="elecUsage">今月の使用量（kWh）</label>
+      <input type="number" id="elecUsage" placeholder="例: 300" min="0" step="1">
+      <p class="hint">電気の検針票・明細で確認できます</p>
+    </div>
+    <div class="field">
+      <label for="elecBefore">値上げ前の単価（円/kWh）</label>
+      <input type="number" id="elecBefore" placeholder="例: 30" min="0" step="0.01">
+    </div>
+    <div class="field">
+      <label for="elecAfter">値上げ後の単価（円/kWh）</label>
+      <input type="number" id="elecAfter" placeholder="例: 35" min="0" step="0.01">
+    </div>
+  </div>
+
+  <!-- ガス 入力カード -->
+  <div class="card">
+    <p class="card-title">ガス</p>
+    <div class="field">
+      <label for="gasUsage">今月の使用量（m³）</label>
+      <input type="number" id="gasUsage" placeholder="例: 20" min="0" step="0.1">
+      <p class="hint">ガスの検針票・明細で確認できます</p>
+    </div>
+    <div class="field">
+      <label for="gasBefore">値上げ前の単価（円/m³）</label>
+      <input type="number" id="gasBefore" placeholder="例: 150" min="0" step="0.01">
+    </div>
+    <div class="field">
+      <label for="gasAfter">値上げ後の単価（円/m³）</label>
+      <input type="number" id="gasAfter" placeholder="例: 175" min="0" step="0.01">
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">月額の増加額</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 絵文字ひとこと＆結果別Q&A -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 最新の単価は各ガス・電力会社の公式情報をご確認ください。経済産業省・資源エネルギー庁の公開データも参考になります。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: 'ほっ、家計への影響は軽め' },
+    warn: { e: '🤔', t: 'うーん、ちょっと痛い出費かも' },
+    ng:   { e: '😱', t: 'ガーン、年間だとかなりの負担増…' }
+  };
+
+  var QA = {
+    ok: [
+      { q: 'このまま放っておいて大丈夫？', a: '月500円以下の増加なら大きな影響はありません。ただし他の値上げと重なると積み重ねで効いてきます。' },
+      { q: '節約するなら何から？', a: '使っていない部屋の照明OFF、待機電力カットなど小さな習慣の積み重ねが効果的です。' },
+      { q: '電力会社の乗り換えは？', a: '増加額が小さい場合、乗り換え手続きの手間と比較して判断しましょう。' },
+      { q: '今後さらに上がる？', a: '燃料価格や為替次第です。定期的に単価をチェックしておくと安心です。' }
+    ],
+    warn: [
+      { q: '月いくらなら気にすべき？', a: '月1,000〜3,000円の増加は年間で1.2〜3.6万円。家計の見直しを検討する目安です。' },
+      { q: '何から節約する？', a: 'エアコンの設定温度を1度変える、シャワー時間を短縮するなど、大きな使用項目から見直しましょう。' },
+      { q: '電力・ガス会社の比較は？', a: '比較サイトで現在のプランと他社を比べてみましょう。年間数千円の差が出ることもあります。' },
+      { q: '政府の補助金は？', a: '電気・ガス料金の補助制度がある場合があります。経済産業省のサイトで最新情報を確認しましょう。' }
+    ],
+    ng: [
+      { q: '年間でいくら増える？', a: '内訳の年間増加額を確認してください。月3,000円超なら年間3.6万円以上の負担増です。' },
+      { q: '今すぐできることは？', a: '①契約プランの見直し ②省エネ家電への切り替え ③使用量そのものの削減、の3つが即効性があります。' },
+      { q: '電力・ガス会社を変えるべき？', a: 'この増加額なら乗り換えの検討をおすすめします。新電力や都市ガスの自由化プランを比較してみましょう。' },
+      { q: '補助金や支援制度は？', a: '低所得世帯向けの給付金や、省エネリフォーム補助金など公的支援がないか自治体に確認しましょう。' }
+    ]
+  };
+
+  var STORAGE_KEY = 'kounetsuhi_neage_data';
+
+  function saveInputs() {
+    var data = {
+      elecUsage: document.getElementById('elecUsage').value,
+      elecBefore: document.getElementById('elecBefore').value,
+      elecAfter: document.getElementById('elecAfter').value,
+      gasUsage: document.getElementById('gasUsage').value,
+      gasBefore: document.getElementById('gasBefore').value,
+      gasAfter: document.getElementById('gasAfter').value
+    };
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadInputs() {
+    try {
+      var data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (!data) return;
+      var ids = ['elecUsage','elecBefore','elecAfter','gasUsage','gasBefore','gasAfter'];
+      ids.forEach(function(id) {
+        if (data[id] !== undefined && data[id] !== '') {
+          document.getElementById(id).value = data[id];
+        }
+      });
+    } catch(e) {}
+  }
+
+  function calc() {
+    var eu = parseFloat(document.getElementById('elecUsage').value) || 0;
+    var eb = parseFloat(document.getElementById('elecBefore').value) || 0;
+    var ea = parseFloat(document.getElementById('elecAfter').value) || 0;
+    var gu = parseFloat(document.getElementById('gasUsage').value) || 0;
+    var gb = parseFloat(document.getElementById('gasBefore').value) || 0;
+    var ga = parseFloat(document.getElementById('gasAfter').value) || 0;
+
+    if (eu === 0 && gu === 0) {
+      showErr('電気またはガスの使用量を入力してください');
+      return;
+    }
+
+    var elecDiffUnit = ea - eb;
+    var gasDiffUnit = ga - gb;
+    var elecDiffMonth = Math.round(eu * elecDiffUnit);
+    var gasDiffMonth = Math.round(gu * gasDiffUnit);
+    var totalMonth = elecDiffMonth + gasDiffMonth;
+    var totalYear = totalMonth * 12;
+
+    var level = totalMonth <= 500 ? 'ok' : totalMonth <= 3000 ? 'warn' : 'ng';
+    var msg = level === 'ok'   ? '家計への影響は小さめです'
+            : level === 'warn' ? '年間で見ると無視できない金額です'
+            : '大きな負担増。プランの見直しを検討しましょう';
+
+    showResult(level, '+' + fmt(totalMonth) + ' 円/月', msg);
+
+    var rows = [];
+    if (eu > 0) {
+      rows.push(['電気 値上げ幅', fmt(elecDiffUnit) + ' 円/kWh']);
+      rows.push(['電気 月額増加', fmt(elecDiffMonth) + ' 円']);
+    }
+    if (gu > 0) {
+      rows.push(['ガス 値上げ幅', fmt(gasDiffUnit) + ' 円/m³']);
+      rows.push(['ガス 月額増加', fmt(gasDiffMonth) + ' 円']);
+    }
+    rows.push(['月額 合計増加', fmt(totalMonth) + ' 円', true]);
+    rows.push(['年間 合計増加', fmt(totalYear) + ' 円', true]);
+
+    showDetail(rows);
+    showQA(level);
+    saveInputs();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+    var re = document.getElementById('re');
+    re.textContent = level === 'ok' ? '影響は軽微' : level === 'warn' ? '要注意' : '要見直し';
+  }
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x){
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('qa-card').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  loadInputs();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
