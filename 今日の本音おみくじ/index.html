@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="今の気分を3択で選ぶだけで、あなたの隠れた本音とラッキーアクションがわかる。毎日使える気分おみくじアプリです。">
+  <title>今日の本音おみくじ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 気分ボタン ── */
+    .mood-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.8rem;
+    }
+    .mood-btn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 1.2rem 0.5rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--bg); color: var(--text);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mood-btn:hover { border-color: var(--accent); background: var(--accent-light); }
+    .mood-btn:active { transform: scale(0.96); }
+    .mood-btn .mood-emoji { font-size: 2rem; margin-bottom: 0.4rem; }
+    .mood-btn.selected { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 3px rgba(224,123,0,0.15); }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.show { display: block; animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.3; margin-bottom: 0.6rem; color: var(--accent); }
+    .result-note { font-size: 0.88rem; color: var(--text-sub); line-height: 1.6; }
+
+    /* ── 本音カード ── */
+    .honne-card { border-color: #8b5cf6; }
+    .honne-card .result-label { color: #8b5cf6; }
+    .honne-card .result-value { color: #7c3aed; }
+    .honne-emoji { font-size: 2.4rem; margin-bottom: 0.4rem; }
+
+    /* ── ラッキーアクションカード ── */
+    .lucky-card { border-color: var(--ok); }
+    .lucky-card .result-label { color: var(--ok); }
+    .lucky-card .result-value { color: var(--ok); font-size: 1.3rem; }
+
+    /* ── もう一回ボタン ── */
+    .btn-retry {
+      display: none; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.85rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius);
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-retry:hover { background: var(--accent-light); }
+
+    /* ── 履歴 ── */
+    .history-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-date { color: var(--text-sub); font-size: 0.78rem; }
+    .history-mood { font-weight: 700; }
+    .history-empty { color: var(--text-sub); font-size: 0.88rem; text-align: center; padding: 1rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print, .btn-retry { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🔮 今日の本音おみくじ</h1>
+    <p class="subtitle">今の気分を選ぶだけで、心の奥のホンネとラッキーアクションがわかります。</p>
+  </header>
+
+  <!-- 気分選択カード -->
+  <div class="card">
+    <p class="card-title">今の気分は？</p>
+    <div class="mood-grid">
+      <button class="mood-btn" onclick="draw('moyamoya')">
+        <span class="mood-emoji">😶‍🌫️</span>
+        もやもや
+      </button>
+      <button class="mood-btn" onclick="draw('maamaa')">
+        <span class="mood-emoji">😐</span>
+        まあまあ
+      </button>
+      <button class="mood-btn" onclick="draw('genki')">
+        <span class="mood-emoji">😆</span>
+        元気！
+      </button>
+    </div>
+  </div>
+
+  <!-- 本音カード -->
+  <div class="result-card honne-card" id="honne-card">
+    <p class="result-label">🪞 あなたの隠れた本音</p>
+    <p class="honne-emoji" id="honne-emoji"></p>
+    <p class="result-value" id="honne-text"></p>
+    <p class="result-note" id="honne-note"></p>
+  </div>
+
+  <!-- ラッキーアクションカード -->
+  <div class="result-card lucky-card" id="lucky-card">
+    <p class="result-label">🍀 今日のラッキーアクション</p>
+    <p class="result-value" id="lucky-text"></p>
+    <p class="result-note" id="lucky-note"></p>
+  </div>
+
+  <!-- もう一回ボタン -->
+  <button class="btn-retry no-print" id="btn-retry" onclick="retry()">🔄 もう一回引く</button>
+
+  <!-- 履歴カード -->
+  <div class="card" id="history-card" style="display:none">
+    <p class="card-title">📜 過去の結果</p>
+    <div id="history-list"></div>
+  </div>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── データ定義 ──
+  var DATA = {
+    moyamoya: {
+      honne: [
+        { emoji: '😮‍💨', text: '本当はちょっと休みたい', note: '頑張りすぎてる自分に気づいてあげて。' },
+        { emoji: '🥺', text: '誰かに「大丈夫？」って聞かれたい', note: '甘えたい気持ち、悪いことじゃないよ。' },
+        { emoji: '😤', text: '実はけっこう怒ってる', note: 'モヤモヤの正体、怒りかも。吐き出してOK。' },
+        { emoji: '🫠', text: 'やる気が蒸発している', note: '充電切れは誰にでもある。今日はゆるくいこう。' },
+        { emoji: '😶', text: '何がイヤなのか自分でもわからない', note: '言葉にできないモヤモヤ、書き出すとスッキリするかも。' },
+        { emoji: '🌧️', text: '今日は何もしたくない', note: 'それも立派な自分の声。無理しないで。' },
+        { emoji: '😔', text: 'ちょっと寂しい', note: '誰かと話すだけで気持ちが軽くなることもあるよ。' },
+        { emoji: '🤯', text: '頭の中がごちゃごちゃ', note: '一旦全部メモに書き出してみよう。' }
+      ],
+      lucky: [
+        { text: '温かい飲み物をゆっくり飲む', note: '5分だけ何も考えない時間を作ろう。' },
+        { text: '好きな曲を1曲だけ聴く', note: '音楽は気分リセットの特効薬。' },
+        { text: '窓を開けて深呼吸3回', note: '新鮮な空気が気持ちを入れ替えてくれる。' },
+        { text: '今の気持ちを3行だけ書き出す', note: 'モヤモヤは言語化すると半分になる。' },
+        { text: '15分だけ昼寝する', note: '短い休息が午後の自分を救う。' },
+        { text: '甘いものを1つ食べる', note: '糖分補給は心の応急処置。' },
+        { text: 'ストレッチで体を伸ばす', note: '体がほぐれると心もほぐれる。' },
+        { text: '今日だけ「まあいいか」を口癖にする', note: '完璧じゃなくていい日もある。' }
+      ]
+    },
+    maamaa: {
+      honne: [
+        { emoji: '🙄', text: '実はもうちょっと褒められたい', note: '認められたい欲、人間なら当然です。' },
+        { emoji: '😏', text: 'けっこう頑張ってると思ってる', note: '自覚してるなら、それは事実。自信持って。' },
+        { emoji: '🤷', text: '特に不満はないけど刺激が欲しい', note: 'マンネリは安定の証。少し冒険してみる？' },
+        { emoji: '😌', text: '今の平和が続けばそれでいい', note: '「普通」を大事にできる人は強い。' },
+        { emoji: '🫣', text: '本当はワクワクしたい', note: '心の奥の冒険心、たまには解放してあげよう。' },
+        { emoji: '🤔', text: 'このままでいいのかな、とちょっと思ってる', note: '立ち止まって考えるのも前進のうち。' },
+        { emoji: '😅', text: '平気なフリが上手になってきた', note: 'たまには素直な顔を見せてもいいんだよ。' },
+        { emoji: '🧐', text: '周りと比べてしまう自分がいる', note: '比べるなら、昨日の自分とだけにしよう。' }
+      ],
+      lucky: [
+        { text: 'いつもと違う道を歩いてみる', note: '小さな変化が新しい発見を連れてくる。' },
+        { text: '気になってたお店に入ってみる', note: '「今度行こう」の「今度」は今日かも。' },
+        { text: '久しぶりの人に連絡してみる', note: '相手も同じこと思ってるかも。' },
+        { text: '新しいレシピで料理する', note: '食卓の冒険はノーリスク・ハイリターン。' },
+        { text: '5分だけ瞑想してみる', note: '頭をからっぽにすると、次のアイデアが浮かぶ。' },
+        { text: '本屋で直感だけで1冊選ぶ', note: '偶然の出会いが世界を広げることも。' },
+        { text: '自分にプチご褒美を買う', note: '300円でも「自分で選んだ」が嬉しい。' },
+        { text: '空を見上げて30秒ぼーっとする', note: '何もしない贅沢、意外と効きます。' }
+      ]
+    },
+    genki: {
+      honne: [
+        { emoji: '🔥', text: '今なら何でもできる気がしてる', note: 'その勢い、今日中に1つ形にしちゃおう。' },
+        { emoji: '😎', text: '正直、自分イケてると思ってる', note: 'その自信、今日は全力で出していこう。' },
+        { emoji: '🥳', text: '理由はないけど最高の気分', note: '理由なんていらない。楽しいは正義。' },
+        { emoji: '💪', text: 'エネルギーが余ってる', note: '今日のパワーを誰かのために使ったら最強。' },
+        { emoji: '✨', text: '今日は何かいいことが起きそう', note: '期待してると本当に引き寄せるかも。' },
+        { emoji: '🎵', text: '鼻歌が止まらない', note: 'ご機嫌パワーは周りにも伝染する。' },
+        { emoji: '🚀', text: '新しいことを始めたい', note: 'スタートするなら元気な今日がベスト。' },
+        { emoji: '😆', text: 'とにかく楽しい！', note: '楽しい気持ちを全力で味わおう。' }
+      ],
+      lucky: [
+        { text: '新しいことに1つチャレンジする', note: '元気な日こそ挑戦のチャンス。' },
+        { text: '誰かを褒める', note: 'ポジティブのおすそ分け、巡り巡って戻ってくる。' },
+        { text: '思いついたアイデアをメモする', note: 'ひらめきは元気な時にしか降りてこない。' },
+        { text: '普段やらない場所を掃除する', note: 'パワーがある日に片付けると効率3倍。' },
+        { text: '大きな声で笑う', note: '笑うと免疫力も上がるって本当らしい。' },
+        { text: '誰かにおごる or おすそ分けする', note: '気前の良さが運を呼ぶ。' },
+        { text: '写真を撮って今日を記録する', note: '元気な日の写真は将来の自分を励ます。' },
+        { text: '好きな人に「ありがとう」を伝える', note: '感謝の言葉は何度言ってもいい。' }
+      ]
+    }
+  };
+
+  var STORAGE_KEY = 'honne_omikuji_history';
+
+  function draw(mood) {
+    var d = DATA[mood];
+    var h = d.honne[Math.floor(Math.random() * d.honne.length)];
+    var l = d.lucky[Math.floor(Math.random() * d.lucky.length)];
+
+    // 選択状態を表示
+    var btns = document.querySelectorAll('.mood-btn');
+    btns.forEach(function(b){ b.classList.remove('selected'); });
+    var moodIdx = mood === 'moyamoya' ? 0 : mood === 'maamaa' ? 1 : 2;
+    btns[moodIdx].classList.add('selected');
+
+    // 本音カード
+    var hc = document.getElementById('honne-card');
+    hc.classList.add('show');
+    document.getElementById('honne-emoji').textContent = h.emoji;
+    document.getElementById('honne-text').textContent = h.text;
+    document.getElementById('honne-note').textContent = h.note;
+
+    // ラッキーアクションカード
+    var lc = document.getElementById('lucky-card');
+    lc.classList.add('show');
+    document.getElementById('lucky-text').textContent = l.text;
+    document.getElementById('lucky-note').textContent = l.note;
+
+    // もう一回ボタン
+    document.getElementById('btn-retry').style.display = 'block';
+
+    // 履歴保存
+    saveHistory(mood, h.text, l.text);
+    renderHistory();
+
+    // スクロール
+    hc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function retry() {
+    // リセットして上に戻る
+    document.getElementById('honne-card').classList.remove('show');
+    document.getElementById('lucky-card').classList.remove('show');
+    document.getElementById('btn-retry').style.display = 'none';
+    document.querySelectorAll('.mood-btn').forEach(function(b){ b.classList.remove('selected'); });
+    document.querySelector('.app-header').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── localStorage 履歴 ──
+  function saveHistory(mood, honne, lucky) {
+    var history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    var moodLabel = mood === 'moyamoya' ? 'もやもや' : mood === 'maamaa' ? 'まあまあ' : '元気';
+    var now = new Date();
+    var dateStr = now.getFullYear() + '/' + (now.getMonth()+1) + '/' + now.getDate() + ' ' +
+                  ('0'+now.getHours()).slice(-2) + ':' + ('0'+now.getMinutes()).slice(-2);
+    history.unshift({ date: dateStr, mood: moodLabel, honne: honne, lucky: lucky });
+    if (history.length > 30) history = history.slice(0, 30);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  }
+
+  function renderHistory() {
+    var history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    var card = document.getElementById('history-card');
+    var list = document.getElementById('history-list');
+    if (history.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    list.innerHTML = history.slice(0, 10).map(function(h) {
+      return '<div class="history-item">' +
+        '<div><span class="history-mood">' + h.mood + '</span> → ' + h.honne + '</div>' +
+        '<div class="history-date">' + h.date + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  // 初期表示で履歴があれば表示
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

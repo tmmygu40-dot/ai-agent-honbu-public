@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="推しキャラの衣装・髪色・シーンを選ぶだけで、水彩画風AIイラスト用プロンプトを即生成。コピーしてすぐAI画像生成ツールに貼れます。">
+  <title>推し水彩プロンプトメーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.show { display: block; }
+
+    /* ── プロンプト出力エリア ── */
+    .prompt-output {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      padding: 1rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text);
+      word-break: break-word;
+      white-space: pre-wrap;
+      min-height: 80px;
+      margin-bottom: 1rem;
+    }
+
+    .btn-copy {
+      display: block; width: 100%;
+      padding: 0.8rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.7; }
+    .btn-copy.copied { background: var(--text-sub); }
+
+    /* ── 履歴カード ── */
+    .history-item {
+      padding: 0.7rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      line-height: 1.5;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .history-item:hover { background: var(--accent-light); }
+    .history-item:last-child { border-bottom: none; }
+    .history-time { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.2rem; }
+    .history-text { font-size: 0.82rem; color: var(--text); word-break: break-word; }
+    .btn-clear-history {
+      display: block; width: 100%; margin-top: 0.8rem;
+      padding: 0.5rem; font-size: 0.8rem; font-weight: 600;
+      background: transparent; color: var(--ng); border: 1.5px solid var(--ng);
+      border-radius: 8px; cursor: pointer;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎨 推し水彩プロンプトメーカー</h1>
+    <p class="subtitle">衣装・髪色・シーンを選ぶだけで、推しの水彩画風AIプロンプトがすぐ完成。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">キャラ設定</p>
+    <div class="field">
+      <label for="outfit">衣装</label>
+      <select id="outfit">
+        <option value="">選んでください</option>
+        <option value="school uniform">制服</option>
+        <option value="kimono">着物・和服</option>
+        <option value="maid outfit">メイド服</option>
+        <option value="casual clothes">カジュアル私服</option>
+        <option value="gothic lolita dress">ゴスロリ</option>
+        <option value="knight armor">騎士の鎧</option>
+        <option value="idol costume">アイドル衣装</option>
+        <option value="witch robe">魔女のローブ</option>
+        <option value="wedding dress">ウエディングドレス</option>
+        <option value="suit and tie">スーツ</option>
+        <option value="hoodie and jeans">パーカー＆ジーンズ</option>
+        <option value="chinese dress (qipao)">チャイナドレス</option>
+        <option value="sailor fuku">セーラー服</option>
+        <option value="fantasy adventurer outfit">ファンタジー冒険者</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="hair">髪色</label>
+      <select id="hair">
+        <option value="">選んでください</option>
+        <option value="black hair">黒髪</option>
+        <option value="silver hair">銀髪</option>
+        <option value="blonde hair">金髪</option>
+        <option value="pink hair">ピンク髪</option>
+        <option value="light blue hair">水色髪</option>
+        <option value="red hair">赤髪</option>
+        <option value="purple hair">紫髪</option>
+        <option value="green hair">緑髪</option>
+        <option value="white hair">白髪</option>
+        <option value="brown hair">茶髪</option>
+        <option value="gradient pink to blue hair">ピンク→ブルーグラデ</option>
+        <option value="orange hair">オレンジ髪</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="scene">シーン</label>
+      <select id="scene">
+        <option value="">選んでください</option>
+        <option value="cherry blossom garden">桜の庭</option>
+        <option value="moonlit rooftop at night">月夜の屋上</option>
+        <option value="sunflower field in summer">夏のひまわり畑</option>
+        <option value="rainy street with umbrella">雨の街・傘</option>
+        <option value="cozy library with warm light">暖かい図書館</option>
+        <option value="snowy forest">雪の森</option>
+        <option value="seaside at sunset">夕暮れの海辺</option>
+        <option value="floating lanterns festival">ランタン祭り</option>
+        <option value="medieval castle balcony">中世の城バルコニー</option>
+        <option value="starry sky meadow">星空の草原</option>
+        <option value="autumn leaves park">紅葉の公園</option>
+        <option value="shrine torii gate at dawn">朝焼けの神社鳥居</option>
+        <option value="cafe terrace with flowers">花のカフェテラス</option>
+        <option value="neon-lit cyberpunk alley">ネオン裏路地</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="extra">追加キーワード（任意）</label>
+      <input type="text" id="extra" placeholder="例: twin tails, gentle smile, holding book">
+      <p class="hint">英語で自由に追加できます。カンマ区切りで複数OK</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">プロンプトを生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="card-title">生成プロンプト</p>
+    <div class="prompt-output" id="prompt-text"></div>
+    <button class="btn-copy" id="btn-copy" onclick="copyPrompt()">コピーする</button>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="history-card" style="display:none">
+    <p class="card-title">生成履歴</p>
+    <div id="history-list"></div>
+    <button class="btn-clear-history no-print" onclick="clearHistory()">履歴をクリア</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    🎨 生成されるプロンプトはAI画像生成ツール（Stable Diffusion、Midjourney等）での使用を想定しています。出力結果は目安としてご利用ください。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var HISTORY_KEY = 'oshi_watercolor_prompt_history';
+
+  var watercolorStyles = [
+    'watercolor painting', 'soft watercolor wash', 'delicate watercolor illustration',
+    'transparent watercolor layers', 'wet-on-wet watercolor technique'
+  ];
+  var qualityTags = [
+    'masterpiece', 'best quality', 'highly detailed', 'beautiful lighting',
+    'soft color palette', 'artistic', 'ethereal atmosphere'
+  ];
+  var watercolorDetails = [
+    'visible brush strokes', 'color bleeding edges', 'soft gradient washes',
+    'paper texture visible', 'light and airy composition'
+  ];
+
+  function generate() {
+    var outfit = document.getElementById('outfit').value;
+    var hair = document.getElementById('hair').value;
+    var scene = document.getElementById('scene').value;
+    var extra = document.getElementById('extra').value.trim();
+
+    if (!outfit || !hair || !scene) {
+      var rc = document.getElementById('result');
+      rc.classList.add('show');
+      document.getElementById('prompt-text').textContent = '衣装・髪色・シーンをすべて選んでください。';
+      return;
+    }
+
+    var style = watercolorStyles[Math.floor(Math.random() * watercolorStyles.length)];
+    var detail = watercolorDetails[Math.floor(Math.random() * watercolorDetails.length)];
+    var shuffledQuality = qualityTags.slice().sort(function() { return Math.random() - 0.5; }).slice(0, 4);
+
+    var parts = [
+      style,
+      '1 anime character',
+      hair,
+      outfit,
+      scene,
+      detail
+    ];
+    parts = parts.concat(shuffledQuality);
+    if (extra) {
+      parts.push(extra);
+    }
+
+    var prompt = parts.join(', ');
+
+    document.getElementById('prompt-text').textContent = prompt;
+    var rc = document.getElementById('result');
+    rc.classList.add('show');
+
+    var copyBtn = document.getElementById('btn-copy');
+    copyBtn.textContent = 'コピーする';
+    copyBtn.classList.remove('copied');
+
+    saveHistory(prompt);
+    renderHistory();
+  }
+
+  function copyPrompt() {
+    var text = document.getElementById('prompt-text').textContent;
+    if (!text || text === '衣装・髪色・シーンをすべて選んでください。') return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        showCopied();
+      }).catch(function() {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showCopied();
+  }
+
+  function showCopied() {
+    var btn = document.getElementById('btn-copy');
+    btn.textContent = 'コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'コピーする';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+
+  function saveHistory(prompt) {
+    var history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    history.unshift({
+      text: prompt,
+      time: new Date().toLocaleString('ja-JP')
+    });
+    if (history.length > 20) history = history.slice(0, 20);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }
+
+  function renderHistory() {
+    var history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    var card = document.getElementById('history-card');
+    var list = document.getElementById('history-list');
+
+    if (history.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    list.innerHTML = history.map(function(item) {
+      return '<div class="history-item" onclick="restorePrompt(this)">'
+        + '<div class="history-time">' + escHtml(item.time) + '</div>'
+        + '<div class="history-text">' + escHtml(item.text) + '</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  function restorePrompt(el) {
+    var text = el.querySelector('.history-text').textContent;
+    document.getElementById('prompt-text').textContent = text;
+    var rc = document.getElementById('result');
+    rc.classList.add('show');
+    var copyBtn = document.getElementById('btn-copy');
+    copyBtn.textContent = 'コピーする';
+    copyBtn.classList.remove('copied');
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function clearHistory() {
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory();
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // 起動時に履歴を描画
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
