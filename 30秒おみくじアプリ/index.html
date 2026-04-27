@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="生年月日を入れるだけで星座を自動判定し、今週の金運・恋愛運・仕事運を30秒でサクッと占えるおみくじアプリです。">
+  <title>🔮 30秒おみくじアプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 運勢カード ── */
+    .fortune-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .fortune-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 0.7rem 0; border-bottom: 1px solid var(--border);
+    }
+    .fortune-row:last-child { border-bottom: none; }
+    .fortune-cat { font-size: 0.92rem; font-weight: 700; }
+    .fortune-stars { font-size: 1.1rem; letter-spacing: 2px; }
+    .fortune-stars .on { color: var(--accent); }
+    .fortune-stars .off { color: var(--border); }
+    .fortune-advice {
+      font-size: 0.85rem; color: var(--text-sub); line-height: 1.5;
+      margin-top: 0.3rem;
+    }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 星座アイコン ── */
+    .zodiac-display {
+      text-align: center; padding: 1rem 0;
+      font-size: 1.3rem; font-weight: 700; color: var(--accent);
+    }
+    .zodiac-display .zodiac-icon { font-size: 2rem; display: block; margin-bottom: 0.3rem; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card, .fortune-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🔮 30秒おみくじアプリ</h1>
+    <p class="subtitle">生年月日を入れるだけで星座を判定、今週の金運・恋愛・仕事運をサクッと占えます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">あなたの情報</p>
+    <div class="field">
+      <label for="birthday">生年月日</label>
+      <input type="date" id="birthday">
+      <p class="hint">生年月日を入力すると星座が自動判定されます</p>
+    </div>
+  </div>
+
+  <!-- 星座表示 -->
+  <div class="card" id="zodiac-card" style="display:none">
+    <div class="zodiac-display">
+      <span class="zodiac-icon" id="zodiac-icon"></span>
+      <span id="zodiac-name"></span>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">🔮 おみくじを引く</button>
+
+  <!-- 総合運カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">今週の総合運</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 運勢詳細カード -->
+  <div class="fortune-card" id="fortune-detail" style="display:none">
+    <p class="card-title">運勢の内訳</p>
+    <div id="fortune-rows"></div>
+  </div>
+
+  <!-- ラッキーアイテムカード -->
+  <div class="card" id="lucky-card" style="display:none">
+    <p class="card-title">今週のラッキー</p>
+    <table class="detail-table"><tbody id="lucky-body"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    🔮 このアプリの占い結果はエンタメ目的のランダム生成です。実際の運勢を保証するものではありません。楽しい気持ちで一日をスタートするきっかけにどうぞ。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 星座データ ──
+  var ZODIAC = [
+    { name: '山羊座', icon: '♑', start: [1,1], end: [1,19] },
+    { name: '水瓶座', icon: '♒', start: [1,20], end: [2,18] },
+    { name: '魚座',   icon: '♓', start: [2,19], end: [3,20] },
+    { name: '牡羊座', icon: '♈', start: [3,21], end: [4,19] },
+    { name: '牡牛座', icon: '♉', start: [4,20], end: [5,20] },
+    { name: '双子座', icon: '♊', start: [5,21], end: [6,21] },
+    { name: '蟹座',   icon: '♋', start: [6,22], end: [7,22] },
+    { name: '獅子座', icon: '♌', start: [7,23], end: [8,22] },
+    { name: '乙女座', icon: '♍', start: [8,23], end: [9,22] },
+    { name: '天秤座', icon: '♎', start: [9,23], end: [10,23] },
+    { name: '蠍座',   icon: '♏', start: [10,24], end: [11,22] },
+    { name: '射手座', icon: '♐', start: [11,23], end: [12,21] },
+    { name: '山羊座', icon: '♑', start: [12,22], end: [12,31] }
+  ];
+
+  function getZodiac(month, day) {
+    var md = month * 100 + day;
+    for (var i = 0; i < ZODIAC.length; i++) {
+      var s = ZODIAC[i].start[0] * 100 + ZODIAC[i].start[1];
+      var e = ZODIAC[i].end[0] * 100 + ZODIAC[i].end[1];
+      if (md >= s && md <= e) return ZODIAC[i];
+    }
+    return ZODIAC[0];
+  }
+
+  // ── 生年月日入力時に星座を自動表示 ──
+  document.getElementById('birthday').addEventListener('change', function() {
+    var val = this.value;
+    if (!val) { document.getElementById('zodiac-card').style.display = 'none'; return; }
+    var parts = val.split('-');
+    var month = parseInt(parts[1], 10);
+    var day = parseInt(parts[2], 10);
+    var z = getZodiac(month, day);
+    document.getElementById('zodiac-icon').textContent = z.icon;
+    document.getElementById('zodiac-name').textContent = z.name;
+    document.getElementById('zodiac-card').style.display = 'block';
+    localStorage.setItem('omikuji_birthday', val);
+  });
+
+  // ── 起動時に前回の生年月日を復元 ──
+  (function() {
+    var saved = localStorage.getItem('omikuji_birthday');
+    if (saved) {
+      document.getElementById('birthday').value = saved;
+      document.getElementById('birthday').dispatchEvent(new Event('change'));
+    }
+  })();
+
+  // ── 擬似ランダム（シード付き） ──
+  function seedRandom(seed) {
+    var x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+  }
+
+  function hashStr(str) {
+    var hash = 0;
+    for (var i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  }
+
+  // ── 今週の月曜日を取得（週単位で結果固定） ──
+  function getWeekMonday() {
+    var now = new Date();
+    var day = now.getDay();
+    var diff = day === 0 ? 6 : day - 1;
+    var monday = new Date(now);
+    monday.setDate(now.getDate() - diff);
+    return monday.getFullYear() + '-' + (monday.getMonth() + 1) + '-' + monday.getDate();
+  }
+
+  // ── 運勢カテゴリ別アドバイス ──
+  var ADVICE = {
+    money: [
+      '衝動買いに注意。必要なものリストを作ると吉。',
+      '臨時収入の暗示あり。感謝の気持ちを忘れずに。',
+      '節約が功を奏す週。コツコツが大事。',
+      '投資より貯蓄が安全。守りの姿勢で。',
+      '思わぬ出費に備えて余裕を持っておこう。',
+      'お金の流れがスムーズ。計画通りに進めてOK。',
+      'おごり運あり。人に使うお金が巡り巡って戻ってくる。',
+      'セール品に目が行くけど、本当に必要か考えて。'
+    ],
+    love: [
+      '素直な気持ちが伝わりやすい週。言葉にしてみて。',
+      '出会いの予感。いつもと違う場所に行ってみよう。',
+      '相手の話をじっくり聞くと関係が深まる。',
+      '過去の縁が再浮上するかも。冷静に判断を。',
+      'やさしさが幸運を呼ぶ。小さな気遣いを大切に。',
+      '距離感が大事な週。近づきすぎず離れすぎず。',
+      '笑顔が最強の武器。自然体でいこう。',
+      'SNSより直接会話が効果的。顔を見て話そう。'
+    ],
+    work: [
+      '集中力が高い週。難しいタスクに挑戦するチャンス。',
+      'チームワークが鍵。周囲と協力して進めよう。',
+      '新しいアイデアが浮かびやすい。メモを忘れずに。',
+      'ルーティンを見直すと効率アップ。',
+      '上司や先輩に相談すると道が開ける。',
+      '焦りは禁物。丁寧に一つずつ片付けよう。',
+      'プレゼンや発表にツキあり。自信を持って。',
+      '整理整頓がラッキーアクション。デスク周りをキレイに。'
+    ]
+  };
+
+  // ── ラッキーアイテム ──
+  var LUCKY_COLORS = ['赤', '青', '緑', '黄色', '白', 'オレンジ', '紫', 'ピンク', '水色', 'ゴールド'];
+  var LUCKY_ITEMS = ['ハンカチ', 'ペン', 'マグカップ', 'キーホルダー', '手帳', 'お菓子', 'アクセサリー', '本', '花', 'ステッカー'];
+  var LUCKY_DIRS = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
+  var LUCKY_NUMBERS = [1, 3, 5, 7, 8, 9, 11, 15, 22, 33];
+
+  // ── メイン計算 ──
+  function calc() {
+    var bdVal = document.getElementById('birthday').value;
+    if (!bdVal) { showErr('生年月日を入力してください'); return; }
+
+    var parts = bdVal.split('-');
+    var month = parseInt(parts[1], 10);
+    var day = parseInt(parts[2], 10);
+    var year = parseInt(parts[0], 10);
+    var z = getZodiac(month, day);
+    var weekKey = getWeekMonday();
+
+    // シード生成（生年月日 + 星座 + 今週）
+    var seedBase = hashStr(bdVal + z.name + weekKey);
+
+    // 各カテゴリの運勢（1〜5）
+    var moneyScore = Math.floor(seedRandom(seedBase + 1) * 5) + 1;
+    var loveScore  = Math.floor(seedRandom(seedBase + 2) * 5) + 1;
+    var workScore  = Math.floor(seedRandom(seedBase + 3) * 5) + 1;
+
+    // 総合運（平均を四捨五入）
+    var total = Math.round((moneyScore + loveScore + workScore) / 3);
+
+    // 総合レベル
+    var level = total >= 4 ? 'ok' : total >= 2 ? 'warn' : 'ng';
+    var ranks = ['', '凶', '小吉', '吉', '大吉', '大大吉'];
+    var totalRank = ranks[total];
+    var msgs = {
+      ok: '素晴らしい運気！自信を持って行動しよう',
+      warn: 'まずまずの週。バランスを意識して',
+      ng: '慎重に過ごそう。無理せずマイペースで'
+    };
+
+    // 総合運表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = totalRank;
+    document.getElementById('rn').textContent = msgs[level];
+
+    // 各カテゴリ表示
+    var categories = [
+      { name: '💰 金運', score: moneyScore, advices: ADVICE.money, seed: seedBase + 10 },
+      { name: '💕 恋愛運', score: loveScore, advices: ADVICE.love, seed: seedBase + 20 },
+      { name: '💼 仕事運', score: workScore, advices: ADVICE.work, seed: seedBase + 30 }
+    ];
+
+    var rowsHtml = '';
+    categories.forEach(function(cat) {
+      var stars = '';
+      for (var i = 1; i <= 5; i++) {
+        stars += '<span class="' + (i <= cat.score ? 'on' : 'off') + '">★</span>';
+      }
+      var advIdx = Math.floor(seedRandom(cat.seed) * cat.advices.length);
+      rowsHtml += '<div class="fortune-row"><div>'
+        + '<span class="fortune-cat">' + cat.name + '</span>'
+        + '<p class="fortune-advice">' + cat.advices[advIdx] + '</p>'
+        + '</div><div class="fortune-stars">' + stars + '</div></div>';
+    });
+    document.getElementById('fortune-rows').innerHTML = rowsHtml;
+    document.getElementById('fortune-detail').style.display = 'block';
+
+    // ラッキーアイテム
+    var lColor = LUCKY_COLORS[Math.floor(seedRandom(seedBase + 40) * LUCKY_COLORS.length)];
+    var lItem  = LUCKY_ITEMS[Math.floor(seedRandom(seedBase + 50) * LUCKY_ITEMS.length)];
+    var lDir   = LUCKY_DIRS[Math.floor(seedRandom(seedBase + 60) * LUCKY_DIRS.length)];
+    var lNum   = LUCKY_NUMBERS[Math.floor(seedRandom(seedBase + 70) * LUCKY_NUMBERS.length)];
+
+    document.getElementById('lucky-body').innerHTML =
+      '<tr><td>🎨 ラッキーカラー</td><td style="text-align:right;font-weight:600;color:var(--text)">' + lColor + '</td></tr>' +
+      '<tr><td>🎁 ラッキーアイテム</td><td style="text-align:right;font-weight:600;color:var(--text)">' + lItem + '</td></tr>' +
+      '<tr><td>🧭 ラッキー方角</td><td style="text-align:right;font-weight:600;color:var(--text)">' + lDir + '</td></tr>' +
+      '<tr><td>🔢 ラッキーナンバー</td><td style="text-align:right;font-weight:600;color:var(--text)">' + lNum + '</td></tr>';
+    document.getElementById('lucky-card').style.display = 'block';
+
+    // localStorage に結果を保存
+    localStorage.setItem('omikuji_last', JSON.stringify({
+      date: weekKey, birthday: bdVal, zodiac: z.name, total: totalRank
+    }));
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('fortune-detail').style.display = 'none';
+    document.getElementById('lucky-card').style.display = 'none';
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

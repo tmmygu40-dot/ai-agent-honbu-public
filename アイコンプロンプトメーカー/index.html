@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="髪型・表情・服装・背景色を選ぶだけで、ピクセルアート風SNSアイコン用のAI画像生成プロンプトをワンタップで作成・コピーできるツールです。">
+  <title>アイコンプロンプトメーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok { border-color: var(--ok); background: var(--ok-bg); }
+
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.6rem; text-align: center; }
+
+    /* ── プロンプト表示エリア ── */
+    .prompt-output {
+      background: var(--bg); border: 1.5px solid var(--border); border-radius: 9px;
+      padding: 1rem; font-size: 0.92rem; line-height: 1.6; color: var(--text);
+      word-break: break-word; white-space: pre-wrap; min-height: 60px;
+      margin-bottom: 0.8rem;
+    }
+    .btn-copy {
+      display: block; width: 100%; padding: 0.7rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.7; }
+    .btn-copy.copied { background: var(--text-sub); }
+
+    /* ── 選択チップ ── */
+    .chip-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem; }
+    .chip {
+      display: inline-block; padding: 0.45rem 0.85rem;
+      font-size: 0.88rem; border: 1.5px solid var(--border);
+      border-radius: 20px; background: var(--bg); color: var(--text);
+      cursor: pointer; user-select: none; transition: all 0.15s;
+    }
+    .chip.selected { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .chip:active { transform: scale(0.95); }
+
+    /* ── スタイルバリエーション ── */
+    .style-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.35rem; }
+    .style-chip {
+      display: inline-block; padding: 0.5rem 1rem;
+      font-size: 0.88rem; font-weight: 600;
+      border: 2px solid var(--border);
+      border-radius: 10px; background: var(--card); color: var(--text);
+      cursor: pointer; user-select: none; transition: all 0.15s;
+    }
+    .style-chip.selected { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+    .style-chip:active { transform: scale(0.95); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎨 アイコンプロンプトメーカー</h1>
+    <p class="subtitle">自分の雰囲気を選ぶだけで、ピクセルアートSNSアイコン用のAI呪文をサクッと生成。</p>
+  </header>
+
+  <!-- スタイル選択 -->
+  <div class="card">
+    <p class="card-title">ピクセルアートスタイル</p>
+    <div class="style-group" id="styleGroup">
+      <div class="style-chip selected" data-val="8-bit retro pixel art">8bit レトロ</div>
+      <div class="style-chip" data-val="16-bit pixel art">16bit</div>
+      <div class="style-chip" data-val="modern pixel art, high detail">モダンドット</div>
+      <div class="style-chip" data-val="chibi pixel art, cute">ちびドット</div>
+    </div>
+  </div>
+
+  <!-- 髪型 -->
+  <div class="card">
+    <p class="card-title">髪型</p>
+    <div class="chip-group" data-key="hair">
+      <div class="chip" data-val="short hair">ショート</div>
+      <div class="chip" data-val="medium length hair">ミディアム</div>
+      <div class="chip" data-val="long hair">ロング</div>
+      <div class="chip" data-val="ponytail">ポニーテール</div>
+      <div class="chip" data-val="bob cut">ボブ</div>
+      <div class="chip" data-val="messy hair">無造作</div>
+      <div class="chip" data-val="bald, no hair">坊主</div>
+      <div class="chip" data-val="curly hair">パーマ</div>
+    </div>
+  </div>
+
+  <!-- 髪色 -->
+  <div class="card">
+    <p class="card-title">髪色</p>
+    <div class="chip-group" data-key="hairColor">
+      <div class="chip" data-val="black hair">黒</div>
+      <div class="chip" data-val="brown hair">茶</div>
+      <div class="chip" data-val="blonde hair">金</div>
+      <div class="chip" data-val="silver hair">銀</div>
+      <div class="chip" data-val="red hair">赤</div>
+      <div class="chip" data-val="blue hair">青</div>
+      <div class="chip" data-val="pink hair">ピンク</div>
+      <div class="chip" data-val="green hair">緑</div>
+    </div>
+  </div>
+
+  <!-- 表情 -->
+  <div class="card">
+    <p class="card-title">表情</p>
+    <div class="chip-group" data-key="expression">
+      <div class="chip" data-val="smiling, happy">にっこり</div>
+      <div class="chip" data-val="cool, calm expression">クール</div>
+      <div class="chip" data-val="winking">ウインク</div>
+      <div class="chip" data-val="surprised expression">驚き</div>
+      <div class="chip" data-val="shy, blushing">照れ</div>
+      <div class="chip" data-val="determined, confident">キリッと</div>
+      <div class="chip" data-val="laughing, cheerful">大笑い</div>
+      <div class="chip" data-val="mysterious, enigmatic smile">ミステリアス</div>
+    </div>
+  </div>
+
+  <!-- 服装 -->
+  <div class="card">
+    <p class="card-title">服装</p>
+    <div class="chip-group" data-key="outfit">
+      <div class="chip" data-val="hoodie">パーカー</div>
+      <div class="chip" data-val="t-shirt">Tシャツ</div>
+      <div class="chip" data-val="business suit">スーツ</div>
+      <div class="chip" data-val="school uniform">制服</div>
+      <div class="chip" data-val="kimono, traditional Japanese clothing">和服</div>
+      <div class="chip" data-val="leather jacket">レザージャケット</div>
+      <div class="chip" data-val="sweater, knit">ニット</div>
+      <div class="chip" data-val="lab coat, scientist">白衣</div>
+    </div>
+  </div>
+
+  <!-- アクセサリー -->
+  <div class="card">
+    <p class="card-title">アクセサリー</p>
+    <div class="chip-group" data-key="accessory" data-multi="true">
+      <div class="chip" data-val="glasses">メガネ</div>
+      <div class="chip" data-val="sunglasses">サングラス</div>
+      <div class="chip" data-val="headphones around neck">ヘッドホン</div>
+      <div class="chip" data-val="cat ears headband">猫耳</div>
+      <div class="chip" data-val="scarf">マフラー</div>
+      <div class="chip" data-val="cap, baseball hat">キャップ</div>
+      <div class="chip" data-val="earrings">ピアス</div>
+      <div class="chip" data-val="ribbon hair accessory">リボン</div>
+    </div>
+    <p class="hint">複数選択OK</p>
+  </div>
+
+  <!-- 背景色 -->
+  <div class="card">
+    <p class="card-title">背景</p>
+    <div class="chip-group" data-key="background">
+      <div class="chip" data-val="solid pastel blue background">パステル青</div>
+      <div class="chip" data-val="solid pastel pink background">パステルピンク</div>
+      <div class="chip" data-val="solid pastel green background">パステル緑</div>
+      <div class="chip" data-val="solid yellow background">イエロー</div>
+      <div class="chip" data-val="solid white background">ホワイト</div>
+      <div class="chip" data-val="solid black background">ブラック</div>
+      <div class="chip" data-val="gradient purple and blue background">グラデ紫青</div>
+      <div class="chip" data-val="starry night sky background">星空</div>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">🪄 プロンプトを生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成されたプロンプト</p>
+    <div class="prompt-output" id="promptText"></div>
+    <button class="btn-copy" id="btnCopy" onclick="copyPrompt()">📋 コピーする</button>
+  </div>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 選択状態管理 ──
+  var selections = {};
+
+  // スタイル選択（単一）
+  document.getElementById('styleGroup').addEventListener('click', function(e) {
+    var chip = e.target.closest('.style-chip');
+    if (!chip) return;
+    this.querySelectorAll('.style-chip').forEach(function(c) { c.classList.remove('selected'); });
+    chip.classList.add('selected');
+    saveToStorage();
+  });
+
+  // チップ選択
+  document.querySelectorAll('.chip-group').forEach(function(group) {
+    group.addEventListener('click', function(e) {
+      var chip = e.target.closest('.chip');
+      if (!chip) return;
+      var isMulti = group.dataset.multi === 'true';
+      if (isMulti) {
+        chip.classList.toggle('selected');
+      } else {
+        group.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('selected'); });
+        chip.classList.add('selected');
+      }
+      saveToStorage();
+    });
+  });
+
+  // ── プロンプト生成 ──
+  function generate() {
+    var style = document.querySelector('#styleGroup .style-chip.selected');
+    var styleText = style ? style.dataset.val : '8-bit retro pixel art';
+
+    var parts = [styleText, 'portrait', 'SNS icon', 'square composition', 'single character'];
+
+    // 各カテゴリから選択を取得
+    document.querySelectorAll('.chip-group').forEach(function(group) {
+      var selected = group.querySelectorAll('.chip.selected');
+      selected.forEach(function(chip) {
+        parts.push(chip.dataset.val);
+      });
+    });
+
+    parts.push('clean lines', 'vibrant colors', 'detailed shading');
+
+    var prompt = parts.join(', ');
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = 'block';
+    document.getElementById('promptText').textContent = prompt;
+
+    // コピーボタンリセット
+    var btn = document.getElementById('btnCopy');
+    btn.textContent = '📋 コピーする';
+    btn.classList.remove('copied');
+
+    // スクロール
+    rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    saveToStorage();
+  }
+
+  // ── コピー ──
+  function copyPrompt() {
+    var text = document.getElementById('promptText').textContent;
+    if (!text) return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        showCopied();
+      }).catch(function() {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showCopied(); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+
+  function showCopied() {
+    var btn = document.getElementById('btnCopy');
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = '📋 コピーする';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+
+  // ── localStorage 保存・復元 ──
+  var STORAGE_KEY = 'iconPromptMaker';
+
+  function saveToStorage() {
+    var data = {};
+
+    // スタイル
+    var style = document.querySelector('#styleGroup .style-chip.selected');
+    data.style = style ? style.dataset.val : '';
+
+    // 各カテゴリ
+    document.querySelectorAll('.chip-group').forEach(function(group) {
+      var key = group.dataset.key;
+      var vals = [];
+      group.querySelectorAll('.chip.selected').forEach(function(c) {
+        vals.push(c.dataset.val);
+      });
+      data[key] = vals;
+    });
+
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  function loadFromStorage() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+
+      // スタイル復元
+      if (data.style) {
+        document.querySelectorAll('#styleGroup .style-chip').forEach(function(c) {
+          c.classList.toggle('selected', c.dataset.val === data.style);
+        });
+      }
+
+      // 各カテゴリ復元
+      document.querySelectorAll('.chip-group').forEach(function(group) {
+        var key = group.dataset.key;
+        var vals = data[key] || [];
+        group.querySelectorAll('.chip').forEach(function(c) {
+          c.classList.toggle('selected', vals.indexOf(c.dataset.val) !== -1);
+        });
+      });
+    } catch(e) {}
+  }
+
+  // 初期化
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

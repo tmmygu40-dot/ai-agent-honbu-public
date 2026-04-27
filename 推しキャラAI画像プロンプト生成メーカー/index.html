@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="推しキャラの特徴と画風を選ぶだけで、AI画像生成サービスに使えるプロンプトを自動作成。ジブリ風・水彩画風・8bit風など6スタイル対応。">
+  <title>推しキャラAI画像プロンプト生成メーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field textarea { resize: vertical; min-height: 70px; font-family: inherit; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── スタイル選択グリッド ── */
+    .style-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem;
+    }
+    .style-btn {
+      padding: 0.7rem 0.4rem; border: 2px solid var(--border); border-radius: 10px;
+      background: var(--bg); cursor: pointer; text-align: center;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .style-btn.active { border-color: var(--accent); background: var(--accent-light); }
+    .style-btn:hover { border-color: var(--accent); }
+    .style-emoji { font-size: 1.6rem; display: block; margin-bottom: 0.2rem; }
+    .style-name { font-size: 0.78rem; font-weight: 700; color: var(--text); }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.6rem; text-align: center; }
+
+    /* ── プロンプト表示エリア ── */
+    .prompt-output {
+      background: var(--bg); border: 1.5px solid var(--border); border-radius: 9px;
+      padding: 1rem; font-size: 0.92rem; line-height: 1.6; color: var(--text);
+      white-space: pre-wrap; word-break: break-word; min-height: 80px;
+      margin-bottom: 0.8rem;
+    }
+    .btn-copy {
+      display: block; width: 100%; padding: 0.7rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.7; }
+    .btn-copy.copied { background: var(--text-sub); }
+
+    /* ── 履歴カード ── */
+    .history-item {
+      padding: 0.7rem 0; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background 0.1s;
+    }
+    .history-item:hover { background: var(--accent-light); }
+    .history-item:last-child { border-bottom: none; }
+    .history-style { font-size: 0.72rem; font-weight: 700; color: var(--accent); margin-bottom: 0.2rem; }
+    .history-prompt { font-size: 0.82rem; color: var(--text-sub); line-height: 1.4;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .history-clear {
+      display: block; margin-top: 0.8rem; padding: 0.5rem;
+      font-size: 0.82rem; font-weight: 600;
+      background: transparent; color: var(--ng); border: 1.5px solid var(--ng);
+      border-radius: 8px; cursor: pointer; width: 100%; text-align: center;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎨 推しキャラAI画像プロンプト生成メーカー</h1>
+    <p class="subtitle">推しの特徴と画風を選ぶだけで、AI画像生成用の英語プロンプトをサクッと作れます。</p>
+  </header>
+
+  <!-- キャラ特徴入力カード -->
+  <div class="card">
+    <p class="card-title">キャラクターの特徴</p>
+    <div class="field">
+      <label for="charName">キャラ名・ニックネーム</label>
+      <input type="text" id="charName" placeholder="例: 金髪の魔法使い少女">
+      <p class="hint">プロンプトには含まれません（メモ用）</p>
+    </div>
+    <div class="field">
+      <label for="hairColor">髪の色・髪型</label>
+      <input type="text" id="hairColor" placeholder="例: 金色のロングヘア、ツインテール">
+    </div>
+    <div class="field">
+      <label for="eyeColor">目の色・特徴</label>
+      <input type="text" id="eyeColor" placeholder="例: 青い大きな瞳">
+    </div>
+    <div class="field">
+      <label for="outfit">服装・アクセサリー</label>
+      <input type="text" id="outfit" placeholder="例: 白いローブ、星のペンダント">
+    </div>
+    <div class="field">
+      <label for="expression">表情・ポーズ</label>
+      <input type="text" id="expression" placeholder="例: 笑顔、杖を構えている">
+    </div>
+    <div class="field">
+      <label for="background">背景・シーン</label>
+      <input type="text" id="background" placeholder="例: 夕焼けの草原、魔法の図書館">
+    </div>
+    <div class="field">
+      <label for="extra">その他の特徴</label>
+      <textarea id="extra" placeholder="例: 猫耳、光の魔法エフェクト、花びらが舞っている"></textarea>
+    </div>
+  </div>
+
+  <!-- 画風選択カード -->
+  <div class="card">
+    <p class="card-title">画風スタイルを選択</p>
+    <div class="style-grid" id="styleGrid">
+      <div class="style-btn active" data-style="ghibli" onclick="selectStyle(this)">
+        <span class="style-emoji">🏔️</span>
+        <span class="style-name">ジブリ風</span>
+      </div>
+      <div class="style-btn" data-style="watercolor" onclick="selectStyle(this)">
+        <span class="style-emoji">🎨</span>
+        <span class="style-name">水彩画風</span>
+      </div>
+      <div class="style-btn" data-style="8bit" onclick="selectStyle(this)">
+        <span class="style-emoji">👾</span>
+        <span class="style-name">8bit風</span>
+      </div>
+      <div class="style-btn" data-style="anime" onclick="selectStyle(this)">
+        <span class="style-emoji">✨</span>
+        <span class="style-name">アニメ風</span>
+      </div>
+      <div class="style-btn" data-style="oil" onclick="selectStyle(this)">
+        <span class="style-emoji">🖼️</span>
+        <span class="style-name">油絵風</span>
+      </div>
+      <div class="style-btn" data-style="cyberpunk" onclick="selectStyle(this)">
+        <span class="style-emoji">🌃</span>
+        <span class="style-name">サイバーパンク風</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">✨ プロンプトを生成する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成されたプロンプト</p>
+    <div class="prompt-output" id="promptOutput"></div>
+    <button class="btn-copy" id="btnCopy" onclick="copyPrompt()">📋 コピーする</button>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">生成履歴</p>
+    <div id="historyList"></div>
+    <button class="history-clear no-print" onclick="clearHistory()">🗑 履歴をクリア</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 生成されるプロンプトは、Stable Diffusion・Midjourney・DALL-E など主要なAI画像生成サービスで利用できる英語形式です。サービスごとに微調整してお使いください。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定。広告コードは未実装。結果と補足を見た後の位置に配置） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var selectedStyle = 'ghibli';
+  var HISTORY_KEY = 'oshi_prompt_history';
+
+  var STYLE_DATA = {
+    ghibli: {
+      name: 'ジブリ風',
+      prefix: 'Studio Ghibli style, hand-drawn animation, soft watercolor background, warm lighting, whimsical atmosphere, Hayao Miyazaki inspired',
+      suffix: 'gentle pastel colors, detailed natural scenery, nostalgic mood, cel-shaded, high quality illustration'
+    },
+    watercolor: {
+      name: '水彩画風',
+      prefix: 'watercolor painting style, soft brush strokes, paint splashes, wet-on-wet technique, artistic',
+      suffix: 'transparent colors, flowing paint edges, delicate color blending, paper texture visible, fine art quality'
+    },
+    '8bit': {
+      name: '8bit風',
+      prefix: '8-bit pixel art style, retro game aesthetic, limited color palette, pixelated',
+      suffix: 'NES style sprites, chunky pixels, classic video game look, nostalgic retro gaming, clean pixel edges'
+    },
+    anime: {
+      name: 'アニメ風',
+      prefix: 'anime style, Japanese animation, vibrant colors, detailed character design, dynamic composition',
+      suffix: 'clean line art, cel shading, expressive eyes, high detail, professional anime illustration, masterpiece'
+    },
+    oil: {
+      name: '油絵風',
+      prefix: 'oil painting style, classical art, thick brush strokes, rich textures, dramatic lighting',
+      suffix: 'Renaissance inspired, museum quality, canvas texture, deep shadows, warm golden tones, fine art masterpiece'
+    },
+    cyberpunk: {
+      name: 'サイバーパンク風',
+      prefix: 'cyberpunk style, neon lights, futuristic cityscape, high-tech low-life, digital art',
+      suffix: 'neon glow, holographic effects, rain-soaked streets, glitch art elements, vibrant purple and cyan, sci-fi atmosphere'
+    }
+  };
+
+  var JP_TO_EN = {
+    '金色': 'golden', '金髪': 'golden blonde hair', '銀色': 'silver', '銀髪': 'silver hair',
+    '黒': 'black', '白': 'white', '赤': 'red', '青': 'blue', '緑': 'green', 'ピンク': 'pink',
+    '紫': 'purple', '茶色': 'brown', 'オレンジ': 'orange', '水色': 'light blue',
+    'ロングヘア': 'long hair', 'ショートヘア': 'short hair', 'ツインテール': 'twintails',
+    'ポニーテール': 'ponytail', 'ボブ': 'bob cut', 'おさげ': 'braids', '三つ編み': 'braids',
+    'ウェーブ': 'wavy hair', 'ストレート': 'straight hair', 'アップ': 'updo',
+    '大きな瞳': 'large eyes', '細い目': 'narrow eyes', 'たれ目': 'droopy eyes', 'つり目': 'sharp eyes',
+    '笑顔': 'smiling', '怒り': 'angry expression', '泣き顔': 'crying', '真剣': 'serious expression',
+    '照れ': 'blushing', 'ウインク': 'winking', '驚き': 'surprised expression',
+    'ローブ': 'robe', 'ドレス': 'dress', '制服': 'school uniform', 'スーツ': 'suit',
+    '着物': 'kimono', '甲冑': 'armor', 'マント': 'cape', 'フード': 'hood',
+    'メガネ': 'glasses', 'イヤリング': 'earrings', 'ネックレス': 'necklace',
+    'ペンダント': 'pendant', 'リボン': 'ribbon', 'ティアラ': 'tiara', '王冠': 'crown',
+    '剣': 'sword', '杖': 'magic staff', '本': 'book', '花': 'flowers',
+    '猫耳': 'cat ears', '犬耳': 'dog ears', '翼': 'wings', '尻尾': 'tail', 'しっぽ': 'tail',
+    '夕焼け': 'sunset', '草原': 'meadow', '森': 'forest', '海': 'ocean', '城': 'castle',
+    '図書館': 'library', '教室': 'classroom', '街': 'city', '空': 'sky', '星空': 'starry sky',
+    '桜': 'cherry blossoms', '雪': 'snow', '雨': 'rain', '月': 'moon',
+    '花びら': 'flower petals', '光': 'light', '魔法': 'magic', 'エフェクト': 'effects',
+    '立っている': 'standing', '座っている': 'sitting', '走っている': 'running',
+    '構えている': 'in a fighting stance', '飛んでいる': 'flying', '踊っている': 'dancing'
+  };
+
+  function translateJpToEn(text) {
+    if (!text || !text.trim()) return '';
+    var result = text;
+    var keys = Object.keys(JP_TO_EN).sort(function(a, b) { return b.length - a.length; });
+    keys.forEach(function(jp) {
+      result = result.split(jp).join(JP_TO_EN[jp]);
+    });
+    result = result.replace(/[、，]/g, ', ').replace(/[。．]/g, '. ').replace(/[　]/g, ' ');
+    return result.trim();
+  }
+
+  function selectStyle(el) {
+    document.querySelectorAll('.style-btn').forEach(function(b) { b.classList.remove('active'); });
+    el.classList.add('active');
+    selectedStyle = el.getAttribute('data-style');
+  }
+
+  function generate() {
+    var hair = document.getElementById('hairColor').value.trim();
+    var eyes = document.getElementById('eyeColor').value.trim();
+    var outfit = document.getElementById('outfit').value.trim();
+    var expression = document.getElementById('expression').value.trim();
+    var bg = document.getElementById('background').value.trim();
+    var extra = document.getElementById('extra').value.trim();
+
+    if (!hair && !eyes && !outfit && !expression && !bg && !extra) {
+      var rc = document.getElementById('result');
+      rc.style.display = 'block';
+      document.getElementById('promptOutput').textContent = '⚠️ キャラの特徴を1つ以上入力してください';
+      document.getElementById('btnCopy').style.display = 'none';
+      return;
+    }
+
+    var style = STYLE_DATA[selectedStyle];
+    var parts = [style.prefix];
+
+    if (hair) parts.push(translateJpToEn(hair));
+    if (eyes) parts.push(translateJpToEn(eyes));
+    if (outfit) parts.push(translateJpToEn(outfit));
+    if (expression) parts.push(translateJpToEn(expression));
+    if (bg) parts.push(translateJpToEn(bg));
+    if (extra) parts.push(translateJpToEn(extra));
+
+    parts.push(style.suffix);
+
+    var prompt = parts.join(', ');
+
+    document.getElementById('promptOutput').textContent = prompt;
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    document.getElementById('btnCopy').style.display = 'block';
+    document.getElementById('btnCopy').textContent = '📋 コピーする';
+    document.getElementById('btnCopy').classList.remove('copied');
+
+    saveHistory(style.name, prompt);
+    renderHistory();
+  }
+
+  function copyPrompt() {
+    var text = document.getElementById('promptOutput').textContent;
+    if (!text || text.startsWith('⚠️')) return;
+    navigator.clipboard.writeText(text).then(function() {
+      var btn = document.getElementById('btnCopy');
+      btn.textContent = '✅ コピーしました！';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = '📋 コピーする';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  function saveHistory(styleName, prompt) {
+    var history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    history.unshift({ style: styleName, prompt: prompt, date: new Date().toLocaleString('ja-JP') });
+    if (history.length > 20) history = history.slice(0, 20);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }
+
+  function renderHistory() {
+    var history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    var card = document.getElementById('historyCard');
+    var list = document.getElementById('historyList');
+    if (history.length === 0) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    list.innerHTML = history.map(function(h, i) {
+      return '<div class="history-item" onclick="loadHistory(' + i + ')">'
+        + '<p class="history-style">' + escHtml(h.style) + '　' + escHtml(h.date) + '</p>'
+        + '<p class="history-prompt">' + escHtml(h.prompt) + '</p>'
+        + '</div>';
+    }).join('');
+  }
+
+  function loadHistory(idx) {
+    var history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    if (!history[idx]) return;
+    document.getElementById('promptOutput').textContent = history[idx].prompt;
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    document.getElementById('btnCopy').style.display = 'block';
+    document.getElementById('btnCopy').textContent = '📋 コピーする';
+    document.getElementById('btnCopy').classList.remove('copied');
+    window.scrollTo({ top: rc.offsetTop - 20, behavior: 'smooth' });
+  }
+
+  function clearHistory() {
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory();
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
