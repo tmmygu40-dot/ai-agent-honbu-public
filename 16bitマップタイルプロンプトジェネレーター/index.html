@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="地形・季節・サイズ・パレットを選ぶだけで16bit JRPG風マップタイルの画像生成AIプロンプトを即生成。ワンクリックでコピーしてすぐ使える。">
+  <title>16bitマップタイルプロンプトジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.show { display: block; }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.8rem; text-align: center; }
+
+    /* ── プロンプト表示 ── */
+    .prompt-output {
+      background: var(--bg); border: 1.5px solid var(--border);
+      border-radius: 9px; padding: 1rem;
+      font-size: 0.92rem; line-height: 1.6; color: var(--text);
+      white-space: pre-wrap; word-break: break-word;
+      min-height: 80px; margin-bottom: 1rem;
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: block; width: 100%; padding: 0.8rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--ok); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.8; }
+    .btn-copy.copied { background: var(--text-sub); }
+
+    /* ── お気に入りリスト ── */
+    .fav-list { margin-top: 0.5rem; }
+    .fav-item {
+      display: flex; align-items: flex-start; gap: 0.5rem;
+      padding: 0.7rem 0; border-bottom: 1px solid var(--border);
+    }
+    .fav-item:last-child { border-bottom: none; }
+    .fav-text { flex: 1; font-size: 0.85rem; color: var(--text); line-height: 1.5; white-space: pre-wrap; word-break: break-word; cursor: pointer; }
+    .fav-text:hover { color: var(--accent); }
+    .fav-del {
+      flex-shrink: 0; width: 28px; height: 28px;
+      border: 1px solid var(--border); border-radius: 6px;
+      background: var(--card); color: var(--ng); font-size: 0.8rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .fav-del:hover { background: var(--ng-bg); }
+    .fav-empty { font-size: 0.82rem; color: var(--text-sub); padding: 0.5rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>16bitマップタイルプロンプトジェネレーター</h1>
+    <p class="subtitle">地形・季節・サイズを選ぶだけで JRPG風マップタイルの画像生成AIプロンプトを即生成</p>
+  </header>
+
+  <!-- 入力カード：タイル種別 -->
+  <div class="card">
+    <p class="card-title">タイル設定</p>
+    <div class="field">
+      <label for="tileType">タイル種別</label>
+      <select id="tileType">
+        <option value="草原">草原</option>
+        <option value="森">森</option>
+        <option value="深い森">深い森</option>
+        <option value="山">山</option>
+        <option value="雪山">雪山</option>
+        <option value="水辺・湖">水辺・湖</option>
+        <option value="川">川</option>
+        <option value="海・海岸">海・海岸</option>
+        <option value="砂漠">砂漠</option>
+        <option value="雪原">雪原</option>
+        <option value="溶岩・火山">溶岩・火山</option>
+        <option value="洞窟">洞窟</option>
+        <option value="街・村">街・村</option>
+        <option value="城">城</option>
+        <option value="遺跡・廃墟">遺跡・廃墟</option>
+        <option value="橋">橋</option>
+        <option value="道・小道">道・小道</option>
+        <option value="花畑">花畑</option>
+        <option value="沼地">沼地</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="season">季節</label>
+      <select id="season">
+        <option value="春">春</option>
+        <option value="夏">夏</option>
+        <option value="秋">秋</option>
+        <option value="冬">冬</option>
+        <option value="指定なし">指定なし</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="timeOfDay">時間帯</label>
+      <select id="timeOfDay">
+        <option value="昼">昼</option>
+        <option value="朝・夜明け">朝・夜明け</option>
+        <option value="夕暮れ">夕暮れ</option>
+        <option value="夜">夜</option>
+        <option value="指定なし">指定なし</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 入力カード：スタイル設定 -->
+  <div class="card">
+    <p class="card-title">スタイル設定</p>
+    <div class="field">
+      <label for="pixelSize">ピクセルサイズ</label>
+      <select id="pixelSize">
+        <option value="16x16">16x16</option>
+        <option value="32x32" selected>32x32</option>
+        <option value="64x64">64x64</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="palette">カラーパレット</label>
+      <select id="palette">
+        <option value="SNES / Super Famicom style">SNES風（スーファミ）</option>
+        <option value="GBA style">GBA風</option>
+        <option value="Sega Genesis / Mega Drive style">メガドライブ風</option>
+        <option value="MSX style">MSX風</option>
+        <option value="limited 256-color palette">256色パレット</option>
+        <option value="指定なし">指定なし</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="usage">タイルセット用途</label>
+      <select id="usage">
+        <option value="overworld field map">フィールドマップ</option>
+        <option value="dungeon interior">ダンジョン</option>
+        <option value="town / village">街・村</option>
+        <option value="battle background">バトル背景</option>
+        <option value="指定なし">指定なし</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="mood">雰囲気</label>
+      <select id="mood">
+        <option value="peaceful and serene">穏やか・平和</option>
+        <option value="mysterious and magical">神秘的・魔法</option>
+        <option value="dark and ominous">暗い・不穏</option>
+        <option value="epic and adventurous">壮大・冒険</option>
+        <option value="nostalgic and warm">ノスタルジック・温かい</option>
+        <option value="指定なし">指定なし</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="extra">追加キーワード（任意）</label>
+      <input type="text" id="extra" placeholder="例: tileable, seamless, top-down view">
+      <p class="hint">英語カンマ区切りで自由に追加できます</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">プロンプトを生成する</button>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成されたプロンプト</p>
+    <div class="prompt-output" id="promptOut"></div>
+    <button class="btn-copy" id="btnCopy" onclick="copyPrompt()">コピーする</button>
+    <button class="btn-copy no-print" style="margin-top:0.5rem;background:var(--accent);" onclick="saveFav()">お気に入りに保存</button>
+  </div>
+
+  <!-- お気に入りカード -->
+  <div class="card" id="favCard">
+    <p class="card-title">お気に入りプロンプト</p>
+    <div class="fav-list" id="favList"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    このツールは画像生成AI向けプロンプトのテンプレートです。生成結果は利用するAIサービスの仕様により異なります。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  /* ── 英語マッピング ── */
+  var TILE_EN = {
+    '草原': 'grassland plains',
+    '森': 'forest',
+    '深い森': 'dense forest',
+    '山': 'mountain',
+    '雪山': 'snowy mountain',
+    '水辺・湖': 'lake and waterside',
+    '川': 'river',
+    '海・海岸': 'ocean and coastline',
+    '砂漠': 'desert',
+    '雪原': 'snow field',
+    '溶岩・火山': 'lava and volcano',
+    '洞窟': 'cave interior',
+    '街・村': 'town and village',
+    '城': 'castle',
+    '遺跡・廃墟': 'ancient ruins',
+    '橋': 'bridge',
+    '道・小道': 'road and path',
+    '花畑': 'flower field',
+    '沼地': 'swamp and marshland'
+  };
+  var SEASON_EN = {
+    '春': 'spring',
+    '夏': 'summer',
+    '秋': 'autumn',
+    '冬': 'winter',
+    '指定なし': ''
+  };
+  var TIME_EN = {
+    '昼': 'daytime lighting',
+    '朝・夜明け': 'dawn / sunrise lighting',
+    '夕暮れ': 'sunset / dusk lighting',
+    '夜': 'nighttime / moonlit',
+    '指定なし': ''
+  };
+  var MOOD_EN = {
+    '穏やか・平和': 'peaceful and serene',
+    '神秘的・魔法': 'mysterious and magical',
+    '暗い・不穏': 'dark and ominous',
+    '壮大・冒険': 'epic and adventurous',
+    'ノスタルジック・温かい': 'nostalgic and warm',
+    '指定なし': ''
+  };
+
+  function generate() {
+    var tile = document.getElementById('tileType').value;
+    var season = document.getElementById('season').value;
+    var time = document.getElementById('timeOfDay').value;
+    var size = document.getElementById('pixelSize').value;
+    var palette = document.getElementById('palette').value;
+    var usage = document.getElementById('usage').value;
+    var mood = document.getElementById('mood').value;
+    var extra = document.getElementById('extra').value.trim();
+
+    var parts = [];
+    parts.push('16-bit JRPG style pixel art map tile');
+    parts.push(TILE_EN[tile] || tile);
+    parts.push(size + ' pixel tile');
+
+    if (palette !== '指定なし') parts.push(palette);
+    if (usage !== '指定なし') parts.push('for ' + usage);
+    if (SEASON_EN[season]) parts.push(SEASON_EN[season] + ' theme');
+    if (TIME_EN[time]) parts.push(TIME_EN[time]);
+
+    var moodSel = document.getElementById('mood');
+    var moodVal = moodSel.options[moodSel.selectedIndex].value;
+    if (moodVal !== '指定なし') parts.push(moodVal + ' atmosphere');
+
+    parts.push('top-down view');
+    parts.push('tileable seamless texture');
+    parts.push('clean pixel edges');
+    parts.push('no anti-aliasing');
+    parts.push('retro game aesthetic');
+
+    if (extra) {
+      extra.split(',').forEach(function(kw) {
+        var t = kw.trim();
+        if (t) parts.push(t);
+      });
+    }
+
+    var prompt = parts.join(', ');
+    document.getElementById('promptOut').textContent = prompt;
+    document.getElementById('result').classList.add('show');
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('btnCopy').textContent = 'コピーする';
+    document.getElementById('btnCopy').classList.remove('copied');
+  }
+
+  function copyPrompt() {
+    var text = document.getElementById('promptOut').textContent;
+    if (!text) return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function() { showCopied(); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta);
+      ta.select(); document.execCommand('copy');
+      document.body.removeChild(ta);
+      showCopied();
+    }
+  }
+  function showCopied() {
+    var btn = document.getElementById('btnCopy');
+    btn.textContent = 'コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'コピーする';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+
+  /* ── お気に入り (localStorage) ── */
+  var FAV_KEY = 'maptile16_favs';
+  function loadFavs() { try { return JSON.parse(localStorage.getItem(FAV_KEY)) || []; } catch(e) { return []; } }
+  function saveFavs(arr) { localStorage.setItem(FAV_KEY, JSON.stringify(arr)); }
+
+  function saveFav() {
+    var text = document.getElementById('promptOut').textContent;
+    if (!text) return;
+    var favs = loadFavs();
+    if (favs.indexOf(text) !== -1) { alert('このプロンプトは既に保存されています'); return; }
+    favs.unshift(text);
+    if (favs.length > 30) favs = favs.slice(0, 30);
+    saveFavs(favs);
+    renderFavs();
+  }
+
+  function deleteFav(idx) {
+    var favs = loadFavs();
+    favs.splice(idx, 1);
+    saveFavs(favs);
+    renderFavs();
+  }
+
+  function useFav(idx) {
+    var favs = loadFavs();
+    if (favs[idx]) {
+      document.getElementById('promptOut').textContent = favs[idx];
+      document.getElementById('result').classList.add('show');
+      document.getElementById('result').style.display = 'block';
+      document.getElementById('btnCopy').textContent = 'コピーする';
+      document.getElementById('btnCopy').classList.remove('copied');
+      document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+
+  function renderFavs() {
+    var favs = loadFavs();
+    var el = document.getElementById('favList');
+    if (favs.length === 0) {
+      el.innerHTML = '<p class="fav-empty">保存されたプロンプトはありません</p>';
+      return;
+    }
+    el.innerHTML = favs.map(function(f, i) {
+      var short = f.length > 100 ? f.substring(0, 100) + '...' : f;
+      return '<div class="fav-item">'
+        + '<span class="fav-text" onclick="useFav(' + i + ')" title="クリックで読み込み">' + escHtml(short) + '</span>'
+        + '<button class="fav-del" onclick="deleteFav(' + i + ')" title="削除">✕</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // 初期表示
+  renderFavs();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
