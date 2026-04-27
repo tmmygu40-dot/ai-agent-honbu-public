@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="季節・時間帯・ムードを選ぶだけで、AI用のアニメ背景画像プロンプトを即座に生成できます。生成したプロンプトはワンクリックでコピーしてAI画像生成ツールで活用できます。">
+  <title>🎨 シーンプロンプトメーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A（ENABLE_RESULT_QA=true のときだけ表示） ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── チェックボックス行（label で行全体を包む / 行クリックでON-OFF / チェック済みは取り消し線+薄表示） ── */
+    .check-item {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.7rem 0.6rem; border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; }
+    .check-item .check-text { font-size: 0.92rem; color: var(--text); line-height: 1.4; }
+    .check-item input[type="checkbox"]:checked ~ .check-text {
+      text-decoration: line-through; color: var(--text-sub); opacity: 0.6;
+    }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎨 シーンプロンプトメーカー</h1>
+    <p class="subtitle">季節・時間帯・ムードを選ぶだけで、AI用のアニメ風背景画像プロンプトを即生成できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">シーン設定</p>
+    <div class="field">
+      <label for="season">季節</label>
+      <select id="season">
+        <option value="春">春</option>
+        <option value="夏">夏</option>
+        <option value="秋">秋</option>
+        <option value="冬">冬</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="timeOfDay">時間帯</label>
+      <select id="timeOfDay">
+        <option value="朝焼け">朝焼け</option>
+        <option value="昼間">昼間</option>
+        <option value="夕焼け">夕焼け</option>
+        <option value="夜間">夜間</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="mood">ムード</label>
+      <select id="mood">
+        <option value="ノスタルジア">ノスタルジア</option>
+        <option value="ファンタジー">ファンタジー</option>
+        <option value="サイバーパンク">サイバーパンク</option>
+        <option value="ゴシック">ゴシック</option>
+        <option value="ルーミー">ルーミー</option>
+        <option value="アドベンチャー">アドベンチャー</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- プロンプト生成ボタン -->
+  <button class="btn-calc" onclick="generatePrompt()">✨ プロンプトを生成</button>
+
+  <!-- 結論カード（プロンプト表示） -->
+  <div class="result-card ok" id="result" style="display:none; text-align:left;">
+    <p class="result-label" style="text-align:center;">生成されたプロンプト</p>
+    <p class="result-note" id="prompt-text" style="background:var(--bg); padding:1rem; border-radius:8px; word-break:break-word; font-size:0.95rem; min-height:3rem; font-family:monospace;">—</p>
+    <button class="btn-copy" onclick="copyPrompt()" style="margin-top:1rem; padding:0.7rem 1.2rem; background:var(--accent); color:#fff; border:none; border-radius:8px; cursor:pointer; font-weight:700; width:100%; max-width:100%;">📋 コピーして使う</button>
+  </div>
+
+
+  <!-- checkbox を使う場合の模範UI（必要時にコピーして使う / label で行全体を包む / 行クリックでON-OFF / チェック済みは取り消し線+薄表示）
+  <div class="card">
+    <p class="card-title">チェックリスト</p>
+    <label class="check-item">
+      <input type="checkbox">
+      <span class="check-text">項目1</span>
+    </label>
+    <label class="check-item">
+      <input type="checkbox">
+      <span class="check-text">項目2</span>
+    </label>
+  </div>
+  -->
+
+  <!-- 広告枠（仮・将来差し替え予定。広告コードは未実装。結果と補足を見た後の位置に配置） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var currentPrompt = '';
+
+  // プロンプト生成ロジック
+  var prompts = {
+    '春': {
+      '朝焼け': {
+        'ノスタルジア': 'A serene spring dawn landscape, cherry blossoms, soft pink sky, nostalgic watercolor anime art, peaceful atmosphere, vintage color palette, memory-like quality',
+        'ファンタジー': 'A magical spring sunrise forest, blooming flowers, floating particles, fantasy anime art, enchanting atmosphere, soft glowing light, magical creatures',
+        'サイバーパンク': 'Spring cyberpunk cityscape at dawn, neon cherry blossoms, holographic elements, futuristic anime style, digital rain, vibrant colors',
+        'ゴシック': 'Gothic spring garden at sunrise, dark cherry blossoms, mysterious atmosphere, ornate anime art, moody lighting, Victorian elements',
+        'ルーミー': 'Cozy spring morning room view, soft light streaming through window, cherry blossom petals, warm anime aesthetic, comfortable home interior',
+        'アドベンチャー': 'Spring dawn adventure landscape, mountains, exploration path, anime adventure art, excited atmosphere, fresh morning light'
+      },
+      '昼間': {
+        'ノスタルジア': 'Spring daytime nostalgic anime landscape, cherry blossoms blooming, bright sunlight, watercolor style, gentle colors, memory of childhood',
+        'ファンタジー': 'Bright spring fantasy forest, magical creatures, blooming flowers everywhere, anime fantasy art, daylight spell effects, wonder atmosphere',
+        'サイバーパンク': 'Spring daylight cyber city, neon signs mixed with nature, hologram cherry blossoms, anime cyberpunk style, bustling energy',
+        'ゴシック': 'Spring gothic garden in daylight, dark mystical flowers, moody anime art, ornate structures, mysterious elegance',
+        'ルーミー': 'Warm spring afternoon room, bright window light, cozy space, anime home aesthetic, comfortable and peaceful',
+        'アドベンチャー': 'Spring daytime outdoor adventure scene, bright sky, exploration excitement, anime adventure style, dynamic energy'
+      },
+      '夕焼け': {
+        'ノスタルジア': 'Spring sunset nostalgic landscape, golden light, cherry blossoms silhouette, anime watercolor art, peaceful evening feeling, memory quality',
+        'ファンタジー': 'Spring sunset magical forest, golden hour enchantment, fantasy anime art, mystical atmosphere, beautiful light effects',
+        'サイバーパンク': 'Spring sunset cyber landscape, neon glow mixing sunset colors, futuristic anime art, beautiful contrast',
+        'ゴシック': 'Spring gothic sunset, dark silhouettes, moody colors, mysterious anime art, elegant darkness',
+        'ルーミー': 'Cozy spring evening room, sunset light, warm atmosphere, peaceful anime home aesthetic',
+        'アドベンチャー': 'Spring sunset adventure scene, warm glow, exploration excitement, anime adventure art style'
+      },
+      '夜間': {
+        'ノスタルジア': 'Spring night nostalgic landscape, stars, moonlight, fireflies, anime nighttime art, serene memory-like quality',
+        'ファンタジー': 'Spring magic night forest, moonlit fantasy, glowing flowers, anime fantasy art, mystical nighttime atmosphere',
+        'サイバーパンク': 'Spring night cyberpunk city, neon lights, digital sky, futuristic anime night scene, electric energy',
+        'ゴシック': 'Spring gothic night, dark mystery, moonlight, gothic anime art, elegant darkness, mysterious atmosphere',
+        'ルーミー': 'Cozy spring night room, soft lamp light, peaceful interior, anime home aesthetic, comfortable evening',
+        'アドベンチャー': 'Spring night adventure landscape, moonlight exploration, anime adventure art, quiet excitement'
+      }
+    },
+    '夏': {
+      '朝焼け': {
+        'ノスタルジア': 'Summer dawn nostalgic landscape, coral sky, beach or field, watercolor anime art, childhood memory feeling, soft colors',
+        'ファンタジー': 'Summer sunrise fantasy magic, bright colors, magical creatures, anime fantasy art, wonder and excitement',
+        'サイバーパンク': 'Summer dawn cyber landscape, tropical neon elements, vibrant anime cyberpunk art, digital sunrise',
+        'ゴシック': 'Summer gothic dawn, dark shadows, mysterious moody anime art, ornate structures',
+        'ルーミー': 'Bright summer morning room, fresh air, window light, anime home aesthetic, awakening feeling',
+        'アドベンチャー': 'Summer dawn adventure scene, bright sky, exploration path, anime adventure art style'
+      },
+      '昼間': {
+        'ノスタルジア': 'Summer daylight nostalgic scene, bright sun, watercolor anime art, childhood summer memories, gentle warm colors',
+        'ファンタジー': 'Bright summer fantasy world, magical daylight, fantastical elements, anime fantasy art, beautiful brightness',
+        'サイバーパンク': 'Summer daylight cyber city, neon in bright daylight, digital nature mix, anime cyberpunk style, vibrant energy',
+        'ゴシック': 'Summer gothic daylight, dark contrast, moody anime art, mysterious even in bright light',
+        'ルーミー': 'Bright summer daytime room, strong sunlight, warm interior, anime home aesthetic, energetic comfort',
+        'アドベンチャー': 'Summer daytime outdoor adventure, bright and exciting, anime adventure art style, full energy'
+      },
+      '夕焼け': {
+        'ノスタルジア': 'Summer sunset nostalgic landscape, orange sky, watercolor anime art, warm memory feeling, peaceful evening',
+        'ファンタジー': 'Summer sunset magic scene, golden light, fantasy anime art, beautiful mystical atmosphere',
+        'サイバーパンク': 'Summer sunset cyber landscape, neon sunset blend, futuristic anime art, beautiful contrast',
+        'ゴシック': 'Summer gothic sunset, dark elegant silhouettes, moody anime art, mysterious beauty',
+        'ルーミー': 'Warm summer evening room, sunset window light, peaceful anime home aesthetic, relaxing evening',
+        'アドベンチャー': 'Summer sunset adventure scene, golden glow, exploration joy, anime adventure art'
+      },
+      '夜間': {
+        'ノスタルジア': 'Summer night nostalgic landscape, stars, fireflies, cicada sounds implied, anime nighttime art, peaceful memory quality',
+        'ファンタジー': 'Summer magic night sky, stars, fantasy anime art, mystical nighttime, wonder feeling',
+        'サイバーパンク': 'Summer night cyberpunk city, neon lights everywhere, digital sky, futuristic anime night scene',
+        'ゴシック': 'Summer gothic night, dark mystery, moonlight shadows, gothic anime art, elegant darkness',
+        'ルーミー': 'Peaceful summer night room, cool interior, soft light, anime home aesthetic, restful evening',
+        'アドベンチャー': 'Summer night adventure landscape, moonlight exploration, anime adventure art style'
+      }
+    },
+    '秋': {
+      '朝焼け': {
+        'ノスタルジア': 'Autumn dawn nostalgic landscape, fall colors, watercolor anime art, memory of autumn mornings, gentle melancholy',
+        'ファンタジー': 'Autumn sunrise magic scene, golden light through leaves, fantasy anime art, mystical morning',
+        'サイバーパンク': 'Autumn dawn cyber landscape, neon leaves, digital nature, futuristic anime cyberpunk art',
+        'ゴシック': 'Autumn gothic dawn, dark leaves, mysterious moody anime art, elegant darkness',
+        'ルーミー': 'Cozy autumn morning room, warm light, comfortable interior, anime home aesthetic, peaceful awakening',
+        'アドベンチャー': 'Autumn dawn adventure scene, fall landscape, exploration excitement, anime adventure art'
+      },
+      '昼間': {
+        'ノスタルジア': 'Autumn daytime nostalgic landscape, golden brown colors, watercolor anime art, peaceful autumn day, memory feeling',
+        'ファンタジー': 'Autumn daylight fantasy scene, magical atmosphere, fantasy anime art, beautiful bright autumn',
+        'サイバーパンク': 'Autumn daytime cyber city, digital leaves, neon mixed with nature, anime cyberpunk style, vibrant energy',
+        'ゴシック': 'Autumn gothic daylight, dark mysterious atmosphere, moody anime art, elegant shadows',
+        'ルーミー': 'Comfortable autumn day room, warm natural light, cozy interior, anime home aesthetic, peaceful day',
+        'アドベンチャー': 'Autumn daytime outdoor adventure, golden light, exploration joy, anime adventure art style'
+      },
+      '夕焼け': {
+        'ノスタルジア': 'Autumn sunset nostalgic landscape, golden red sky, fall foliage, watercolor anime art, peaceful melancholy, memory quality',
+        'ファンタジー': 'Autumn sunset magic scene, golden hour fantasy, fantasy anime art, beautiful mystical light',
+        'サイバーパンク': 'Autumn sunset cyber landscape, neon sunset glow, digital foliage, futuristic anime art, beautiful blend',
+        'ゴシック': 'Autumn gothic sunset, dark silhouettes, moody elegant anime art, mysterious autumn evening',
+        'ルーミー': 'Warm autumn evening room, sunset light through window, cozy interior, anime home aesthetic',
+        'アドベンチャー': 'Autumn sunset adventure scene, golden glow, exploration warmth, anime adventure art'
+      },
+      '夜間': {
+        'ノスタルジア': 'Autumn night nostalgic landscape, moonlight through leaves, stars, anime nighttime art, peaceful melancholy memory',
+        'ファンタジー': 'Autumn magic night scene, mystical moonlight, fantasy anime art, enchanting darkness',
+        'サイバーパンク': 'Autumn night cyberpunk city, neon lights, digital sky, futuristic anime night scene, electric energy',
+        'ゴシック': 'Autumn gothic night, dark mysterious beauty, moonlight shadows, gothic anime art, elegant darkness',
+        'ルーミー': 'Peaceful autumn night room, soft warm light, cozy interior, anime home aesthetic, restful evening',
+        'アドベンチャー': 'Autumn night adventure landscape, moonlight exploration, anime adventure art style'
+      }
+    },
+    '冬': {
+      '朝焼け': {
+        'ノスタルジア': 'Winter dawn nostalgic landscape, cold light, snow or frost, watercolor anime art, quiet winter memory, peaceful',
+        'ファンタジー': 'Winter sunrise magic scene, crystalline sparkles, fantasy anime art, mystical winter morning, beautiful light',
+        'サイバーパンク': 'Winter dawn cyber landscape, icy neon elements, digital snow, futuristic anime cyberpunk art, cool tones',
+        'ゴシック': 'Winter gothic dawn, dark frost, mysterious moody anime art, elegant cold darkness',
+        'ルーミー': 'Warm winter morning room, cozy interior, cold window view, anime home aesthetic, comfortable warmth',
+        'アドベンチャー': 'Winter dawn adventure scene, crisp air, exploration path, anime adventure art style'
+      },
+      '昼間': {
+        'ノスタルジア': 'Winter daytime nostalgic landscape, bright snow, clear cold light, watercolor anime art, peaceful winter day, memory feeling',
+        'ファンタジー': 'Winter daylight fantasy scene, magical sparkles, frozen beauty, fantasy anime art, wonderful winter',
+        'サイバーパンク': 'Winter daytime cyber city, digital snow, icy neon, anime cyberpunk style, cool vibrant energy',
+        'ゴシック': 'Winter gothic daylight, dark mysterious contrast, moody anime art, elegant frozen landscape',
+        'ルーミー': 'Bright winter day room, clear sunlight, warm cozy interior, anime home aesthetic, comfortable day',
+        'アドベンチャー': 'Winter daytime outdoor adventure, bright cold landscape, exploration excitement, anime adventure art'
+      },
+      '夕焼け': {
+        'ノスタルジア': 'Winter sunset nostalgic landscape, pink and blue sky, snow, watercolor anime art, beautiful winter evening memory',
+        'ファンタジー': 'Winter sunset magic scene, magical golden hour, fantasy anime art, beautiful enchanting winter light',
+        'サイバーパンク': 'Winter sunset cyber landscape, neon cold colors, digital snow, futuristic anime art, beautiful contrast',
+        'ゴシック': 'Winter gothic sunset, dark elegant silhouettes, moody anime art, mysterious winter evening',
+        'ルーミー': 'Warm winter evening room, fireplace or warm light, cozy interior, anime home aesthetic, peaceful evening',
+        'アドベンチャー': 'Winter sunset adventure scene, golden cold glow, exploration joy, anime adventure art'
+      },
+      '夜間': {
+        'ノスタルジア': 'Winter night nostalgic landscape, stars, moon over snow, anime nighttime art, quiet peaceful winter memory',
+        'ファンタジー': 'Winter magic night scene, starlit frozen world, fantasy anime art, mystical winter night wonder',
+        'サイバーパンク': 'Winter night cyberpunk city, neon lights on ice and snow, digital winter, futuristic anime night scene, cool energy',
+        'ゴシック': 'Winter gothic night, dark frozen mystery, moonlight on frost, gothic anime art, elegant cold darkness',
+        'ルーミー': 'Cozy winter night room, warm indoor light, cold outside view, anime home aesthetic, peaceful restful evening',
+        'アドベンチャー': 'Winter night adventure landscape, moonlight snow exploration, anime adventure art style'
+      }
+    }
+  };
+
+  function generatePrompt() {
+    var season = document.getElementById('season').value;
+    var timeOfDay = document.getElementById('timeOfDay').value;
+    var mood = document.getElementById('mood').value;
+
+    if (!prompts[season] || !prompts[season][timeOfDay] || !prompts[season][timeOfDay][mood]) {
+      alert('選択できない組み合わせです');
+      return;
+    }
+
+    currentPrompt = prompts[season][timeOfDay][mood];
+    document.getElementById('prompt-text').textContent = currentPrompt;
+    document.getElementById('result').style.display = '';
+
+    // localStorage に選択を保存
+    localStorage.setItem('scenePrompt_season', season);
+    localStorage.setItem('scenePrompt_timeOfDay', timeOfDay);
+    localStorage.setItem('scenePrompt_mood', mood);
+  }
+
+  function copyPrompt() {
+    if (!currentPrompt) {
+      alert('プロンプトを先に生成してください');
+      return;
+    }
+
+    navigator.clipboard.writeText(currentPrompt).then(function() {
+      var btn = event.target;
+      var original = btn.textContent;
+      btn.textContent = '✓ コピーしました！';
+      setTimeout(function() {
+        btn.textContent = original;
+      }, 2000);
+    }).catch(function() {
+      // フォールバック（古いブラウザ対応）
+      var textarea = document.createElement('textarea');
+      textarea.value = currentPrompt;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      alert('コピーしました');
+    });
+  }
+
+  // ページ読み込み時に前回の選択を復元
+  window.addEventListener('DOMContentLoaded', function() {
+    var savedSeason = localStorage.getItem('scenePrompt_season');
+    var savedTimeOfDay = localStorage.getItem('scenePrompt_timeOfDay');
+    var savedMood = localStorage.getItem('scenePrompt_mood');
+
+    if (savedSeason) document.getElementById('season').value = savedSeason;
+    if (savedTimeOfDay) document.getElementById('timeOfDay').value = savedTimeOfDay;
+    if (savedMood) document.getElementById('mood').value = savedMood;
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
