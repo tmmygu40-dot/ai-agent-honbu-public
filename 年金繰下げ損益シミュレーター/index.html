@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="受給開始年齢で損得が大きく変わる。あなたに最適な繰下げ戦略を瞬時に判定します">
+  <title>年金繰下げ損益シミュレーター | 2026年度参考</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #ff6b35;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #e55a1f, 0 6px 16px rgba(255,107,53,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #e55a1f, 0 2px 8px rgba(255,107,53,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 年金繰下げ損益シミュレーター | 2026年度参考</h1>
+    <p class="subtitle">受給開始年齢で損得が大きく変わる。あなたに最適な繰下げ戦略を瞬時に判定します</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">条件を入力</p>
+    <div class="field">
+      <label for="f1">想定月額年金（円）</label>
+      <input type="number" id="f1" placeholder="例: 100000" data-name="月額年金">
+      <p class="hint">厚生年金・国民年金の合計想定額</p>
+    </div>
+    <div class="field">
+      <label for="f2">長生きのリスク対策年齢（サンプル計算対象）</label>
+      <input type="number" id="f2" placeholder="例: 95" min="65" max="120" value="95" data-name="計算対象年齢">
+      <p class="hint">何歳まで生きると仮定して比較するか</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">損益分岐点を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">診断結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+  </div>
+
+  <!-- 損益分岐点カード -->
+  <div class="card" id="breakeven-card" style="display:none">
+    <p class="card-title">損益分岐点</p>
+    <table class="detail-table" style="margin-bottom: 1rem;">
+      <tbody id="breakeven-list"></tbody>
+    </table>
+    <p style="font-size: 0.82rem; color: var(--text-sub); line-height: 1.6;">
+      📌 <strong>損益分岐点とは：</strong> 各受給開始年齢で累計受取額が同じになる年齢。この年齢を超えると、繰下げしたほうが有利になります。
+    </p>
+  </div>
+
+  <!-- 詳細試算カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">各年齢別試算額</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、厚生労働省・日本年金機構などの官公庁資料や、信頼できる公開データを参考に、目安として使いやすく整理しています。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── localStorage キー ──
+  var STORAGE_KEY = 'pension-sim';
+
+  // ── 繰下げ率（厚生労働省基準：1年ごとに8.4%増）──
+  var INCREASE_RATE = 0.084;
+
+  // ── 入力値の保存 ──
+  function saveInput() {
+    var data = {
+      f1: document.getElementById('f1').value,
+      f2: document.getElementById('f2').value
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  // ── 入力値の読み込み ──
+  function loadInput() {
+    var data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    if (data.f1) document.getElementById('f1').value = data.f1;
+    if (data.f2) document.getElementById('f2').value = data.f2 || '95';
+  }
+
+  // ── 診断実行 ──
+  function calc() {
+    var monthlyPension = parseFloat(document.getElementById('f1').value || 0);
+    var targetAge = parseInt(document.getElementById('f2').value || 95);
+
+    if (monthlyPension <= 0) { showErr('想定月額年金を入力してください'); return; }
+    if (targetAge < 65) { showErr('計算対象年齢は65歳以上にしてください'); return; }
+
+    // 65〜70歳の各受給開始年齢での計算
+    var simulations = [];
+    for (var startAge = 65; startAge <= 70; startAge++) {
+      var totalAmount = 0;
+      var increaseRate = (startAge - 65) * INCREASE_RATE;
+      var monthlyAmount = monthlyPension * (1 + increaseRate);
+
+      for (var age = startAge; age <= targetAge; age++) {
+        totalAmount += monthlyAmount * 12;
+      }
+
+      simulations.push({
+        startAge: startAge,
+        monthlyAmount: monthlyAmount,
+        totalAmount: totalAmount,
+        years: targetAge - startAge + 1
+      });
+    }
+
+    // 損益分岐点の計算
+    var breakevens = calcBreakevens(monthlyPension, targetAge);
+
+    // 判定：どの年齢から始めるのが最適か
+    var maxTotal = Math.max.apply(Math, simulations.map(function(s) { return s.totalAmount; }));
+    var bestStart = simulations.find(function(s) { return s.totalAmount === maxTotal; }).startAge;
+
+    var level = bestStart >= 70 ? 'ok' : bestStart >= 67 ? 'warn' : 'ng';
+    var resultMsg = bestStart === 65 ? '65歳での受給が最大'
+                  : bestStart <= 67 ? bestStart + '歳での受給が有利'
+                  : '70歳での繰下げで最大化';
+
+    showResult(level, bestStart + '歳開始', resultMsg);
+    showBreakevens(breakevens);
+    showDetail(simulations, targetAge);
+    saveInput();
+  }
+
+  // ── 損益分岐点の計算 ──
+  function calcBreakevens(monthlyPension, targetAge) {
+    var breakevens = [];
+
+    // 65歳 vs 66歳
+    var monthly65 = monthlyPension;
+    var monthly66 = monthlyPension * (1 + INCREASE_RATE);
+    for (var age = 66; age <= targetAge; age++) {
+      var total65 = monthly65 * 12 * (age - 65);
+      var total66 = monthly66 * 12 * (age - 66);
+      if (total66 > total65) {
+        breakevens.push({ from: 65, to: 66, breakeven: age });
+        break;
+      }
+    }
+
+    // 65歳 vs 67歳
+    var monthly67 = monthlyPension * (1 + INCREASE_RATE * 2);
+    for (var age = 67; age <= targetAge; age++) {
+      var total65 = monthly65 * 12 * (age - 65);
+      var total67 = monthly67 * 12 * (age - 67);
+      if (total67 > total65) {
+        breakevens.push({ from: 65, to: 67, breakeven: age });
+        break;
+      }
+    }
+
+    // 65歳 vs 70歳
+    var monthly70 = monthlyPension * (1 + INCREASE_RATE * 5);
+    for (var age = 70; age <= targetAge; age++) {
+      var total65 = monthly65 * 12 * (age - 65);
+      var total70 = monthly70 * 12 * (age - 70);
+      if (total70 > total65) {
+        breakevens.push({ from: 65, to: 70, breakeven: age });
+        break;
+      }
+    }
+
+    return breakevens;
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = note;
+  }
+
+  function showBreakevens(breakevens) {
+    var html = '';
+    for (var i = 0; i < breakevens.length; i++) {
+      var be = breakevens[i];
+      html += '<tr><td>' + be.from + '歳 vs ' + be.to + '歳</td><td style="text-align:right;">' + be.breakeven + '歳で逆転</td></tr>';
+    }
+    document.getElementById('breakeven-list').innerHTML = html;
+    document.getElementById('breakeven-card').style.display = '';
+  }
+
+  function showDetail(simulations, targetAge) {
+    var rows = [];
+    for (var i = 0; i < simulations.length; i++) {
+      var s = simulations[i];
+      rows.push([
+        s.startAge + '歳開始',
+        fmt(Math.round(s.monthlyAmount)) + '円/月',
+        fmt(Math.round(s.totalAmount)) + '円',
+        false
+      ]);
+    }
+
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[3] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td style="text-align:right;">' + r[1] + '</td><td style="text-align:right;">' + r[2] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng'; rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = msg;
+    document.getElementById('breakeven-card').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── 初期化 ──
+  window.addEventListener('load', function() {
+    loadInput();
+  });
+
+  // ── 入力変更時に保存 ──
+  document.getElementById('f1').addEventListener('change', saveInput);
+  document.getElementById('f2').addEventListener('change', saveInput);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
