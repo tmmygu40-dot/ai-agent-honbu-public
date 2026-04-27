@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="2026年10月の社会保険適用拡大で、パートの手取りがいくら変わるかを年収入力だけでサクッと試算。社保加入前後の手取り・保険料・税金の内訳を比較表示します。">
+  <title>社保適用拡大パート手取りシミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 比較テーブル ── */
+    .compare-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .compare-table th { font-size: 0.75rem; font-weight: 700; color: var(--accent); padding: 0.5rem 0.3rem; border-bottom: 2px solid var(--border); text-align: center; }
+    .compare-table th:first-child { text-align: left; }
+    .compare-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); text-align: center; border-bottom: 1px solid var(--border); }
+    .compare-table td:first-child { text-align: left; color: var(--text); font-weight: 500; }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table .hl td { font-weight: 700; color: var(--text); }
+    .compare-table .hl td:nth-child(2), .compare-table .hl td:nth-child(3) { color: var(--accent); font-size: 1rem; }
+    .compare-table .diff-cell { font-weight: 700; }
+    .diff-minus { color: var(--ng); }
+    .diff-plus { color: var(--ok); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 社保適用拡大パート手取りシミュレーター</h1>
+    <p class="subtitle">2026年10月の社保拡大で手取りがどう変わる？年収を入れてサクッと比較できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="income">年収（額面）</label>
+      <input type="number" id="income" placeholder="例: 1200000" inputmode="numeric">
+      <p class="hint">パート・アルバイトの年間総支給額（交通費除く）</p>
+    </div>
+    <div class="field">
+      <label for="age">年齢</label>
+      <select id="age">
+        <option value="under40">40歳未満</option>
+        <option value="over40">40歳以上65歳未満</option>
+      </select>
+      <p class="hint">40歳以上は介護保険料がかかります</p>
+    </div>
+    <div class="field">
+      <label for="current">現在の社保加入状況</label>
+      <select id="current">
+        <option value="dependent">配偶者の扶養に入っている（社保未加入）</option>
+        <option value="national">国民健康保険＋国民年金に加入中</option>
+      </select>
+      <p class="hint">扶養内なら社保料ゼロ、国保なら現在の保険料と比較します</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">手取りを比較する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">手取りの変化（年額）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 比較内訳カード -->
+  <div class="card" id="compare" style="display:none">
+    <p class="card-title">加入前後の比較</p>
+    <table class="compare-table">
+      <thead>
+        <tr><th>項目</th><th>適用前</th><th>適用後</th></tr>
+      </thead>
+      <tbody id="cb"></tbody>
+    </table>
+  </div>
+
+  <!-- 社保内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">社保加入後の保険料内訳（年額）</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 絵文字ひとこと＆結果別Q&A -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 2026年10月時点の概算データです。料率は全国平均の目安値を使用しています。最新情報は厚生労働省・日本年金機構・協会けんぽの公式情報をご確認ください。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 2026年度 概算料率（従業員負担分） ──
+  var RATE_HEALTH   = 0.0500;  // 健康保険 約5.0%（全国平均 約10% の折半）
+  var RATE_PENSION  = 0.0915;  // 厚生年金 9.15%（18.3% の折半）
+  var RATE_CARE     = 0.0080;  // 介護保険 約0.8%（40歳以上のみ）
+  var RATE_EMPLOY   = 0.0060;  // 雇用保険 0.6%（労働者負担）
+
+  // 国民年金（月額概算）
+  var NATIONAL_PENSION_MONTHLY = 17000; // 2026年度概算
+
+  // ── 結果別Q&A ──
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: '将来の年金が増えるメリットも！' },
+    warn: { e: '🤔', t: '手取りは減るけど、長い目で見ると…' },
+    ng:   { e: '😱', t: '手取り減少が大きめ。働き方の見直しも検討を' }
+  };
+
+  var QA = {
+    ok: [
+      { q: '社保加入のメリットは？', a: '厚生年金に加入すると、将来もらえる年金額が増えます。また傷病手当金や出産手当金など、手厚い保障が受けられます。' },
+      { q: '扶養を外れても大丈夫？', a: '手取り減少が小さいなら、年金アップと保障充実のメリットが大きいケースが多いです。' },
+      { q: '会社側も負担してくれる？', a: 'はい、社会保険料は会社と折半です。実際の保険料総額の半分は会社が負担します。' },
+      { q: '106万の壁って何？', a: '年収約106万円（月額88,000円）を超えると社会保険の加入対象になるラインのことです。2026年10月から対象企業が拡大します。' }
+    ],
+    warn: [
+      { q: '手取りが減るのを避けるには？', a: '年収を増やして社保料を上回る収入を得るか、年収を106万円未満に抑える方法があります。' },
+      { q: '年金は本当に増える？', a: 'はい、厚生年金加入期間と報酬に応じて、老齢厚生年金が上乗せされます。1年加入で年額約6,000〜12,000円程度増えます。' },
+      { q: '配偶者の税金はどうなる？', a: '扶養を外れると配偶者控除・配偶者特別控除が変わり、配偶者の税金が増える場合があります。別途確認をおすすめします。' },
+      { q: '国保から切り替わる人は？', a: '国保＋国民年金から社保に切り替わると、保険料が下がるケースも多いです。特に国保料が高い自治体では有利になることがあります。' }
+    ],
+    ng: [
+      { q: '手取りがかなり減る…どうすれば？', a: '年収を130万〜150万以上に引き上げると、社保料を差し引いても手取りが回復するラインがあります。勤務時間の見直しを検討してみてください。' },
+      { q: '社保に入らない選択肢は？', a: '週20時間未満の勤務にすれば対象外ですが、収入が大幅に減ります。複数の勤務先で分散する方法もありますが、将来の年金には不利です。' },
+      { q: '会社に相談できる？', a: '勤務時間や勤務日数の調整について、会社と相談するのは良い選択です。ただし会社側にも社保料負担が発生する点は理解しておきましょう。' },
+      { q: '将来的にはプラスになる？', a: '厚生年金は一生涯受け取れるので、長生きするほどトータルでプラスになります。目先の手取り減だけでなく、長期的な視点も大切です。' }
+    ]
+  };
+
+  function calc() {
+    var income = parseFloat(document.getElementById('income').value);
+    if (isNaN(income) || income <= 0) { showErr('年収を入力してください'); return; }
+
+    var isOver40 = document.getElementById('age').value === 'over40';
+    var isDep = document.getElementById('current').value === 'dependent';
+    var monthly = income / 12;
+
+    // ── 社保加入後の保険料計算（年額） ──
+    var health  = Math.round(income * RATE_HEALTH);
+    var pension = Math.round(income * RATE_PENSION);
+    var care    = isOver40 ? Math.round(income * RATE_CARE) : 0;
+    var employ  = Math.round(income * RATE_EMPLOY);
+    var totalSI = health + pension + care + employ;
+
+    // ── 適用前の社保料 ──
+    var beforeSI = 0;
+    if (!isDep) {
+      // 国保は自治体で異なるが概算（所得割 約10% + 均等割 約4万）
+      var taxableForNHI = Math.max(0, income - 430000);
+      var nhiPremium = Math.round(taxableForNHI * 0.10 + 40000);
+      var natPension = NATIONAL_PENSION_MONTHLY * 12;
+      beforeSI = nhiPremium + natPension;
+    }
+
+    // ── 所得税計算（給与所得控除→基礎控除→社保控除→税額） ──
+    var beforeTax = calcIncomeTax(income, beforeSI);
+    var afterTax  = calcIncomeTax(income, totalSI);
+
+    // ── 住民税計算 ──
+    var beforeResTax = calcResidentTax(income, beforeSI);
+    var afterResTax  = calcResidentTax(income, totalSI);
+
+    // ── 手取り計算 ──
+    var beforeNet = income - beforeSI - beforeTax - beforeResTax;
+    var afterNet  = income - totalSI - afterTax - afterResTax;
+    var diff = afterNet - beforeNet;
+
+    // ── 結果判定 ──
+    var level, evalMsg;
+    if (diff >= -10000) {
+      level = 'ok'; evalMsg = '手取りへの影響は小さめです';
+    } else if (diff >= -100000) {
+      level = 'warn'; evalMsg = '手取りが年' + fmt(Math.abs(diff)) + '円減りますが、保障は充実します';
+    } else {
+      level = 'ng'; evalMsg = '手取りが大きく減少します。働き方の見直しも検討を';
+    }
+
+    var sign = diff >= 0 ? '+' : '';
+    showResult(level, sign + fmt(diff) + ' 円/年', evalMsg);
+
+    // ── 比較テーブル ──
+    var rows = [
+      ['年収（額面）', fmt(income), fmt(income), ''],
+      ['社会保険料', fmt(beforeSI), fmt(totalSI), fmtDiff(totalSI - beforeSI)],
+      ['所得税', fmt(beforeTax), fmt(afterTax), fmtDiff(afterTax - beforeTax)],
+      ['住民税', fmt(beforeResTax), fmt(afterResTax), fmtDiff(afterResTax - beforeResTax)],
+    ];
+    var cHtml = rows.map(function(r) {
+      return '<tr><td>' + r[0] + '</td><td>' + r[1] + '円</td><td>' + r[2] + '円</td></tr>';
+    }).join('');
+    cHtml += '<tr class="hl"><td>手取り</td><td>' + fmt(beforeNet) + '円</td><td>' + fmt(afterNet) + '円</td></tr>';
+    document.getElementById('cb').innerHTML = cHtml;
+    document.getElementById('compare').style.display = 'block';
+
+    // ── 社保内訳テーブル ──
+    var dRows = [
+      ['健康保険料', fmt(health) + ' 円'],
+      ['厚生年金保険料', fmt(pension) + ' 円'],
+    ];
+    if (care > 0) dRows.push(['介護保険料', fmt(care) + ' 円']);
+    dRows.push(['雇用保険料', fmt(employ) + ' 円']);
+    dRows.push(['社保合計', fmt(totalSI) + ' 円', true]);
+
+    document.getElementById('db').innerHTML = dRows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+
+    showQA(level);
+    saveToStorage(income, isOver40, isDep);
+  }
+
+  // ── 給与所得控除 ──
+  function calcSalaryDeduction(income) {
+    if (income <= 1625000) return 550000;
+    if (income <= 1800000) return Math.floor(income * 0.4) - 100000;
+    if (income <= 3600000) return Math.floor(income * 0.3) + 80000;
+    if (income <= 6600000) return Math.floor(income * 0.2) + 440000;
+    if (income <= 8500000) return Math.floor(income * 0.1) + 1100000;
+    return 1950000;
+  }
+
+  // ── 所得税計算 ──
+  function calcIncomeTax(income, siPremium) {
+    var salaryDed = calcSalaryDeduction(income);
+    var salaryIncome = Math.max(0, income - salaryDed);
+    var baseDed = 480000; // 基礎控除
+    var taxable = Math.max(0, salaryIncome - baseDed - siPremium);
+    // 税率（簡易）
+    if (taxable <= 1950000) return Math.floor(taxable * 0.05);
+    if (taxable <= 3300000) return Math.floor(taxable * 0.10 - 97500);
+    return Math.floor(taxable * 0.20 - 427500);
+  }
+
+  // ── 住民税計算 ──
+  function calcResidentTax(income, siPremium) {
+    var salaryDed = calcSalaryDeduction(income);
+    var salaryIncome = Math.max(0, income - salaryDed);
+    var baseDed = 430000; // 住民税の基礎控除
+    var taxable = Math.max(0, salaryIncome - baseDed - siPremium);
+    if (taxable <= 0) return 0;
+    return Math.floor(taxable * 0.10) + 5000; // 所得割10% + 均等割5,000円
+  }
+
+  // ── 表示関数 ──
+  function showResult(level, val, evalText) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalText;
+    var note = level === 'ok' ? '社保加入で将来の年金増額・傷病手当金など保障が充実します'
+             : level === 'warn' ? '月額にすると' + fmt(Math.round(Math.abs(parseFloat(val)) / 12)) + '円程度の変化です'
+             : '年収を上げるか、勤務時間を見直すことで対策できます';
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x) {
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('re').textContent = '';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('compare').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('qa-card').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  function fmtDiff(n) {
+    if (n === 0) return '±0';
+    return (n > 0 ? '+' : '') + fmt(n);
+  }
+
+  // ── localStorage保存・復元 ──
+  function saveToStorage(income, isOver40, isDep) {
+    try {
+      localStorage.setItem('shahoSim', JSON.stringify({
+        income: income,
+        age: isOver40 ? 'over40' : 'under40',
+        current: isDep ? 'dependent' : 'national'
+      }));
+    } catch(e) {}
+  }
+
+  function loadFromStorage() {
+    try {
+      var data = JSON.parse(localStorage.getItem('shahoSim'));
+      if (data) {
+        if (data.income) document.getElementById('income').value = data.income;
+        if (data.age) document.getElementById('age').value = data.age;
+        if (data.current) document.getElementById('current').value = data.current;
+      }
+    } catch(e) {}
+  }
+
+  loadFromStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
