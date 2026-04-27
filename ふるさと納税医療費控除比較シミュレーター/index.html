@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="年収と医療費を入力するだけで、ふるさと納税の控除上限額と医療費控除の還付額を一画面で比較。どちらがお得か数字でサクッと確認できるシミュレーターです。">
+  <title>ふるさと納税医療費控除比較シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 比較カード ── */
+    .compare-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem;
+      max-width: 600px; margin: 0 auto 1rem;
+    }
+    .compare-item {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.2rem 1rem;
+      text-align: center; box-shadow: var(--shadow);
+    }
+    .compare-item.winner { border-color: var(--ok); background: var(--ok-bg); }
+    .compare-item .ci-label { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); margin-bottom: 0.3rem; letter-spacing: 0.05em; }
+    .compare-item .ci-value { font-size: 1.4rem; font-weight: 900; color: var(--text); }
+    .compare-item.winner .ci-value { color: var(--ok); }
+    .compare-item .ci-note { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.3rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 ふるさと納税医療費控除比較シミュレーター</h1>
+    <p class="subtitle">ふるさと納税と医療費控除、どっちがお得？年収を入れるだけで節税効果をサクッと比較。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">基本情報</p>
+    <div class="field">
+      <label for="income">年収（額面）</label>
+      <input type="number" id="income" placeholder="例: 5000000">
+      <p class="hint">源泉徴収票の「支払金額」を入力</p>
+    </div>
+    <div class="field">
+      <label for="family">配偶者・扶養</label>
+      <select id="family">
+        <option value="single">独身・扶養なし</option>
+        <option value="spouse">配偶者あり（扶養内）</option>
+        <option value="spouse1">配偶者あり＋子1人</option>
+        <option value="spouse2">配偶者あり＋子2人</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">医療費</p>
+    <div class="field">
+      <label for="medical">年間医療費（自己負担額合計）</label>
+      <input type="number" id="medical" placeholder="例: 150000">
+      <p class="hint">保険適用後の実費。10万円以下なら医療費控除なし</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">比較する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">比較結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 比較グリッド -->
+  <div class="compare-grid" id="compare" style="display:none">
+    <div class="compare-item" id="ci-furusato">
+      <p class="ci-label">ふるさと納税</p>
+      <p class="ci-value" id="cv-furusato">—</p>
+      <p class="ci-note">控除上限額（実質負担2,000円）</p>
+    </div>
+    <div class="compare-item" id="ci-medical">
+      <p class="ci-label">医療費控除</p>
+      <p class="ci-value" id="cv-medical">—</p>
+      <p class="ci-note">所得税＋住民税の還付額</p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、国税庁・総務省の公開資料を参考に目安を計算しています。2026年度の参考目安です。正確な金額は確定申告や各自治体の通知でご確認ください。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 所得税速算表（課税所得 → 税率, 控除額） ──
+  function getIncomeTaxRate(taxableIncome) {
+    if (taxableIncome <= 1950000) return { rate: 0.05, deduction: 0 };
+    if (taxableIncome <= 3300000) return { rate: 0.10, deduction: 97500 };
+    if (taxableIncome <= 6950000) return { rate: 0.20, deduction: 427500 };
+    if (taxableIncome <= 9000000) return { rate: 0.23, deduction: 636000 };
+    if (taxableIncome <= 18000000) return { rate: 0.33, deduction: 1536000 };
+    if (taxableIncome <= 40000000) return { rate: 0.40, deduction: 2796000 };
+    return { rate: 0.45, deduction: 4796000 };
+  }
+
+  // ── 給与所得控除 ──
+  function getSalaryDeduction(income) {
+    if (income <= 1625000) return 550000;
+    if (income <= 1800000) return income * 0.4 - 100000;
+    if (income <= 3600000) return income * 0.3 + 80000;
+    if (income <= 6600000) return income * 0.2 + 440000;
+    if (income <= 8500000) return income * 0.1 + 1100000;
+    return 1950000;
+  }
+
+  // ── 扶養控除額 ──
+  function getFamilyDeduction(family) {
+    switch (family) {
+      case 'single': return 0;
+      case 'spouse': return 380000;
+      case 'spouse1': return 380000 + 380000;
+      case 'spouse2': return 380000 + 380000 * 2;
+      default: return 0;
+    }
+  }
+
+  function calc() {
+    var income = parseFloat(document.getElementById('income').value);
+    var family = document.getElementById('family').value;
+    var medical = parseFloat(document.getElementById('medical').value) || 0;
+
+    if (isNaN(income) || income <= 0) { showErr('年収を入力してください'); return; }
+
+    // 給与所得
+    var salaryDeduction = getSalaryDeduction(income);
+    var salaryIncome = income - salaryDeduction;
+
+    // 所得控除（基礎控除48万 + 社会保険料概算15% + 扶養系）
+    var basicDeduction = 480000;
+    var socialInsurance = Math.round(income * 0.15);
+    var familyDeduction = getFamilyDeduction(family);
+    var totalDeduction = basicDeduction + socialInsurance + familyDeduction;
+
+    // 課税所得
+    var taxableIncome = Math.max(0, salaryIncome - totalDeduction);
+    var taxInfo = getIncomeTaxRate(taxableIncome);
+    var incomeTaxRate = taxInfo.rate;
+
+    // ── ふるさと納税控除上限 ──
+    // 住民税所得割額
+    var municipalTaxableIncome = taxableIncome; // 簡易的に同額
+    var municipalTax = municipalTaxableIncome * 0.10;
+    // 上限額 = 住民税所得割額 × 20% ÷ (100% - 住民税率10% - 所得税率×1.021) + 2000
+    var denominator = 1 - 0.10 - incomeTaxRate * 1.021;
+    var furusatoLimit = denominator > 0 ? Math.floor(municipalTax * 0.20 / denominator) + 2000 : 2000;
+    furusatoLimit = Math.max(2000, furusatoLimit);
+
+    // ふるさと納税の実質メリット（返礼品価値 = 上限額の約30%）
+    var furusatoBenefit = Math.floor((furusatoLimit - 2000) * 0.3);
+
+    // ── 医療費控除 ──
+    var medicalThreshold = Math.min(100000, salaryIncome * 0.05);
+    var medicalDeductionAmount = Math.max(0, medical - medicalThreshold);
+    medicalDeductionAmount = Math.min(medicalDeductionAmount, 2000000); // 上限200万
+
+    // 医療費控除の還付額（所得税 + 住民税10%）
+    var medicalRefundIncomeTax = Math.floor(medicalDeductionAmount * incomeTaxRate);
+    var medicalRefundResidentTax = Math.floor(medicalDeductionAmount * 0.10);
+    var medicalRefund = medicalRefundIncomeTax + medicalRefundResidentTax;
+
+    // ── 比較結果 ──
+    var furusatoTotal = furusatoLimit - 2000; // 節税効果（控除される額）
+    var diff = furusatoTotal - medicalRefund;
+    var level, msg;
+    if (diff > 0) {
+      level = 'ok';
+      msg = 'ふるさと納税のほうが ' + fmt(diff) + ' 円多くお得！（さらに返礼品あり）';
+    } else if (diff < 0) {
+      level = 'warn';
+      msg = '医療費控除のほうが ' + fmt(Math.abs(diff)) + ' 円多く還付されます';
+    } else {
+      level = 'ok';
+      msg = '両方ほぼ同額。ふるさと納税は返礼品もあるのでお得感あり';
+    }
+
+    // 両方併用可能であることを表示
+    var bothNote = '※ ふるさと納税と医療費控除は併用できます。どちらも活用するのがベストです。';
+
+    showResult(level, diff >= 0 ? 'ふるさと納税が有利' : '医療費控除が有利', msg + '\n' + bothNote);
+
+    // 比較グリッド
+    document.getElementById('compare').style.display = 'grid';
+    document.getElementById('cv-furusato').textContent = fmt(furusatoLimit) + ' 円';
+    document.getElementById('cv-medical').textContent = fmt(medicalRefund) + ' 円';
+    var ciFurusato = document.getElementById('ci-furusato');
+    var ciMedical = document.getElementById('ci-medical');
+    ciFurusato.classList.toggle('winner', diff >= 0);
+    ciMedical.classList.toggle('winner', diff < 0);
+
+    // 内訳
+    showDetail([
+      ['年収（額面）', fmt(income) + ' 円'],
+      ['給与所得', fmt(salaryIncome) + ' 円'],
+      ['課税所得', fmt(taxableIncome) + ' 円'],
+      ['所得税率', (incomeTaxRate * 100) + ' %'],
+      ['─── ふるさと納税 ───', ''],
+      ['控除上限額', fmt(furusatoLimit) + ' 円', true],
+      ['実質負担', '2,000 円'],
+      ['返礼品価値（約30%）', '約 ' + fmt(furusatoBenefit) + ' 円'],
+      ['─── 医療費控除 ───', ''],
+      ['年間医療費', fmt(medical) + ' 円'],
+      ['控除対象額', fmt(medicalDeductionAmount) + ' 円'],
+      ['所得税還付', fmt(medicalRefundIncomeTax) + ' 円'],
+      ['住民税軽減', fmt(medicalRefundResidentTax) + ' 円'],
+      ['還付合計', fmt(medicalRefund) + ' 円', true],
+    ]);
+
+    // localStorage保存
+    localStorage.setItem('furusato_medical_sim', JSON.stringify({
+      income: income, family: family, medical: medical
+    }));
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('compare').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── localStorage 復元 ──
+  (function() {
+    try {
+      var saved = JSON.parse(localStorage.getItem('furusato_medical_sim'));
+      if (saved) {
+        if (saved.income) document.getElementById('income').value = saved.income;
+        if (saved.family) document.getElementById('family').value = saved.family;
+        if (saved.medical) document.getElementById('medical').value = saved.medical;
+      }
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

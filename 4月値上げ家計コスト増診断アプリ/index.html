@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="食品・電気・ガスなど4月値上げ品目ごとの月額コスト増を入力するだけで、家計への年間影響額と具体的な節約対策をサクッと診断できるアプリです。">
+  <title>4月値上げ家計コスト増診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 診断結果（節約対策） ── */
+    .advice-card {
+      display: none;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .advice-item { padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+    .advice-item:last-child { border-bottom: none; }
+    .advice-cat { font-size: 0.82rem; font-weight: 700; color: var(--accent); margin-bottom: 0.2rem; }
+    .advice-text { font-size: 0.88rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card, .advice-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📈 4月値上げ家計コスト増診断アプリ</h1>
+    <p class="subtitle">値上げ品目ごとのコスト増を入れるだけで、家計への影響と節約対策をサクッと診断します。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">月額コスト増を入力（円）</p>
+    <div class="field">
+      <label for="food">🍞 食品（パン・卵・調味料など）</label>
+      <input type="number" id="food" placeholder="例: 2000" min="0">
+      <p class="hint">値上げで月にいくら増えたか</p>
+    </div>
+    <div class="field">
+      <label for="elec">⚡ 電気代</label>
+      <input type="number" id="elec" placeholder="例: 1500" min="0">
+    </div>
+    <div class="field">
+      <label for="gas">🔥 ガス代</label>
+      <input type="number" id="gas" placeholder="例: 800" min="0">
+    </div>
+    <div class="field">
+      <label for="water">💧 水道代</label>
+      <input type="number" id="water" placeholder="例: 300" min="0">
+    </div>
+    <div class="field">
+      <label for="daily">🧴 日用品</label>
+      <input type="number" id="daily" placeholder="例: 500" min="0">
+    </div>
+    <div class="field">
+      <label for="transport">🚃 交通費</label>
+      <input type="number" id="transport" placeholder="例: 400" min="0">
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">家計への影響度</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 絵文字ひとこと＆Q&A -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <!-- 節約対策カード -->
+  <div class="advice-card" id="advice">
+    <p class="card-title">あなたへの節約対策</p>
+    <div id="advice-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 2025年4月時点の参考データです。最新情報は総務省統計局・消費者庁などの公式情報をご確認ください。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: 'ほっ、今月の値上げは軽めです' },
+    warn: { e: '🤔', t: 'うーん、ちょっと家計に響きそう' },
+    ng:   { e: '😱', t: 'ガーン、本気で節約を考えましょう' }
+  };
+
+  var QA = {
+    ok: [
+      { q: '今のままで大丈夫？', a: '月3,000円未満の影響なら日常の工夫で十分カバーできます。余裕があるうちに貯蓄に回すのもアリ。' },
+      { q: 'さらに節約するなら？', a: 'ポイ活やまとめ買いなど、無理のない範囲で少しずつ始めてみましょう。' }
+    ],
+    warn: [
+      { q: 'このまま放っておくと？', a: '年間で数万円の出費増に。早めに大きい項目から見直すと効果的です。' },
+      { q: '何から手を付ける？', a: '一番金額が大きいカテゴリから対策すると、効果を実感しやすいです。' }
+    ],
+    ng: [
+      { q: 'パニックになりそう…', a: '焦らず1つずつ。まずは一番大きい出費項目に絞って対策しましょう。' },
+      { q: '家計の見直しは何から？', a: '固定費（電気・ガス・サブスク）の見直しが最もインパクト大。プラン変更だけで月数千円浮くことも。' }
+    ]
+  };
+
+  // カテゴリ別の節約アドバイス
+  var ADVICE = {
+    food: [
+      'プライベートブランド（PB）商品への切り替えで1〜3割安くなることも',
+      'まとめ買い＋冷凍保存で食品ロスと出費を同時カット',
+      '特売日・ポイント倍デーを活用して計画的に買い物',
+      '外食回数を月1回減らすだけでも大きな節約に'
+    ],
+    elec: [
+      '電力会社・プランの見直しで月数百〜千円の節約が可能',
+      'エアコンのフィルター掃除で消費電力を最大10%カット',
+      '待機電力カット（電源タップのスイッチOFF）で年間数千円節約',
+      'LED照明への切り替えがまだなら優先的に'
+    ],
+    gas: [
+      'お風呂の追い焚き回数を減らす（家族続けて入浴）',
+      'ガス会社のプラン比較・切り替えで基本料金を見直し',
+      '煮込み料理は保温調理（余熱活用）でガス代を節約',
+      '食洗機がある場合はお湯の使用量が減って効果的'
+    ],
+    water: [
+      'シャワーヘッドを節水タイプに交換で約30%節水',
+      '食器洗いは溜め洗いで水道使用量を大幅カット',
+      '洗濯はまとめ洗いで回数を減らす',
+      'トイレの「大・小」レバーを正しく使い分ける'
+    ],
+    daily: [
+      '詰め替え用を選ぶだけで1回あたり2〜4割お得',
+      'ドラッグストアのポイント・クーポンを活用',
+      '100円ショップで代替できる日用品がないか見直す',
+      'ネット通販の定期便割引で消耗品をお得に'
+    ],
+    transport: [
+      '定期券の区間・ルートを見直して最安経路に変更',
+      '自転車通勤が可能な距離なら健康にもプラス',
+      '回数券やIC割引の活用で1回あたりの運賃を節約',
+      'テレワーク可能なら週1回でも交通費が浮く'
+    ]
+  };
+
+  var FIELDS = [
+    { id: 'food',      name: '食品',   icon: '🍞' },
+    { id: 'elec',      name: '電気代', icon: '⚡' },
+    { id: 'gas',       name: 'ガス代', icon: '🔥' },
+    { id: 'water',     name: '水道代', icon: '💧' },
+    { id: 'daily',     name: '日用品', icon: '🧴' },
+    { id: 'transport', name: '交通費', icon: '🚃' }
+  ];
+
+  var STORAGE_KEY = 'neage_cost_diag';
+
+  // localStorage 保存
+  function saveData() {
+    var data = {};
+    FIELDS.forEach(function(f) {
+      data[f.id] = document.getElementById(f.id).value;
+    });
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+
+  // localStorage 読み込み
+  function loadData() {
+    try {
+      var data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (!data) return;
+      FIELDS.forEach(function(f) {
+        if (data[f.id] !== undefined && data[f.id] !== '') {
+          document.getElementById(f.id).value = data[f.id];
+        }
+      });
+    } catch(e) {}
+  }
+
+  function calc() {
+    var vals = {};
+    var total = 0;
+    var hasInput = false;
+
+    FIELDS.forEach(function(f) {
+      var v = parseFloat(document.getElementById(f.id).value) || 0;
+      vals[f.id] = v;
+      total += v;
+      if (v > 0) hasInput = true;
+    });
+
+    if (!hasInput) { showErr('1つ以上の項目に金額を入力してください'); return; }
+
+    saveData();
+
+    var yearly = total * 12;
+    var level = total < 3000 ? 'ok' : total < 8000 ? 'warn' : 'ng';
+    var evalText = level === 'ok'   ? '影響は軽め — 今の生活ペースで大丈夫'
+                 : level === 'warn' ? '中程度の影響 — 大きい項目から見直しを'
+                 : '大きな影響 — 本格的な節約対策が必要';
+
+    showResult(level, '月 ' + fmt(total) + ' 円増', evalText);
+    document.getElementById('rn').textContent = '年間では約 ' + fmt(yearly) + ' 円の負担増';
+
+    // 内訳表示
+    var rows = [];
+    FIELDS.forEach(function(f) {
+      if (vals[f.id] > 0) {
+        rows.push([f.icon + ' ' + f.name, '+' + fmt(vals[f.id]) + ' 円/月']);
+      }
+    });
+    rows.push(['合計（月額）', '+' + fmt(total) + ' 円', true]);
+    rows.push(['合計（年額）', '+' + fmt(yearly) + ' 円', true]);
+    showDetail(rows);
+
+    // 節約対策を表示
+    showAdvice(vals);
+
+    showQA(level);
+  }
+
+  function showAdvice(vals) {
+    var html = '';
+    // 金額が大きい順にソート
+    var sorted = FIELDS.filter(function(f) { return vals[f.id] > 0; })
+      .sort(function(a, b) { return vals[b.id] - vals[a.id]; });
+
+    sorted.forEach(function(f) {
+      var tips = ADVICE[f.id];
+      // 金額に応じて表示するアドバイス数を変える
+      var count = vals[f.id] >= 2000 ? 3 : vals[f.id] >= 500 ? 2 : 1;
+      html += '<div class="advice-item">';
+      html += '<p class="advice-cat">' + f.icon + ' ' + f.name + '（+' + fmt(vals[f.id]) + '円/月）</p>';
+      for (var i = 0; i < Math.min(count, tips.length); i++) {
+        html += '<p class="advice-text">・' + tips[i] + '</p>';
+      }
+      html += '</div>';
+    });
+
+    document.getElementById('advice-list').innerHTML = html;
+    document.getElementById('advice').style.display = 'block';
+  }
+
+  function showResult(level, val, evalText) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalText;
+  }
+
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x){
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('rn').textContent = '';
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('advice').style.display = 'none';
+    var qaCard = document.getElementById('qa-card');
+    qaCard.style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // 初期化
+  loadData();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
