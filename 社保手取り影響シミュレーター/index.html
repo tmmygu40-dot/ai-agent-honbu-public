@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="月収（額面）を入力するだけで、2026年4月の社会保険料率改定による手取り変動額をサクッと確認できるシミュレーターです。健康保険・厚生年金・雇用保険の内訳も一目で分かります。">
+  <title>社保手取り影響シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+    .detail-table .section-header td {
+      font-weight: 700; color: var(--accent); font-size: 0.82rem;
+      padding-top: 1rem; border-bottom: 2px solid var(--border);
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 社保手取り影響シミュレーター</h1>
+    <p class="subtitle">2026年4月の社保改定で、あなたの手取りが月いくら変わるかサクッと確認できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="salary">月収（額面・税引前）</label>
+      <input type="number" id="salary" placeholder="例: 300000" inputmode="numeric">
+      <p class="hint">毎月の総支給額（通勤手当を除く）を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="age">年齢</label>
+      <select id="age">
+        <option value="under40">40歳未満</option>
+        <option value="over40">40歳以上65歳未満（介護保険あり）</option>
+      </select>
+      <p class="hint">40歳以上は介護保険料が加算されます</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">手取り変動額（月額）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード：改定前 -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳比較</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 絵文字ひとこと＆結果別Q&A -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 2026年4月時点の参考データです。料率は協会けんぽ（東京都）の一般的な値を基準にしています。実際の料率は都道府県・健保組合により異なります。最新情報は<strong>厚生労働省・協会けんぽ・日本年金機構</strong>の公式情報をご確認ください。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 結果別Q&A ──
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: 'ほぼ影響なし！安心ですね' },
+    warn: { e: '🤔', t: 'ちょっと減るけど、まだ大丈夫' },
+    ng:   { e: '😱', t: '結構減る…！家計の見直しを検討しよう' }
+  };
+
+  var QA = {
+    ok: [
+      { q: '手取りほぼ変わらないけど油断していい？', a: '今回の改定では影響軽微ですが、来年度以降の改定もあるので年1回は確認しておくと安心です。' },
+      { q: '社保料が安くなることはあるの？', a: '料率が下がれば安くなります。ただし高齢化の進行で長期的には上昇傾向です。' },
+      { q: '手取りを増やすコツは？', a: 'iDeCoや生命保険料控除など、所得控除を活用すると税金面で手取りが改善します。' },
+      { q: '確認しておくべきことは？', a: '給与明細の社保料欄を毎年4月に確認する習慣をつけると変化に気づけます。' }
+    ],
+    warn: [
+      { q: '月1,000〜3,000円減るとどうなる？', a: '年間で1.2〜3.6万円の影響。固定費の小さな見直し（サブスク整理など）でカバーできます。' },
+      { q: '会社負担分も上がってるの？', a: 'はい、社保は労使折半なので会社も同額負担増です。' },
+      { q: '節約のコツは？', a: 'まず固定費（サブスク・保険）を棚卸し、次に変動費（食費・光熱費）を見直すのが効果的です。' },
+      { q: '転職したら社保料は変わる？', a: '標準報酬月額が変わるため、転職先の給与水準によって上下します。' }
+    ],
+    ng: [
+      { q: '月5,000円以上減る…どうすれば？', a: '年間6万円超の影響です。家計の固定費見直し・副業・ふるさと納税など複数の対策を組み合わせましょう。' },
+      { q: '社保料をこれ以上取られないようにできる？', a: '社保料は法定なので回避できませんが、4〜6月の残業を抑えると標準報酬月額の上昇を防げる場合があります。' },
+      { q: '手取りが減ったぶん将来戻ってくる？', a: '厚生年金は保険料が多いほど将来の年金額も増えます。健康保険料は掛け捨てですが医療費負担が軽くなります。' },
+      { q: '家計が厳しい時の相談先は？', a: 'お住まいの市区町村の生活支援窓口や、ファイナンシャルプランナーへの無料相談を活用しましょう。' }
+    ]
+  };
+
+  // ══════════════════════════════════════════════
+  //  社会保険料率データ（協会けんぽ・東京都基準）
+  //  ※ 被保険者（本人）負担分のみ
+  // ══════════════════════════════════════════════
+
+  // 2025年度（改定前）
+  var RATE_2025 = {
+    healthIns:    0.04985,  // 健康保険 9.97% の折半 = 4.985%
+    healthIns40:  0.05785,  // 介護保険込み(40歳以上) 11.57% の折半 = 5.785%
+    pension:      0.0915,   // 厚生年金 18.30% の折半 = 9.15%
+    employment:   0.006     // 雇用保険 被保険者 0.6%（一般）
+  };
+
+  // 2026年度（改定後）— 想定値
+  var RATE_2026 = {
+    healthIns:    0.0500,   // 健康保険 10.00% の折半 = 5.00%（微増想定）
+    healthIns40:  0.0583,   // 介護保険込み 11.66% の折半 = 5.83%（微増想定）
+    pension:      0.0915,   // 厚生年金 18.30% は2017年以降固定
+    employment:   0.006     // 雇用保険 0.6%（据え置き想定）
+  };
+
+  // 標準報酬月額の等級テーブル（1〜50等級、健康保険は1〜50、厚生年金は1〜32）
+  // 報酬月額の範囲に対応する標準報酬月額
+  var GRADE_TABLE = [
+    { min: 0,       max: 63000,   health: 58000,  pension: 88000  },
+    { min: 63000,   max: 73000,   health: 68000,  pension: 88000  },
+    { min: 73000,   max: 83000,   health: 78000,  pension: 88000  },
+    { min: 83000,   max: 93000,   health: 88000,  pension: 88000  },
+    { min: 93000,   max: 101000,  health: 98000,  pension: 98000  },
+    { min: 101000,  max: 107000,  health: 104000, pension: 104000 },
+    { min: 107000,  max: 114000,  health: 110000, pension: 110000 },
+    { min: 114000,  max: 122000,  health: 118000, pension: 118000 },
+    { min: 122000,  max: 130000,  health: 126000, pension: 126000 },
+    { min: 130000,  max: 138000,  health: 134000, pension: 134000 },
+    { min: 138000,  max: 146000,  health: 142000, pension: 142000 },
+    { min: 146000,  max: 155000,  health: 150000, pension: 150000 },
+    { min: 155000,  max: 165000,  health: 160000, pension: 160000 },
+    { min: 165000,  max: 175000,  health: 170000, pension: 170000 },
+    { min: 175000,  max: 185000,  health: 180000, pension: 180000 },
+    { min: 185000,  max: 195000,  health: 190000, pension: 190000 },
+    { min: 195000,  max: 210000,  health: 200000, pension: 200000 },
+    { min: 210000,  max: 230000,  health: 220000, pension: 220000 },
+    { min: 230000,  max: 250000,  health: 240000, pension: 240000 },
+    { min: 250000,  max: 270000,  health: 260000, pension: 260000 },
+    { min: 270000,  max: 290000,  health: 280000, pension: 280000 },
+    { min: 290000,  max: 310000,  health: 300000, pension: 300000 },
+    { min: 310000,  max: 330000,  health: 320000, pension: 320000 },
+    { min: 330000,  max: 350000,  health: 340000, pension: 340000 },
+    { min: 350000,  max: 370000,  health: 360000, pension: 360000 },
+    { min: 370000,  max: 395000,  health: 380000, pension: 380000 },
+    { min: 395000,  max: 425000,  health: 410000, pension: 410000 },
+    { min: 425000,  max: 455000,  health: 440000, pension: 440000 },
+    { min: 455000,  max: 485000,  health: 470000, pension: 470000 },
+    { min: 485000,  max: 515000,  health: 500000, pension: 500000 },
+    { min: 515000,  max: 545000,  health: 530000, pension: 530000 },
+    { min: 545000,  max: 575000,  health: 560000, pension: 560000 },
+    { min: 575000,  max: 605000,  health: 590000, pension: 590000 },
+    { min: 605000,  max: 635000,  health: 620000, pension: 620000 },
+    { min: 635000,  max: 665000,  health: 650000, pension: 650000 },
+    { min: 665000,  max: 695000,  health: 680000, pension: 680000 },
+    { min: 695000,  max: 730000,  health: 710000, pension: 650000 },
+    { min: 730000,  max: 770000,  health: 750000, pension: 650000 },
+    { min: 770000,  max: 810000,  health: 790000, pension: 650000 },
+    { min: 810000,  max: 855000,  health: 830000, pension: 650000 },
+    { min: 855000,  max: 905000,  health: 880000, pension: 650000 },
+    { min: 905000,  max: 955000,  health: 930000, pension: 650000 },
+    { min: 955000,  max: 1005000, health: 980000, pension: 650000 },
+    { min: 1005000, max: 1055000, health: 1030000,pension: 650000 },
+    { min: 1055000, max: 1115000, health: 1090000,pension: 650000 },
+    { min: 1115000, max: 1175000, health: 1150000,pension: 650000 },
+    { min: 1175000, max: 1235000, health: 1210000,pension: 650000 },
+    { min: 1235000, max: 1295000, health: 1270000,pension: 650000 },
+    { min: 1295000, max: 1355000, health: 1330000,pension: 650000 },
+    { min: 1355000, max: Infinity, health: 1390000,pension: 650000 }
+  ];
+
+  function getStdSalary(monthlySalary) {
+    for (var i = 0; i < GRADE_TABLE.length; i++) {
+      if (monthlySalary < GRADE_TABLE[i].max) {
+        return { health: GRADE_TABLE[i].health, pension: GRADE_TABLE[i].pension };
+      }
+    }
+    return { health: 1390000, pension: 650000 };
+  }
+
+  function calcSocialIns(salary, rates, isOver40) {
+    var std = getStdSalary(salary);
+    var healthRate = isOver40 ? rates.healthIns40 : rates.healthIns;
+    var health = Math.round(std.health * healthRate);
+    var pension = Math.round(std.pension * rates.pension);
+    var employ = Math.round(salary * rates.employment);
+    return {
+      health: health,
+      pension: pension,
+      employ: employ,
+      total: health + pension + employ,
+      stdHealth: std.health,
+      stdPension: std.pension
+    };
+  }
+
+  function calc() {
+    var salary = parseFloat(document.getElementById('salary').value);
+    if (isNaN(salary) || salary <= 0) { showErr('月収を正しく入力してください'); return; }
+
+    var isOver40 = document.getElementById('age').value === 'over40';
+
+    var before = calcSocialIns(salary, RATE_2025, isOver40);
+    var after  = calcSocialIns(salary, RATE_2026, isOver40);
+
+    var diff = after.total - before.total;
+    var diffHealth = after.health - before.health;
+    var diffPension = after.pension - before.pension;
+    var diffEmploy = after.employ - before.employ;
+
+    var absDiff = Math.abs(diff);
+    var level, evalMsg;
+    if (absDiff <= 500) {
+      level = 'ok';
+      evalMsg = 'ほぼ影響なし。今の家計で問題ありません';
+    } else if (absDiff <= 3000) {
+      level = 'warn';
+      evalMsg = diff > 0 ? '少し手取りが減ります。固定費を見直すとカバーできます' : '少し手取りが増えます。ラッキーですね';
+    } else {
+      level = diff > 0 ? 'ng' : 'ok';
+      evalMsg = diff > 0 ? '手取りがしっかり減ります。家計の見直しを検討しましょう' : '手取りが増えます。嬉しい改定ですね';
+    }
+
+    var sign = diff > 0 ? '+' : '';
+    showResult(level, sign + fmt(diff) + ' 円/月', evalMsg);
+
+    var takeHomeBefore = salary - before.total;
+    var takeHomeAfter = salary - after.total;
+
+    showDetail([
+      { cells: ['', '改定前（2025年度）', '改定後（2026年度）', '差額'], isHeader: true },
+      { cells: ['健康保険料', fmt(before.health) + '円', fmt(after.health) + '円', fmtDiff(diffHealth)] },
+      { cells: ['厚生年金保険料', fmt(before.pension) + '円', fmt(after.pension) + '円', fmtDiff(diffPension)] },
+      { cells: ['雇用保険料', fmt(before.employ) + '円', fmt(after.employ) + '円', fmtDiff(diffEmploy)] },
+      { cells: ['社保料 合計', fmt(before.total) + '円', fmt(after.total) + '円', fmtDiff(diff)], isHl: true },
+      { cells: ['手取り概算', fmt(takeHomeBefore) + '円', fmt(takeHomeAfter) + '円', fmtDiff(-diff)], isHl: true }
+    ]);
+
+    showQA(level);
+
+    // localStorage保存
+    try {
+      localStorage.setItem('shahoSim_salary', salary);
+      localStorage.setItem('shahoSim_age', document.getElementById('age').value);
+    } catch(e) {}
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = '';
+    document.getElementById('rn').textContent = note;
+  }
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x){
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+  function showDetail(rows) {
+    var html = '';
+    rows.forEach(function(r) {
+      if (r.isHeader) {
+        html += '<tr class="section-header">';
+        r.cells.forEach(function(c) { html += '<td>' + c + '</td>'; });
+        html += '</tr>';
+      } else {
+        html += '<tr' + (r.isHl ? ' class="hl"' : '') + '>';
+        r.cells.forEach(function(c) { html += '<td>' + c + '</td>'; });
+        html += '</tr>';
+      }
+    });
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('qa-card').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  function fmtDiff(n) {
+    if (n === 0) return '±0円';
+    return (n > 0 ? '+' : '') + fmt(n) + '円';
+  }
+
+  // localStorage復元
+  (function() {
+    try {
+      var s = localStorage.getItem('shahoSim_salary');
+      var a = localStorage.getItem('shahoSim_age');
+      if (s) document.getElementById('salary').value = s;
+      if (a) document.getElementById('age').value = a;
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
