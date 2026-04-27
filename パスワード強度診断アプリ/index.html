@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="パスワードを入力するだけで強度をリアルタイム判定。弱い理由と具体的な改善案をすぐに確認できるセキュリティ診断アプリです。">
+  <title>パスワード強度診断アプリ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── パスワード入力エリア ── */
+    .pw-wrap {
+      position: relative;
+    }
+    .pw-wrap input {
+      padding-right: 3.2rem;
+    }
+    .pw-toggle {
+      position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; font-size: 1.2rem; cursor: pointer;
+      color: var(--text-sub); padding: 0.3rem;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-card.great { border-color: #1d4ed8; background: #eff6ff; }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-card.great .result-value { color: #1d4ed8; }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+    .result-card.great .result-eval { color: #1d4ed8; }
+
+    /* ── 強度バー ── */
+    .strength-bar-wrap {
+      max-width: 600px; margin: 0 auto 1rem; padding: 0 1.2rem;
+    }
+    .strength-bar {
+      height: 8px; border-radius: 4px; background: var(--border);
+      overflow: hidden;
+    }
+    .strength-bar-fill {
+      height: 100%; border-radius: 4px; width: 0;
+      transition: width 0.3s, background 0.3s;
+    }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 改善案カード ── */
+    .advice-list { list-style: none; padding: 0; }
+    .advice-list li {
+      padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.88rem; color: var(--text); line-height: 1.5;
+    }
+    .advice-list li:last-child { border-bottom: none; }
+    .advice-list li::before { content: '💡 '; }
+    .advice-ok { text-align: center; font-size: 0.95rem; color: var(--ok); font-weight: 700; padding: 0.5rem 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>パスワード強度診断アプリ</h1>
+    <p class="subtitle">入力するだけで強度判定＆改善ポイントを即チェック</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">パスワード入力</p>
+    <div class="field">
+      <label for="pw">診断したいパスワード</label>
+      <div class="pw-wrap">
+        <input type="password" id="pw" placeholder="パスワードを入力" autocomplete="off">
+        <button type="button" class="pw-toggle" id="togglePw" aria-label="パスワード表示切替">👁</button>
+      </div>
+      <p class="hint">※ パスワードは外部送信されません（端末内のみで判定）</p>
+    </div>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" onclick="calc()">診断する</button>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">診断結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 強度バー -->
+  <div class="strength-bar-wrap" id="barWrap" style="display:none">
+    <div class="strength-bar">
+      <div class="strength-bar-fill" id="barFill"></div>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">チェック内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 改善案カード -->
+  <div class="card" id="adviceCard" style="display:none">
+    <p class="card-title">改善案</p>
+    <div id="adviceBody"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、NIST（米国標準技術研究所）や内閣サイバーセキュリティセンター（NISC）のパスワードガイドラインを参考に、目安として使いやすく整理しています。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // パスワード表示/非表示
+  document.getElementById('togglePw').addEventListener('click', function() {
+    var inp = document.getElementById('pw');
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      this.textContent = '🔒';
+    } else {
+      inp.type = 'password';
+      this.textContent = '👁';
+    }
+  });
+
+  // リアルタイム判定（入力中にバーだけ更新）
+  document.getElementById('pw').addEventListener('input', function() {
+    var pw = this.value;
+    if (!pw) {
+      document.getElementById('barWrap').style.display = 'none';
+      return;
+    }
+    var score = calcScore(pw);
+    updateBar(score);
+  });
+
+  function calcScore(pw) {
+    var score = 0;
+    var len = pw.length;
+
+    // 長さ評価
+    if (len >= 8)  score += 1;
+    if (len >= 12) score += 1;
+    if (len >= 16) score += 1;
+
+    // 文字種評価
+    if (/[a-z]/.test(pw)) score += 1;
+    if (/[A-Z]/.test(pw)) score += 1;
+    if (/[0-9]/.test(pw)) score += 1;
+    if (/[^a-zA-Z0-9]/.test(pw)) score += 1;
+
+    // ペナルティ
+    if (/^(.)\1+$/.test(pw)) score = Math.max(0, score - 3); // 全部同じ文字
+    if (/^(012|123|234|345|456|567|678|789|abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz)/i.test(pw)) score = Math.max(0, score - 1);
+    if (/^(password|12345678|qwerty|admin|letmein|welcome|monkey|dragon|master|login)/i.test(pw)) score = 0;
+
+    return Math.min(score, 7);
+  }
+
+  function getLevel(score) {
+    if (score <= 2) return { level: 'ng', label: '弱い', pct: 25 };
+    if (score <= 4) return { level: 'warn', label: '普通', pct: 50 };
+    if (score <= 5) return { level: 'ok', label: '強い', pct: 75 };
+    return { level: 'great', label: '非常に強い', pct: 100 };
+  }
+
+  function getLevelColor(level) {
+    switch(level) {
+      case 'ng': return '#b91c1c';
+      case 'warn': return '#b45309';
+      case 'ok': return '#15803d';
+      case 'great': return '#1d4ed8';
+    }
+  }
+
+  function updateBar(score) {
+    var info = getLevel(score);
+    var bar = document.getElementById('barFill');
+    bar.style.width = info.pct + '%';
+    bar.style.background = getLevelColor(info.level);
+    document.getElementById('barWrap').style.display = 'block';
+  }
+
+  function calc() {
+    var pw = document.getElementById('pw').value;
+    if (!pw) { showErr('パスワードを入力してください'); return; }
+
+    var score = calcScore(pw);
+    var info = getLevel(score);
+    var len = pw.length;
+
+    var hasLower = /[a-z]/.test(pw);
+    var hasUpper = /[A-Z]/.test(pw);
+    var hasNum   = /[0-9]/.test(pw);
+    var hasSym   = /[^a-zA-Z0-9]/.test(pw);
+    var charTypes = [hasLower, hasUpper, hasNum, hasSym].filter(Boolean).length;
+
+    // 結果表示
+    var msg = {
+      ng: 'すぐに突破される危険があります',
+      warn: '最低限のセキュリティはありますが改善の余地あり',
+      ok: '十分な強度があります',
+      great: '非常に堅牢なパスワードです'
+    };
+
+    showResult(info.level, info.label, msg[info.level]);
+    updateBar(score);
+
+    // 内訳
+    var ok = '✅';
+    var ng = '❌';
+    showDetail([
+      ['8文字以上', len >= 8 ? ok + ' ' + len + '文字' : ng + ' ' + len + '文字'],
+      ['12文字以上', len >= 12 ? ok : ng + ' あと' + (12 - len) + '文字'],
+      ['小文字(a-z)', hasLower ? ok : ng],
+      ['大文字(A-Z)', hasUpper ? ok : ng],
+      ['数字(0-9)', hasNum ? ok : ng],
+      ['記号(!@#等)', hasSym ? ok : ng],
+      ['文字種の数', charTypes + '/4種類', charTypes >= 3]
+    ]);
+
+    // 改善案
+    var advice = [];
+    if (len < 8) advice.push('8文字以上にしましょう（現在' + len + '文字）');
+    if (len >= 8 && len < 12) advice.push('12文字以上にするとさらに安全です');
+    if (!hasLower) advice.push('小文字（a-z）を含めましょう');
+    if (!hasUpper) advice.push('大文字（A-Z）を含めましょう');
+    if (!hasNum) advice.push('数字（0-9）を含めましょう');
+    if (!hasSym) advice.push('記号（!@#$%など）を含めると強度が上がります');
+    if (/^(.)\1+$/.test(pw)) advice.push('同じ文字の繰り返しは避けましょう');
+    if (/^(password|12345678|qwerty|admin|letmein|welcome|monkey|dragon|master|login)/i.test(pw)) advice.push('よく使われるパスワードです。まったく別のものに変更してください');
+    if (charTypes < 3) advice.push('3種類以上の文字種を組み合わせるのが理想です');
+
+    showAdvice(advice);
+
+    // localStorage保存
+    try {
+      var history = JSON.parse(localStorage.getItem('pw_diag_history') || '[]');
+      history.unshift({
+        date: new Date().toLocaleString('ja-JP'),
+        length: len,
+        types: charTypes,
+        level: info.label,
+        score: score
+      });
+      if (history.length > 10) history = history.slice(0, 10);
+      localStorage.setItem('pw_diag_history', JSON.stringify(history));
+    } catch(e) {}
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showAdvice(list) {
+    var body = document.getElementById('adviceBody');
+    if (list.length === 0) {
+      body.innerHTML = '<p class="advice-ok">✨ 改善点はありません。素晴らしいパスワードです！</p>';
+    } else {
+      body.innerHTML = '<ul class="advice-list">' + list.map(function(a){
+        return '<li>' + a + '</li>';
+      }).join('') + '</ul>';
+    }
+    document.getElementById('adviceCard').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('adviceCard').style.display = 'none';
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
