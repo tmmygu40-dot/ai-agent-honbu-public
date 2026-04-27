@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="現在のスマホ料金プランと乗り換え先の月額・端末代・違約金を入力するだけで、乗り換えが得になる月数と累計差額を即計算できるシミュレーターです。">
+  <title>スマホ乗り換え損益シミュレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 累計差額テーブル ── */
+    .monthly-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .monthly-table th { font-size: 0.72rem; font-weight: 700; color: var(--text-sub); padding: 0.4rem 0.3rem; border-bottom: 2px solid var(--border); text-align: right; }
+    .monthly-table th:first-child { text-align: center; }
+    .monthly-table td { padding: 0.45rem 0.3rem; border-bottom: 1px solid var(--border); text-align: right; }
+    .monthly-table td:first-child { text-align: center; font-weight: 600; }
+    .monthly-table tr.break-even { background: var(--ok-bg); font-weight: 700; }
+    .monthly-table tr.break-even td { color: var(--ok); }
+    .monthly-table .negative { color: var(--ng); }
+    .monthly-table .positive { color: var(--ok); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📱 スマホ乗り換え損益シミュレーター</h1>
+    <p class="subtitle">今のプランと新プランの月額・端末代・違約金を入れるだけで、乗り換えが得になる月を即表示。</p>
+  </header>
+
+  <!-- 現プラン入力カード -->
+  <div class="card">
+    <p class="card-title">現在のプラン</p>
+    <div class="field">
+      <label for="currentMonthly">月額料金（税込）</label>
+      <input type="number" id="currentMonthly" placeholder="例: 8000" inputmode="numeric">
+      <p class="hint">現在毎月払っているスマホ代</p>
+    </div>
+    <div class="field">
+      <label for="penalty">違約金・解約手数料</label>
+      <input type="number" id="penalty" placeholder="例: 10000" inputmode="numeric" value="0">
+      <p class="hint">解約時に発生する費用（0なら不要）</p>
+    </div>
+    <div class="field">
+      <label for="currentDevice">現端末の残債（月額）</label>
+      <input type="number" id="currentDevice" placeholder="例: 0" inputmode="numeric" value="0">
+      <p class="hint">端末分割の残り月額（完済済みなら0）</p>
+    </div>
+  </div>
+
+  <!-- 新プラン入力カード -->
+  <div class="card">
+    <p class="card-title">乗り換え先のプラン</p>
+    <div class="field">
+      <label for="newMonthly">月額料金（税込）</label>
+      <input type="number" id="newMonthly" placeholder="例: 3000" inputmode="numeric">
+      <p class="hint">乗り換え先で毎月払う料金</p>
+    </div>
+    <div class="field">
+      <label for="newDevice">新端末の分割代金（月額）</label>
+      <input type="number" id="newDevice" placeholder="例: 2000" inputmode="numeric" value="0">
+      <p class="hint">新しい端末を買う場合の月額（不要なら0）</p>
+    </div>
+    <div class="field">
+      <label for="newDeviceMonths">新端末の分割回数</label>
+      <input type="number" id="newDeviceMonths" placeholder="例: 24" inputmode="numeric" value="24">
+      <p class="hint">分割払いの回数（月）</p>
+    </div>
+    <div class="field">
+      <label for="mnpFee">MNP転出・事務手数料</label>
+      <input type="number" id="mnpFee" placeholder="例: 3300" inputmode="numeric" value="0">
+      <p class="hint">転出手数料＋乗り換え先の事務手数料</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">損益分岐点を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">損益分岐点</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">コスト内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 月別累計差額テーブル -->
+  <div class="card" id="monthlyCard" style="display:none">
+    <p class="card-title">月別 累計差額</p>
+    <table class="monthly-table">
+      <thead><tr><th>月</th><th>現プラン累計</th><th>新プラン累計</th><th>差額（+が得）</th></tr></thead>
+      <tbody id="mb"></tbody>
+    </table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは総務省・各通信事業者の公表料金を参考にした概算です。正確な金額は各社の公式サイトでご確認ください。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  function calc() {
+    var currentMonthly = parseFloat(document.getElementById('currentMonthly').value) || 0;
+    var penalty = parseFloat(document.getElementById('penalty').value) || 0;
+    var currentDevice = parseFloat(document.getElementById('currentDevice').value) || 0;
+    var newMonthly = parseFloat(document.getElementById('newMonthly').value) || 0;
+    var newDevice = parseFloat(document.getElementById('newDevice').value) || 0;
+    var newDeviceMonths = parseInt(document.getElementById('newDeviceMonths').value) || 24;
+    var mnpFee = parseFloat(document.getElementById('mnpFee').value) || 0;
+
+    if (!currentMonthly && !newMonthly) {
+      showErr('現プランと新プランの月額を入力してください');
+      return;
+    }
+
+    // 初期コスト（乗り換え時に一括で発生）
+    var initialCost = penalty + mnpFee;
+
+    // 月々の差額計算（36ヶ月分）
+    var months = 36;
+    var breakEvenMonth = -1;
+    var rows = [];
+
+    for (var m = 1; m <= months; m++) {
+      // 現プラン: 月額 + 端末残債（残債がある限り）
+      var currentTotal = (currentMonthly + currentDevice) * m;
+
+      // 新プラン: 初期コスト + (月額 + 端末分割) * m
+      var deviceCostThisMonth = m <= newDeviceMonths ? newDevice : 0;
+      var newTotal = initialCost;
+      for (var i = 1; i <= m; i++) {
+        newTotal += newMonthly + (i <= newDeviceMonths ? newDevice : 0);
+      }
+
+      var diff = currentTotal - newTotal; // +なら乗り換えが得
+
+      if (breakEvenMonth === -1 && diff > 0) {
+        breakEvenMonth = m;
+      }
+
+      rows.push({
+        month: m,
+        current: currentTotal,
+        newPlan: newTotal,
+        diff: diff
+      });
+    }
+
+    // 結果表示
+    var monthlySaving = (currentMonthly + currentDevice) - (newMonthly + newDevice);
+    var level, evalText;
+
+    if (breakEvenMonth === -1) {
+      level = 'ng';
+      evalText = '36ヶ月以内に元が取れません';
+      showResult(level, '元取れず', evalText + '。乗り換えメリットが薄い可能性があります。');
+    } else if (breakEvenMonth <= 6) {
+      level = 'ok';
+      evalText = breakEvenMonth + 'ヶ月目からお得！';
+      showResult(level, breakEvenMonth + 'ヶ月', evalText + ' すぐに元が取れます。乗り換えがおすすめ。');
+    } else if (breakEvenMonth <= 12) {
+      level = 'ok';
+      evalText = breakEvenMonth + 'ヶ月目からお得';
+      showResult(level, breakEvenMonth + 'ヶ月', evalText + '。1年以内に元が取れるので乗り換える価値あり。');
+    } else {
+      level = 'warn';
+      evalText = breakEvenMonth + 'ヶ月目でようやくお得に';
+      showResult(level, breakEvenMonth + 'ヶ月', evalText + '。元を取るのに時間がかかります。慎重に検討を。');
+    }
+
+    // 内訳
+    var year1Saving = rows[11] ? rows[11].diff : rows[rows.length - 1].diff;
+    var year2Saving = rows[23] ? rows[23].diff : rows[rows.length - 1].diff;
+
+    showDetail([
+      ['現プラン月額', fmt(currentMonthly) + ' 円'],
+      ['現端末残債（月額）', fmt(currentDevice) + ' 円'],
+      ['新プラン月額', fmt(newMonthly) + ' 円'],
+      ['新端末分割（月額）', fmt(newDevice) + ' 円'],
+      ['違約金', fmt(penalty) + ' 円'],
+      ['MNP・事務手数料', fmt(mnpFee) + ' 円'],
+      ['初期コスト合計', fmt(initialCost) + ' 円'],
+      ['月々の節約額', fmt(monthlySaving) + ' 円', true],
+      ['1年後の累計差額', fmt(year1Saving) + ' 円'],
+      ['2年後の累計差額', fmt(year2Saving) + ' 円'],
+    ]);
+
+    // 月別テーブル
+    var tbody = document.getElementById('mb');
+    var html = '';
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      var isBreak = r.month === breakEvenMonth;
+      var diffClass = r.diff >= 0 ? 'positive' : 'negative';
+      html += '<tr' + (isBreak ? ' class="break-even"' : '') + '>'
+            + '<td>' + r.month + '</td>'
+            + '<td>' + fmt(r.current) + '円</td>'
+            + '<td>' + fmt(r.newPlan) + '円</td>'
+            + '<td class="' + diffClass + '">' + (r.diff >= 0 ? '+' : '') + fmt(r.diff) + '円</td>'
+            + '</tr>';
+    }
+    tbody.innerHTML = html;
+    document.getElementById('monthlyCard').style.display = 'block';
+
+    // localStorage保存
+    saveInputs();
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('monthlyCard').style.display = 'none';
+  }
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // localStorage
+  var STORAGE_KEY = 'smartphone_switch_sim';
+  function saveInputs() {
+    var data = {
+      currentMonthly: document.getElementById('currentMonthly').value,
+      penalty: document.getElementById('penalty').value,
+      currentDevice: document.getElementById('currentDevice').value,
+      newMonthly: document.getElementById('newMonthly').value,
+      newDevice: document.getElementById('newDevice').value,
+      newDeviceMonths: document.getElementById('newDeviceMonths').value,
+      mnpFee: document.getElementById('mnpFee').value
+    };
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  }
+  function loadInputs() {
+    try {
+      var data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if (!data) return;
+      if (data.currentMonthly) document.getElementById('currentMonthly').value = data.currentMonthly;
+      if (data.penalty) document.getElementById('penalty').value = data.penalty;
+      if (data.currentDevice) document.getElementById('currentDevice').value = data.currentDevice;
+      if (data.newMonthly) document.getElementById('newMonthly').value = data.newMonthly;
+      if (data.newDevice) document.getElementById('newDevice').value = data.newDevice;
+      if (data.newDeviceMonths) document.getElementById('newDeviceMonths').value = data.newDeviceMonths;
+      if (data.mnpFee) document.getElementById('mnpFee').value = data.mnpFee;
+    } catch(e) {}
+  }
+  loadInputs();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

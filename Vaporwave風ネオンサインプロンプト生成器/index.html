@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="名前を入力してスタイルを選ぶだけで、Vaporwave風ネオンサインのAI画像生成プロンプトをワンクリックでコピーできるツールです。">
+  <title>🌆 Vaporwave風ネオンサインプロンプト生成器</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── プロンプト表示 ── */
+    .prompt-output {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .prompt-output .prompt-label {
+      font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--accent); margin-bottom: 0.6rem;
+    }
+    .prompt-text {
+      font-size: 0.92rem; line-height: 1.7; color: var(--text);
+      background: var(--bg); border-radius: 9px; padding: 1rem;
+      word-break: break-word; white-space: pre-wrap;
+      border: 1px solid var(--border);
+    }
+    .btn-copy {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.8rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius);
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .btn-copy:hover { background: var(--accent); color: #fff; }
+    .btn-copy.copied { background: var(--ok); color: #fff; border-color: var(--ok); }
+
+    /* ── 履歴 ── */
+    .history-item {
+      padding: 0.7rem 0; border-bottom: 1px solid var(--border);
+      font-size: 0.85rem; color: var(--text-sub); cursor: pointer;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { color: var(--accent); }
+    .history-name { font-weight: 600; color: var(--text); }
+    .history-meta { font-size: 0.75rem; margin-top: 0.2rem; }
+    .btn-clear-history {
+      display: block; margin: 0.8rem auto 0; padding: 0.5rem 1rem;
+      font-size: 0.78rem; background: none; color: var(--text-sub);
+      border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+    }
+    .btn-clear-history:hover { color: var(--ng); border-color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card, .prompt-output { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🌆 Vaporwave風ネオンサインプロンプト生成器</h1>
+    <p class="subtitle">名前を入れるだけで、Vaporwave風ネオンサインのAI画像プロンプトをサクッと生成。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="nameInput">名前・テキスト</label>
+      <input type="text" id="nameInput" placeholder="例: YUKI / ユキ / 雪">
+      <p class="hint">英語・日本語どちらでもOK</p>
+    </div>
+    <div class="field">
+      <label for="colorStyle">ネオンカラー</label>
+      <select id="colorStyle">
+        <option value="pink-blue">ピンク × ブルー（定番）</option>
+        <option value="purple-cyan">パープル × シアン</option>
+        <option value="orange-magenta">オレンジ × マゼンタ</option>
+        <option value="green-yellow">グリーン × イエロー</option>
+        <option value="red-gold">レッド × ゴールド</option>
+        <option value="ice-blue">アイスブルー × ホワイト</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="bgStyle">背景スタイル</label>
+      <select id="bgStyle">
+        <option value="retro-city">レトロシティ（夜景）</option>
+        <option value="sunset-grid">サンセットグリッド</option>
+        <option value="palm-beach">パームビーチ</option>
+        <option value="dark-alley">ダークアレイ</option>
+        <option value="space">スペース（宇宙）</option>
+        <option value="marble">マーブル（大理石）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="fontStyle">フォントスタイル</label>
+      <select id="fontStyle">
+        <option value="cursive">カーシブ（筆記体）</option>
+        <option value="block">ブロック体</option>
+        <option value="pixel">ピクセルフォント</option>
+        <option value="japanese">日本語ネオン</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="extraEffect">追加エフェクト</label>
+      <select id="extraEffect">
+        <option value="none">なし</option>
+        <option value="reflection">反射・水面</option>
+        <option value="smoke">煙・霧</option>
+        <option value="rain">雨・水滴</option>
+        <option value="glitch">グリッチ</option>
+        <option value="bokeh">玉ボケ</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">プロンプトを生成する</button>
+
+  <!-- プロンプト表示 -->
+  <div class="prompt-output" id="promptOutput">
+    <p class="prompt-label">生成されたプロンプト</p>
+    <div class="prompt-text" id="promptText"></div>
+  </div>
+
+  <!-- コピーボタン -->
+  <button class="btn-copy no-print" id="copyBtn" style="display:none" onclick="copyPrompt()">📋 プロンプトをコピー</button>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">生成履歴</p>
+    <div id="historyList"></div>
+    <button class="btn-clear-history no-print" onclick="clearHistory()">履歴をクリア</button>
+  </div>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'vaporwave_neon_history';
+
+  var COLOR_MAP = {
+    'pink-blue':      'vibrant hot pink and electric blue neon glow',
+    'purple-cyan':    'deep purple and cyan neon glow',
+    'orange-magenta': 'warm orange and magenta neon glow',
+    'green-yellow':   'neon green and bright yellow glow',
+    'red-gold':       'crimson red and gold neon glow',
+    'ice-blue':       'ice blue and white neon glow'
+  };
+
+  var BG_MAP = {
+    'retro-city':   'retro 1980s Japanese city skyline at night, with distant skyscrapers and neon signs',
+    'sunset-grid':  'synthwave sunset with a perspective grid extending to the horizon, gradient sky from orange to purple',
+    'palm-beach':   'tropical beach at dusk with palm tree silhouettes, pastel pink and purple sky',
+    'dark-alley':   'dark urban alley with wet pavement reflecting neon lights, moody atmosphere',
+    'space':        'deep space background with stars, nebula clouds in pink and blue',
+    'marble':       'polished white and pink marble surface with gold veins, luxury aesthetic'
+  };
+
+  var FONT_MAP = {
+    'cursive': 'elegant cursive script lettering',
+    'block':   'bold block capital letters',
+    'pixel':   '8-bit pixel art style font',
+    'japanese': 'Japanese neon sign typography'
+  };
+
+  var EFFECT_MAP = {
+    'none':       '',
+    'reflection': ', reflected on a wet surface below',
+    'smoke':      ', wisps of colorful smoke drifting around the sign',
+    'rain':       ', rain droplets on glass in front, creating a dreamy blur effect',
+    'glitch':     ', subtle glitch distortion effect on the edges',
+    'bokeh':      ', beautiful bokeh light orbs floating in the background'
+  };
+
+  function generate() {
+    var name = document.getElementById('nameInput').value.trim();
+    if (!name) {
+      alert('名前を入力してください');
+      return;
+    }
+
+    var color = document.getElementById('colorStyle').value;
+    var bg = document.getElementById('bgStyle').value;
+    var font = document.getElementById('fontStyle').value;
+    var effect = document.getElementById('extraEffect').value;
+
+    var prompt = buildPrompt(name, color, bg, font, effect);
+
+    document.getElementById('promptText').textContent = prompt;
+    document.getElementById('promptOutput').style.display = 'block';
+    document.getElementById('copyBtn').style.display = 'block';
+
+    // reset copy button
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '📋 プロンプトをコピー';
+    btn.classList.remove('copied');
+
+    saveHistory(name, color, bg, font, effect);
+    renderHistory();
+  }
+
+  function buildPrompt(name, color, bg, font, effect) {
+    var p = 'A stunning Vaporwave aesthetic neon sign displaying the text "' + name + '" in ' + FONT_MAP[font] + ', '
+          + 'glowing with ' + COLOR_MAP[color] + '. '
+          + 'The sign is set against ' + BG_MAP[bg] + '. '
+          + 'The neon tubes cast a soft colorful light on the surroundings, creating a dreamy retrowave atmosphere'
+          + EFFECT_MAP[effect] + '. '
+          + 'Highly detailed, cinematic lighting, 4K resolution, Vaporwave art style, '
+          + 'retrowave, synthwave, 80s nostalgia, neon aesthetics.';
+    return p;
+  }
+
+  function copyPrompt() {
+    var text = document.getElementById('promptText').textContent;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        showCopied();
+      }).catch(function() {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showCopied(); }
+    catch(e) { alert('コピーに失敗しました。手動でコピーしてください。'); }
+    document.body.removeChild(ta);
+  }
+
+  function showCopied() {
+    var btn = document.getElementById('copyBtn');
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = '📋 プロンプトをコピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  }
+
+  // ── 履歴管理 ──
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch(e) { return []; }
+  }
+
+  function saveHistory(name, color, bg, font, effect) {
+    var history = loadHistory();
+    history.unshift({
+      name: name,
+      color: color,
+      bg: bg,
+      font: font,
+      effect: effect,
+      date: new Date().toLocaleString('ja-JP')
+    });
+    if (history.length > 20) history = history.slice(0, 20);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  }
+
+  function renderHistory() {
+    var history = loadHistory();
+    var card = document.getElementById('historyCard');
+    var list = document.getElementById('historyList');
+    if (history.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    list.innerHTML = history.map(function(h, i) {
+      return '<div class="history-item" onclick="restoreHistory(' + i + ')">'
+           + '<span class="history-name">' + escHtml(h.name) + '</span>'
+           + '<div class="history-meta">' + h.date + '</div>'
+           + '</div>';
+    }).join('');
+  }
+
+  function restoreHistory(i) {
+    var history = loadHistory();
+    var h = history[i];
+    if (!h) return;
+    document.getElementById('nameInput').value = h.name;
+    document.getElementById('colorStyle').value = h.color;
+    document.getElementById('bgStyle').value = h.bg;
+    document.getElementById('fontStyle').value = h.font;
+    document.getElementById('extraEffect').value = h.effect;
+    generate();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function clearHistory() {
+    if (!confirm('履歴をすべて削除しますか？')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    renderHistory();
+  }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  // 初期表示
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

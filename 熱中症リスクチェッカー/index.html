@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="気温・運動量・水分補給量を入力するだけで、今日の熱中症リスクを4段階で即診断。予防アドバイスも表示する生活防衛チェッカーです。">
+  <title>🌡️ 熱中症リスクチェッカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-card.danger { border-color: #7f1d1d; background: #fde8e8; }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-card.danger .result-value { color: #7f1d1d; }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+    .result-card.danger .result-eval { color: #7f1d1d; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── アドバイスカード ── */
+    .advice-card {
+      display: none;
+      max-width: 600px;
+      margin: 0 auto 1rem;
+    }
+    .advice-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.6rem;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: var(--text);
+    }
+    .advice-item strong { color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🌡️ 熱中症リスクチェッカー</h1>
+    <p class="subtitle">気温と運動量と水分補給から、今日の熱中症リスクを30秒でサクッと診断できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">条件を入力</p>
+    <div class="field">
+      <label for="temp">気温（℃）</label>
+      <input type="number" id="temp" placeholder="例: 35" step="0.1" min="0" max="50">
+      <p class="hint">現在の外気温、または予想最高気温を入力</p>
+    </div>
+    <div class="field">
+      <label for="humidity">湿度（%）</label>
+      <input type="number" id="humidity" placeholder="例: 70" min="0" max="100">
+      <p class="hint">湿度が高いほど汗が蒸発しにくく危険度UP</p>
+    </div>
+    <div class="field">
+      <label for="exercise">運動量</label>
+      <select id="exercise">
+        <option value="0">安静（室内でデスクワーク）</option>
+        <option value="1">軽い活動（散歩・買い物）</option>
+        <option value="2" selected>普通の活動（通勤・家事）</option>
+        <option value="3">やや激しい（ジョギング・庭仕事）</option>
+        <option value="4">激しい運動（スポーツ・肉体労働）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="water">今日の水分補給量（ml）</label>
+      <input type="number" id="water" placeholder="例: 500" min="0" step="50">
+      <p class="hint">今日これまでに飲んだ水分の合計量</p>
+    </div>
+    <div class="field">
+      <label for="hours">屋外活動予定時間（時間）</label>
+      <input type="number" id="hours" placeholder="例: 2" min="0" max="24" step="0.5">
+      <p class="hint">これから屋外で過ごす予定の時間</p>
+    </div>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" onclick="calc()">🌡️ 熱中症リスクを診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">熱中症リスク判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">診断内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- アドバイスカード -->
+  <div class="advice-card" id="advice"></div>
+
+  <!-- 絵文字ひとこと＆結果別Q&A -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、環境省・気象庁の熱中症予防情報や暑さ指数（WBGT）の考え方を参考に、目安として使いやすく整理しています。最新情報は環境省「熱中症予防情報サイト」をご確認ください。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:     { e: '😎', t: '今日は熱中症の心配は少なめです' },
+    warn:   { e: '🤔', t: 'ちょっと注意が必要な状況です' },
+    ng:     { e: '🥵', t: 'かなり危険！しっかり対策しよう' },
+    danger: { e: '🚨', t: '命に関わる危険レベル！外出を控えて' }
+  };
+
+  var QA = {
+    ok: [
+      { q: '水分はどのくらい飲めばいい？', a: '1時間にコップ1杯（150〜200ml）を目安に、のどが渇く前にこまめに飲みましょう。' },
+      { q: '帽子や日傘は必要？', a: '直射日光を避けるだけでも体感温度が下がります。念のため持っておくと安心です。' }
+    ],
+    warn: [
+      { q: '何を飲むのがいい？', a: '水や麦茶が基本。30分以上の運動や作業なら、塩分入りのスポーツドリンクがおすすめです。' },
+      { q: '休憩はどのくらい取る？', a: '30分に1回は日陰や涼しい場所で5〜10分休みましょう。無理は禁物です。' },
+      { q: '体調が悪くなったら？', a: '頭痛・めまい・吐き気を感じたらすぐ涼しい場所へ移動し、体を冷やしてください。' }
+    ],
+    ng: [
+      { q: '外に出ないほうがいい？', a: '不要不急の外出は避けましょう。どうしても出かける場合は日陰を選び、こまめに休憩を。' },
+      { q: '応急処置はどうする？', a: '首・脇の下・太ももの付け根を冷やし、涼しい場所で横にならせてください。意識がおかしければ即119番。' },
+      { q: '子どもや高齢者は特に注意？', a: 'はい。体温調節が未熟な子どもと、暑さを感じにくい高齢者は特にリスクが高いです。周囲が声をかけましょう。' }
+    ],
+    danger: [
+      { q: '今すぐどうすべき？', a: '屋外活動は中止してください。エアコンの効いた室内で過ごし、水分・塩分を十分に補給しましょう。' },
+      { q: '救急車を呼ぶ基準は？', a: '自力で水分が飲めない、意識がもうろう、体が異常に熱い場合はためらわず119番してください。' },
+      { q: '周囲にできることは？', a: '衣服を緩め、体を冷やし、救急車が来るまで声をかけ続けてください。一人にしないことが大事です。' }
+    ]
+  };
+
+  // 運動量による必要水分量の目安（ml/時間）
+  var WATER_NEED = [150, 300, 400, 600, 800];
+
+  function calc() {
+    var temp = parseFloat(document.getElementById('temp').value);
+    var humidity = parseFloat(document.getElementById('humidity').value);
+    var exercise = parseInt(document.getElementById('exercise').value);
+    var water = parseFloat(document.getElementById('water').value);
+    var hours = parseFloat(document.getElementById('hours').value);
+
+    if (isNaN(temp)) { showErr('気温を入力してください'); return; }
+    if (isNaN(humidity)) { showErr('湿度を入力してください'); return; }
+    if (isNaN(water)) { showErr('水分補給量を入力してください'); return; }
+    if (isNaN(hours)) { showErr('屋外活動予定時間を入力してください'); return; }
+
+    // リスクスコア計算（0〜100）
+    var score = 0;
+
+    // 気温スコア（0〜40点）
+    if (temp >= 40) score += 40;
+    else if (temp >= 35) score += 30 + (temp - 35) * 2;
+    else if (temp >= 30) score += 15 + (temp - 30) * 3;
+    else if (temp >= 25) score += (temp - 25) * 3;
+    else score += 0;
+
+    // 湿度スコア（0〜20点）
+    if (humidity >= 80) score += 20;
+    else if (humidity >= 60) score += 10 + (humidity - 60) * 0.5;
+    else if (humidity >= 40) score += (humidity - 40) * 0.5;
+
+    // 運動量スコア（0〜20点）
+    score += exercise * 5;
+
+    // 水分不足スコア（0〜20点）
+    var needWater = WATER_NEED[exercise] * Math.max(hours, 1);
+    var waterRatio = water / needWater;
+    if (waterRatio < 0.3) score += 20;
+    else if (waterRatio < 0.5) score += 15;
+    else if (waterRatio < 0.7) score += 10;
+    else if (waterRatio < 1.0) score += 5;
+
+    // 活動時間の補正
+    if (hours >= 4) score += 5;
+    else if (hours >= 2) score += 3;
+
+    score = Math.min(100, Math.max(0, Math.round(score)));
+
+    // レベル判定
+    var level, levelText, msg;
+    if (score >= 75) {
+      level = 'danger'; levelText = '🚨 危険';
+      msg = '命に関わるレベルです。屋外活動を中止し、涼しい場所で過ごしてください。';
+    } else if (score >= 50) {
+      level = 'ng'; levelText = '⚠️ 高リスク';
+      msg = '熱中症の危険が高い状態です。こまめな休憩と水分補給を徹底してください。';
+    } else if (score >= 25) {
+      level = 'warn'; levelText = '🔶 やや注意';
+      msg = '油断すると危険です。水分補給と日陰での休憩を意識しましょう。';
+    } else {
+      level = 'ok'; levelText = '✅ 低リスク';
+      msg = '現在の条件では熱中症リスクは低めです。通常の水分補給を続けましょう。';
+    }
+
+    showResult(level, levelText, msg);
+
+    // 内訳
+    var exerciseLabels = ['安静', '軽い活動', '普通の活動', 'やや激しい', '激しい運動'];
+    showDetail([
+      ['気温',         temp + '℃'],
+      ['湿度',         humidity + '%'],
+      ['運動量',       exerciseLabels[exercise]],
+      ['水分補給量',   water + ' ml'],
+      ['屋外活動時間', hours + ' 時間'],
+      ['必要水分目安', Math.round(needWater) + ' ml'],
+      ['水分充足率',   Math.round(waterRatio * 100) + '%'],
+      ['リスクスコア', score + ' / 100 点', true],
+    ]);
+
+    // アドバイス
+    showAdvice(level, temp, humidity, waterRatio, exercise, hours);
+
+    showQA(level);
+
+    // localStorage保存
+    try {
+      localStorage.setItem('heatstroke_last', JSON.stringify({
+        temp: temp, humidity: humidity, exercise: exercise, water: water, hours: hours
+      }));
+    } catch(e) {}
+  }
+
+  function showAdvice(level, temp, humidity, waterRatio, exercise, hours) {
+    var items = [];
+    if (waterRatio < 0.7) {
+      items.push('<strong>💧 水分補給を増やしましょう：</strong>こまめに少量ずつ、のどが渇く前に飲むのがコツです。');
+    }
+    if (temp >= 30) {
+      items.push('<strong>🧊 体を冷やす工夫を：</strong>冷たいタオル・保冷剤・ミストファンなどで体温の上昇を抑えましょう。');
+    }
+    if (humidity >= 70) {
+      items.push('<strong>💨 風通しを確保：</strong>湿度が高いと汗が蒸発しにくくなります。扇風機やエアコンを活用しましょう。');
+    }
+    if (exercise >= 3) {
+      items.push('<strong>⏸️ 休憩を多めに：</strong>激しい運動時は20〜30分ごとに日陰で休み、体温を下げましょう。');
+    }
+    if (hours >= 3) {
+      items.push('<strong>🏠 屋内退避のタイミングを決めておく：</strong>長時間の屋外活動は体力を消耗します。定時で涼しい場所へ戻りましょう。');
+    }
+    if (level === 'danger' || level === 'ng') {
+      items.push('<strong>📞 緊急時の備え：</strong>自分や周囲の異変（めまい・吐き気・意識混濁）に気づいたら、迷わず119番へ。');
+    }
+    if (items.length === 0) {
+      items.push('<strong>👍 いい調子です：</strong>引き続きこまめな水分補給を続けましょう。');
+    }
+
+    var el = document.getElementById('advice');
+    el.innerHTML = '<div class="card"><p class="card-title">予防アドバイス</p>' +
+      items.map(function(i) { return '<div class="advice-item">' + i + '</div>'; }).join('') +
+      '</div>';
+    el.style.display = 'block';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x){
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('advice').style.display = 'none';
+    var qc = document.getElementById('qa-card'); qc.style.display = 'none';
+  }
+
+  // localStorage復元
+  (function() {
+    try {
+      var saved = JSON.parse(localStorage.getItem('heatstroke_last'));
+      if (saved) {
+        if (saved.temp != null) document.getElementById('temp').value = saved.temp;
+        if (saved.humidity != null) document.getElementById('humidity').value = saved.humidity;
+        if (saved.exercise != null) document.getElementById('exercise').value = saved.exercise;
+        if (saved.water != null) document.getElementById('water').value = saved.water;
+        if (saved.hours != null) document.getElementById('hours').value = saved.hours;
+      }
+    } catch(e) {}
+  })();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
