@@ -316,3 +316,4 @@ commit: dea0c02
 [2026-04-27_095246] SCAN apps=確定申告経費判定クイズアプリ total=0 exit=0
 [2026-04-27_104003] SCAN apps=災害時トイレ回数シミュレーター total=0 exit=0
 [2026-04-27_110003] SCAN apps=生命保険必要保障額診断アプリ_v2 total=0 exit=0
+[2026-04-27_112003] SCAN apps=クレーム対応文例逆引きアプリ total=0 exit=0
