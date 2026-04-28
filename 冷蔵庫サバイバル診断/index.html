@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="停電が始まってからの経過時間と冷凍庫の入り具合・扉の開閉・室温を入れるだけで、冷蔵食品と冷凍食品があと何時間もつかをサッと判定できる無料の防災診断アプリです。">
+  <title>冷蔵庫サバイバル診断｜停電中の食材は何時間もつ？</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>冷蔵庫サバイバル診断</h1>
+    <p class="subtitle">停電中の食材があと何時間もつかをサッと判定 ※一般的な目安。最新情報は公式情報をご確認ください</p>
+  </header>
+
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="hours">停電が始まってから何時間経った？</label>
+      <input type="number" id="hours" placeholder="例: 3" min="0" step="0.5">
+      <p class="hint">小数OK（例: 1.5）</p>
+    </div>
+    <div class="field">
+      <label for="freezer">冷凍庫の入り具合</label>
+      <select id="freezer">
+        <option value="full">満タン（ぎっしり）</option>
+        <option value="half" selected>半分くらい</option>
+        <option value="low">少なめ・スカスカ</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="door">扉の開閉</label>
+      <select id="door">
+        <option value="none" selected>ほぼ開けていない</option>
+        <option value="few">数回開けた</option>
+        <option value="many">何度も開けた</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="temp">室温の目安</label>
+      <select id="temp">
+        <option value="cool">涼しい（〜25℃）</option>
+        <option value="normal" selected>普通（25〜32℃）</option>
+        <option value="hot">暑い（32℃〜）</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">診断する</button>
+
+  <div class="result-card" id="result">
+    <p class="result-label">総合判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">食材ごとの残り時間目安</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、厚生労働省・総務省（消防庁）・自治体の防災／食品衛生資料や、信頼できる公開データを参考に、停電時の食材保存目安として整理しています。
+  </p>
+
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: 'ほっ、まだ大丈夫そう' },
+    warn: { e: '🤔', t: 'うーん、早めに食べ切る判断を' },
+    ng:   { e: '😱', t: 'ガーン、一部は廃棄を検討' }
+  };
+
+  var QA = {
+    ok: [
+      { q: 'まだ食べていい？', a: '今のところ安全ゾーンです。扉をなるべく開けず、復旧を待ちましょう。' },
+      { q: '何から食べるべき？', a: '生もの・乳製品・加熱済み料理など傷みやすいものから順に消費するのがコツです。' },
+      { q: '何時間後にまた診断する？', a: '1〜2時間ごとに見直すと、状態の変化に気付けます。' },
+      { q: '備えとして覚えておくことは？', a: '停電時は扉を開けない・保冷剤や氷を入れておく・冷凍庫は満タンに近いほど長持ちします。' }
+    ],
+    warn: [
+      { q: 'すぐ全部捨てるべき？', a: '全部ではありません。傷みやすい順に早めに調理・消費すれば多くは救えます。' },
+      { q: '何から手をつける？', a: '生肉・魚・乳製品・卵料理など要冷蔵食品から優先的に加熱・消費しましょう。' },
+      { q: '冷凍食品は？', a: '半解凍ならまだセーフ。完全解凍した肉・魚はその日のうちに加熱して使い切りを。' },
+      { q: '迷ったら？', a: '見た目・におい・粘りで違和感があれば食べないが原則。再冷凍はおすすめしません。' }
+    ],
+    ng: [
+      { q: '本当に捨てるしかない？', a: '冷蔵食品は基準時間を大きく超えると食中毒リスクが高まります。生もの系は廃棄が安全です。' },
+      { q: '冷凍庫の中身は？', a: '完全に解凍され常温に近づいた肉・魚は要注意。加熱しても安全とは限らないので無理しないこと。' },
+      { q: '何を残せる？', a: '未開封の調味料・しっかり加熱できる根菜類などはまだ使える可能性があります。' },
+      { q: '次に備えるなら？', a: 'クーラーボックス・保冷剤・カセットコンロ・水・非常食を平時から備えておくと安心です。' }
+    ]
+  };
+
+  var STORAGE_KEY = 'fridge_survival_v1';
+
+  function calc() {
+    var hours = parseFloat(document.getElementById('hours').value);
+    if (isNaN(hours) || hours < 0) { showErr('停電からの経過時間を入力してください'); return; }
+    var freezer = document.getElementById('freezer').value;
+    var door = document.getElementById('door').value;
+    var temp = document.getElementById('temp').value;
+
+    save({ hours: hours, freezer: freezer, door: door, temp: temp });
+
+    // 冷蔵食品の基準（扉を閉めたままで4時間）
+    var fridgeBase = 4;
+    // 冷凍食品の基準
+    var freezerBase = freezer === 'full' ? 48 : freezer === 'half' ? 24 : 12;
+
+    // 扉開閉ペナルティ
+    var doorPenF = door === 'none' ? 0 : door === 'few' ? 1 : 3;       // 冷蔵
+    var doorPenZ = door === 'none' ? 0 : door === 'few' ? 2 : 6;       // 冷凍
+
+    // 室温ペナルティ
+    var tempPenF = temp === 'cool' ? 0 : temp === 'normal' ? 0 : 1;    // 冷蔵
+    var tempPenZ = temp === 'cool' ? 0 : temp === 'normal' ? 0 : 4;    // 冷凍
+
+    var fridgeLimit = Math.max(0, fridgeBase - doorPenF - tempPenF);
+    var freezerLimit = Math.max(0, freezerBase - doorPenZ - tempPenZ);
+
+    var fridgeRemain = fridgeLimit - hours;
+    var freezerRemain = freezerLimit - hours;
+
+    var fridgeLevel = judge(fridgeRemain);
+    var freezerLevel = judge(freezerRemain);
+
+    // 総合判定はより悪い方
+    var overall = worst(fridgeLevel, freezerLevel);
+
+    var msg;
+    if (overall === 'ok') msg = '冷蔵食品も冷凍食品もまだ安全圏。扉を開けずに様子見を。';
+    else if (overall === 'warn') msg = '残り時間がわずかです。早めに調理・消費してください。';
+    else msg = '基準時間を超えています。傷みやすいものは廃棄を検討してください。';
+
+    var headline = overall === 'ng' ? '廃棄を検討'
+                 : overall === 'warn' ? '早めに調理'
+                 : 'まだ食べてOK';
+
+    showResult(overall, headline, msg);
+    showDetail([
+      ['冷蔵食品の基準保持時間', fridgeBase + ' 時間'],
+      ['冷凍食品の基準保持時間', freezerBase + ' 時間（' + label(freezer) + '）'],
+      ['扉開閉ペナルティ（冷蔵/冷凍）', '-' + doorPenF + ' / -' + doorPenZ + ' 時間'],
+      ['室温ペナルティ（冷蔵/冷凍）', '-' + tempPenF + ' / -' + tempPenZ + ' 時間'],
+      ['冷蔵食品 残り時間目安', fmtRemain(fridgeRemain), true],
+      ['冷凍食品 残り時間目安', fmtRemain(freezerRemain), true]
+    ]);
+    showQA(overall);
+  }
+
+  function judge(remain) {
+    if (remain <= 0) return 'ng';
+    if (remain <= 3) return 'warn';
+    return 'ok';
+  }
+  function worst(a, b) {
+    var rank = { ok: 0, warn: 1, ng: 2 };
+    return rank[a] >= rank[b] ? a : b;
+  }
+  function fmtRemain(h) {
+    if (h <= 0) return '0時間（廃棄推奨）';
+    if (h < 1) return '約' + Math.round(h * 60) + '分';
+    return '約' + (Math.round(h * 10) / 10) + '時間';
+  }
+  function label(v) {
+    return v === 'full' ? '満タン' : v === 'half' ? '半分' : '少なめ';
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x){
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = 'block';
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('qa-card').style.display = 'none';
+  }
+
+  function save(d) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch(e){}
+  }
+  function load() {
+    try {
+      var s = localStorage.getItem(STORAGE_KEY);
+      if (!s) return;
+      var d = JSON.parse(s);
+      if (d.hours != null) document.getElementById('hours').value = d.hours;
+      if (d.freezer) document.getElementById('freezer').value = d.freezer;
+      if (d.door) document.getElementById('door').value = d.door;
+      if (d.temp) document.getElementById('temp').value = d.temp;
+    } catch(e){}
+  }
+  load();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
