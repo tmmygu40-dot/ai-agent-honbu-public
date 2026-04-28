@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🚗 車検費用シミュレーター</title>
+  <meta name="description" content="車種と車両重量を選ぶだけで、車検の法定費用と整備費用の目安がサッと分かります。見積前の予算計画に役立つ無料シミュレーターです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🚗 車検費用シミュレーター</h1>
+    <p class="subtitle">2026年度の参考データ。最新情報は公式情報をご確認ください</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="carType">車種</label>
+      <select id="carType">
+        <option value="">選択してください</option>
+        <option value="light">軽自動車</option>
+        <option value="normal">普通自動車</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="weight">車両重量（kg）</label>
+      <select id="weight">
+        <option value="">選択してください</option>
+        <option value="800">800kg</option>
+        <option value="1000">1000kg</option>
+        <option value="1200">1200kg</option>
+        <option value="1500">1500kg</option>
+        <option value="1800">1800kg</option>
+        <option value="2000">2000kg</option>
+      </select>
+      <p class="hint">一般的な重量帯から選択してください</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">車検費用を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card ok" id="result" style="display:none">
+    <p class="result-label">合計費用（目安）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">費用内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、国税庁・運輸局などの官公庁資料や信頼できる公開データを参考に、2026年度の目安として使いやすく整理しています。実際の検査費用や税額は地域・設備により異なる場合があります。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // localStorage キーの定義
+  const STORAGE_KEY_CAR_TYPE = 'kensaSimulator_carType';
+  const STORAGE_KEY_WEIGHT = 'kensaSimulator_weight';
+
+  // 法定費用のデータ（検査費用 + 自動車重量税）
+  const LEGAL_FEES = {
+    light: {
+      name: '軽自動車',
+      inspection: 7000,   // 検査費用
+      taxByWeight: {
+        800: 8800,
+        1000: 8800,
+        1200: 8800,
+        1500: 8800,
+        1800: 8800,
+        2000: 8800
+      }
+    },
+    normal: {
+      name: '普通自動車',
+      inspection: 9100,   // 検査費用
+      taxByWeight: {
+        800: 12600,
+        1000: 15000,
+        1200: 17500,
+        1500: 20000,
+        1800: 22500,
+        2000: 25000
+      }
+    }
+  };
+
+  // 整備費用の目安（年式や状態により大きく変わる）
+  const MAINTENANCE_RANGE = {
+    light: { min: 50000, max: 100000 },
+    normal: { min: 80000, max: 150000 }
+  };
+
+  // ページ読み込み時、localStorage から前回の選択を復元
+  window.addEventListener('load', function() {
+    const savedCarType = localStorage.getItem(STORAGE_KEY_CAR_TYPE);
+    const savedWeight = localStorage.getItem(STORAGE_KEY_WEIGHT);
+
+    if (savedCarType) {
+      document.getElementById('carType').value = savedCarType;
+    }
+    if (savedWeight) {
+      document.getElementById('weight').value = savedWeight;
+    }
+  });
+
+  function calc() {
+    const carType = document.getElementById('carType').value;
+    const weight = document.getElementById('weight').value;
+
+    if (!carType || !weight) {
+      showErr('車種と車両重量を選択してください');
+      return;
+    }
+
+    // localStorage に選択を保存
+    localStorage.setItem(STORAGE_KEY_CAR_TYPE, carType);
+    localStorage.setItem(STORAGE_KEY_WEIGHT, weight);
+
+    const carData = LEGAL_FEES[carType];
+    const weightNum = parseInt(weight);
+
+    // 法定費用の計算
+    const inspectionFee = carData.inspection;
+    const weightTax = carData.taxByWeight[weightNum] || carData.taxByWeight[2000];
+    const totalLegalFee = inspectionFee + weightTax;
+
+    // 整備費用の目安
+    const maintenanceRange = MAINTENANCE_RANGE[carType];
+    const avgMaintenance = Math.round((maintenanceRange.min + maintenanceRange.max) / 2);
+
+    // 総合計（目安）
+    const totalFee = totalLegalFee + avgMaintenance;
+
+    // 結果表示
+    const carTypeName = carData.name;
+    const resultNote = `${carTypeName} の ${weight}kg 基準。整備費用は車の状態により大きく変わります。`;
+
+    showResult(totalFee, resultNote);
+    showDetail([
+      ['検査費用', fmt(inspectionFee)],
+      ['自動車重量税', fmt(weightTax)],
+      ['法定費用 小計', fmt(totalLegalFee), true],
+      ['整備費用（目安）', fmt(maintenanceRange.min) + '～' + fmt(maintenanceRange.max)],
+      ['合計（目安）', fmt(totalFee), true]
+    ]);
+  }
+
+  function showResult(total, note) {
+    const rc = document.getElementById('result');
+    rc.style.display = '';
+    document.getElementById('rv').textContent = fmt(total) + ' 円';
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    const html = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td>'
+           + '<td>' + r[1] + '</td>'
+           + '</tr>';
+    }).join('');
+    document.getElementById('db').innerHTML = html;
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    const rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = '';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
