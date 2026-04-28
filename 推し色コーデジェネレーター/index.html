@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>推し色コーデジェネレーター｜推しカラーで今日のラッキーコーデ提案</title>
+  <meta name="description" content="推しのカラーを選ぶだけで、今日のラッキーコーデと運勢ひとことを提案する推し活アプリ。ライブ・現場・遠征の前日チェックに使える、推し愛と運気を両立する無料ツールです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 推し色パレット ── */
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.6rem;
+    }
+    .color-chip {
+      position: relative;
+      cursor: pointer;
+      border-radius: 12px;
+      overflow: hidden;
+      aspect-ratio: 1;
+      border: 3px solid var(--border);
+      transition: transform 0.1s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .color-chip input { position: absolute; opacity: 0; pointer-events: none; }
+    .color-chip .swatch {
+      width: 100%; height: 70%;
+      display: block;
+    }
+    .color-chip .name {
+      display: block; text-align: center;
+      font-size: 0.72rem; font-weight: 700;
+      padding: 0.25rem 0.1rem;
+      background: var(--card); color: var(--text);
+    }
+    .color-chip:active { transform: scale(0.95); }
+    .color-chip.selected { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(224,123,0,0.2); }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.02em; line-height: 1.25; margin-bottom: 0.6rem; color: var(--accent); }
+    .result-note { font-size: 0.92rem; color: var(--text); line-height: 1.6; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.7rem 0.3rem; color: var(--text-sub); vertical-align: top; }
+    .detail-table td:first-child { width: 32%; font-weight: 700; color: var(--text); }
+    .detail-table td:last-child { text-align: left; color: var(--text); }
+
+    .history-item {
+      padding: 0.7rem 0.3rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item .h-date { font-size: 0.72rem; color: var(--text-sub); margin-bottom: 0.2rem; }
+    .history-empty { font-size: 0.85rem; color: var(--text-sub); text-align: center; padding: 0.5rem; }
+    .btn-clear-history {
+      display: block; margin: 0.8rem auto 0; padding: 0.4rem 0.9rem;
+      font-size: 0.78rem; color: var(--text-sub);
+      background: transparent; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>推し色コーデジェネレーター</h1>
+    <p class="subtitle">推しのカラーを選ぶだけで、今日のラッキーコーデと運勢ひとことを提案します</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">推し色を選ぶ</p>
+    <div class="color-grid" id="color-grid"></div>
+    <p class="hint" style="font-size:0.72rem;color:var(--text-sub);margin-top:0.7rem;">※ 推しのテーマカラー、メンバーカラー、好きな色などを選んでください</p>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">今日のコーデを生成する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">今日のラッキーコーデ</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">コーデ詳細</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card">
+    <p class="card-title">最近のコーデ履歴（最大5件）</p>
+    <div id="history"></div>
+    <button class="btn-clear-history no-print" onclick="clearHistory()">履歴をクリア</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    🎀 このツールは、色彩心理・コーディネートの一般的な配色セオリー（補色・類似色など）を参考に、推し活向けのラッキーコーデを楽しく提案するエンタメツールです。占い結果は楽しみとしてご利用ください。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 推し色パレット ──
+  var COLORS = [
+    { id:'red',    name:'赤',    hex:'#e63946', vibe:'情熱' },
+    { id:'pink',   name:'ピンク', hex:'#ff8fab', vibe:'キュート' },
+    { id:'orange', name:'オレンジ', hex:'#f4a261', vibe:'元気' },
+    { id:'yellow', name:'黄',    hex:'#ffd166', vibe:'幸運' },
+    { id:'green',  name:'緑',    hex:'#52b788', vibe:'癒し' },
+    { id:'blue',   name:'青',    hex:'#3a86ff', vibe:'クール' },
+    { id:'sky',    name:'水色',  hex:'#90e0ef', vibe:'爽やか' },
+    { id:'purple', name:'紫',    hex:'#9d4edd', vibe:'ミステリアス' },
+    { id:'white',  name:'白',    hex:'#f8f9fa', vibe:'ピュア' },
+    { id:'black',  name:'黒',    hex:'#22223b', vibe:'シック' },
+    { id:'brown',  name:'茶',    hex:'#8b5a2b', vibe:'落ち着き' },
+    { id:'gold',   name:'金',    hex:'#d4af37', vibe:'高貴' }
+  ];
+
+  // ── 色別のコーデパーツ候補 ──
+  var TOPS = {
+    red:    ['白Tシャツ＋赤カーディガン', '赤のオーバーサイズシャツ', '黒トップス＋赤スカーフ', '赤ボーダーカットソー'],
+    pink:   ['ピンクニット', '白ブラウス＋ピンクベスト', 'ピンクのフリルシャツ', '淡いピンクのワンピトップ'],
+    orange: ['オレンジパーカー', '白Tシャツ＋オレンジ羽織', 'オレンジボーダー', 'テラコッタのニット'],
+    yellow: ['イエローブラウス', '白Tシャツ＋黄カーディガン', 'マスタード色シャツ', 'レモンイエローのカットソー'],
+    green:  ['カーキシャツ', '白Tシャツ＋緑ベスト', 'ミントグリーンのニット', 'モスグリーンのジャケット'],
+    blue:   ['デニムシャツ', '白Tシャツ＋ネイビージャケット', 'ブルーのストライプシャツ', 'ロイヤルブルーのカットソー'],
+    sky:    ['水色のオックスフォードシャツ', '白Tシャツ＋水色カーディガン', 'スカイブルーのニット', '淡いブルーのブラウス'],
+    purple: ['ラベンダーニット', '白ブラウス＋紫カーディガン', 'パープルのオーバーシャツ', '深紫のロンT'],
+    white:  ['白Tシャツ', '白ブラウス', '白ニット', 'オフホワイトのカットソー'],
+    black:  ['黒Tシャツ', '黒タートルネック', '黒シャツ＋白インナー', 'チャコールのニット'],
+    brown:  ['ブラウンニット', 'キャメルのカーディガン', '白Tシャツ＋茶ベスト', 'モカ色のシャツ'],
+    gold:   ['ゴールドラメのニット', '白Tシャツ＋ゴールド刺繍カーデ', 'シャンパンゴールドのブラウス', 'ベージュ＋ゴールドアクセ']
+  };
+  var BOTTOMS = {
+    red:    ['白デニム', 'ベージュチノパン', '黒スキニー', 'ネイビースカート'],
+    pink:   ['白スカート', 'デニムパンツ', 'グレーのワイドパンツ', 'ベージュのプリーツ'],
+    orange: ['白ワイドパンツ', 'デニム', 'ブラウンのコーデュロイ', 'ベージュチノ'],
+    yellow: ['デニム', '白パンツ', 'グレースカート', 'ネイビーパンツ'],
+    green:  ['ベージュチノ', '白パンツ', 'デニム', '黒スキニー'],
+    blue:   ['白パンツ', 'ベージュチノ', 'グレースラックス', '黒スキニー'],
+    sky:    ['白デニム', 'ベージュスカート', '白ワイドパンツ', 'ネイビーパンツ'],
+    purple: ['黒スキニー', '白スカート', 'グレーのワイドパンツ', 'ベージュチノ'],
+    white:  ['デニム', 'ベージュチノ', '黒スキニー', 'ネイビースカート'],
+    black:  ['白デニム', 'グレースラックス', 'ベージュチノ', 'カーキカーゴ'],
+    brown:  ['ベージュチノ', '白パンツ', 'デニム', 'カーキスカート'],
+    gold:   ['白パンツ', 'ベージュスカート', '黒スキニー', 'ネイビーのプリーツ']
+  };
+  var ACCENTS = {
+    red:    ['シルバーのピアス', 'ホワイトのスニーカー', '黒のベルト', '白の小ぶりバッグ'],
+    pink:   ['ゴールドのピアス', '白のスニーカー', 'ベージュのバッグ', 'パールのアクセ'],
+    orange: ['ターコイズのアクセ', '白のスニーカー', 'ブラウンレザーのバッグ', 'デニムキャップ'],
+    yellow: ['ネイビーの小物', '白のスニーカー', 'ブラウンのベルト', 'シルバーのアクセ'],
+    green:  ['ベージュの小物', '白のスニーカー', 'ブラウンレザー', 'シルバーアクセ'],
+    blue:   ['白のスニーカー', 'シルバーのアクセ', 'ブラウンのベルト', 'ベージュバッグ'],
+    sky:    ['白のスニーカー', 'シルバーのアクセ', 'ベージュのバッグ', 'ホワイトキャップ'],
+    purple: ['ゴールドのアクセ', '黒のローファー', 'シルバーピアス', '黒の小ぶりバッグ'],
+    white:  ['カラーソックス', 'シルバーアクセ', 'ナチュラルレザー', 'デニムジャケット羽織り'],
+    black:  ['シルバーピアス', '白のスニーカー', 'ゴールドのチェーン', 'カラーソックス'],
+    brown:  ['ゴールドのアクセ', 'ベージュのキャップ', '白Tシャツ', 'クリーム色の小物'],
+    gold:   ['白のシャツ', 'パールのアクセ', '黒のクラッチ', 'ベージュのスカーフ']
+  };
+  var ITEMS = {
+    red:    ['推しのラババン（赤）', '赤のリップ', '推し色マニキュア', '赤の手帳'],
+    pink:   ['ピンクのうちわ', 'ピンクのリップ', 'ハート型ヘアピン', 'ピンクのチーク'],
+    orange: ['推し色タオル（橙）', 'オレンジのスカーフ', '夕焼けカラーのアイシャドウ', '推し色ネイル'],
+    yellow: ['黄色のヘアゴム', 'イエローのバッグチャーム', 'ひまわりのアクセ', '推し色ペンライト'],
+    green:  ['緑の推しグッズ', 'グリーンのキーホルダー', 'モスグリーンのマスク', '観葉植物の写真'],
+    blue:   ['ブルーの推しタオル', 'ネイビーの腕時計', '青のヘアアクセ', '推し色のネイル'],
+    sky:    ['水色のうちわ', 'スカイブルーのマスク', '水色のヘアゴム', '推し色グッズ'],
+    purple: ['紫のラババン', 'ラベンダーの香水', '推し色アイシャドウ', '紫のヘアアクセ'],
+    white:  ['白のうちわ', 'パールのピアス', '白い推しタオル', 'シルバーのアクセ'],
+    black:  ['黒のラババン', '推しの黒Tシャツ', 'ブラックのキャップ', 'シルバーチェーン'],
+    brown:  ['茶色の手帳', 'キャメルのバッグ', 'ブラウンのリップ', '推し色チャーム'],
+    gold:   ['ゴールドのアクセ', '推しの金グッズ', 'ゴールドのヘアピン', 'シャンパン色のリップ']
+  };
+  var FORTUNES = {
+    red:    ['情熱が周りに伝わる日。推しに想いが届くかも。', '勝負カラーで自信MAX。今日は強気でOK。', '赤の力で疲れも吹き飛ぶ。攻めの一日に。'],
+    pink:   ['ふんわりオーラで人に好かれる日。', '柔らかい笑顔が運を呼ぶ。優しさが武器に。', '推しからの好意的な反応が期待できそう。'],
+    orange: ['元気と笑顔が福を呼ぶ日。', 'コミュニケーション運◎。新しい出会いも。', '推し友との会話が盛り上がりそう。'],
+    yellow: ['幸運の黄色で金運アップの予感。', '楽しい予定が舞い込みやすい一日。', '推しのうれしいニュースに期待。'],
+    green:  ['心が落ち着く日。冷静な判断が吉。', '癒し効果で疲れがリセットされる。', '推しの存在が心の支えになる日。'],
+    blue:   ['冷静さが評価される日。仕事運◎。', 'クールな選択が後で正解だったと分かる。', '推しのパフォーマンスに惚れ直す日。'],
+    sky:    ['爽やかさで好感度アップ。', '気分転換が運を呼ぶ。新しい場所へ。', '推しの優しさが沁みる一日。'],
+    purple: ['直感が冴える日。第六感を信じて。', '神秘的なオーラが推しを引き寄せる。', '推し関連の不思議な縁が動きそう。'],
+    white:  ['リセット日和。新しいスタートに最適。', '清潔感が運を呼ぶ。第一印象◎。', '推しとの距離が一段近づくかも。'],
+    black:  ['集中力が爆上がり。やるべきことが進む。', '凛とした佇まいで一目置かれる日。', '推しの渋い一面を発見できそう。'],
+    brown:  ['安定運。落ち着いた行動が吉。', '誠実さが評価される。信頼アップ。', '推しの優しい一面に触れられる日。'],
+    gold:   ['ラッキー運MAX。チャンスが舞い込む。', '推しからのスペシャルが期待できる日。', '金運も恋愛運も上昇気流に乗る。']
+  };
+
+  var selectedColor = null;
+
+  function renderPalette() {
+    var grid = document.getElementById('color-grid');
+    grid.innerHTML = COLORS.map(function(c) {
+      return '<label class="color-chip" data-id="' + c.id + '">'
+           + '<input type="radio" name="color" value="' + c.id + '">'
+           + '<span class="swatch" style="background:' + c.hex + (c.id==='white' ? ';border-bottom:1px solid #ddd' : '') + '"></span>'
+           + '<span class="name">' + c.name + '</span>'
+           + '</label>';
+    }).join('');
+    Array.prototype.forEach.call(grid.querySelectorAll('.color-chip'), function(el) {
+      el.addEventListener('click', function() {
+        selectedColor = el.getAttribute('data-id');
+        Array.prototype.forEach.call(grid.querySelectorAll('.color-chip'), function(x) {
+          x.classList.toggle('selected', x.getAttribute('data-id') === selectedColor);
+        });
+        el.querySelector('input').checked = true;
+      });
+    });
+  }
+
+  // 日付＋色をシードに同日同色で同結果になる擬似ランダム
+  function pickIdx(seed, len) {
+    var h = 0;
+    for (var i = 0; i < seed.length; i++) {
+      h = (h * 31 + seed.charCodeAt(i)) & 0xffffffff;
+    }
+    return Math.abs(h) % len;
+  }
+
+  function calc() {
+    if (!selectedColor) {
+      showResult('推し色を選んでください', 'まずは上のパレットから1色タップ！');
+      document.getElementById('detail').style.display = 'none';
+      return;
+    }
+    var color = COLORS.filter(function(c){ return c.id === selectedColor; })[0];
+    var today = new Date();
+    var dateStr = today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+    var seedBase = dateStr + '_' + color.id;
+
+    var tops    = TOPS[color.id][pickIdx(seedBase + 'tops', TOPS[color.id].length)];
+    var bottoms = BOTTOMS[color.id][pickIdx(seedBase + 'bot', BOTTOMS[color.id].length)];
+    var accent  = ACCENTS[color.id][pickIdx(seedBase + 'acc', ACCENTS[color.id].length)];
+    var item    = ITEMS[color.id][pickIdx(seedBase + 'itm', ITEMS[color.id].length)];
+    var fortune = FORTUNES[color.id][pickIdx(seedBase + 'frt', FORTUNES[color.id].length)];
+
+    var headline = color.name + 'カラーの「' + color.vibe + '」コーデ';
+
+    showResult(headline, fortune);
+    showDetail([
+      ['推し色',       color.name + '（' + color.vibe + '）'],
+      ['トップス',     tops],
+      ['ボトム',       bottoms],
+      ['差し色・小物', accent],
+      ['ラッキーアイテム', item],
+      ['今日のひとこと', fortune]
+    ]);
+
+    saveHistory({
+      date: dateStr,
+      color: color.name,
+      tops: tops,
+      bottoms: bottoms,
+      item: item
+    });
+    renderHistory();
+  }
+
+  function showResult(val, note) {
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  // ── 履歴 localStorage ──
+  var HISTORY_KEY = 'oshicolor_outfit_history';
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+    catch(e) { return []; }
+  }
+  function saveHistory(entry) {
+    var list = loadHistory();
+    list.unshift(entry);
+    list = list.slice(0, 5);
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); } catch(e) {}
+  }
+  function renderHistory() {
+    var box = document.getElementById('history');
+    var list = loadHistory();
+    if (!list.length) {
+      box.innerHTML = '<p class="history-empty">まだ履歴はありません</p>';
+      return;
+    }
+    box.innerHTML = list.map(function(h){
+      return '<div class="history-item">'
+           + '<div class="h-date">' + h.date + ' / 推し色：' + h.color + '</div>'
+           + 'トップス：' + h.tops + '<br>'
+           + 'ボトム：' + h.bottoms + '<br>'
+           + 'ラッキーアイテム：' + h.item
+           + '</div>';
+    }).join('');
+  }
+  function clearHistory() {
+    if (!confirm('履歴をすべて削除しますか？')) return;
+    try { localStorage.removeItem(HISTORY_KEY); } catch(e) {}
+    renderHistory();
+  }
+
+  renderPalette();
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
