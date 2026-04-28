@@ -5,12 +5,13 @@ let subscriptions = loadData();
 const nameInput = document.getElementById('subName');
 const amountInput = document.getElementById('subAmount');
 const renewalInput = document.getElementById('subRenewal');
-const addBtn = document.getElementById('addBtn');
 const subList = document.getElementById('subList');
 const totalAmountEl = document.getElementById('totalAmount');
+const annualAmountEl = document.getElementById('annualAmount');
 const subCountEl = document.getElementById('subCount');
+const formErrorEl = document.getElementById('formError');
 
-addBtn.addEventListener('click', addSubscription);
+// addBtn の click は HTML の onclick 属性でバインド済み
 
 [nameInput, amountInput, renewalInput].forEach(el => {
   el.addEventListener('keydown', e => {
@@ -18,21 +19,27 @@ addBtn.addEventListener('click', addSubscription);
   });
 });
 
+function showError(el, msg) {
+  el.focus();
+  el.style.borderColor = '#e74c3c';
+  if (formErrorEl) formErrorEl.textContent = msg;
+  setTimeout(() => {
+    el.style.borderColor = '';
+    if (formErrorEl) formErrorEl.textContent = '';
+  }, 1800);
+}
+
 function addSubscription() {
   const name = nameInput.value.trim();
   const amount = parseInt(amountInput.value, 10);
   const renewal = parseInt(renewalInput.value, 10);
 
   if (!name) {
-    nameInput.focus();
-    nameInput.style.borderColor = '#e74c3c';
-    setTimeout(() => nameInput.style.borderColor = '', 1200);
+    showError(nameInput, 'サービス名を入力してください。');
     return;
   }
   if (isNaN(amount) || amount < 0) {
-    amountInput.focus();
-    amountInput.style.borderColor = '#e74c3c';
-    setTimeout(() => amountInput.style.borderColor = '', 1200);
+    showError(amountInput, '月額を正しく入力してください（0以上の整数）。');
     return;
   }
 
@@ -75,6 +82,7 @@ function render() {
   subCountEl.textContent = `${subscriptions.length}件`;
   const total = subscriptions.reduce((sum, s) => sum + s.amount, 0);
   totalAmountEl.textContent = `¥${total.toLocaleString()}`;
+  if (annualAmountEl) annualAmountEl.textContent = `¥${(total * 12).toLocaleString()}`;
 
   if (subscriptions.length === 0) {
     subList.innerHTML = '<p class="empty-msg">まだ登録がありません</p>';

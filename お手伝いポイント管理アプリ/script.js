@@ -16,7 +16,6 @@ function init() {
 
   renderReward();
   renderTaskList();
-  bindEvents();
 }
 
 // --- イベントバインド ---
@@ -182,4 +181,4 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-init();
+// init() is called from index.html DOMContentLoaded

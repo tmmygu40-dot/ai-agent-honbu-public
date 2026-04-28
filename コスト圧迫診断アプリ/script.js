@@ -51,7 +51,12 @@ function calculate() {
   const freightIncrease = val('freightIncrease');
 
   if (revenue <= 0) {
-    alert('売上を入力してください。');
+    const alertBox = document.getElementById('alertBox');
+    alertBox.className = 'alert alert-info';
+    alertBox.textContent = '⚠️ 売上を入力してください。';
+    alertBox.style.display = 'block';
+    document.getElementById('resultSection').style.display = 'block';
+    document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
   }
 

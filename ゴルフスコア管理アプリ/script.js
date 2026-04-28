@@ -84,6 +84,16 @@ function renderAll() {
   renderHistory(rounds);
 }
 
+// --- エラー表示 ---
+function showFormError(msg) {
+  const el = document.getElementById('form-error');
+  if (el) el.textContent = msg;
+}
+function clearFormError() {
+  const el = document.getElementById('form-error');
+  if (el) el.textContent = '';
+}
+
 // --- 登録 ---
 document.getElementById('add-btn').addEventListener('click', () => {
   const dateEl = document.getElementById('date');
@@ -96,19 +106,21 @@ document.getElementById('add-btn').addEventListener('click', () => {
   const scoreRaw = scoreEl.value.trim();
   const memo = memoEl.value.trim();
 
+  clearFormError();
+
   if (!date) {
-    alert('日付を入力してください');
+    showFormError('日付を入力してください');
     dateEl.focus();
     return;
   }
   if (!scoreRaw) {
-    alert('スコアを入力してください');
+    showFormError('スコアを入力してください');
     scoreEl.focus();
     return;
   }
   const score = parseInt(scoreRaw, 10);
   if (isNaN(score) || score < 18 || score > 250) {
-    alert('スコアは18〜250の整数で入力してください');
+    showFormError('スコアは18〜250の整数で入力してください');
     scoreEl.focus();
     return;
   }
