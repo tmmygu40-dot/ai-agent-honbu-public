@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>引越し挨拶メーカー｜粗品候補と挨拶文を即生成</title>
+  <meta name="description" content="引越しのご近所挨拶、何を渡すか・何を書くか迷わず即決定。相手と予算を選ぶだけで粗品候補3つと手紙文面3パターンを自動生成する無料ツールです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.3rem; font-weight: 900; line-height: 1.3; margin-bottom: 0.4rem; color: var(--accent); }
+    .result-note { font-size: 0.85rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* 粗品候補 */
+    .gift-list { display: flex; flex-direction: column; gap: 0.7rem; }
+    .gift-item {
+      padding: 0.8rem 0.9rem;
+      background: var(--accent-light);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .gift-name { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.25rem; }
+    .gift-comment { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .gift-budget { display: inline-block; font-size: 0.72rem; color: var(--accent); font-weight: 700; margin-left: 0.4rem; }
+
+    /* 文面カード */
+    .letter-block { margin-bottom: 1.1rem; }
+    .letter-block:last-child { margin-bottom: 0; }
+    .letter-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 0.5rem; margin-bottom: 0.5rem;
+    }
+    .letter-style {
+      font-size: 0.82rem; font-weight: 800; color: var(--accent);
+      padding: 0.2rem 0.6rem;
+      background: var(--accent-light);
+      border-radius: 999px;
+    }
+    .copy-btn {
+      font-size: 0.78rem; font-weight: 700;
+      padding: 0.4rem 0.8rem;
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .copy-btn.done { border-color: var(--ok); color: var(--ok); background: var(--ok-bg); }
+    .letter-body {
+      font-size: 0.92rem; line-height: 1.75;
+      padding: 0.9rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      white-space: pre-wrap;
+      color: var(--text);
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>引越し挨拶メーカー</h1>
+    <p class="subtitle">相手と予算を選ぶだけで、粗品候補3つと挨拶文3パターンを即生成。2026年版の一般的な目安です。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="target">挨拶する相手</label>
+      <select id="target">
+        <option value="neighbor">両隣のお宅</option>
+        <option value="upstairs">上下階のお宅</option>
+        <option value="manager">大家・管理人</option>
+        <option value="chairman">自治会長</option>
+        <option value="other">その他ご近所</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="budget">予算帯</label>
+      <select id="budget">
+        <option value="low">〜500円</option>
+        <option value="mid" selected>500〜1000円</option>
+        <option value="high">1000〜2000円</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="myname">自分の名前（フルネームまたは姓）</label>
+      <input type="text" id="myname" placeholder="例: 田中">
+    </div>
+    <div class="field">
+      <label for="family">家族構成</label>
+      <select id="family">
+        <option value="single">一人暮らし</option>
+        <option value="couple">夫婦のみ</option>
+        <option value="kids">子どもあり</option>
+        <option value="other">その他</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="room">新居の部屋番号（任意）</label>
+      <input type="text" id="room" placeholder="例: 301号室">
+    </div>
+    <div class="field">
+      <label for="movedate">引越し日（任意）</label>
+      <input type="date" id="movedate">
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">生成する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">条件</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note"  id="rn"></p>
+  </div>
+
+  <!-- 粗品候補カード -->
+  <div class="card" id="gift-card" style="display:none">
+    <p class="card-title">おすすめの粗品候補</p>
+    <div class="gift-list" id="gift-list"></div>
+  </div>
+
+  <!-- 文面カード -->
+  <div class="card" id="letter-card" style="display:none">
+    <p class="card-title">挨拶文（3パターン）</p>
+    <div id="letter-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、各自治体・引越し関連事業者の公開ガイドや、一般的なビジネスマナー資料を参考に、目安として使いやすく整理しています。最新の地域慣習は近隣の方や管理人にもご確認ください。
+  </p>
+
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 粗品データ ──
+  // budget: low(〜500) / mid(500〜1000) / high(1000〜2000)
+  var GIFTS = {
+    low: [
+      { name: 'ハンドタオル（無地）', comment: '短時間の挨拶でも気軽に渡せる定番。日常使いしてもらいやすい' },
+      { name: 'ラップ・ジップ袋セット', comment: '実用的で家族構成を問わず喜ばれる。500円以内でも見栄えが整う' },
+      { name: '個包装お菓子の小箱', comment: '相手が不在で日持ちが必要な時にも安心。アレルギー表示のあるものを' }
+    ],
+    mid: [
+      { name: '洗剤・スポンジセット', comment: 'ご家族世帯に特に人気。生活必需品なので余りにくい' },
+      { name: '焼き菓子の詰合せ（個包装）', comment: '日持ちが効き、世代を問わず無難。クッキー・フィナンシェなど' },
+      { name: 'ドリップコーヒー詰合せ', comment: 'コーヒー好きの単身世帯・夫婦世帯に好印象。香りで気分転換' }
+    ],
+    high: [
+      { name: '洗剤ギフト（箱入り）', comment: '熨斗付きでフォーマル感が出る。大家・管理人・自治会長向けに最適' },
+      { name: 'ブランド菓子折り', comment: 'ヨックモック・とらや等の小箱。失礼がない安全策' },
+      { name: 'タオルセット（今治・泉州など）', comment: '上品で長く使える。改まった挨拶にふさわしい' }
+    ]
+  };
+
+  // 相手別の補足コメント
+  var TARGET_NOTE = {
+    neighbor:  '両隣のお宅は引越しの音や生活音で最も影響しあう間柄。少額でも丁寧な挨拶が好印象です。',
+    upstairs:  '上下階は足音・水音の感じ方が違います。特に下階の方には気持ち少しだけ厚めの粗品が無難。',
+    manager:   '大家・管理人さんには熨斗付きのフォーマルな粗品を。今後の連絡もスムーズになります。',
+    chairman:  '自治会長へのご挨拶は地域への参加意思の表明にもなります。1,000円以上の粗品が安心。',
+    other:     'お向かい・斜め向かいなど、生活動線で顔を合わせる範囲には軽めでも挨拶しておくと安心です。'
+  };
+
+  var TARGET_LABEL = {
+    neighbor: '両隣のお宅',
+    upstairs: '上下階のお宅',
+    manager:  '大家・管理人',
+    chairman: '自治会長',
+    other:    'その他ご近所'
+  };
+
+  var BUDGET_LABEL = {
+    low:  '〜500円',
+    mid:  '500〜1000円',
+    high: '1000〜2000円'
+  };
+
+  // ── 文面生成 ──
+  function buildLetters(input) {
+    var name = input.myname || '（お名前）';
+    var room = input.room ? '（' + input.room + '）' : '';
+    var dateStr = '';
+    if (input.movedate) {
+      var d = new Date(input.movedate);
+      if (!isNaN(d.getTime())) {
+        dateStr = (d.getMonth() + 1) + '月' + d.getDate() + '日';
+      }
+    }
+    var movePhrase = dateStr ? dateStr + 'に引越してまいりました' : 'このたび引越してまいりました';
+
+    var familyPhrase = {
+      single: '一人で暮らしております',
+      couple: '夫婦二人で暮らしております',
+      kids:   '家族で暮らしております。子どももおりますのでご迷惑をおかけすることもあるかと存じます',
+      other:  '暮らしております'
+    }[input.family] || '暮らしております';
+
+    var targetPhrase = {
+      neighbor: 'ご近所様',
+      upstairs: 'ご近所様',
+      manager:  '管理人様',
+      chairman: '自治会長様',
+      other:    'ご近所様'
+    }[input.target] || 'ご近所様';
+
+    // フォーマル
+    var formal =
+      'はじめまして。\n' +
+      'この度' + room + 'に' + movePhrase + '、' + name + 'と申します。\n' +
+      familyPhrase + '。\n\n' +
+      '何かとご迷惑をおかけすることもあるかと存じますが、\n' +
+      'どうぞよろしくお願い申し上げます。\n\n' +
+      'ささやかではございますが、ご挨拶のしるしまで。';
+
+    // カジュアル
+    var casual =
+      'はじめまして！\n' +
+      room + 'に' + movePhrase + '、' + name + 'です。\n' +
+      familyPhrase + '。\n\n' +
+      'まだ慣れず不慣れなこともあると思いますが、\n' +
+      'これからどうぞよろしくお願いします！\n\n' +
+      'ほんの気持ちですが、よかったら受け取ってください。';
+
+    // ファミリー向け（特に子どもありの場合に温度感を変える）
+    var familyLetter;
+    if (input.family === 'kids') {
+      familyLetter =
+        'はじめまして。\n' +
+        room + 'に' + movePhrase + '、' + name + '一家です。\n' +
+        '小さな子どもがおりますので、足音や泣き声などで\n' +
+        'ご迷惑をおかけすることがあるかもしれません。\n\n' +
+        'できる限り気をつけてまいりますので、\n' +
+        '何かありましたら遠慮なくお声がけください。\n' +
+        'これからよろしくお願いいたします。';
+    } else {
+      familyLetter =
+        'はじめまして。\n' +
+        room + 'に' + movePhrase + '、' + name + 'と申します。\n' +
+        familyPhrase + '。\n\n' +
+        '生活音などでご迷惑をおかけすることもあるかと思います。\n' +
+        '気になる点がございましたらお気軽にお声がけください。\n\n' +
+        'どうぞよろしくお願いいたします。';
+    }
+
+    // 相手が大家・管理人・自治会長ならフォーマル寄りに微調整
+    if (input.target === 'manager' || input.target === 'chairman') {
+      formal = formal.replace('はじめまして。', 'お世話になります。');
+    }
+
+    return [
+      { style: 'フォーマル', text: formal },
+      { style: 'カジュアル', text: casual },
+      { style: 'ファミリー向け', text: familyLetter }
+    ];
+  }
+
+  function generate() {
+    var input = {
+      target:   document.getElementById('target').value,
+      budget:   document.getElementById('budget').value,
+      myname:   document.getElementById('myname').value.trim(),
+      family:   document.getElementById('family').value,
+      room:     document.getElementById('room').value.trim(),
+      movedate: document.getElementById('movedate').value
+    };
+
+    if (!input.myname) {
+      alert('お名前を入力してください');
+      return;
+    }
+
+    saveStorage(input);
+
+    // 結論カード
+    var summary = TARGET_LABEL[input.target] + '・予算' + BUDGET_LABEL[input.budget];
+    var note = TARGET_NOTE[input.target] || '';
+    if (input.target === 'chairman' && input.budget === 'low') {
+      note += ' ※自治会長向けは1,000円帯以上が無難です。';
+    }
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = summary;
+    document.getElementById('rn').textContent = note;
+
+    // 粗品候補
+    var gifts = GIFTS[input.budget] || GIFTS.mid;
+    var giftHtml = gifts.map(function(g) {
+      return '<div class="gift-item">'
+           + '<div class="gift-name">' + escapeHtml(g.name)
+           + '<span class="gift-budget">' + BUDGET_LABEL[input.budget] + '</span></div>'
+           + '<div class="gift-comment">' + escapeHtml(g.comment) + '</div>'
+           + '</div>';
+    }).join('');
+    document.getElementById('gift-list').innerHTML = giftHtml;
+    document.getElementById('gift-card').style.display = 'block';
+
+    // 文面
+    _letters = buildLetters(input);
+    var letterHtml = _letters.map(function(L, i) {
+      return '<div class="letter-block">'
+           + '<div class="letter-head">'
+           + '<span class="letter-style">' + escapeHtml(L.style) + '</span>'
+           + '<button class="copy-btn" data-idx="' + i + '" type="button" onclick="handleCopyBtn(this)">📋 コピー</button>'
+           + '</div>'
+           + '<div class="letter-body" id="letter-body-' + i + '">' + escapeHtml(L.text) + '</div>'
+           + '</div>';
+    }).join('');
+    document.getElementById('letter-list').innerHTML = letterHtml;
+    document.getElementById('letter-card').style.display = 'block';
+
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copyToClipboard(text, btn) {
+    var done = function() {
+      var orig = btn.textContent;
+      btn.textContent = '✅ コピー済み';
+      btn.classList.add('done');
+      setTimeout(function() {
+        btn.textContent = orig;
+        btn.classList.remove('done');
+      }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function() {
+        fallbackCopy(text); done();
+      });
+    } else {
+      fallbackCopy(text); done();
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // ── コピーボタン ──
+  var _letters = [];
+  function handleCopyBtn(btn) {
+    var idx = parseInt(btn.getAttribute('data-idx'), 10);
+    if (_letters[idx]) copyToClipboard(_letters[idx].text, btn);
+  }
+  // イベント委任（バックアップ）
+  document.getElementById('letter-list').addEventListener('click', function(e) {
+    var btn = e.target.closest('.copy-btn');
+    if (!btn) return;
+    handleCopyBtn(btn);
+  });
+
+  // ── localStorage ──
+  var STORAGE_KEY = 'hikkoshi_aisatsu_v1';
+  function saveStorage(input) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        myname: input.myname,
+        family: input.family,
+        room:   input.room
+      }));
+    } catch (e) {}
+  }
+  function loadStorage() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (d.myname) document.getElementById('myname').value = d.myname;
+      if (d.family) document.getElementById('family').value = d.family;
+      if (d.room)   document.getElementById('room').value   = d.room;
+    } catch (e) {}
+  }
+  loadStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
