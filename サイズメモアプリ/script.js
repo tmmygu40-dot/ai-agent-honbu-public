@@ -162,9 +162,7 @@ function escHtml(str) {
 }
 
 // --- 初期化 ---
-document.getElementById('addMemberBtn').addEventListener('click', addMember);
 document.getElementById('memberNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') addMember(); });
-document.getElementById('addSizeBtn').addEventListener('click', addSize);
 document.getElementById('sizeInput').addEventListener('keydown', e => { if (e.key === 'Enter') addSize(); });
 
 load();

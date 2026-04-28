@@ -151,7 +151,6 @@ function escapeHtml(str) {
 }
 
 // イベント
-document.getElementById('addBtn').addEventListener('click', addClaim);
 document.getElementById('filterStatus').addEventListener('change', renderList);
 
 // 初期化
