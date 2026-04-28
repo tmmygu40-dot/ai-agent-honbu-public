@@ -58,6 +58,121 @@ if ($ok) {
     }
 }
 
+# (1.9) Quality Gate -- block apps with critical issues BEFORE copy
+if ($ok -and -not $noInputApps -and $apps.Count -gt 0) {
+    $agentPath  = "C:\Users\tmmyg\OneDrive\デスクトップ\AIエージェント本部\バグ健康診断\run_agent.py"
+    $reportPath = "C:\Users\tmmyg\OneDrive\デスクトップ\AIエージェント本部\バグ健康診断\check-report.agent.json"
+    $allowed      = @()
+    $fixed_ok     = 0
+    $fixed_fail   = 0
+    $blocked      = 0
+    $passed       = 0
+    $issueCounts  = @{}
+    foreach ($a in $apps) {
+        $crit     = 0
+        $rep      = $null
+        $fixTried = $false
+        try {
+            & python $agentPath --target $a --no-plan --base $dev | Out-Null
+            if (Test-Path -LiteralPath $reportPath) {
+                $rep  = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+                $crit = [int]$rep.agent_severity_counts.critical
+            }
+        } catch {
+            Write-Host "Quality gate error on $a -- BLOCK for safety" -ForegroundColor Yellow
+            $crit = 999
+        }
+
+        if ($rep -and $rep.issues) {
+            foreach ($i in $rep.issues) {
+                $t = $i.issue_type
+                if (-not $issueCounts.ContainsKey($t)) { $issueCounts[$t] = 0 }
+                $issueCounts[$t]++
+            }
+        }
+
+        # auto-fix retry (1 try only)
+        if ($crit -gt 0 -and $rep -and $rep.issues) {
+            $fixTried = $true
+            Write-Host "FIX TRY: $a" -ForegroundColor Yellow
+            $devIdx = Join-Path (Join-Path $dev $a) "index.html"
+            $issTxt = ($rep.issues | ForEach-Object { "- [$($_.issue_type)/$($_.severity)] $($_.detail)" }) -join "`n"
+            $fixPrompt = @"
+対象ファイル: $devIdx
+
+以下の issue を修正してください:
+$issTxt
+
+ルール:
+- ボタン未バインド / result未書込 / 空関数 / alert のみ などを修正
+- 既存UI や構造は壊さない
+- fav-widget.js / PDF ボタンなど必須要素は保持
+"@
+            try {
+                & claude --dangerously-skip-permissions --print $fixPrompt 2>&1 | Out-Null
+                & python $agentPath --target $a --no-plan --base $dev | Out-Null
+                if (Test-Path -LiteralPath $reportPath) {
+                    $rep2 = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
+                    $crit = [int]$rep2.agent_severity_counts.critical
+                }
+                if ($rep2 -and $rep2.issues) {
+                    foreach ($i in $rep2.issues) {
+                        $t = $i.issue_type
+                        if (-not $issueCounts.ContainsKey($t)) { $issueCounts[$t] = 0 }
+                        $issueCounts[$t]++
+                    }
+                }
+                if ($crit -eq 0) {
+                    Write-Host "FIX OK: $a" -ForegroundColor Green
+                    $fixed_ok++
+                } else {
+                    Write-Host "FIX FAIL: $a (critical=$crit)" -ForegroundColor Red
+                    $fixed_fail++
+                }
+            } catch {
+                Write-Host "FIX FAIL: $a (exception)" -ForegroundColor Red
+                $fixed_fail++
+                $crit = 999
+            }
+        }
+
+        if ($crit -gt 0) {
+            Write-Host "BLOCKED: $a (critical=$crit)" -ForegroundColor Red
+            $blocked++
+        } else {
+            if (-not $fixTried) { $passed++ }
+            $allowed += $a
+        }
+    }
+    $apps = @($allowed)
+
+    Write-Host ""
+    Write-Host "=== Quality Summary ===" -ForegroundColor Cyan
+    Write-Host "PASS: $passed"
+    Write-Host "FIX OK: $fixed_ok"
+    Write-Host "FIX FAIL: $fixed_fail"
+    Write-Host "BLOCKED: $blocked"
+
+    $gateTotal = $passed + $fixed_ok + $blocked
+    if ($gateTotal -gt 0) {
+        $fixRate   = [math]::Round(($fixed_ok / $gateTotal) * 100, 1)
+        $blockRate = [math]::Round(($blocked / $gateTotal) * 100, 1)
+    } else {
+        $fixRate   = 0
+        $blockRate = 0
+    }
+    Write-Host ""
+    Write-Host "=== Quality Rates ===" -ForegroundColor Cyan
+    Write-Host "FIX RATE: $fixRate %"
+    Write-Host "BLOCK RATE: $blockRate %"
+
+    Write-Host ""
+    Write-Host "=== Issue Ranking (Top 5) ===" -ForegroundColor Cyan
+    $issueCounts.GetEnumerator() | Sort-Object -Property Value -Descending | Select-Object -First 5 | ForEach-Object {
+        Write-Host "$($_.Key): $($_.Value)"
+    }
+}
+
 # (2) Copy dev -> pub (skipped in sitemap-refresh mode)
 if ($ok -and -not $noInputApps) {
     foreach ($a in $apps) {
