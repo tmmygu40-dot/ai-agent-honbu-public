@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>敬語変換ジェネレーター</title>
+  <meta name="description" content="タメ語やカジュアル文を入力すると、自動で丁寧な敬語に変換。メール送信前やLINEで困ったときにサッと使えます。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: left;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.1rem; font-weight: 700; letter-spacing: 0; line-height: 1.6; margin-bottom: 0.4rem; padding: 0.8rem; background: rgba(255,255,255,0.5); border-radius: 8px; word-break: break-word; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📝 敬語変換ジェネレーター</h1>
+    <p class="subtitle">タメ語やカジュアル文を入力するだけで、すぐに丁寧な敬語に変換。メール送信前やLINEで困ったときの強い味方です。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="input">変換したい文</label>
+      <textarea id="input" placeholder="例：ちょっと時間ある？明日のミーティング見とけよ"></textarea>
+      <p class="hint">タメ語やカジュアルな文を入力してください</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="convert()">敬語に変換する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">変換結果</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは敬語の基本的なルール変換を参考に、実用的な敬語表現を生成しています。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  function convert() {
+    var input = document.getElementById('input').value.trim();
+    if (!input) { showErr('文を入力してください'); return; }
+
+    var converted = convertToKeigo(input);
+    showResult('ok', converted, 'ビジネスメール・公式な場面でも使える敬語表現に変換しました。');
+  }
+
+  function convertToKeigo(text) {
+    var rules = [
+      // 丁寧さを上げる変換ルール
+      [/ちょっと/g, '少し'],
+      [/やっぱり/g, 'やはり'],
+      [/やっぱし/g, 'やはり'],
+      [/けど(?!も)/g, 'けれども'],
+      [/けれど/g, 'けれども'],
+      [/だから/g, 'ですから'],
+      [/ぐらい/g, '程度'],
+      [/くらい/g, '程度'],
+      [/〜ちゃう/g, '〜てしまう'],
+      [/しちゃう/g, 'してしまう'],
+      [/しちゃった/g, 'してしまった'],
+      [/やっちゃう/g, 'やってしまう'],
+      [/やっちゃった/g, 'やってしまった'],
+      [/ぶっちゃけ/g, '正直'],
+      [/あの[ね]/g, 'あのですね'],
+      [/でさ/g, 'でして'],
+      [/ってさ/g, 'ということで'],
+      [/ね$/gm, 'ね'],
+      [/な$/gm, 'な'],
+    ];
+
+    // 基本的な敬語変換
+    var result = text;
+
+    // 規則ベースの変換
+    for (var i = 0; i < rules.length; i++) {
+      result = result.replace(rules[i][0], rules[i][1]);
+    }
+
+    // 動詞の敬語化
+    result = convertVerbs(result);
+
+    // 終助詞の処理
+    result = convertEndParticles(result);
+
+    return result;
+  }
+
+  function convertVerbs(text) {
+    // タメ語の動詞を敬語に変換
+    var verbRules = [
+      // 「〜てくれ」系 → 「〜てください」
+      [/てくれよ/g, 'てください'],
+      [/てくれ/g, 'てください'],
+      [/くれ/g, 'ください'],
+
+      // 「〜ろ」「〜ろよ」 → 「〜てください」
+      [/ろよ/g, 'てください'],
+      [/ろ$/gm, 'てください'],
+
+      // 「〜た」 → 「〜ました」
+      [/た$/gm, 'ました'],
+      [/だ$/gm, 'です'],
+
+      // 「〜てる」「〜てる」 → 「〜ています」
+      [/てる$/gm, 'ています'],
+      [/てます$/gm, 'ています'],
+
+      // 「〜て」 → 「〜て」（そのまま、ただし前の動詞と一緒に処理）
+      [/（[あ-ん]+）て(?![ぁ-ん])/g, '$1て'],
+
+      // 「〜る」 → 「〜ます」
+      [/る$/gm, 'ます'],
+
+      // 「いる」「いません」
+      [/いません$/gm, 'いません'],
+      [/ない$/gm, 'ません'],
+      [/ぬ$/gm, 'ません'],
+    ];
+
+    var result = text;
+    for (var i = 0; i < verbRules.length; i++) {
+      result = result.replace(verbRules[i][0], verbRules[i][1]);
+    }
+
+    return result;
+  }
+
+  function convertEndParticles(text) {
+    // 終助詞の丁寧な変換
+    var particleRules = [
+      [/ぜ$/gm, 'よ'],
+      [/ぞ$/gm, 'よ'],
+      [/ぜ$/gm, 'ね'],
+    ];
+
+    var result = text;
+    for (var i = 0; i < particleRules.length; i++) {
+      result = result.replace(particleRules[i][0], particleRules[i][1]);
+    }
+
+    return result;
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showErr(msg) {
+    showResult('ng', msg);
+    document.getElementById('result').textContent = msg;
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
