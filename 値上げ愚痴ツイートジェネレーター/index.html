@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>値上げ愚痴ツイートジェネレーター｜怒りをユーモアに変換</title>
+  <meta name="description" content="値上げした商品名と値段を入れるだけで、ユーモア全開の愚痴ツイート文を自動生成。SNSにそのまま貼れて、家計のストレスを笑いに変えて発散できる無料ツールです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果（ツイート）カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .tweet-label {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em;
+      color: var(--accent); margin-bottom: 0.6rem; text-transform: uppercase;
+    }
+    .tweet-text {
+      font-size: 1.05rem; line-height: 1.7; color: var(--text);
+      white-space: pre-wrap; word-wrap: break-word;
+      padding: 0.9rem 1rem; background: var(--accent-light);
+      border-radius: 10px; margin-bottom: 1rem;
+      font-weight: 500;
+    }
+    .tweet-meta {
+      font-size: 0.78rem; color: var(--text-sub);
+      margin-bottom: 0.8rem;
+    }
+    .tweet-actions {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;
+    }
+    .btn-action {
+      padding: 0.7rem 0.5rem; font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-action:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-action.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-action.primary:hover { background: #c46d00; }
+
+    /* ── 履歴カード ── */
+    .history-item {
+      padding: 0.8rem 0.7rem; border-bottom: 1px solid var(--border);
+      display: flex; gap: 0.6rem; align-items: flex-start;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-text {
+      flex: 1; font-size: 0.88rem; line-height: 1.55; color: var(--text);
+      white-space: pre-wrap; word-wrap: break-word;
+    }
+    .history-actions {
+      display: flex; flex-direction: column; gap: 0.3rem; flex-shrink: 0;
+    }
+    .btn-mini {
+      padding: 0.35rem 0.55rem; font-size: 0.72rem; font-weight: 700;
+      background: var(--bg); color: var(--text-sub);
+      border: 1px solid var(--border); border-radius: 7px;
+      cursor: pointer; white-space: nowrap;
+    }
+    .btn-mini:hover { border-color: var(--accent); color: var(--accent); }
+    .empty-msg { font-size: 0.85rem; color: var(--text-sub); text-align: center; padding: 1rem; }
+
+    .toast {
+      position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%);
+      background: var(--text); color: #fff; padding: 0.7rem 1.2rem;
+      border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s;
+      z-index: 100;
+    }
+    .toast.show { opacity: 0.95; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print, .tweet-actions, .history-actions { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>値上げ愚痴ツイートジェネレーター</h1>
+    <p class="subtitle">怒りはユーモアに、ストレスはツイートに。値上げの嘆きを笑いに変える発散ツール</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="item">値上げした商品・サービス名</label>
+      <input type="text" id="item" placeholder="例：板チョコ、牛丼、電気代、推しのグッズ">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="before">前の値段（円）</label>
+        <input type="number" id="before" placeholder="例：120" min="0">
+      </div>
+      <div class="field">
+        <label for="after">今の値段（円）</label>
+        <input type="number" id="after" placeholder="例：180" min="0">
+      </div>
+    </div>
+    <div class="field">
+      <label for="mood">怒りの強さ</label>
+      <select id="mood">
+        <option value="mild">😇 軽く愚痴りたい</option>
+        <option value="medium" selected>😤 そこそこキレ気味</option>
+        <option value="rage">🔥 全力でキレてる</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">ぼやく</button>
+
+  <!-- ツイート結果カード -->
+  <div class="result-card" id="result">
+    <p class="tweet-label">生成された愚痴ツイート</p>
+    <p class="tweet-text" id="tweetText">—</p>
+    <p class="tweet-meta" id="tweetMeta"></p>
+    <div class="tweet-actions">
+      <button class="btn-action primary" onclick="copyTweet()">📋 コピー</button>
+      <button class="btn-action" onclick="generate(true)">🔄 別パターン</button>
+      <button class="btn-action" onclick="saveTweet()">⭐ 保存</button>
+    </div>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card">
+    <p class="card-title">保存した愚痴（最新5件）</p>
+    <div id="historyList"><p class="empty-msg">まだ保存された愚痴はありません</p></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは生成テキストを楽しむためのジョーク用途です。SNS投稿時はマナー・規約をご確認のうえ、節度を持ってご利用ください。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <div class="toast" id="toast">コピーしました</div>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'agueagetweet_history_v1';
+  var currentTweet = '';
+
+  var TEMPLATES = {
+    mild: [
+      '{item}が{before}円から{after}円に…まあコーヒー1杯ガマンすればいいだけよね😇 #値上げ #小さな抵抗',
+      '気付いたら{item}が{after}円。{diff}円アップ。世界はゆっくり値上げの海へ沈んでいく…🌊 #物価上昇',
+      '{item}、しれっと{pct}%値上げしてるんだけど…言ってくれよ事前に。 #ステルス値上げ',
+      '{before}円だった{item}が{after}円。財布が「またですか」と無言で見てくる。 #家計の悲鳴',
+      '昔は{before}円で買えた{item}。今は{after}円。これが大人になるってことか。😌 #時代の流れ'
+    ],
+    medium: [
+      'は？{item}が{after}円？？{before}円じゃなかった？？目を疑った2026年。 #値上げ撲滅委員会',
+      '{item}{pct}%UP。もうこれは値上げじゃなくて第二の税金です。😤 #生活苦',
+      '{item}{diff}円値上げ。家計簿に書きながら泣いた。 #ガチ泣き家計簿',
+      'コンビニで{item}を手に取り、{after}円の表示を見て無言で戻した。{before}円時代の俺はもういない。 #値上げの被害者',
+      '{item}{before}円→{after}円って、ちょっと攻めすぎじゃないですか…？怒りより先に困惑が来る値上げ幅。 #じわじわ来る怒り'
+    ],
+    rage: [
+      'ちょっと待て{item}！{before}→{after}円って何のドッキリ？？？🔥 #値上げ地獄 #生活崩壊',
+      '{item}{pct}%値上げ。これはもう値上げじゃなくて課税。国民投票させろ。😡 #値上げ反対',
+      'はぁぁぁ？{item}が{after}円ぇ？？{before}円のときの良き時代を返して！！！ #値上げ許すまじ',
+      '{item}{diff}円も上がってる…！！！ばら撒く前に、まず物価止めてくれ…！！！💢 #リアル叫び',
+      '{item}{before}円→{after}円。これを値上げと呼ぶには地殻変動レベル。家計が活断層上にある。🌋 #値上げ大震災'
+    ]
+  };
+
+  function generate(rerolling) {
+    var item = document.getElementById('item').value.trim();
+    var before = parseFloat(document.getElementById('before').value);
+    var after = parseFloat(document.getElementById('after').value);
+    var mood = document.getElementById('mood').value;
+
+    if (!item) { showError('商品名を入力してください'); return; }
+    if (isNaN(before) || isNaN(after) || before < 0 || after < 0) {
+      showError('値段を正しく入力してください'); return;
+    }
+    if (after <= before) {
+      showError('値上げ後の値段は前より高くないと愚痴れません…！'); return;
+    }
+
+    var diff = after - before;
+    var pct = before > 0 ? Math.round((diff / before) * 100) : 0;
+
+    var pool = TEMPLATES[mood] || TEMPLATES.medium;
+    var idx = Math.floor(Math.random() * pool.length);
+    var tweet = pool[idx]
+      .replace(/\{item\}/g, item)
+      .replace(/\{before\}/g, fmt(before))
+      .replace(/\{after\}/g, fmt(after))
+      .replace(/\{diff\}/g, fmt(diff))
+      .replace(/\{pct\}/g, pct);
+
+    currentTweet = tweet;
+    document.getElementById('tweetText').textContent = tweet;
+    document.getElementById('tweetMeta').textContent =
+      '値上げ幅 ' + fmt(diff) + '円（' + pct + '%）／文字数 ' + tweet.length + '字';
+    document.getElementById('result').style.display = 'block';
+
+    if (!rerolling) {
+      document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function showError(msg) {
+    currentTweet = '';
+    document.getElementById('tweetText').textContent = '⚠️ ' + msg;
+    document.getElementById('tweetMeta').textContent = '';
+    document.getElementById('result').style.display = 'block';
+  }
+
+  function copyTweet() {
+    if (!currentTweet) { toast('愚痴を生成してください'); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(currentTweet).then(function(){ toast('コピーしました'); },
+        function(){ fallbackCopy(currentTweet); });
+    } else {
+      fallbackCopy(currentTweet);
+    }
+  }
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); toast('コピーしました'); }
+    catch(e) { toast('コピーに失敗しました'); }
+    document.body.removeChild(ta);
+  }
+
+  function saveTweet() {
+    if (!currentTweet) { toast('愚痴を生成してください'); return; }
+    var list = loadHistory();
+    list.unshift({ text: currentTweet, at: Date.now() });
+    if (list.length > 5) list = list.slice(0, 5);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    renderHistory();
+    toast('保存しました');
+  }
+
+  function loadHistory() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch(e) { return []; }
+  }
+
+  function renderHistory() {
+    var list = loadHistory();
+    var box = document.getElementById('historyList');
+    if (list.length === 0) {
+      box.innerHTML = '<p class="empty-msg">まだ保存された愚痴はありません</p>';
+      return;
+    }
+    box.innerHTML = list.map(function(it, i){
+      return '<div class="history-item">' +
+             '<div class="history-text">' + escapeHtml(it.text) + '</div>' +
+             '<div class="history-actions">' +
+               '<button class="btn-mini" onclick="copyHistory(' + i + ')">📋</button>' +
+               '<button class="btn-mini" onclick="deleteHistory(' + i + ')">🗑️</button>' +
+             '</div></div>';
+    }).join('');
+  }
+
+  function copyHistory(i) {
+    var list = loadHistory();
+    if (!list[i]) return;
+    var text = list[i].text;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ toast('コピーしました'); },
+        function(){ fallbackCopy(text); });
+    } else { fallbackCopy(text); }
+  }
+
+  function deleteHistory(i) {
+    var list = loadHistory();
+    list.splice(i, 1);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    renderHistory();
+    toast('削除しました');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 1600);
+  }
+
+  // 初期化
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

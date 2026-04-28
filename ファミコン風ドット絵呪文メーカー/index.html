@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ファミコン風ドット絵呪文メーカー｜AI画像生成プロンプトを即出力</title>
+  <meta name="description" content="キャラや物の特徴を選ぶだけで、ファミコン・8bit風ドット絵をAIに描かせる英語呪文（プロンプト）を即生成。コピーしてStable Diffusion等にそのまま貼れる無料ツールです。">
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--ok); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+      background: var(--ok-bg);
+    }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; text-align: center; }
+    .result-title-jp { font-size: 1.1rem; font-weight: 900; color: var(--ok); text-align: center; margin-bottom: 0.8rem; line-height: 1.4; }
+
+    .spell-box {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1rem;
+      font-family: "Menlo", "Consolas", monospace;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: var(--text);
+      word-break: break-word;
+      white-space: pre-wrap;
+      margin-bottom: 0.6rem;
+    }
+    .spell-label {
+      font-size: 0.72rem; font-weight: 700;
+      color: var(--text-sub); letter-spacing: 0.05em;
+      margin-bottom: 0.3rem;
+      text-transform: uppercase;
+    }
+    .btn-copy {
+      display: block; width: 100%;
+      padding: 0.7rem; margin-bottom: 0.8rem;
+      font-size: 0.92rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 10px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-copy.copied { background: var(--ok); }
+
+    .history-list { width: 100%; }
+    .history-item {
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: var(--text);
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-item:hover { color: var(--accent); }
+    .history-item .h-jp { font-weight: 700; }
+    .history-item .h-meta { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.15rem; }
+    .history-empty { font-size: 0.85rem; color: var(--text-sub); text-align: center; padding: 0.6rem 0; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .btn-copy, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>ファミコン風ドット絵呪文メーカー</h1>
+    <p class="subtitle">特徴を選ぶだけで、AI画像生成用のFC・8bit風ドット絵プロンプト（呪文）を即出力。Stable Diffusion／NovelAI等にそのまま貼れます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">何を描く？</p>
+    <div class="field">
+      <label for="subject">題材（キャラ・物・モチーフ）</label>
+      <input type="text" id="subject" placeholder="例: 勇者、ドラゴン、ハート、宝箱">
+      <p class="hint">日本語でOK。短く具体的に書くほどキレイに出ます。</p>
+    </div>
+    <div class="field">
+      <label for="mood">雰囲気</label>
+      <select id="mood">
+        <option value="cute">かわいい</option>
+        <option value="cool">かっこいい</option>
+        <option value="retro">レトロ</option>
+        <option value="fantasy">ファンタジー</option>
+        <option value="horror">ホラー</option>
+        <option value="cyberpunk">サイバーパンク</option>
+        <option value="comedic">コミカル</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="color">メインカラー</label>
+      <select id="color">
+        <option value="red">赤系</option>
+        <option value="blue">青系</option>
+        <option value="green">緑系</option>
+        <option value="yellow">黄系</option>
+        <option value="purple">紫系</option>
+        <option value="orange">オレンジ系</option>
+        <option value="pink">ピンク系</option>
+        <option value="brown">茶系</option>
+        <option value="mono">モノクロ</option>
+        <option value="rainbow">カラフル</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="size">サイズ・解像度</label>
+      <select id="size">
+        <option value="8">8x8 ピクセル（極小アイコン）</option>
+        <option value="16" selected>16x16 ピクセル（標準スプライト）</option>
+        <option value="32">32x32 ピクセル（中型キャラ）</option>
+        <option value="64">64x64 ピクセル（ボス・大型）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="style">スタイル</label>
+      <select id="style">
+        <option value="nes" selected>ファミコン（NES）風</option>
+        <option value="gb">ゲームボーイ風（4階調モノクロ）</option>
+        <option value="snes">スーパーファミコン（SNES）風</option>
+        <option value="arcade">レトロアーケード風</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="bg">背景</label>
+      <select id="bg">
+        <option value="transparent" selected>透過（PNG用）</option>
+        <option value="solid">単色背景</option>
+        <option value="dungeon">ダンジョン風</option>
+        <option value="grass">草原風</option>
+        <option value="space">宇宙風</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">呪文を生成する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成された呪文</p>
+    <p class="result-title-jp" id="rTitleJp">—</p>
+
+    <p class="spell-label">▼ メイン呪文（英語prompt）</p>
+    <div class="spell-box" id="rPrompt">—</div>
+    <button class="btn-copy" id="copyMain" onclick="copySpell('rPrompt', this)">📋 メイン呪文をコピー</button>
+
+    <p class="spell-label">▼ ネガティブ呪文（除外したい要素）</p>
+    <div class="spell-box" id="rNeg">—</div>
+    <button class="btn-copy" id="copyNeg" onclick="copySpell('rNeg', this)">📋 ネガティブをコピー</button>
+  </div>
+
+  <!-- 履歴 -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">最近の呪文履歴</p>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは Stable Diffusion・NovelAI・Midjourney 等のAI画像生成サービスで「ファミコン風ドット絵」を出すための呪文（プロンプト）を組み立てる補助ツールです。実際の出力は使用するモデル・サービスのバージョンによって変わります。最新の使い方は各サービスの公式ガイドをご確認ください。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var STORAGE_KEY = 'pixel-spell-history-v1';
+  var HISTORY_MAX = 10;
+
+  var MOOD_TXT = {
+    cute: 'cute', cool: 'cool', retro: 'retro', fantasy: 'fantasy',
+    horror: 'creepy horror', cyberpunk: 'cyberpunk neon', comedic: 'comedic playful'
+  };
+  var MOOD_JP = {
+    cute: 'かわいい', cool: 'かっこいい', retro: 'レトロ', fantasy: 'ファンタジー',
+    horror: 'ホラー', cyberpunk: 'サイバーパンク', comedic: 'コミカル'
+  };
+  var COLOR_TXT = {
+    red: 'red dominant color palette', blue: 'blue dominant color palette',
+    green: 'green dominant color palette', yellow: 'yellow dominant color palette',
+    purple: 'purple dominant color palette', orange: 'orange dominant color palette',
+    pink: 'pink dominant color palette', brown: 'brown earth tones',
+    mono: 'monochrome black and white palette', rainbow: 'colorful vibrant palette'
+  };
+  var COLOR_JP = {
+    red: '赤系', blue: '青系', green: '緑系', yellow: '黄系', purple: '紫系',
+    orange: 'オレンジ系', pink: 'ピンク系', brown: '茶系', mono: 'モノクロ', rainbow: 'カラフル'
+  };
+  var STYLE_TXT = {
+    nes: '8-bit pixel art, NES Famicom style, limited 4-color palette per sprite, retro video game graphics, hard pixel edges, no anti-aliasing',
+    gb: '4-shade greenish monochrome pixel art, Game Boy style, low-resolution sprite, classic handheld game aesthetic, no anti-aliasing',
+    snes: '16-bit pixel art, Super Famicom SNES style, rich color palette, detailed sprite work, retro JRPG aesthetic',
+    arcade: 'retro arcade pixel art, 80s arcade game style, bold color palette, chunky pixels, classic CRT vibe'
+  };
+  var STYLE_JP = {
+    nes: 'ファミコン（NES）風', gb: 'ゲームボーイ風', snes: 'スーパーファミコン風', arcade: 'レトロアーケード風'
+  };
+  var BG_TXT = {
+    transparent: 'transparent background, isolated sprite',
+    solid: 'flat solid color background',
+    dungeon: 'retro dungeon background with stone bricks',
+    grass: 'grass field background, retro tileset',
+    space: 'starry space background, pixel stars'
+  };
+  var BG_JP = {
+    transparent: '透過背景', solid: '単色背景', dungeon: 'ダンジョン背景',
+    grass: '草原背景', space: '宇宙背景'
+  };
+  var SIZE_TXT = {
+    '8': '8x8 pixel sprite, ultra tiny icon scale',
+    '16': '16x16 pixel sprite, classic NES sprite scale',
+    '32': '32x32 pixel sprite, medium character scale',
+    '64': '64x64 pixel sprite, large boss character scale'
+  };
+  var NEG_PROMPT = 'realistic, photo, photograph, 3d render, smooth shading, anti-aliasing, blurry, gradient, soft edges, high resolution, detailed shading, modern style, watercolor, oil painting, complex lighting, depth of field';
+
+  function generate() {
+    var subject = (document.getElementById('subject').value || '').trim();
+    if (!subject) { alert('題材（キャラ・物・モチーフ）を入力してください'); return; }
+
+    var mood = document.getElementById('mood').value;
+    var color = document.getElementById('color').value;
+    var size = document.getElementById('size').value;
+    var style = document.getElementById('style').value;
+    var bg = document.getElementById('bg').value;
+
+    var subjectEn = translateSubject(subject);
+
+    var prompt = [
+      STYLE_TXT[style],
+      subjectEn + ', ' + MOOD_TXT[mood],
+      SIZE_TXT[size],
+      COLOR_TXT[color],
+      BG_TXT[bg],
+      'centered composition, clean pixel art, retro game asset, masterpiece pixel art'
+    ].join(', ');
+
+    var titleJp = '【' + STYLE_JP[style] + '】' + subject + '（' + MOOD_JP[mood] + '・' + COLOR_JP[color] + '・' + size + 'x' + size + '）';
+
+    document.getElementById('rTitleJp').textContent = titleJp;
+    document.getElementById('rPrompt').textContent = prompt;
+    document.getElementById('rNeg').textContent = NEG_PROMPT;
+    document.getElementById('result').style.display = 'block';
+
+    // ボタン表示リセット
+    var btnMain = document.getElementById('copyMain');
+    btnMain.textContent = '📋 メイン呪文をコピー';
+    btnMain.classList.remove('copied');
+    var btnNeg = document.getElementById('copyNeg');
+    btnNeg.textContent = '📋 ネガティブをコピー';
+    btnNeg.classList.remove('copied');
+
+    saveHistory({ titleJp: titleJp, prompt: prompt, neg: NEG_PROMPT, ts: Date.now() });
+    renderHistory();
+
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // 簡易な日→英の変換は危険なので、subject はそのまま英文中に使う
+  // ただし全角→半角や引用符削除など最小限の整形のみ
+  function translateSubject(s) {
+    // 危険文字除去（promptインジェクション・改行抑制）
+    var cleaned = s.replace(/[\r\n\t]/g, ' ').replace(/["'`]/g, '').slice(0, 80);
+    return 'a pixel art sprite of "' + cleaned + '"';
+  }
+
+  function copySpell(id, btn) {
+    var text = document.getElementById(id).textContent;
+    if (!navigator.clipboard) {
+      // フォールバック
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      flashCopied(btn);
+      return;
+    }
+    navigator.clipboard.writeText(text).then(function(){
+      flashCopied(btn);
+    }).catch(function(){
+      alert('コピーに失敗しました。手動で選択してコピーしてください。');
+    });
+  }
+  function flashCopied(btn) {
+    var orig = btn.textContent;
+    btn.textContent = '✅ コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(function(){
+      btn.textContent = orig.replace('✅ コピーしました！', '');
+      btn.classList.remove('copied');
+    }, 1600);
+  }
+
+  function loadHistory() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch (e) { return []; }
+  }
+  function saveHistory(item) {
+    var list = loadHistory();
+    list.unshift(item);
+    if (list.length > HISTORY_MAX) list = list.slice(0, HISTORY_MAX);
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+  }
+  function renderHistory() {
+    var list = loadHistory();
+    var card = document.getElementById('historyCard');
+    var box = document.getElementById('historyList');
+    if (!list.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    box.innerHTML = list.map(function(it, i){
+      var d = new Date(it.ts);
+      var meta = (d.getMonth()+1) + '/' + d.getDate() + ' ' + ('0'+d.getHours()).slice(-2) + ':' + ('0'+d.getMinutes()).slice(-2);
+      return '<div class="history-item" onclick="restoreHistory(' + i + ')">'
+           + '<div class="h-jp">' + escapeHtml(it.titleJp) + '</div>'
+           + '<div class="h-meta">' + meta + '</div></div>';
+    }).join('');
+  }
+  function restoreHistory(i) {
+    var list = loadHistory();
+    var it = list[i]; if (!it) return;
+    document.getElementById('rTitleJp').textContent = it.titleJp;
+    document.getElementById('rPrompt').textContent = it.prompt;
+    document.getElementById('rNeg').textContent = it.neg;
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  // 初期表示
+  renderHistory();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
