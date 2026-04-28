@@ -100,7 +100,11 @@ document.getElementById('addBtn').addEventListener('click', () => {
   if (drinkSelect.value === 'custom') {
     name = document.getElementById('customName').value.trim() || 'カスタム';
     mg   = parseInt(document.getElementById('customMg').value, 10);
-    if (!mg || mg < 1) { alert('1杯のカフェイン量（mg）を入力してください'); return; }
+    if (!mg || mg < 1) {
+      document.getElementById('addError').textContent = '1杯のカフェイン量（mg）を入力してください';
+      return;
+    }
+    document.getElementById('addError').textContent = '';
   } else {
     const d = DRINKS[drinkSelect.value];
     name = d.name;

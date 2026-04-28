@@ -19,16 +19,24 @@ function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
 }
 
+// --- エラー表示 ---
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
 // --- カード追加 ---
 function addCard() {
   const name = document.getElementById('cardName').value.trim();
   const limit = parseInt(document.getElementById('cardLimit').value, 10);
   const used = parseInt(document.getElementById('cardUsed').value, 10);
 
-  if (!name) { alert('カード名を入力してください'); return; }
-  if (isNaN(limit) || limit <= 0) { alert('利用限度額を正しく入力してください'); return; }
-  if (isNaN(used) || used < 0) { alert('利用額を正しく入力してください'); return; }
-  if (used > limit) { alert('利用額が限度額を超えています'); return; }
+  if (!name) { showError('カード名を入力してください'); return; }
+  if (isNaN(limit) || limit <= 0) { showError('利用限度額を正しく入力してください'); return; }
+  if (isNaN(used) || used < 0) { showError('利用額を正しく入力してください'); return; }
+  if (used > limit) { showError('利用額が限度額を超えています'); return; }
+  showError('');
 
   cards.push({ id: Date.now(), name, limit, used });
   save();

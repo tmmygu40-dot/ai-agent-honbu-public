@@ -152,8 +152,10 @@ document.getElementById('addBtn').addEventListener('click', () => {
   const direction = document.getElementById('direction').value;
   const memo = document.getElementById('memo').value.trim();
 
+  const msgEl = document.getElementById('addMsg');
   if (!partner || !giftContent || !amount || !giftDate) {
-    alert('相手・内容・金額・日付は必須です');
+    msgEl.textContent = '⚠ 相手・内容・金額・日付は必須です';
+    msgEl.style.color = '#d9534f';
     return;
   }
 
@@ -171,6 +173,9 @@ document.getElementById('addBtn').addEventListener('click', () => {
   gifts.push(gift);
   saveGifts();
   render();
+
+  msgEl.textContent = `✅ ${partner} への記録を追加しました`;
+  msgEl.style.color = '#4caf80';
 
   // フォームをリセット
   document.getElementById('partner').value = '';

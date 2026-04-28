@@ -80,13 +80,27 @@ function renderRanking() {
   `).join('');
 }
 
+function showMsg(type, text) {
+  const err = document.getElementById('errorMsg');
+  const suc = document.getElementById('successMsg');
+  if (type === 'error') {
+    err.textContent = text;
+    err.style.display = 'block';
+    suc.style.display = 'none';
+  } else {
+    suc.textContent = text;
+    suc.style.display = 'block';
+    err.style.display = 'none';
+  }
+}
+
 function addClaim() {
   const content = document.getElementById('content').value.trim();
   const cause = document.getElementById('cause').value.trim();
   const status = document.getElementById('status').value;
 
   if (!content) {
-    alert('クレーム内容を入力してください');
+    showMsg('error', 'クレーム内容を入力してください');
     return;
   }
 
@@ -101,6 +115,7 @@ function addClaim() {
   claims.unshift(claim);
   save();
   clearForm();
+  showMsg('success', 'クレームを登録しました');
   renderList();
 }
 
