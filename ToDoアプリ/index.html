@@ -85,6 +85,41 @@
       return tasks;
     }
 
+    function startEdit(id) {
+      const li = document.querySelector(`li[data-id="${id}"]`);
+      if (!li || li.querySelector('.edit-input')) return;
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+      const span = li.querySelector('.task-text');
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'edit-input';
+      input.value = task.text;
+      input.maxLength = 100;
+      span.replaceWith(input);
+      input.focus();
+
+      function commitEdit() {
+        const newText = input.value.trim();
+        if (newText) task.text = newText;
+        saveTasks();
+        render();
+      }
+      input.addEventListener('blur', commitEdit);
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { input.blur(); }
+        if (e.key === 'Escape') { task.text = task.text; render(); }
+      });
+    }
+
+    function handleDeleteClick(e) {
+      const btn = e.target.closest('button.delete-btn[data-action="delete"]');
+      if (!btn) return;
+      const li = btn.closest('li[data-id]');
+      if (!li) return;
+      deleteTask(Number(li.dataset.id));
+    }
+
     function render() {
       const list = document.getElementById('taskList');
       const filtered = getFilteredTasks();
@@ -95,7 +130,7 @@
         list.innerHTML = filtered.map(task => `
           <li class="${task.done ? 'done' : ''}" data-id="${task.id}">
             <div class="task-check" data-action="toggle"></div>
-            <span class="task-text">${escapeHtml(task.text)}</span>
+            <span class="task-text" title="ダブルクリックで編集">${escapeHtml(task.text)}</span>
             <button class="delete-btn" data-action="delete" title="削除">×</button>
           </li>
         `).join('');
@@ -130,14 +165,23 @@
       }
     });
 
-    // イベント：リスト内のチェック・削除（イベント委譲）
+    // イベント：削除ボタン（明示的バインド）
+    document.getElementById('taskList').addEventListener('click', handleDeleteClick);
+
+    // イベント：チェック（イベント委譲）
     document.getElementById('taskList').addEventListener('click', e => {
       const li = e.target.closest('li[data-id]');
       if (!li) return;
       const id = Number(li.dataset.id);
-      const action = e.target.closest('[data-action]')?.dataset.action;
-      if (action === 'toggle') toggleTask(id);
-      if (action === 'delete') deleteTask(id);
+      if (e.target.closest('[data-action="toggle"]')) toggleTask(id);
+    });
+
+    // イベント：タスクテキストのダブルクリックで編集
+    document.getElementById('taskList').addEventListener('dblclick', e => {
+      const span = e.target.closest('.task-text');
+      if (!span) return;
+      const li = span.closest('li[data-id]');
+      if (li) startEdit(Number(li.dataset.id));
     });
 
     // イベント：フィルターボタン
