@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="話題タグと感情ラベルを選ぶだけで、SNSでウケるボケ・共感フレーズが3秒で生成できるWebアプリ。X・TikTok・Instagram投稿に使えるネタが即座に量産できます。">
+  <title>💭 SNSネタフレーズメーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力・選択 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── タグ選択（複数選可） ── */
+    .tag-group { margin-bottom: 1rem; }
+    .tag-group label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.5rem; }
+    .tag-buttons { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+    .tag-btn {
+      padding: 0.5rem 1rem; border: 1.5px solid var(--border);
+      border-radius: 20px; background: var(--bg); color: var(--text);
+      font-size: 0.85rem; font-weight: 600; cursor: pointer;
+      transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+    }
+    .tag-btn:active, .tag-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.4; margin-bottom: 0.6rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: block; margin: 0.8rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💭 SNSネタフレーズメーカー</h1>
+    <p class="subtitle">タグと感情を選ぶだけで、バズるボケ・共感フレーズがサッと3秒で作れます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">選択</p>
+    <div class="tag-group">
+      <label>話題タグ（複数選べます）</label>
+      <div class="tag-buttons" id="tags"></div>
+    </div>
+    <div class="tag-group">
+      <label>感情ラベル（複数選べます）</label>
+      <div class="tag-buttons" id="emotions"></div>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">フレーズを生成する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card ok" id="result">
+    <p class="result-label">生成されたフレーズ</p>
+    <p class="result-value" id="rv">—</p>
+    <button class="btn-copy" onclick="copyPhrase()">📋 コピーする</button>
+  </div>
+
+  <!-- 広告枠（仮・将来差し替え予定。広告コードは未実装。結果と補足を見た後の位置に配置） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── タグ・感情・フレーズデータ ──
+  var tags = ['恋愛', '推し活', '仕事', '人間関係', '家計', 'ライフハック', '自分磨き', '日常ネタ'];
+  var emotions = ['笑える', '共感', 'びっくり', 'モチベーション', 'ほっこり'];
+
+  var phraseData = {
+    '恋愛_笑える': ['また値上げ？',  'ツッコミ待ってます', 'これが恋なんですね'],
+    '恋愛_共感': ['それな、わかる…', '同じ気持ちのあなたへ', '恋のあるあるすぎて泣ける'],
+    '恋愛_びっくり': ['えっ、待ってください!', 'ここからが本番です', '予想外の展開'],
+    '恋愛_モチベーション': ['諦めるな、応援してる', 'あなたなら大丈夫', '頑張る理由がここにある'],
+    '恋愛_ほっこり': ['心がほっこり', '大事にしたい気持ち', 'ほんとに好き'],
+    '推し活_笑える': ['推し活で貧乏確定', 'オタクあるある', '月の小遣いが…'],
+    '推し活_共感': ['推しのために頑張ってる', '推しへの愛は無限', '推し活が生きがい'],
+    '推し活_びっくり': ['推しが予想外の行動！', 'ファンの期待を上回った', '衝撃の新展開'],
+    '推し活_モチベーション': ['推しのために頑張ろう', '推しを応援し続ける', '推しの夢を応援してる'],
+    '推し活_ほっこり': ['推しの笑顔が全て', '推しとの推し活が宝物', '推し活のおかげで幸せ'],
+    '仕事_笑える': ['仕事あるあるだ…', 'これが現実？笑', 'あるあるすぎて共感します'],
+    '仕事_共感': ['頑張ってる人へ', '同じく大変です', 'それな、同じ立場です'],
+    '仕事_びっくり': ['仕事で意外な出来事！', 'ここからが本当のスタート', '予想を大きく上回った'],
+    '仕事_モチベーション': ['頑張る力をもらった', 'やる気が湧いてきた', 'これが仕事の醍醐味'],
+    '仕事_ほっこり': ['頑張った自分をほめたい', 'チームワークって素晴らしい', 'この職場好きだな'],
+    '人間関係_笑える': ['友達あるある', 'ここまで来たら笑うしかない', 'これが友情だ'],
+    '人間関係_共感': ['誰もが経験する', 'わかってくれる人いる？', 'こんな時ありますよね'],
+    '人間関係_びっくり': ['人間関係で衝撃展開！', '予想外の展開です', 'ここからが真の関係'],
+    '人間関係_モチベーション': ['人を信じることって大切', 'いい人間関係ってこれ', '相手のために頑張ろう'],
+    '人間関係_ほっこり': ['人の優しさにほっこり', 'こういう繋がりが好き', 'これが人間関係の温もり'],
+    '家計_笑える': ['家計が…笑', 'お金がない人あるある', '給料日までの戦い'],
+    '家計_共感': ['家計やりくり頑張ってます', 'みんなで頑張ろう', 'こういう時ありますよね'],
+    '家計_びっくり': ['家計に衝撃！', '予想外の出費が…', 'ここが勝負どころ'],
+    '家計_モチベーション': ['家計改善頑張ろう', 'これからが本番です', 'やり方を変えてみる'],
+    '家計_ほっこり': ['工夫で生まれた時間', 'やりくりの工夫が報われた', 'シンプル生活って素敵'],
+    'ライフハック_笑える': ['このテク知りませんでした', 'え、そんな方法が？', 'これ目からウロコ'],
+    'ライフハック_共感': ['誰もが悩む問題', 'こんな工夫があったんだ', '同じこと考えてた'],
+    'ライフハック_びっくり': ['人生が変わる発見！', '衝撃の事実', 'これは試す価値あり'],
+    'ライフハック_モチベーション': ['人生が楽になった', 'これからも活用しよう', 'やり方を変えてみた'],
+    'ライフハック_ほっこり': ['毎日が楽になった', 'こういう工夫が好き', 'シンプルが一番'],
+    '自分磨き_笑える': ['自分磨き初心者です', '続けるのが難しい', 'あるあるですよね'],
+    '自分磨き_共感': ['頑張ってる人へ', 'みんなで頑張ろう', 'あなたなら大丈夫'],
+    '自分磨き_びっくり': ['自分磨きで人生変わった', '衝撃の変化です', 'ここが転機でした'],
+    '自分磨き_モチベーション': ['自分磨き頑張ろう', 'より良い自分へ', 'これが自分の目標'],
+    '自分磨き_ほっこり': ['努力が報われた', '少しずつ成長してる', 'この過程が好き'],
+    '日常ネタ_笑える': ['日常あるあるだ', 'これ誰もが経験してる', 'ここまで来たら笑うしかない'],
+    '日常ネタ_共感': ['同じこと考えてた', '誰もが感じてること', 'こんな時ありますよね'],
+    '日常ネタ_びっくり': ['日常の衝撃発見', '予想外でした', 'これは試す価値ありですね'],
+    '日常ネタ_モチベーション': ['毎日を大切にしよう', 'こういう時間って素敵', 'やる気が湧いてきた'],
+    '日常ネタ_ほっこり': ['日常のほっこり', 'こういう瞬間が好き', '毎日が幸せ']
+  };
+
+  var selectedTags = [];
+  var selectedEmotions = [];
+  var lastPhrase = '';
+
+  // ── タグ・感情ボタンを生成 ──
+  function initUI() {
+    var tagHTML = tags.map(t => '<button class="tag-btn" onclick="toggleTag(\'' + t + '\')">' + t + '</button>').join('');
+    document.getElementById('tags').innerHTML = tagHTML;
+    var emotionHTML = emotions.map(e => '<button class="tag-btn" onclick="toggleEmotion(\'' + e + '\')">' + e + '</button>').join('');
+    document.getElementById('emotions').innerHTML = emotionHTML;
+    loadData();
+  }
+
+  // ── タグ選択 ──
+  function toggleTag(tag) {
+    var idx = selectedTags.indexOf(tag);
+    if (idx === -1) {
+      selectedTags.push(tag);
+    } else {
+      selectedTags.splice(idx, 1);
+    }
+    updateUI();
+  }
+
+  // ── 感情選択 ──
+  function toggleEmotion(emotion) {
+    var idx = selectedEmotions.indexOf(emotion);
+    if (idx === -1) {
+      selectedEmotions.push(emotion);
+    } else {
+      selectedEmotions.splice(idx, 1);
+    }
+    updateUI();
+  }
+
+  // ── UI更新（ボタンのactive状態） ──
+  function updateUI() {
+    var btns = document.querySelectorAll('.tag-btn');
+    btns.forEach(btn => {
+      var txt = btn.textContent;
+      if (selectedTags.includes(txt) || selectedEmotions.includes(txt)) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    saveData();
+  }
+
+  // ── フレーズ生成 ──
+  function generate() {
+    if (selectedTags.length === 0 || selectedEmotions.length === 0) {
+      showResult('タグと感情を1つ以上選んでください');
+      return;
+    }
+
+    // ランダムにタグと感情を1つずつ選ぶ
+    var tag = selectedTags[Math.floor(Math.random() * selectedTags.length)];
+    var emotion = selectedEmotions[Math.floor(Math.random() * selectedEmotions.length)];
+    var key = tag + '_' + emotion;
+
+    if (phraseData[key] && phraseData[key].length > 0) {
+      var phrases = phraseData[key];
+      lastPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+      showResult(lastPhrase);
+    } else {
+      showResult('フレーズが見つかりません');
+    }
+  }
+
+  // ── 結果表示 ──
+  function showResult(msg) {
+    var rc = document.getElementById('result');
+    rc.style.display = '';
+    document.getElementById('rv').textContent = msg;
+  }
+
+  // ── コピー ──
+  function copyPhrase() {
+    if (!lastPhrase) {
+      alert('先にフレーズを生成してください');
+      return;
+    }
+    navigator.clipboard.writeText(lastPhrase).then(function() {
+      alert('コピーしました！');
+    }).catch(function(err) {
+      alert('コピーに失敗しました');
+    });
+  }
+
+  // ── localStorage 保存 ──
+  function saveData() {
+    var data = { tags: selectedTags, emotions: selectedEmotions };
+    localStorage.setItem('phrase-maker-state', JSON.stringify(data));
+  }
+
+  // ── localStorage 読み込み ──
+  function loadData() {
+    var stored = localStorage.getItem('phrase-maker-state');
+    if (stored) {
+      try {
+        var data = JSON.parse(stored);
+        selectedTags = data.tags || [];
+        selectedEmotions = data.emotions || [];
+        updateUI();
+      } catch (e) {}
+    }
+  }
+
+  // ── ページロード時に初期化 ──
+  window.addEventListener('load', initUI);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
