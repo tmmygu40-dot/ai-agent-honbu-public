@@ -231,6 +231,13 @@ function render() {
   renderList(activeSns);
 }
 
+function showMsg(text, isError) {
+  const el = document.getElementById('msg');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'msg-area ' + (isError ? 'msg-error' : 'msg-ok');
+}
+
 // フォーム送信
 document.getElementById('addBtn').addEventListener('click', () => {
   const snsName = document.getElementById('snsName').value.trim();
@@ -238,13 +245,14 @@ document.getElementById('addBtn').addEventListener('click', () => {
   const date = document.getElementById('recordDate').value;
 
   if (!snsName || !count || !date) {
-    alert('SNS名・フォロワー数・日付をすべて入力してください');
+    showMsg('SNS名・フォロワー数・日付をすべて入力してください', true);
     return;
   }
   if (parseInt(count, 10) < 0) {
-    alert('フォロワー数は0以上を入力してください');
+    showMsg('フォロワー数は0以上を入力してください', true);
     return;
   }
+  showMsg('記録を追加しました', false);
 
   const wasEmpty = getSnsNames().length === 0;
   addRecord(snsName, count, date);

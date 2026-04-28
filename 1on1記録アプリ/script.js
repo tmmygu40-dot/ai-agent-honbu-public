@@ -44,19 +44,19 @@ function updateMemberSelects() {
 }
 
 // --- 部下追加 ---
-document.getElementById('add-member-btn').addEventListener('click', () => {
+function addMember() {
   const input = document.getElementById('member-input');
   const name = input.value.trim();
   if (!name) return;
   if (members.includes(name)) {
-    alert('同じ名前がすでに登録されています');
+    showMsg('member-msg', '同じ名前がすでに登録されています', true);
     return;
   }
   members.push(name);
   saveData();
   renderMembers();
   input.value = '';
-});
+}
 
 document.getElementById('member-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('add-member-btn').click();
@@ -85,15 +85,15 @@ function setTodayDate() {
 }
 
 // --- 面談記録追加 ---
-document.getElementById('add-record-btn').addEventListener('click', () => {
+function addRecord() {
   const member = document.getElementById('record-member-select').value;
   const date = document.getElementById('record-date').value;
   const content = document.getElementById('record-content').value.trim();
   const action = document.getElementById('record-action').value.trim();
 
-  if (!member) { alert('部下を選んでください'); return; }
-  if (!date) { alert('面談日を入力してください'); return; }
-  if (!content) { alert('面談内容を入力してください'); return; }
+  if (!member) { showMsg('record-msg', '部下を選んでください', true); return; }
+  if (!date) { showMsg('record-msg', '面談日を入力してください', true); return; }
+  if (!content) { showMsg('record-msg', '面談内容を入力してください', true); return; }
 
   const record = {
     id: Date.now(),
@@ -110,8 +110,8 @@ document.getElementById('add-record-btn').addEventListener('click', () => {
   document.getElementById('record-content').value = '';
   document.getElementById('record-action').value = '';
   setTodayDate();
-  alert('記録しました');
-});
+  showMsg('record-msg', '記録しました');
+}
 
 // --- 履歴描画 ---
 function renderHistory() {
@@ -177,6 +177,16 @@ document.getElementById('history-list').addEventListener('change', e => {
 
 // 絞り込み
 document.getElementById('filter-member').addEventListener('change', renderHistory);
+
+// --- メッセージ表示 ---
+function showMsg(id, text, isError = false) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'status-msg ' + (isError ? 'status-error' : 'status-ok');
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.textContent = ''; el.className = 'status-msg'; }, 3000);
+}
 
 // --- ユーティリティ ---
 function escHtml(str) {

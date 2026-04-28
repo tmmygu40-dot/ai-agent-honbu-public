@@ -14,17 +14,20 @@ postDateEl.value = new Date().toISOString().split('T')[0];
 let posts = loadPosts();
 renderList();
 
+const formError = document.getElementById('formError');
+
 addBtn.addEventListener('click', () => {
   const date = postDateEl.value;
   const platform = platformEl.value;
   const memo = memoEl.value.trim();
 
+  formError.textContent = '';
   if (!date) {
-    alert('投稿日を入力してください。');
+    formError.textContent = '投稿日を入力してください。';
     return;
   }
   if (!memo) {
-    alert('内容メモを入力してください。');
+    formError.textContent = '内容メモを入力してください。';
     return;
   }
 
@@ -40,6 +43,7 @@ addBtn.addEventListener('click', () => {
   savePosts();
   renderList();
 
+  formError.textContent = '';
   memoEl.value = '';
   postDateEl.value = new Date().toISOString().split('T')[0];
 });

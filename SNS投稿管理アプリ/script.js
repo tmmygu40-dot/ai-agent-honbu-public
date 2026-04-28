@@ -127,38 +127,6 @@ function deletePost(id) {
   renderPosts();
 }
 
-// イベントリスナー
-document.getElementById('addBtn').addEventListener('click', addPost);
-
-document.getElementById('postList').addEventListener('click', e => {
-  const statusBadge = e.target.closest('.status-badge');
-  if (statusBadge) {
-    toggleStatus(statusBadge.dataset.id);
-    return;
-  }
-
-  const deleteBtn = e.target.closest('.btn-delete');
-  if (deleteBtn) {
-    deletePost(deleteBtn.dataset.id);
-  }
-});
-
-document.querySelectorAll('.filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentFilter = btn.dataset.filter;
-    renderPosts();
-  });
-});
-
-// Enterキーで登録（Ctrl+Enter）
-document.getElementById('postContent').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-    addPost();
-  }
-});
-
 // 初期化
 loadPosts();
 renderPosts();

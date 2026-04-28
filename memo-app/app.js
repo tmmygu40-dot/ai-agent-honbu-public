@@ -10,9 +10,6 @@ const STORAGE_KEY = 'simple-memo-list';
 document.addEventListener('DOMContentLoaded', function () {
   renderMemos();
 
-  // 「追加する」ボタンを押したときの動き
-  document.getElementById('addBtn').addEventListener('click', addMemo);
-
   // Ctrl + Enter でも追加できるようにする
   document.getElementById('memoInput').addEventListener('keydown', function (e) {
     if (e.ctrlKey && e.key === 'Enter') {
