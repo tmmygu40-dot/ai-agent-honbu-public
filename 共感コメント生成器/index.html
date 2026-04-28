@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="友達の愚痴LINEに刺さる共感コメントを5本ワンタップ生成。ジャンルとトーンを選ぶだけで、寄り添い系・笑い飛ばし系・真剣同調系のリアクションフレーズが量産できます。">
+  <title>共感コメント生成器｜友達の愚痴に刺さるリアクションフレーズ</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* フレーズリスト */
+    .phrase-item {
+      display: flex; align-items: stretch; gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .phrase-item:last-child { border-bottom: none; }
+    .phrase-text {
+      flex: 1; padding: 0.85rem 0.6rem;
+      font-size: 0.96rem; line-height: 1.55; color: var(--text);
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .phrase-text:active { background: var(--accent-light); }
+    .phrase-fav {
+      flex-shrink: 0; width: 44px;
+      background: transparent; border: none; cursor: pointer;
+      font-size: 1.2rem; color: #d4d4d4;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .phrase-fav.on { color: var(--accent); }
+
+    .copy-toast {
+      position: fixed; left: 50%; bottom: 2rem;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(28,25,23,0.92); color: #fff;
+      padding: 0.6rem 1.1rem; border-radius: 999px;
+      font-size: 0.85rem; font-weight: 600;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 100;
+    }
+    .copy-toast.show {
+      opacity: 1; transform: translateX(-50%) translateY(0);
+    }
+
+    .empty-note {
+      font-size: 0.85rem; color: var(--text-sub);
+      text-align: center; padding: 0.8rem 0;
+    }
+
+    .btn-ghost {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 0.8rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 1.5px solid var(--accent); border-radius: var(--radius);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-ghost:active { background: var(--accent-light); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-ghost, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>共感コメント生成器</h1>
+    <p class="subtitle">友達の愚痴LINEに刺さるリアクションフレーズを、ジャンル×トーンで5本ワンタップ量産</p>
+  </header>
+
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="genre">愚痴のジャンル</label>
+      <select id="genre">
+        <option value="work">仕事</option>
+        <option value="relation">人間関係</option>
+        <option value="love">恋愛</option>
+        <option value="family">家族</option>
+        <option value="mood">なんとなく不調</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="tone">共感トーン</label>
+      <select id="tone">
+        <option value="warm">やさしく寄り添う</option>
+        <option value="laugh">ノリで笑い飛ばす</option>
+        <option value="serious">真剣に同調</option>
+      </select>
+      <p class="hint">フレーズをタップするとコピー、★でお気に入り保存</p>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generate()">共感フレーズを生成する</button>
+
+  <div class="card" id="result-card" style="display:none">
+    <p class="card-title">共感フレーズ 5本</p>
+    <div id="phrase-list"></div>
+    <button class="btn-ghost" style="margin-top:1rem" onclick="generate()">もう一回生成する</button>
+  </div>
+
+  <div class="card" id="fav-card" style="display:none">
+    <p class="card-title">お気に入り</p>
+    <div id="fav-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    💬 このツールは個人利用向けの共感フレーズ生成ツールです。実在の友人や状況とは関係ない一般的な定型句を返します。深刻な悩みは公的な相談窓口もご活用ください。
+  </p>
+
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <div class="copy-toast" id="toast">コピーしました</div>
+
+  <script>
+  var FAV_KEY = 'kyoukan_favs_v1';
+
+  var POOL = {
+    work: {
+      warm: [
+        'それは本当にお疲れさま、ちゃんと頑張ってるの伝わってるよ',
+        '無理しないで大丈夫、今日は早めに休もう',
+        'そんなに抱え込ませるその職場が悪いよ、あなたのせいじゃない',
+        '読んでて私まで疲れた、よく踏ん張ってるね',
+        '言葉にしてくれてありがとう、ちゃんと聞いてるよ',
+        'その状況で笑顔でいられるあなた、もう十分すごい',
+        '今日くらい甘いもの食べていいよ、頑張った自分にご褒美',
+        'まずは深呼吸ね、味方ここにいるよ'
+      ],
+      laugh: [
+        'やば、それもう労基案件では？w',
+        '上司の取扱説明書、誰か頼むから書いてくれ〜',
+        'お疲れすぎてもう何が楽しいのか分からんやつね、わかる',
+        '会社、今すぐ私が燃やしておこうか？（比喩）',
+        'えっそれ給料発生してる？慰謝料の間違いじゃ',
+        'そのうち伝説の社員として語り継がれるよ、生きてれば',
+        'もう開き直って「定時帰り選手権」優勝目指そ',
+        'ストレス、そろそろ可視化して棚に並べたいレベル'
+      ],
+      serious: [
+        'それは普通におかしい状況だと思う、自分を責めないで',
+        '客観的に見て、あなたは十分すぎるほどやってる',
+        '体調や睡眠は大丈夫？ちゃんと自分のこと見てあげて',
+        '一回信頼できる人に相談したほうがいいレベルかもしれない',
+        '辞める辞めないは別として、選択肢は持っていていいと思う',
+        '今のあなたの感覚、ちゃんと正しいと思うよ',
+        'その負担、ひとりで持つ重さじゃないからね',
+        '記録は残しておいたほうがいい、念のため'
+      ]
+    },
+    relation: {
+      warm: [
+        'それは傷つくよね、感じたあなたの気持ちが正解だよ',
+        '気にしすぎじゃないよ、十分すぎるくらいよく我慢してる',
+        '言いにくかっただろうに、話してくれてありがとう',
+        'そんなふうに思える優しさ、ちゃんとあなたの宝物だよ',
+        '距離を取るのも立派な選択、自分を守っていいんだよ',
+        '味方ここにいるからね、安心して吐き出していいよ',
+        'あなたが悪いわけじゃないって、私はちゃんと分かってる',
+        'ゆっくりでいいから、無理しないで'
+      ],
+      laugh: [
+        'えっそれ人間？妖怪じゃない？図鑑に載せよ',
+        'そういう人は人生で「クセ強NPC」として処理しよ',
+        'もうブロック機能、リアル世界にも実装してほしいよね',
+        '関わると体力が漏れるタイプ、距離は健康のために必要',
+        'そいつのターン、無視で終わらせていいやつ',
+        '人間ガチャ、今回はSSR外れだったね、次に期待',
+        '「は？」を3回言っていいよ、私も一緒に言う',
+        'もう絡まれたらBGMだと思って流そ'
+      ],
+      serious: [
+        'それはあなたの感じ方が正しいと思う、流さなくていい',
+        '我慢で関係をつなぐのは、もうやめてもいい段階かも',
+        '言葉にして整理できたなら大事な一歩、よくやった',
+        '相手を変えるのは難しい、自分の距離だけ見直そう',
+        'ちゃんと線引きしていい、それは冷たさじゃないよ',
+        'あなたの優しさを当然みたいに使う人は、距離取って正解',
+        '言わない選択も尊重されるべき、無理に説明しなくていい',
+        'その違和感はサイン、軽く見ない方がいい'
+      ]
+    },
+    love: {
+      warm: [
+        'その気持ち、ちゃんと大事にしていいやつだよ',
+        '泣きたい時は泣いていい、ぜんぶ受け止めてくれる夜だよ',
+        '好きだったから苦しいんだよね、ちゃんと愛してた証',
+        'あなたが選んだ気持ちはぜんぶ間違ってないよ',
+        'ゆっくり時間かけていい、急いで切り替えなくていい',
+        '一人の夜は寂しいけど、ちゃんと味方ここにいるからね',
+        '次のことなんて今日は考えなくていい、今日は休も',
+        'よく頑張ったね、抱きしめたい'
+      ],
+      laugh: [
+        'その男（女）、賞味期限切れてたんだって、もう次行こ',
+        '忘却の儀、今夜カラオケで全力で執り行うよ',
+        '推しに課金しよ、推しは裏切らない（たぶん）',
+        '元〇〇は「過去問」フォルダに入れて封印しよ',
+        '今日は爆食いの日です、カロリーは恋に勝つ',
+        '見る目あった私すごい、見る目なかった相手アホ、以上！',
+        'タロット引こ、占いに「次行け」って書いてあるよ絶対',
+        '泣きながら焼肉、人生の正しい使い方'
+      ],
+      serious: [
+        'それは無理せず、しっかり休んでいい時期だと思う',
+        '気持ちに区切りをつけるのに正解の早さなんてないよ',
+        '自分を責める言葉だけは、今は使わないであげて',
+        '思い出が美化されるのは普通のこと、惑わされなくていい',
+        '一人で抱えすぎてないか、たまに自分に確認してね',
+        '誰にも言えない夜は、書き出すだけでも軽くなるよ',
+        '相手の都合に振り回されなくていい、もう十分尽くした',
+        '次の幸せを急がないで、今のあなたを大事にして'
+      ]
+    },
+    family: {
+      warm: [
+        '家族って近いぶん一番疲れるよね、本当にお疲れさま',
+        '言いたくても言えない気持ち、ぜんぶ分かるよ',
+        '我慢してきた分、ここでは吐き出していいからね',
+        'あなたはもう十分よくやってる、これ以上頑張らなくていい',
+        '距離を取るのは親不孝じゃない、自分を守る大事な選択',
+        '家のことで泣くの、誰にも言えなかったよね、大丈夫だよ',
+        'あなたの感じ方、間違ってないよ',
+        '今日はちょっとだけ自分を甘やかしてあげて'
+      ],
+      laugh: [
+        '家族カオスすぎてもう一周回って大河ドラマよね',
+        '実家の妖怪、今年も健在ですね…ご祈祷案件',
+        '「親はこういうもの」って呪いの文言、もう脱げ脱げ',
+        'もう「家庭内Wi-Fi」だけ繋がってればOKってことで',
+        '盆と正月の試練、今年もパス権発動でいこ',
+        '兄弟ガチャ、引き直したいよねガチで',
+        '実家滞在は2泊までと法律で決めてほしい',
+        '帰省後の脱力、もはや筋肉痛と同じ扱いでいい'
+      ],
+      serious: [
+        '家族問題は罪悪感が強くなるけど、距離を取っていいよ',
+        '近い関係ほど線引きが必要、それは冷たさじゃない',
+        '自分の人生を優先していい、もう小さな子供じゃないんだから',
+        '同じパターンを繰り返してると気づけたなら、それが第一歩',
+        '一人で抱えなくていい、第三者に相談するのも立派な選択',
+        'あなたの心の方が大事、家を守る義務より優先していい',
+        '言わない自由もある、無理に分かり合おうとしなくていい',
+        '物理的距離は心の距離を救うことがある'
+      ]
+    },
+    mood: {
+      warm: [
+        '理由がなくてもしんどい日はあるよ、無理しないで',
+        '今日はもう「えらい」だけで合格、布団で休も',
+        'なんかしんどい、ってちゃんと言えてえらいよ',
+        '気合じゃなくて湯船で解決する日もあるよね',
+        '味方ここにいるよ、何もしなくていい夜にしよ',
+        '雨や気圧かもしれないし、自分を責めなくていい',
+        'うん、聞いてるよ、ぜんぶ吐き出して',
+        'ぼーっとしていい時間、ちゃんと許可します'
+      ],
+      laugh: [
+        '気圧、お前のせいだろ案件だな今日は',
+        '布団と契約結んだので今日は出勤できません',
+        '「無」の日って人生で必要な定休日だから',
+        'やる気、ちょっと家出してるね、まあそのうち帰ってくる',
+        '今日のテーマ：何もしないをがんばる',
+        '低気圧と低気力、ダブル役満で休んでヨシ',
+        'スマホ閉じてアイス食べる、それだけが正解',
+        '社会、今日はちょっと営業しません'
+      ],
+      serious: [
+        '理由がない不調は体からのサイン、ちゃんと休むのが正解',
+        '睡眠と食事を最低ラインで守るだけで、明日が変わるよ',
+        'しんどさが続くなら、軽くでも専門家に話してみていい',
+        '頑張れない自分を責めないで、今は充電期間',
+        '気持ちの揺れは天気と同じ、必ず変わるからね',
+        '小さな「やった」を1つでいい、できた自分を認めて',
+        '誰かに言えただけで、もう前進してるよ',
+        '無理に明るくしなくていい、ぼちぼちでいい'
+      ]
+    }
+  };
+
+  function generate() {
+    var g = document.getElementById('genre').value;
+    var t = document.getElementById('tone').value;
+    var pool = (POOL[g] && POOL[g][t]) || [];
+    if (pool.length === 0) return;
+
+    var copy = pool.slice();
+    var picked = [];
+    var n = Math.min(5, copy.length);
+    for (var i = 0; i < n; i++) {
+      var idx = Math.floor(Math.random() * copy.length);
+      picked.push(copy.splice(idx, 1)[0]);
+    }
+
+    renderPhrases(picked);
+    document.getElementById('result-card').style.display = 'block';
+    renderFavs();
+  }
+
+  function renderPhrases(list) {
+    var favs = loadFavs();
+    var html = list.map(function(p) {
+      var on = favs.indexOf(p) >= 0 ? ' on' : '';
+      var safe = escapeAttr(p);
+      return '<div class="phrase-item">'
+           + '<div class="phrase-text" onclick="copyPhrase(this)" data-text="' + safe + '">' + escapeHtml(p) + '</div>'
+           + '<button class="phrase-fav' + on + '" onclick="toggleFav(this)" data-text="' + safe + '" aria-label="お気に入り">★</button>'
+           + '</div>';
+    }).join('');
+    document.getElementById('phrase-list').innerHTML = html;
+  }
+
+  function copyPhrase(el) {
+    var text = el.getAttribute('data-text');
+    if (!text) return;
+    var decoded = decodeAttr(text);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(decoded).then(showToast, fallbackCopy.bind(null, decoded));
+    } else {
+      fallbackCopy(decoded);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); showToast(); } catch(e) {}
+    document.body.removeChild(ta);
+  }
+
+  function showToast() {
+    var t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); }, 1400);
+  }
+
+  function toggleFav(btn) {
+    var text = decodeAttr(btn.getAttribute('data-text'));
+    var favs = loadFavs();
+    var i = favs.indexOf(text);
+    if (i >= 0) { favs.splice(i, 1); btn.classList.remove('on'); }
+    else { favs.unshift(text); btn.classList.add('on'); }
+    saveFavs(favs);
+    renderFavs();
+  }
+
+  function renderFavs() {
+    var favs = loadFavs();
+    var card = document.getElementById('fav-card');
+    var list = document.getElementById('fav-list');
+    if (favs.length === 0) {
+      card.style.display = 'none';
+      list.innerHTML = '';
+      return;
+    }
+    card.style.display = 'block';
+    list.innerHTML = favs.map(function(p) {
+      var safe = escapeAttr(p);
+      return '<div class="phrase-item">'
+           + '<div class="phrase-text" onclick="copyPhrase(this)" data-text="' + safe + '">' + escapeHtml(p) + '</div>'
+           + '<button class="phrase-fav on" onclick="removeFav(this)" data-text="' + safe + '" aria-label="お気に入り解除">★</button>'
+           + '</div>';
+    }).join('');
+  }
+
+  function removeFav(btn) {
+    var text = decodeAttr(btn.getAttribute('data-text'));
+    var favs = loadFavs();
+    var i = favs.indexOf(text);
+    if (i >= 0) { favs.splice(i, 1); saveFavs(favs); }
+    renderFavs();
+    var phraseList = document.getElementById('phrase-list');
+    if (phraseList) {
+      var btns = phraseList.querySelectorAll('.phrase-fav');
+      for (var k = 0; k < btns.length; k++) {
+        if (decodeAttr(btns[k].getAttribute('data-text')) === text) {
+          btns[k].classList.remove('on');
+        }
+      }
+    }
+  }
+
+  function loadFavs() {
+    try {
+      var raw = localStorage.getItem(FAV_KEY);
+      if (!raw) return [];
+      var arr = JSON.parse(raw);
+      return Array.isArray(arr) ? arr : [];
+    } catch(e) { return []; }
+  }
+  function saveFavs(arr) {
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(arr)); } catch(e) {}
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+  function escapeAttr(s) {
+    return encodeURIComponent(s);
+  }
+  function decodeAttr(s) {
+    try { return decodeURIComponent(s); } catch(e) { return s; }
+  }
+
+  document.addEventListener('DOMContentLoaded', renderFavs);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
