@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎬 VTuber配信背景プロンプト生成メーカー</title>
+  <meta name="description" content="背景イメージを選んでAI用プロンプトを30秒で生成。VTuber配信背景作成の効率化ツール。複数パターン同時表示で手間いらず。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.show { display: block; }
+    .prompt-text {
+      background: var(--accent-light);
+      padding: 1rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      line-height: 1.6;
+      word-wrap: break-word;
+      margin-bottom: 0.8rem;
+      color: var(--text);
+    }
+    .btn-copy {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-copy:active { opacity: 0.8; }
+
+    .prompts-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (min-width: 768px) {
+      .prompts-container {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .prompt-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      box-shadow: var(--shadow);
+    }
+    .prompt-item .prompt-text {
+      margin-bottom: 0.8rem;
+      min-height: 80px;
+    }
+
+    .history-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .history-item {
+      padding: 0.8rem;
+      background: var(--accent-light);
+      border-radius: 8px;
+      font-size: 0.82rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .history-item:last-child { margin-bottom: 0; }
+    .history-btn-delete {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.75rem;
+      background: var(--ng-bg);
+      color: var(--ng);
+      border: 1px solid var(--ng);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      .app-header, .card, .btn-calc, .back-link, .btn-pdf { display: none !important; }
+      .result-card { display: block !important; max-width: 100%; margin: 0; padding: 0; border: none; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <h1>🎬 VTuber配信背景プロンプト生成メーカー</h1>
+    <p class="subtitle">背景イメージを選ぶだけで、AIプロンプトが30秒で完成。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">設定</div>
+    <div class="field">
+      <label for="bg-style">背景スタイル</label>
+      <select id="bg-style">
+        <option value="">選択してください</option>
+        <option value="fantasy">ファンタジー</option>
+        <option value="cyberpunk">サイバーパンク</option>
+        <option value="japanese">和風</option>
+        <option value="space">宇宙</option>
+        <option value="neon">ネオン</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="color-tone">色系統</label>
+      <select id="color-tone">
+        <option value="">選択してください</option>
+        <option value="vivid">カラフル</option>
+        <option value="monochrome">モノトーン</option>
+        <option value="pastel">パステル</option>
+        <option value="neon">ネオン</option>
+        <option value="warm">温かみ</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="mood">雰囲気</label>
+      <select id="mood">
+        <option value="">選択してください</option>
+        <option value="simple">シンプル</option>
+        <option value="detailed">詳細</option>
+        <option value="minimalist">ミニマル</option>
+        <option value="dramatic">ドラマティック</option>
+        <option value="cozy">居心地よい</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="generatePrompts()">🎨 プロンプトを生成</button>
+
+  <div id="results" class="prompts-container"></div>
+
+  <div class="history-card" id="history-section" style="display: none;">
+    <div class="card-title">生成履歴</div>
+    <div id="history-list"></div>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+  <p style="text-align: center; margin-top: 1rem; font-size: 0.75rem; color: var(--text-sub);">
+    <a href="https://github.com/tmmygu40-dot/ai-agent-honbu-public/issues" style="color: var(--text-sub);">改善案・不具合報告はこちら</a>
+  </p>
+
+  <script src="../related-widget.js"></script>
+  <script src="../fav-widget.js"></script>
+
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+
+  <script>
+    const STORAGE_KEY = 'vtuber_prompts';
+
+    const templates = {
+      fantasy: { vivid: ['魔法の王国、華麗な装飾、魔法の光、4K'], pastel: ['幻想的な森、柔らかい光、魔法の雰囲気'] },
+      cyberpunk: { vivid: ['ネオンシティ、ハイテク、鮮やか、4K'], monochrome: ['サイバーパンク、暗い、未来的'] },
+      japanese: { vivid: ['日本庭園、桜、伝統的、明るい'], warm: ['和室、障子光、温かみ'] },
+      space: { vivid: ['宇宙、星、銀河、広がり'], neon: ['惑星、ネオン光、未来的'] },
+      neon: { vivid: ['ネオン看板、ポップ、鮮やか'], monochrome: ['ネオン白黒、モダン'] }
+    };
+
+    function generatePrompts() {
+      const style = document.getElementById('bg-style').value;
+      const tone = document.getElementById('color-tone').value;
+      const mood = document.getElementById('mood').value;
+
+      if (!style || !tone || !mood) {
+        alert('すべての項目を選択してください');
+        return;
+      }
+
+      const basePrompts = templates[style] && templates[style][tone]
+        ? templates[style][tone]
+        : [`${style}の${tone}な背景、${mood}、4K`];
+
+      const moodMap = {
+        simple: 'シンプル', detailed: '詳細', minimalist: 'ミニマル',
+        dramatic: 'ドラマティック', cozy: '居心地よい'
+      };
+
+      const prompts = basePrompts.map((base, idx) => {
+        const variations = [
+          `${base}、${moodMap[mood]}、配信背景用、高品質`,
+          `${base}、${moodMap[mood]}、4K解像度、プロフェッショナル`,
+          `${base}、${moodMap[mood]}、詳細、リアル、配信向け`,
+          `${base}、${moodMap[mood]}、アート風、スタイリッシュ`,
+          `${base}、${moodMap[mood]}、配信背景、著作権フリー`
+        ];
+        return variations[idx % variations.length];
+      });
+
+      displayPrompts(prompts);
+      saveHistory(prompts);
+    }
+
+    function displayPrompts(prompts) {
+      const container = document.getElementById('results');
+      container.innerHTML = prompts.map((p, i) => `
+        <div class="prompt-item">
+          <div class="prompt-text">${p}</div>
+          <button class="btn-copy" onclick="copyToClipboard('${p.replace(/'/g, "\\'")}')">📋 コピー</button>
+        </div>
+      `).join('');
+    }
+
+    function copyToClipboard(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        alert('コピーしました！');
+      });
+    }
+
+    function saveHistory(prompts) {
+      let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      history.unshift({
+        date: new Date().toLocaleString('ja-JP'),
+        prompts: prompts
+      });
+      if (history.length > 10) history = history.slice(0, 10);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      loadHistory();
+    }
+
+    function loadHistory() {
+      const history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      const section = document.getElementById('history-section');
+      const list = document.getElementById('history-list');
+
+      if (history.length === 0) {
+        section.style.display = 'none';
+        return;
+      }
+
+      section.style.display = 'block';
+      list.innerHTML = history.map((item, idx) => `
+        <div class="history-item">
+          <span>${item.date}</span>
+          <button class="history-btn-delete" onclick="deleteHistory(${idx})">削除</button>
+        </div>
+      `).join('');
+    }
+
+    function deleteHistory(idx) {
+      let history = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      history.splice(idx, 1);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      loadHistory();
+    }
+
+    loadHistory();
+  </script>
+</body>
+</html>

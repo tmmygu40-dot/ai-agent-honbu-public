@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="背景イメージを選んでAI用プロンプトを30秒で生成。VTuber配信背景の効率化ツール。">
+  <title>🎬 VTuber配信背景プロンプト生成メーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: inline-block; margin-top: 0.7rem;
+      padding: 0.5rem 1rem; font-size: 0.85rem; font-weight: 600;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 7px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: #d26a00; }
+    .btn-copy:active { transform: scale(0.98); }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: left;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value {
+      font-family: 'Courier New', monospace;
+      font-size: 0.95rem; font-weight: 600;
+      line-height: 1.6;
+      margin-bottom: 0.7rem;
+      word-break: break-word;
+      white-space: pre-wrap;
+      padding: 0.8rem; background: rgba(255,255,255,0.5);
+      border-radius: 7px;
+    }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎬 VTuber配信背景プロンプト生成メーカー</h1>
+    <p class="subtitle">VTuberの配信背景をAIに作らせるプロンプトをサクッと生成できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">背景スタイルを選択</p>
+    <div class="field">
+      <label for="style">どのような背景をお探しですか？</label>
+      <select id="style">
+        <option value="">-- 選択してください --</option>
+        <option value="fantasy">✨ ファンタジー（魔法・剣と魔法の世界）</option>
+        <option value="cyberpunk">🌃 サイバーパンク（ネオン・未来都市）</option>
+        <option value="japanese">⛩️ 和風（神社・寺院・日本風景）</option>
+        <option value="space">🌌 宇宙（星空・プラネタリウム）</option>
+        <option value="neon">💡 ネオン（レトロフューチャー・光の効果）</option>
+      </select>
+      <p class="hint">配信の雰囲気に合わせて選んでください</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generatePrompt()">✨ プロンプト生成</button>
+
+  <!-- 結論カード（JS で表示） -->
+  <div class="result-card ok" id="result">
+    <p class="result-label">生成されたプロンプト</p>
+    <p class="result-value" id="rv">—</p>
+    <button class="btn-copy" onclick="copyPrompt()">📋 コピーする</button>
+  </div>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── プロンプトテンプレート ──
+  var PROMPTS = {
+    fantasy: "4K, detailed background, fantasy world, magical atmosphere, enchanted castle, glowing crystals, fantasy landscape, suitable for VTuber streaming background, high quality render",
+    cyberpunk: "4K, detailed background, cyberpunk city, neon lights, futuristic, neon signs, high-tech cityscape, suitable for VTuber streaming background, retro-futuristic, synthwave",
+    japanese: "4K, detailed background, Japanese traditional style, shrine, temple, cherry blossoms, serene landscape, zen garden, suitable for VTuber streaming background, peaceful atmosphere",
+    space: "4K, detailed background, space scene, starfield, nebula, cosmic landscape, planets, galaxy, suitable for VTuber streaming background, cosmic atmosphere, beautiful stars",
+    neon: "4K, detailed background, neon lights, retro-futuristic, vibrant colors, glowing effects, cyberpunk aesthetic, suitable for VTuber streaming background, night scene, luminous"
+  };
+
+  var LABELS = {
+    fantasy: "ファンタジー",
+    cyberpunk: "サイバーパンク",
+    japanese: "和風",
+    space: "宇宙",
+    neon: "ネオン"
+  };
+
+  function generatePrompt() {
+    var style = document.getElementById('style').value;
+    if (!style) {
+      alert('背景スタイルを選択してください');
+      return;
+    }
+
+    var prompt = PROMPTS[style];
+    var label = LABELS[style];
+
+    // localStorage に履歴を保存
+    saveHistory(label, prompt);
+
+    // 結果表示
+    showResult(prompt);
+  }
+
+  function showResult(prompt) {
+    var rc = document.getElementById('result');
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = prompt;
+  }
+
+  function copyPrompt() {
+    var text = document.getElementById('rv').textContent;
+    if (text === '—') {
+      alert('コピーするプロンプトがありません');
+      return;
+    }
+
+    navigator.clipboard.writeText(text).then(function() {
+      alert('プロンプトをコピーしました！');
+    }).catch(function() {
+      // フォールバック
+      var textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      alert('プロンプトをコピーしました！');
+    });
+  }
+
+  function saveHistory(label, prompt) {
+    var history = JSON.parse(localStorage.getItem('vtuberbg_history') || '[]');
+    var entry = {
+      label: label,
+      prompt: prompt,
+      date: new Date().toLocaleString('ja-JP')
+    };
+    history.unshift(entry);
+    if (history.length > 20) history.pop();
+    localStorage.setItem('vtuberbg_history', JSON.stringify(history));
+  }
+
+  // ページ読込時に前回の結果があれば表示
+  window.addEventListener('load', function() {
+    var history = JSON.parse(localStorage.getItem('vtuberbg_history') || '[]');
+    if (history.length > 0) {
+      showResult(history[0].prompt);
+    }
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
