@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スマホ依存度チェッカー｜5問で現実の活動時間ロスを可視化</title>
+  <meta name="description" content="スマホの使用パターン5つを診断するだけで、あなたの依存度レベルと失っている活動時間が数値で分かる無料診断ツール。朝起きてまずスマホを見るなら、この診断で改善策を発見できます。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.3rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.82rem; color: var(--text-sub); margin-top: 0.3rem; line-height: 1.4; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ラジオボタン行 ── */
+    .radio-row {
+      display: flex; gap: 0.8rem; justify-content: center;
+      margin-top: 0.5rem;
+    }
+    .radio-label {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.9rem; cursor: pointer; user-select: none;
+    }
+    .radio-label input[type="radio"] {
+      cursor: pointer; width: 16px; height: 16px;
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2.2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.85rem; color: var(--text-sub); line-height: 1.5; margin-bottom: 0.5rem; }
+    .result-eval {
+      font-size: 1rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.3rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── グラフ代替: バー表示 ── */
+    .loss-meter {
+      margin-top: 1rem; padding: 1rem;
+      background: var(--accent-light);
+      border-radius: 10px;
+      text-align: center;
+    }
+    .loss-bar {
+      width: 100%; max-width: 300px; height: 24px;
+      background: var(--border); border-radius: 12px;
+      margin: 0.5rem auto;
+      overflow: hidden;
+    }
+    .loss-bar-fill {
+      height: 100%; background: var(--accent);
+      transition: width 0.5s ease;
+    }
+    .loss-text { font-size: 0.95rem; font-weight: 700; color: var(--text); margin-top: 0.5rem; }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止 -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📱 スマホ依存度チェッカー</h1>
+    <p class="subtitle">朝起きてすぐスマホを見ていませんか？5問に答えるだけで、あなたの依存度と失っている活動時間が一目で分かります。</p>
+  </header>
+
+  <!-- 診断フォーム -->
+  <div class="card">
+    <p class="card-title">5問の診断</p>
+
+    <div class="field">
+      <label>1. 朝起きて何分以内にスマホを見ますか？</label>
+      <div class="radio-row">
+        <label class="radio-label"><input type="radio" name="q1" value="0"> 5分以内</label>
+        <label class="radio-label"><input type="radio" name="q1" value="1"> 15分以内</label>
+        <label class="radio-label"><input type="radio" name="q1" value="2"> 30分以上</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>2. 1日のスマホ使用時間は？</label>
+      <div class="radio-row">
+        <label class="radio-label"><input type="radio" name="q2" value="0"> 4時間以上</label>
+        <label class="radio-label"><input type="radio" name="q2" value="1"> 2～3時間</label>
+        <label class="radio-label"><input type="radio" name="q2" value="2"> 2時間以下</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>3. ご飯を食べながらスマホを見ることはありますか？</label>
+      <div class="radio-row">
+        <label class="radio-label"><input type="radio" name="q3" value="0"> よくある</label>
+        <label class="radio-label"><input type="radio" name="q3" value="1"> 時々</label>
+        <label class="radio-label"><input type="radio" name="q3" value="2"> ない</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>4. スマホを見ないでいられる時間は最長どのくらい？</label>
+      <div class="radio-row">
+        <label class="radio-label"><input type="radio" name="q4" value="0"> 30分未満</label>
+        <label class="radio-label"><input type="radio" name="q4" value="1"> 1～3時間</label>
+        <label class="radio-label"><input type="radio" name="q4" value="2"> 3時間以上</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>5. スマホを見ている時、気づいたら予定の時間より遅れることは？</label>
+      <div class="radio-row">
+        <label class="radio-label"><input type="radio" name="q5" value="0"> よくある</label>
+        <label class="radio-label"><input type="radio" name="q5" value="1"> 時々</label>
+        <label class="radio-label"><input type="radio" name="q5" value="2"> ない</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 診断ボタン -->
+  <button class="btn-calc" onclick="calc()">診断する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">依存度レベル</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+    <p class="result-eval" id="re"></p>
+    <div class="loss-meter" id="meter" style="display:none">
+      <p style="font-size:0.9rem;color:var(--text-sub);margin-bottom:0.5rem;">失っている活動時間（1日あたり）</p>
+      <div class="loss-bar"><div class="loss-bar-fill" id="bar" style="width:0%"></div></div>
+      <p class="loss-text" id="loss-time">—</p>
+    </div>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">結果の詳細</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 結果別Q&A -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📱 このツールは、スマートフォン利用実態調査や心理学研究を参考に、診断目安として作成しています。医学的診断ではありません。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // LocalStorage でスコア履歴を保存
+  function saveHistory(score) {
+    var hist = JSON.parse(localStorage.getItem('smartphone-check-history') || '[]');
+    hist.push({ date: new Date().toISOString(), score: score });
+    if (hist.length > 30) hist.shift(); // 最新30件までキープ
+    localStorage.setItem('smartphone-check-history', JSON.stringify(hist));
+  }
+
+  var ENABLE_RESULT_QA = true;
+
+  var EMOJI_MSG = {
+    ok:   { e: '✨', t: 'スマホとのバランスが上手です' },
+    warn: { e: '🤔', t: 'スマホとの付き合い方を見直す時かも' },
+    ng:   { e: '📱', t: 'スマホ依存が強い傾向です' }
+  };
+
+  var QA = {
+    ok: [
+      { q: 'どうやってバランスを取ってますか？', a: 'スマホを使う時間帯や目的を意識できているのが成功の秘訣です。この習慣を続けることが何より大事です。' },
+      { q: 'さらに減らしたいときは？', a: 'スマホを見ない時間を意識的に作ると、やることが増えて生活が充実します。' },
+      { q: 'どんなアプリが役に立つ？', a: 'スクリーンタイム管理アプリや読書アプリなど、生産的なツールへの切り替えがおすすめです。' },
+      { q: '周りの人にも勧めたい', a: '家族や友人と一緒に挑戦すると、継続しやすくなります。' }
+    ],
+    warn: [
+      { q: 'すぐに改善できる？', a: '2～3週間で習慣は変わります。1つ小さなルール（例：食事中は見ない）から始めましょう。' },
+      { q: '何から始めるべき？', a: 'まずは朝起きてから30分スマホを見ない時間を作るのがおすすめです。' },
+      { q: 'アプリの通知をオフにすべき？', a: 'はい。とくに SNS・ゲーム・ショッピングアプリの通知を切ると効果的です。' },
+      { q: '依存が強くなったら？', a: 'スクリーンタイム制限や別室保管など、物理的な工夫も試す価値があります。' }
+    ],
+    ng: [
+      { q: 'これって病気ですか？', a: 'スマートフォン依存症は医学的な診断が必要です。心当たりがあれば医師に相談も検討してください。' },
+      { q: 'どうやって改善する？', a: '1週間のスマホ断食や、就寝1時間前に見ないルールなど、強い対策から始めましょう。' },
+      { q: '親に相談すべき？', a: 'はい。一人では難しい場合、親や友人にサポートしてもらうことで改善率が上がります。' },
+      { q: '本当に改善できるのか？', a: '多くの人が成功しています。焦らず、小さな習慣変化の積み重ねが重要です。' }
+    ]
+  };
+
+  function calc() {
+    var scores = [0, 0, 0, 0, 0];
+    var allAnswered = true;
+    for (var i = 1; i <= 5; i++) {
+      var val = document.querySelector('input[name="q' + i + '"]:checked');
+      if (!val) { allAnswered = false; break; }
+      scores[i-1] = parseInt(val.value);
+    }
+    if (!allAnswered) { showErr('すべての質問に答えてください'); return; }
+
+    var total = scores.reduce(function(a, b) { return a + b; }, 0);
+    var level, msg, lossHours;
+    if (total <= 2) {
+      level = 'ok';
+      msg = 'あなたはスマホとのバランスが上手です。このペースが理想的です。';
+      lossHours = 0.5;
+    } else if (total <= 5) {
+      level = 'warn';
+      msg = 'スマホ利用が増加傾向。少しずつ見直しましょう。';
+      lossHours = 2;
+    } else {
+      level = 'ng';
+      msg = 'スマホ依存の可能性が高いです。生活習慣の改善が重要です。';
+      lossHours = 4;
+    }
+
+    saveHistory(total);
+    showResult(level, level === 'ok' ? '低依存' : level === 'warn' ? '中依存' : '高依存', msg, lossHours);
+    showDetail([
+      ['スコア', total + ' / 10 点'],
+      ['評価', level === 'ok' ? 'バランス型' : level === 'warn' ? '注意段階' : '改善必要型'],
+      ['推定活動時間損失', lossHours + ' 時間/日', true],
+    ]);
+    showQA(level);
+  }
+
+  function showResult(level, val, note, lossHours) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level; rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+    document.getElementById('re').textContent =
+      lossHours > 0 ? '→ 1日あたり約 ' + lossHours + ' 時間の活動時間を失っています' : '→ スマホ時間が充実しています';
+
+    var meter = document.getElementById('meter');
+    if (lossHours > 0) {
+      var pct = Math.min((lossHours / 6) * 100, 100);
+      document.getElementById('bar').style.width = pct + '%';
+      document.getElementById('loss-time').textContent = lossHours + ' 時間 ≈ ' + Math.round(lossHours * 60) + ' 分';
+      meter.style.display = '';
+    } else {
+      meter.style.display = 'none';
+    }
+  }
+  function showQA(level) {
+    if (!ENABLE_RESULT_QA) return;
+    var em = EMOJI_MSG[level], list = QA[level];
+    var card = document.getElementById('qa-card');
+    card.className = 'card ' + level;
+    document.getElementById('qe').textContent = em.e;
+    document.getElementById('qt').textContent = em.t;
+    document.getElementById('qa-list').innerHTML = list.map(function(x){
+      return '<div class="qa-item"><p class="qa-q">Q. ' + x.q + '</p><p class="qa-a">' + x.a + '</p></div>';
+    }).join('');
+    card.style.display = '';
+  }
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg, 0);
+    document.getElementById('detail').style.display = 'none';
+    document.getElementById('meter').style.display = 'none';
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

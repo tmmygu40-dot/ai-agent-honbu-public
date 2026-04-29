@@ -443,3 +443,4 @@ commit: dea0c02
 [2026-04-30_032342] SCAN apps=バズ度メーター total=0 exit=0
 [2026-04-30_034331] SCAN apps=サバイバル応急処置ガイド total=0 exit=0
 [2026-04-30_040338] SCAN apps=スマホ通信ルール決定アプリ total=0 exit=0
+[2026-04-30_050639] SCAN apps=スマホ依存度チェッカー total=0 exit=0
