@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💰 ATM浪費診断 - 年間手数料をサクッと計算</title>
+  <meta name="description" content="月間のATM利用回数と1回の手数料を入力するだけで、年間いくら手数料を無駄にしているか診断できます。無意識の浪費を見える化して、家計改善のきっかけに。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d; --ok-bg: #f0fdf4;
+      --warn: #b45309; --warn-bg: #fffbeb;
+      --ng: #b91c1c; --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.4rem; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 0.25rem; }
+    .app-header .subtitle { font-size: 0.82rem; color: var(--text-sub); line-height: 1.4; }
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn-calc:active { transform: translateY(3px); box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2); }
+    .result-card {
+      background: var(--ok-bg); border: 1.5px solid var(--ok);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.2rem;
+      margin: 0 auto 1.2rem;
+      max-width: 600px;
+      text-align: center;
+      display: none;
+    }
+    .result-card.warn { background: var(--warn-bg); border-color: var(--warn); }
+    .result-card.ng { background: var(--ng-bg); border-color: var(--ng); }
+    .result-value { font-size: 2.2rem; font-weight: 900; margin: 0.5rem 0; }
+    .result-note { font-size: 0.88rem; color: var(--text-sub); }
+    .btn-pdf {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.8rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--border); color: var(--text);
+      border: none; border-radius: 9px; cursor: pointer;
+      text-align: center;
+    }
+    .btn-pdf:active { opacity: 0.8; }
+    @media print {
+      .app-header, .card, .btn-calc, .btn-pdf, .back-link, p[style*="改善案"] { display: none !important; }
+      .result-card { margin: 0; box-shadow: none; }
+    }
+    .back-link {
+      display: block; width: fit-content;
+      margin: 2rem auto 0; padding: 0.5rem 0;
+      font-size: 0.82rem; color: var(--text-sub);
+      text-decoration: none; border-bottom: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .back-link:hover { border-bottom-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="app-header">
+    <h1>💰 ATM浪費診断</h1>
+    <p class="subtitle">月間のATM利用回数と手数料から、年間いくら無駄にしているかを診断します。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">診断情報を入力</div>
+    <div class="field">
+      <label for="monthly_count">月間ATM利用回数</label>
+      <input type="number" id="monthly_count" min="0" max="365" placeholder="例：4回" value="">
+      <div class="hint">例：月に4回、年に48回利用している場合は「4」と入力</div>
+    </div>
+    <div class="field">
+      <label for="fee_per_use">1回あたりの手数料（円）</label>
+      <input type="number" id="fee_per_use" min="0" max="1000" placeholder="例：110円" value="">
+      <div class="hint">ATMの種類や銀行によって異なります。確認してから入力してください。</div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calculate()">診断する</button>
+
+  <div class="result-card" id="result">
+    <div style="font-size: 0.82rem; color: var(--text-sub); margin-bottom: 0.5rem;">年間ATM手数料</div>
+    <div class="result-value" id="result_value">0</div>
+    <div class="result-note" id="result_note">入力して診断ボタンを押してください</div>
+  </div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <div class="card" id="advice_card" style="display: none;">
+    <div class="card-title">浪費を減らすコツ</div>
+    <div id="advice_content"></div>
+  </div>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+
+  <script>
+    const ADVICE = {
+      low: [
+        "✅ 月間4回以下なら、ほぼ問題ありません。",
+        "📍 銀行の ATM 無料枠を活用すると、さらに浪費を防げます。"
+      ],
+      medium: [
+        "⚠️ 月間5～9回の利用は手数料が積み重なります。",
+        "💳 給与振込先の銀行の無料時間帯を活用して、手数料を削減しましょう。",
+        "🏦 ネットバンクに乗り換えると、ATM手数料がかからない場合もあります。"
+      ],
+      high: [
+        "🚨 月間10回以上の利用は、年間で数千円の損失です。",
+        "💰 手数料無料の銀行・ATM を探して乗り換えることを強くお勧めします。",
+        "📊 キャッシュレス決済を増やせば、ATM利用そのものを減らせます。"
+      ]
+    };
+
+    function calculate() {
+      const count = parseInt(document.getElementById('monthly_count').value) || 0;
+      const fee = parseInt(document.getElementById('fee_per_use').value) || 0;
+
+      if (count < 0 || fee < 0 || count > 365 || fee > 1000) {
+        showResult('ng', '⚠️', '正しい値を入力してください');
+        return;
+      }
+
+      const annual = count * fee * 12;
+      const level = count <= 4 ? 'low' : count <= 9 ? 'medium' : 'high';
+
+      showResult('ok', annual.toLocaleString('ja-JP') + '円', level === 'low' ? '手数料は少ないです' : level === 'medium' ? 'もう少し削減できそう' : '大きな浪費の可能性');
+      showAdvice(level);
+
+      saveData({monthly_count: count, fee_per_use: fee, result: annual});
+    }
+
+    function showResult(status, value, note) {
+      const rc = document.getElementById('result');
+      rc.className = 'result-card ' + status;
+      document.getElementById('result_value').textContent = value;
+      document.getElementById('result_note').textContent = note;
+      rc.style.display = 'block';
+    }
+
+    function showAdvice(level) {
+      const advice = ADVICE[level];
+      const html = advice.map(a => '<div style="font-size: 0.88rem; line-height: 1.5; margin-bottom: 0.75rem;">' + a + '</div>').join('');
+      document.getElementById('advice_content').innerHTML = html;
+      document.getElementById('advice_card').style.display = 'block';
+    }
+
+    function saveData(data) {
+      localStorage.setItem('atm_waste_diagnosis', JSON.stringify(data));
+    }
+
+    function loadData() {
+      const data = localStorage.getItem('atm_waste_diagnosis');
+      if (data) {
+        const obj = JSON.parse(data);
+        document.getElementById('monthly_count').value = obj.monthly_count || '';
+        document.getElementById('fee_per_use').value = obj.fee_per_use || '';
+        if (obj.result !== undefined) {
+          const level = obj.monthly_count <= 4 ? 'low' : obj.monthly_count <= 9 ? 'medium' : 'high';
+          showResult('ok', obj.result.toLocaleString('ja-JP') + '円', level === 'low' ? '手数料は少ないです' : level === 'medium' ? 'もう少し削減できそう' : '大きな浪費の可能性');
+          showAdvice(level);
+        }
+      }
+    }
+
+    window.addEventListener('load', loadData);
+  </script>
+
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ペットの写真を江戸時代の浮世絵風にするAIプロンプトを自動生成。ペットの種類・特徴・背景を選ぶだけで、すぐにAI画像生成に使えるプロンプトが作れます。">
+  <title>🖼️ ペット江戸浮世絵プロンプトメーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #d4a574;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field textarea {
+      resize: vertical; min-height: 80px;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b8935f, 0 6px 16px rgba(212,165,116,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b8935f, 0 2px 8px rgba(212,165,116,0.2);
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: inline-block; margin-top: 0.8rem; padding: 0.6rem 1.2rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.8; }
+    .btn-copy.copied { background: var(--ok); }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-note { font-size: 0.92rem; color: var(--text); line-height: 1.6; margin-bottom: 0.8rem; }
+    .prompt-box {
+      background: rgba(212,165,116,0.1); border-left: 4px solid var(--accent);
+      padding: 1rem 1rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+      font-family: "Courier New", monospace;
+      color: var(--text);
+    }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🖼️ ペット江戸浮世絵プロンプトメーカー</h1>
+    <p class="subtitle">愛するペットを江戸時代の浮世絵風にするAIプロンプトを、質問に答えるだけでサクッと作れます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">ペット情報を入力</p>
+    <div class="field">
+      <label for="petType">ペットの種類 *</label>
+      <select id="petType">
+        <option value="">選択してください</option>
+        <option value="犬">犬</option>
+        <option value="猫">猫</option>
+        <option value="ウサギ">ウサギ</option>
+        <option value="ハムスター">ハムスター</option>
+        <option value="鳥">鳥</option>
+        <option value="爬虫類">爬虫類</option>
+        <option value="その他">その他の動物</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="petFeature">ペットの特徴（色・大きさ・特徴など）*</label>
+      <textarea id="petFeature" placeholder="例：茶色と白の毛、大きな耳、元気で遊びが好き"></textarea>
+      <p class="hint">特徴を詳しく書くほど、より良いプロンプトが生成されます</p>
+    </div>
+    <div class="field">
+      <label for="background">背景 *</label>
+      <select id="background">
+        <option value="">選択してください</option>
+        <option value="江戸の町">江戸の町</option>
+        <option value="桜の庭園">桜の庭園</option>
+        <option value="富士山">富士山</option>
+        <option value="海と漁船">海と漁船</option>
+        <option value="家の中">家の中</option>
+        <option value="竹林">竹林</option>
+        <option value="無地">無地（背景なし）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="color">色彩トーン *</label>
+      <select id="color">
+        <option value="">選択してください</option>
+        <option value="藍色と白">藍色と白（基本的な浮世絵）</option>
+        <option value="暖色系">暖色系（赤・橙・黄色）</option>
+        <option value="淡色系">淡色系（優雅で上品）</option>
+        <option value="墨絵風">墨絵風（モノクロ・グラデーション）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generatePrompt()">プロンプトを生成</button>
+
+  <!-- 結果カード -->
+  <div class="result-card ok" id="result" style="display:none">
+    <p class="result-label">生成されたプロンプト</p>
+    <p class="result-note" id="resultNote"></p>
+    <div class="prompt-box" id="promptBox"></div>
+    <button class="btn-copy" id="copyBtn" onclick="copyPrompt()">📋 コピー</button>
+  </div>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、AI画像生成サービス（DALL-E、Midjourney、Stable Diffusion など）で使用するプロンプト生成を補助します。生成されたプロンプトをそのままコピーして使用できます。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  const STORAGE_KEY = 'petPromptMaker';
+
+  // 初期化：localStorage から前回の値を復元
+  function init() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        document.getElementById('petType').value = data.petType || '';
+        document.getElementById('petFeature').value = data.petFeature || '';
+        document.getElementById('background').value = data.background || '';
+        document.getElementById('color').value = data.color || '';
+      } catch (e) {
+        // 無効な場合は無視
+      }
+    }
+  }
+
+  // ペット情報を保存
+  function saveData() {
+    const data = {
+      petType: document.getElementById('petType').value,
+      petFeature: document.getElementById('petFeature').value,
+      background: document.getElementById('background').value,
+      color: document.getElementById('color').value
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  // プロンプト生成
+  function generatePrompt() {
+    const petType = document.getElementById('petType').value.trim();
+    const petFeature = document.getElementById('petFeature').value.trim();
+    const background = document.getElementById('background').value.trim();
+    const color = document.getElementById('color').value.trim();
+
+    // バリデーション
+    if (!petType || !petFeature || !background || !color) {
+      showError('すべての項目を選択・入力してください');
+      return;
+    }
+
+    // プロンプト生成
+    const prompt = generateUkiyoePrompt(petType, petFeature, background, color);
+
+    // 保存
+    saveData();
+
+    // 表示
+    const resultCard = document.getElementById('result');
+    document.getElementById('resultNote').textContent =
+      `${petType}の浮世絵風プロンプトが完成しました。下のテキストをコピーしてAI画像生成サービスに使用できます。`;
+    document.getElementById('promptBox').textContent = prompt;
+    resultCard.style.display = '';
+
+    // スクロール
+    setTimeout(() => resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+  }
+
+  // 江戸浮世絵風プロンプト生成
+  function generateUkiyoePrompt(petType, feature, background, colorTone) {
+    // テンプレートを組み立て
+    let prompt = `${petType}の江戸時代の浮世絵風イラスト。`;
+    prompt += `外見：${feature}。`;
+    prompt += `背景：${background}。`;
+    prompt += `色彩：${colorTone}。`;
+    prompt += `浮世絵のような木版画風で、`;
+    prompt += `江戸時代の浮世絵師の表現技法を使用。`;
+    prompt += `高品質な着物や帯の模様が細かく描かれており、`;
+    prompt += `古風で上品な雰囲気。`;
+    prompt += `日本の伝統美術の特徴を強調。`;
+
+    return prompt;
+  }
+
+  // エラー表示
+  function showError(message) {
+    const resultCard = document.getElementById('result');
+    resultCard.className = 'result-card ng';
+    document.getElementById('resultNote').textContent = message;
+    document.getElementById('promptBox').textContent = '';
+    resultCard.style.display = '';
+    setTimeout(() => resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+  }
+
+  // プロンプトをコピー
+  function copyPrompt() {
+    const promptText = document.getElementById('promptBox').textContent;
+    if (!promptText) return;
+
+    navigator.clipboard.writeText(promptText).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✓ コピーしました';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = '📋 コピー';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(() => {
+      // フォールバック：古い方法
+      const textarea = document.createElement('textarea');
+      textarea.value = promptText;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      alert('コピーしました');
+    });
+  }
+
+  // 初期化
+  window.addEventListener('DOMContentLoaded', init);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+
+</body>
+</html>
