@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>エコ通勤カーボンシミュレーター</title>
+  <meta name="description" content="通勤距離と交通手段を入力するだけで、月間CO2排出量と交通費削減効果がサッと分かる無料ツール。電車・バス・車の環境負荷を比較できます。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ラジオボタン ── */
+    .radio-group { margin-bottom: 0.3rem; }
+    .radio-item {
+      display: flex; align-items: center; gap: 0.5rem;
+      padding: 0.5rem 0; cursor: pointer;
+    }
+    .radio-item input[type="radio"] { width: 16px; height: 16px; cursor: pointer; }
+    .radio-item label { font-size: 0.9rem; color: var(--text); cursor: pointer; margin: 0; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🌍 エコ通勤カーボンシミュレーター</h1>
+    <p class="subtitle">通勤距離と交通手段を選ぶだけで、月間のCO2排出量と交通費削減効果をサッと試算できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="distance">通勤片道距離</label>
+      <input type="number" id="distance" placeholder="例: 10" min="0" step="0.1">
+      <p class="hint">km単位で入力してください</p>
+    </div>
+    <div class="field">
+      <label>交通手段（メインの手段を選択）</label>
+      <div class="radio-group">
+        <div class="radio-item">
+          <input type="radio" id="train" name="transport" value="train" checked>
+          <label for="train">電車（CO2: 0.12kg/km）</label>
+        </div>
+        <div class="radio-item">
+          <input type="radio" id="bus" name="transport" value="bus">
+          <label for="bus">バス（CO2: 0.10kg/km）</label>
+        </div>
+        <div class="radio-item">
+          <input type="radio" id="car" name="transport" value="car">
+          <label for="car">車（CO2: 0.15kg/km）</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">計算する</button>
+
+  <!-- 結論カード（CO2排出量） -->
+  <div class="result-card" id="result-co2">
+    <p class="result-label">月間 CO2 排出量</p>
+    <p class="result-value" id="rv-co2">—</p>
+    <p class="result-note" id="rn-co2"></p>
+  </div>
+
+  <!-- 交通費カード -->
+  <div class="result-card" id="result-cost">
+    <p class="result-label">月間交通費</p>
+    <p class="result-value" id="rv-cost">—</p>
+    <p class="result-note" id="rn-cost"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、環境省・国土交通省などの公開データを参考に、目安として使いやすく整理しています。実際のCO2排出量は交通機関の混雑度・乗車時間などで変動します。最新情報は公式情報をご確認ください。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // 交通手段別の係数（参考値）
+  var TRANSPORT_DATA = {
+    train: { co2: 0.12, cost: 150 },  // kg/km, yen/km
+    bus:   { co2: 0.10, cost: 130 },
+    car:   { co2: 0.15, cost: 180 }
+  };
+
+  var WORKING_DAYS = 20; // 月間営業日（往復なので×2）
+
+  function calc() {
+    var distance = parseFloat(document.getElementById('distance').value);
+    if (isNaN(distance) || distance <= 0) {
+      showErr('通勤距離を正しく入力してください');
+      return;
+    }
+
+    // 選択された交通手段を取得
+    var transport = document.querySelector('input[name="transport"]:checked').value;
+    var data = TRANSPORT_DATA[transport];
+
+    // 往復・月間計算
+    var roundTripDistance = distance * 2;
+    var monthlyDistance = roundTripDistance * WORKING_DAYS;
+
+    var co2Amount = monthlyDistance * data.co2; // kg
+    var costAmount = monthlyDistance * data.cost; // yen
+
+    // 車との比較で削減効果を表示
+    var carData = TRANSPORT_DATA.car;
+    var carMonthlyDistance = monthlyDistance;
+    var carCo2 = carMonthlyDistance * carData.co2;
+    var carCost = carMonthlyDistance * carData.cost;
+
+    var co2Reduction = carCo2 - co2Amount;
+    var costReduction = carCost - costAmount;
+
+    // 結果を表示
+    showResult(co2Amount, costAmount, co2Reduction, costReduction);
+    showDetail([
+      ['通勤片道距離', fmt(distance) + ' km'],
+      ['交通手段', transport === 'train' ? '電車' : transport === 'bus' ? 'バス' : '車'],
+      ['往復距離/日', fmt(roundTripDistance) + ' km'],
+      ['月間距離', fmt(monthlyDistance) + ' km'],
+      ['', ''],
+      ['月間CO2排出', fmt(co2Amount) + ' kg'],
+      ['月間交通費', fmt(costAmount) + ' 円'],
+      ['', ''],
+      ['車との比較', ''],
+      ['CO2削減量', fmt(co2Reduction) + ' kg', true],
+      ['費用削減額', fmt(costReduction) + ' 円', true],
+    ]);
+  }
+
+  function showResult(co2, cost, co2Reduction, costReduction) {
+    // CO2結果
+    var rc = document.getElementById('result-co2');
+    rc.className = 'result-card warn';
+    rc.style.display = 'block';
+    rc.innerHTML = '<p class="result-label">月間 CO2 排出量</p>'
+      + '<p class="result-value" id="rv-co2">' + fmt(co2) + ' kg</p>'
+      + '<p class="result-note" id="rn-co2">車と比べて月間 ' + fmt(co2Reduction) + ' kg の CO2 を削減</p>';
+
+    // 交通費結果
+    var cc = document.getElementById('result-cost');
+    cc.className = 'result-card ok';
+    cc.style.display = 'block';
+    cc.innerHTML = '<p class="result-label">月間交通費</p>'
+      + '<p class="result-value" id="rv-cost">' + fmt(cost) + ' 円</p>'
+      + '<p class="result-note" id="rn-cost">車と比べて月間 ' + fmt(costReduction) + ' 円 節約</p>';
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      if (r[0] === '') {
+        return '<tr style="height:0.5rem;"><td colspan="2"></td></tr>';
+      }
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result-co2');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    rc.innerHTML = '<p class="result-label">月間 CO2 排出量</p>'
+      + '<p class="result-value" id="rv-co2">入力エラー</p>'
+      + '<p class="result-note" id="rn-co2">' + msg + '</p>';
+
+    document.getElementById('result-cost').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) {
+    if (n < 1) return n.toFixed(2);
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
