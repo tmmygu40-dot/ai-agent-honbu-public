@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="CSVデータをコピペするだけで、すぐにマークダウン表に変換できます。テーブル形式で出力でき、Markdown対応のエディタやサイトで使えます。">
+  <title>📋 CSV→Markdown変換ツール</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: monospace;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field textarea { min-height: 150px; resize: vertical; font-family: monospace; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: inline-block; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-copy:active { transform: scale(0.98); }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-output {
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.9rem 0.8rem; font-family: monospace; font-size: 0.85rem;
+      line-height: 1.5; white-space: pre-wrap; word-break: break-all;
+      color: var(--text); max-height: 300px; overflow-y: auto;
+    }
+    .result-actions { margin-top: 1rem; text-align: center; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print, .btn-copy { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- GoatCounter 計測タグ（削除禁止） -->
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📋 CSV→Markdown変換ツール</h1>
+    <p class="subtitle">CSVをコピペするだけで、すぐにマークダウン表に変換できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="csvInput">CSV形式のデータを貼り付け</label>
+      <textarea id="csvInput" placeholder="例:&#10;名前,年齢,職業&#10;太郎,30,エンジニア&#10;花子,28,デザイナー&#10;&#10;カンマまたはタブ区切りに対応しています。"></textarea>
+      <p class="hint">1行目はヘッダーとして扱われます。カンマ区切り・タブ区切り両対応。</p>
+    </div>
+  </div>
+
+  <!-- 変換ボタン -->
+  <button class="btn-calc" onclick="convert()">変換する</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="card-title">マークダウン表</p>
+    <div class="result-output" id="output"></div>
+    <div class="result-actions">
+      <button class="btn-copy" onclick="copyToClipboard()">📋 コピーする</button>
+    </div>
+  </div>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  function convert() {
+    var csv = document.getElementById('csvInput').value.trim();
+    if (!csv) {
+      showError('CSVデータを入力してください');
+      return;
+    }
+
+    try {
+      var lines = csv.split('\n').map(line => line.trim()).filter(line => line);
+      if (lines.length === 0) {
+        showError('有効なデータがありません');
+        return;
+      }
+
+      // 区切り文字を判定（タブまたはカンマ）
+      var delimiter = lines[0].includes('\t') ? '\t' : ',';
+
+      // CSVをパース
+      var rows = lines.map(line => {
+        // シンプルなCSVパース（クォート処理なし）
+        return line.split(delimiter).map(cell => cell.trim());
+      });
+
+      if (rows.length === 0) {
+        showError('有効なデータがありません');
+        return;
+      }
+
+      // マークダウンテーブルを生成
+      var markdown = '';
+
+      // ヘッダー行
+      markdown += '| ' + rows[0].join(' | ') + ' |\n';
+
+      // セパレータ行
+      markdown += '|' + rows[0].map(() => ' --- ').join('|') + '|\n';
+
+      // データ行
+      for (var i = 1; i < rows.length; i++) {
+        var row = rows[i];
+        // 列数を揃える
+        while (row.length < rows[0].length) {
+          row.push('');
+        }
+        markdown += '| ' + row.slice(0, rows[0].length).join(' | ') + ' |\n';
+      }
+
+      showResult(markdown);
+      saveToStorage(csv);
+    } catch (e) {
+      showError('変換に失敗しました: ' + e.message);
+    }
+  }
+
+  function showResult(markdown) {
+    var resultCard = document.getElementById('result');
+    var output = document.getElementById('output');
+    output.textContent = markdown;
+    resultCard.style.display = 'block';
+    // スクロールして結果を表示
+    setTimeout(() => resultCard.scrollIntoView({ behavior: 'smooth' }), 100);
+  }
+
+  function showError(msg) {
+    showResult('⚠️ エラー: ' + msg);
+  }
+
+  function copyToClipboard() {
+    var output = document.getElementById('output');
+    var text = output.textContent;
+
+    // クリップボード API を使用
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function() {
+        alert('マークダウンテーブルをコピーしました！');
+      }).catch(function(err) {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  }
+
+  function fallbackCopy(text) {
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand('copy');
+      alert('マークダウンテーブルをコピーしました！');
+    } catch (err) {
+      alert('コピーに失敗しました。手動で選択してコピーしてください。');
+    }
+    document.body.removeChild(textarea);
+  }
+
+  function saveToStorage(csv) {
+    localStorage.setItem('csv_history', csv);
+  }
+
+  function loadFromStorage() {
+    var saved = localStorage.getItem('csv_history');
+    if (saved) {
+      document.getElementById('csvInput').value = saved;
+    }
+  }
+
+  // ページ読み込み時に履歴を復元
+  window.addEventListener('load', function() {
+    loadFromStorage();
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
