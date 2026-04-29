@@ -449,3 +449,4 @@ commit: dea0c02
 [2026-04-30_063200] SCAN apps=2026年6月値上げ対象品目チェッカー,GW給与チェッカー total=0 exit=0
 [2026-04-30_065624] SCAN apps=お小遣い断食期間予測アプリ total=0 exit=0
 [2026-04-30_072358] SCAN apps=スマホ通知中毒度4タイプ診断 total=0 exit=0
+[2026-04-30_081726] SCAN apps=1日10語英語クイズゲーム total=0 exit=0
