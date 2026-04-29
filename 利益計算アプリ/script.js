@@ -125,10 +125,5 @@ function clearInputs() {
 
 costInput.addEventListener('input', calculate);
 priceInput.addEventListener('input', calculate);
-saveBtn.addEventListener('click', saveToHistory);
-clearBtn.addEventListener('click', clearInputs);
-clearHistoryBtn.addEventListener('click', () => {
-  if (confirm('履歴を全削除しますか？')) clearHistory();
-});
 
 renderHistory();

@@ -167,19 +167,6 @@ function calculate() {
 }
 
 // ── Events ─────────────────────────────────────────────
-$('addMemberBtn').addEventListener('click', () => {
-  const name = $('memberName').value.trim();
-  if (!name) return;
-  if (members.includes(name)) {
-    alert('同じ名前のメンバーが既にいます');
-    return;
-  }
-  members.push(name);
-  $('memberName').value = '';
-  save();
-  renderMembers();
-});
-
 $('memberName').addEventListener('keydown', e => {
   if (e.key === 'Enter') $('addMemberBtn').click();
 });
@@ -202,53 +189,12 @@ $('memberList').addEventListener('click', e => {
   $('resultSection').style.display = 'none';
 });
 
-$('addPayBtn').addEventListener('click', () => {
-  const payer = $('payer').value;
-  if (!payer) { alert('支払った人を選んでください'); return; }
-  const desc = $('payDesc').value.trim() || '支払い';
-  const amount = parseInt($('payAmount').value);
-  if (!amount || amount <= 0) { alert('金額を入力してください'); return; }
-
-  const checkedBoxes = $('payTargets').querySelectorAll('input[type=checkbox]:checked');
-  const targets = Array.from(checkedBoxes).map(cb => cb.value);
-  if (targets.length === 0) { alert('対象メンバーを1人以上選んでください'); return; }
-
-  payments.push({
-    id: Date.now(),
-    payer,
-    desc,
-    amount,
-    targets
-  });
-
-  $('payDesc').value = '';
-  $('payAmount').value = '';
-  // reset checkboxes to all checked
-  $('payTargets').querySelectorAll('input[type=checkbox]').forEach(cb => { cb.checked = true; });
-
-  save();
-  renderPayments();
-  $('resultSection').style.display = 'none';
-});
-
 $('payList').addEventListener('click', e => {
   const btn = e.target.closest('.pay-del');
   if (!btn) return;
   const i = parseInt(btn.dataset.i);
   payments.splice(i, 1);
   save();
-  renderPayments();
-  $('resultSection').style.display = 'none';
-});
-
-$('calcBtn').addEventListener('click', calculate);
-
-$('resetBtn').addEventListener('click', () => {
-  if (!confirm('全データをリセットしますか？')) return;
-  members = [];
-  payments = [];
-  save();
-  renderMembers();
   renderPayments();
   $('resultSection').style.display = 'none';
 });

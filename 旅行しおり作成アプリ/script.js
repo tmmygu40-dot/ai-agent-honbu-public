@@ -147,30 +147,23 @@ function escHtml(str) {
 }
 
 // --- クリア ---
-document.getElementById('btn-clear').addEventListener('click', () => {
+function clearAll() {
   if (!confirm('すべてのデータを削除します。よろしいですか？')) return;
   data = { info: { title: '', date: '', place: '', time: '', memo: '' }, schedule: [], items: [] };
   saveData();
   bindInfoFields();
   renderSchedule();
   renderItems();
-});
-
-// --- 印刷 ---
-document.getElementById('btn-print').addEventListener('click', () => {
-  window.print();
-});
+}
 
 // --- Enterキーで追加 ---
 document.getElementById('sch-content').addEventListener('keydown', e => {
   if (e.key === 'Enter') addSchedule();
 });
-document.getElementById('btn-add-sch').addEventListener('click', addSchedule);
 
 document.getElementById('item-name').addEventListener('keydown', e => {
   if (e.key === 'Enter') addItem();
 });
-document.getElementById('btn-add-item').addEventListener('click', addItem);
 
 // --- 初期化 ---
 loadData();

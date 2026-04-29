@@ -152,7 +152,7 @@ document.getElementById('vaccine-name').addEventListener('change', function() {
   if (this.value !== 'その他') custom.value = '';
 });
 
-document.getElementById('add-btn').addEventListener('click', function() {
+function addRecord() {
   const selectEl = document.getElementById('vaccine-name');
   const customEl = document.getElementById('vaccine-custom');
   const dateEl = document.getElementById('vaccine-date');
@@ -180,7 +180,7 @@ document.getElementById('add-btn').addEventListener('click', function() {
   memoEl.value = '';
 
   renderRecords();
-});
+}
 
 // 初期描画
 renderRecords();

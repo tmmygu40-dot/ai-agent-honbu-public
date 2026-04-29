@@ -7,16 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
   loadFromStorage();
   setDefaultCheckin();
   renderList();
-
-  document.getElementById('addBtn').addEventListener('click', addVisitor);
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentFilter = btn.dataset.filter;
-      renderList();
-    });
-  });
 });
 
 function setDefaultCheckin() {

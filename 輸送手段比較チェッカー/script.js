@@ -96,8 +96,6 @@ function calculate() {
   saveToStorage();
 }
 
-document.getElementById('calcBtn').addEventListener('click', calculate);
-
 // Allow Enter key on inputs to trigger calculation
 IDS.forEach(id => {
   document.getElementById(id).addEventListener('keydown', e => {

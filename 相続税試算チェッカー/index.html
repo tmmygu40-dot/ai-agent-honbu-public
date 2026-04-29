@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>相続税試算チェッカー｜財産額と相続人数から概算を30秒で確認</title>
+  <meta name="description" content="相続財産の総額と法定相続人の人数を入力するだけで、基礎控除額・課税遺産総額・相続税の概算がすぐ分かります。事前確認や相続の話し合いの参考にどうぞ。※2024年度の税制を基準にした参考試算です。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 注意事項 ── */
+    .caution-box {
+      max-width: 600px; margin: 0 auto 1rem;
+      padding: 0.9rem 1rem;
+      background: #fef9e7; border: 1px solid #f6c90e;
+      border-radius: var(--radius); font-size: 0.8rem;
+      color: var(--text-sub); line-height: 1.65;
+    }
+    .caution-box strong { color: var(--text); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💴 相続税試算チェッカー</h1>
+    <p class="subtitle">財産額と相続人数を入れるだけで、相続税の概算がすぐ分かります。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="assets">相続財産の総額（万円）</label>
+      <input type="number" id="assets" placeholder="例: 8000" min="0" inputmode="numeric">
+      <p class="hint">預金・不動産・株式など、すべての財産の合計額を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="heirs">法定相続人の数（人）</label>
+      <input type="number" id="heirs" placeholder="例: 3" min="1" max="20" inputmode="numeric">
+      <p class="hint">配偶者・子・父母・兄弟姉妹など、法律で定められた相続人の合計人数</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">相続税を試算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">相続税概算（合計）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 注意事項 -->
+  <div class="caution-box" id="caution-box" style="display:none">
+    <strong>⚠️ この試算について</strong><br>
+    ・相続人が全員均等に相続した場合の<strong>簡易概算</strong>です。<br>
+    ・<strong>配偶者の税額軽減</strong>（最大1億6,000万円まで非課税）や、<strong>小規模宅地等の特例</strong>（最大80%評価減）などは反映していません。<br>
+    ・実際の相続税は財産の種類・相続人の構成・各種控除で大きく異なります。<br>
+    ・詳細は<strong>税理士または最寄りの税務署</strong>へご相談ください。
+  </div>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、国税庁の相続税速算表（2015年1月1日以降の税制）をもとに目安として試算しています。2026年度の参考データです。最新情報は国税庁の公式情報をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  // 相続税速算表（万円単位）
+  var TAX_TABLE = [
+    { limit: 1000,   rate: 0.10, deduct: 0     },
+    { limit: 3000,   rate: 0.15, deduct: 50    },
+    { limit: 5000,   rate: 0.20, deduct: 200   },
+    { limit: 10000,  rate: 0.30, deduct: 700   },
+    { limit: 20000,  rate: 0.40, deduct: 1700  },
+    { limit: 30000,  rate: 0.45, deduct: 2700  },
+    { limit: 60000,  rate: 0.50, deduct: 4200  },
+    { limit: Infinity, rate: 0.55, deduct: 7200 }
+  ];
+
+  function calcTax(amount) {
+    // amount: 万円
+    for (var i = 0; i < TAX_TABLE.length; i++) {
+      if (amount <= TAX_TABLE[i].limit) {
+        return Math.max(0, amount * TAX_TABLE[i].rate - TAX_TABLE[i].deduct);
+      }
+    }
+    return 0;
+  }
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+
+  function loadStorage() {
+    try {
+      var s = localStorage.getItem('sozokuzei_checker');
+      if (s) {
+        var d = JSON.parse(s);
+        if (d.assets) document.getElementById('assets').value = d.assets;
+        if (d.heirs)  document.getElementById('heirs').value  = d.heirs;
+      }
+    } catch(e) {}
+  }
+
+  function saveStorage(assets, heirs) {
+    try {
+      localStorage.setItem('sozokuzei_checker', JSON.stringify({ assets: assets, heirs: heirs }));
+    } catch(e) {}
+  }
+
+  function calc() {
+    var assets = parseFloat(document.getElementById('assets').value);
+    var heirs  = parseInt(document.getElementById('heirs').value, 10);
+
+    if (isNaN(assets) || assets < 0) { alert('相続財産の総額を正しく入力してください'); return; }
+    if (isNaN(heirs)  || heirs < 1)  { alert('法定相続人の数を1人以上で入力してください'); return; }
+
+    saveStorage(assets, heirs);
+
+    // 基礎控除額
+    var basicDeduction = 3000 + 600 * heirs;
+
+    // 課税遺産総額
+    var taxableEstate = assets - basicDeduction;
+
+    if (taxableEstate <= 0) {
+      // 相続税なし
+      showResult('ok', '0 円', '相続税なし', '基礎控除内に収まるため、相続税はかかりません。');
+      showDetail([
+        ['相続財産の総額',   fmt(assets) + ' 万円'],
+        ['基礎控除額',       fmt(basicDeduction) + ' 万円（3,000万円 + 600万円×' + heirs + '人）'],
+        ['課税遺産総額',     '0 万円（控除内）', true],
+        ['相続税概算',       '0 円'],
+      ]);
+      document.getElementById('caution-box').style.display = 'block';
+      return;
+    }
+
+    // 各相続人の法定相続分（均等割り）
+    var perHeirShare = taxableEstate / heirs;
+
+    // 各相続人の税額
+    var perHeirTax = calcTax(perHeirShare);
+
+    // 相続税総額（万円）
+    var totalTax = perHeirTax * heirs;
+    var totalTaxYen = Math.round(totalTax * 10000);
+
+    // レベル判定
+    var level;
+    if (totalTax < 100) {
+      level = 'warn';
+    } else if (totalTax < 1000) {
+      level = 'warn';
+    } else {
+      level = 'ng';
+    }
+
+    var eval_text = totalTax < 100
+      ? '比較的小さな負担ですが、早めに確認を'
+      : totalTax < 500
+      ? '一定の相続税がかかります。準備を検討してみましょう'
+      : totalTax < 2000
+      ? '相続税の負担が大きくなります。税理士への相談を検討してください'
+      : '高額な相続税が予想されます。専門家への相談が重要です';
+
+    showResult(level, fmt(totalTaxYen) + ' 円', eval_text, '※均等相続・特例なしの簡易概算');
+    showDetail([
+      ['相続財産の総額',           fmt(assets) + ' 万円'],
+      ['基礎控除額',               fmt(basicDeduction) + ' 万円（3,000万円 + 600万円×' + heirs + '人）'],
+      ['課税遺産総額',             fmt(taxableEstate) + ' 万円'],
+      ['1人あたりの法定相続分',    fmt(perHeirShare) + ' 万円（÷' + heirs + '人）'],
+      ['1人あたりの税額',          fmt(Math.round(perHeirTax * 10000)) + ' 円'],
+      ['相続税総額（概算）',       fmt(totalTaxYen) + ' 円', true],
+    ]);
+    document.getElementById('caution-box').style.display = 'block';
+  }
+
+  function showResult(level, val, evalText, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = evalText;
+    document.getElementById('rn').textContent = note || '';
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = 'block';
+  }
+
+  // ページ読み込み時に前回の入力値を復元
+  loadStorage();
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+</body>
+</html>
