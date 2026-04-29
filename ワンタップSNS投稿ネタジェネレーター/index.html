@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ワンタップSNS投稿ネタジェネレーター</title>
+  <meta name="description" content="場面・感情・文体を選ぶだけで、バズるX投稿ネタが3秒で生成できるシンプルジェネレーター。思いついたらすぐコピーして投稿できます。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field select:focus { border-color: var(--accent); background: #fff; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.5; margin-bottom: 0.8rem; color: var(--text); word-break: break-word; }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: block; margin-top: 0.8rem; padding: 0.6rem 1.2rem;
+      font-size: 0.9rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .btn-copy:hover { background-color: #d46800; }
+    .btn-copy:active { transform: scale(0.98); }
+    .copy-status { font-size: 0.75rem; color: var(--ok); margin-top: 0.3rem; display: none; }
+    .copy-status.show { display: block; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print, .btn-copy { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止・重複追加禁止 -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💬 ワンタップSNS投稿ネタジェネレーター</h1>
+    <p class="subtitle">場面・感情・文体を選ぶだけで、バズるX投稿ネタが3秒で出ます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">3択選択</p>
+    <div class="field">
+      <label for="scene">場面を選ぶ</label>
+      <select id="scene">
+        <option value="">-- 選択してください --</option>
+        <option value="work">仕事・キャリア</option>
+        <option value="daily">日常・ライフスタイル</option>
+        <option value="love">恋愛・結婚</option>
+        <option value="health">健康・ダイエット</option>
+        <option value="money">お金・節約</option>
+        <option value="hobby">趣味・推し活</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="emotion">感情を選ぶ</label>
+      <select id="emotion">
+        <option value="">-- 選択してください --</option>
+        <option value="laugh">笑い・ユーモア</option>
+        <option value="touched">感動・しみじみ</option>
+        <option value="sympathy">共感・あるある</option>
+        <option value="sarcasm">皮肉・毒舌</option>
+        <option value="surprise">驚き・びっくり</option>
+        <option value="wisdom">知恵・プチ情報</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="tone">文体を選ぶ</label>
+      <select id="tone">
+        <option value="">-- 選択してください --</option>
+        <option value="casual">カジュアル・親友トーン</option>
+        <option value="formal">フォーマル・専門家トーン</option>
+        <option value="humor">ユーモア・遊び心</option>
+        <option value="advice">アドバイス・説教</option>
+        <option value="question">質問形・問いかけ</option>
+        <option value="confession">告白・つぶやき</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="generateIdea()">ネタを生成する 🎯</button>
+
+  <!-- 結論カード（JS で 生成結果を表示） -->
+  <div class="result-card ok" id="result" style="display:none">
+    <p class="result-label">生成されたネタ</p>
+    <p class="result-value" id="rv"></p>
+    <button class="btn-copy" onclick="copyToClipboard()">📋 コピーする</button>
+    <p class="copy-status" id="copy-status">✅ コピーしました！</p>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    💡 このツールはAIの創意工夫を参考に、SNS投稿アイデアの発想支援として使いやすく整理しています。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ネタデータベース（場面×感情×文体）
+  const ideaDatabase = {
+    work: {
+      laugh: {
+        casual: [
+          '「月曜日は昨日の続きみたい」とクライアントに言われて、土日何してたんだろうと自問自答中🤔',
+          'Excel で1時間かけた資料、クライアント一言で「シンプルに」と言われる→全部消す羽目に😱',
+          'リモート会議で、猫が横切った。上司のカメラ越しに｢可愛い｣の嵐。俺も猫になりたい🐱',
+          'PM「これ簡単です」→現実はバグ地獄。簡単ってなんだろう🌋',
+          'タスク管理ツール買った。1日で忘れた。デジタルじゃなく、気合で管理する派だ💪'
+        ],
+        formal: [
+          '「業務効率化」と称して新システム導入。実際の作業時間は1.5倍に。何か間違っている。',
+          '四半期ごとの目標設定。前期の目標、もう忘れました。新しい紙をください。',
+          '「スキルセット」という言葉を聞くたびに、「セット」の意味を考えて3秒止まる。',
+          'リモートワーク5年目。オンカメラスキルだけは磨かれた。',
+          'チームビルディング合宿の企画案が月1。本当のチームビルディング知ってる？'
+        ],
+        humor: [
+          'やること増える→優先度付ける→全部1番→全部手付かず🎯→メンタル100の状態',
+          '会議で「いい質問だね」と言われて、自分の15分後の発言をひたすら吟味する男🕵️',
+          '「これまでと同じクオリティで、納期は半分で」←言葉の暴力説🔪',
+          'Slack で「見た？」と言われるたびに、心臓が止まる。まだ見てない。逃げよう。',
+          '締切5分前に「変更があります」 ← この5分間は人生で一番濃い5分🕐'
+        ]
+      },
+      touched: {
+        casual: [
+          'あの時パワハラ気味だった上司、実は部下思いだったんだって。人って見た目じゃわからんな😭',
+          '退職した先輩が突然連絡。「君の仕事ぶり、今の後輩に見せてあげたい」ってさ。嬉しい🥺',
+          '若手時代、叱ってくれた先輩が最近昇進。自分の頑張りを見てくれてる人がいるんだな。',
+          '3年ぶりに当時の同期と飲んだ。「あの時君が言った一言、今でも支えになってる」って。',
+          'クライアント「この人に任せたい」って指名してくれた。信頼って重い。大事にしよう。'
+        ],
+        formal: [
+          'メンターの一言が、5年モヤモヤしてた問題を一瞬で解決した。人との出会い、大事。',
+          '部下が大成功した案件。自分が信じて任せた判断が正しかったんだ。育成の喜びを初めて知った。',
+          '転職して初めて気付く、前職での学び。あの環境と人間関係が今の基礎になっている。',
+          'フィードバックをくれた人へのお礼を言ったら「君の成長が一番の返礼」と。',
+          '10年前のコード、今見ると成長が丸わかり。自分って、ちゃんと進んでたんだ。'
+        ],
+        humor: [
+          'あの時のミス、今では笑い話。当時の自分が知ったら泣く。でも今も泣く。😭😂',
+          '先輩が「当時君、めっちゃ必死だったよ」と懐かしむ。本気って大事なんだな。',
+          '昔の失敗について上司と話したら「皆通る道。むしろいい経験」だって。救われた。'
+        ]
+      },
+      sympathy: {
+        casual: [
+          '「早めに仕上げてね」→納期の3日前にもらう。早めてーの意味が違う😭',
+          '朝の会議で「この案どう？」→その場で決定権ない俺が決めてしまう→後で修正の地獄',
+          'タスク完了→確認待ち→2週間音沙汰なし。ずっとこのタスクが心に引っかかる👻',
+          'メール「至急確認お願いします」→2日後に「あ、別にいいです」→怒りと虚脱が同時😠',
+          '「短時間で簡潔に」と指示→20分プレゼンになる。この落差、何ですか？'
+        ],
+        formal: [
+          'ステークホルダーが多いほど、決定に時間がかかる。民主的だが、効率性とのバランスが難しい。',
+          'ドキュメントのレビュー待ち。進まない。待機時間の無駄。何か別のこと始めるべき。',
+          'スケジュール変更のお知らせ。5回目。もうカレンダーが信用できない。',
+          'プロジェクトの方針が180度変わった。それまでの仕事、何だったのか。',
+          '「継続」と「改善」のバランス。人によって大事にすることが違い、すり合わせが課題。'
+        ],
+        humor: [
+          'やっぱり駄目←この一言で、昨日の1日が消える。人生って☠️',
+          '「簡単だと思ったんで」って先輩のコード。全く簡単じゃない。むしろ謎解き。🧩',
+          '仕事は人間関係。技術は二の次って、本当だった。だから得意な技術しかできない。',
+          'また同じようなバグで1日失った。もう成長してないんじゃ…という疑惑。🌀'
+        ]
+      }
+    },
+    daily: {
+      laugh: {
+        casual: [
+          'コンビニで「あ、これ好きだ」→レジで「あ、ない」→棚に戻す。毎週のルーティン😭',
+          'ベッドから起きた時点で疲れてる。起きるのって最大級の運動だ。',
+          '朝シャワーで完全に目覚める派と、シャワー後も眠い派がいるらしい。俺は後者。何なんだ。',
+          'スマホを触る→1時間経ってた。ドラえもん、時間停止ガンください。',
+          '「今日は何も予定ないから楽」→結局何もしなかった。楽だった。これでいい。'
+        ],
+        formal: [
+          '毎日同じ時間に起きる。これだけで人生の60%が決まる気がする。',
+          '朝食の質で、その日の仕事効率が変わる。栄養学、なめてた。',
+          'スマートフォン、手放した瞬間だけ幸福感を感じる。何か変。',
+          '運動習慣。3日続かない。脳のシステムアップデートが必要。',
+          '毎日同じ道を通っていても、見える風景は毎日違う。注意力、大事だな。'
+        ],
+        humor: [
+          'やりたいこと100個リスト作った→1週間で見なくなった→3ヶ月後発見→やってない😭',
+          'ルーティンを作る→一週間→飽きる→新しいルーティン→また飽きる→人生の無駄',
+          '朝の準備に30分→毎日同じで楽。でも何かつまらん。新しい朝よ来い。',
+          '日曜の夜の絶望感。月曜が来る。永遠に来ねぇ。',
+          'Instagram で見たおしゃれな朝。俺の朝はカップラーメン。映えない。'
+        ]
+      },
+      touched: {
+        casual: [
+          '何でもない日の、何でもないご飯。これが一番好きだったんだな。',
+          '子どもの「おはよう」を聞くだけで、その日が良い日になる気がする。',
+          '母から「元気？」ってLINE。何か心がホッとする。こういう繋がり、大事にしよう。',
+          'あの時一緒にいた人のこと、ふと思い出す。あの時間、本当に大事だったんだな。',
+          '昔住んでた町に行った。何も変わってない。でも自分は変わってる。時間って不思議。'
+        ]
+      },
+      sympathy: {
+        casual: [
+          'やることが多すぎて、何からやったらいいか分からない。結局何もしない🌀',
+          '「明日やろう」→2週間経ってた。明日って来ないんだ。',
+          'やる気スイッチ、どこにあるの？みんな見つけてるの？あるの？',
+          '部屋が散らかってる→片付ける気力がない→さらに散らかる→悪循環',
+          '夜更かし→朝寝坊→余裕がない→イライラ→また夜更かし。この地獄。'
+        ]
+      }
+    },
+    love: {
+      laugh: {
+        casual: [
+          '相手が「今何してるの？」→実は何もしてない。「仕事！」と嘘を付く男の鑑🎬',
+          'デート中、相手がトイレ→スマホ見て時間つぶし。人間って独りじゃ退屈ですね。',
+          'バレンタイン「チョコあげる」→バラバラのチョコを詰めただけ→プレゼント感ゼロ😂',
+          'LINEで「返信遅くてごめん」→見直したら3分前。何が遅いねん。',
+          'カップルの休日は「何しようか」論争。決めるのに1時間。結局何もしない。'
+        ],
+        formal: [
+          '相手の親に初めて会う。日中の何時間が、人生で一番長く感じた。',
+          '長距離恋愛。月1回の面会で、100回のLINEをする。数学的に合ってない。',
+          '相手の誕生日プレゼント選び。完全に運ゲー。何もらって喜ぶかわからん。',
+          '「結婚について真剣に話そう」と聞いた時点で、心臓が止まる。',
+          '彼氏彼女の態度が違う夜と朝。人って、こんなに変わるの？'
+        ],
+        humor: [
+          '相手からの「話がある」のLINE。人生で一番怖い5文字。😱',
+          'SNS で相手の前カレの投稿を掘り出す。何してるんだ俺。人生の無駄。',
+          'デート中、相手の視界に入らなくなった。終わったな。',
+          'プロポーズの言葉、1000回以上シミュレーションしたのに、本番は真っ白。',
+          'バレンタインデー、金で男の価値が決まる日。つらい。😭'
+        ]
+      },
+      touched: {
+        casual: [
+          '相手が「一緒にいるだけで幸せ」って言ってくれた。こんなに素直な言葉、初めて聞いた。',
+          '喧嘩後、相手が「ごめんね」と言ってくれた。その一言で全部許せた。',
+          '相手が「君のこと好きだ」ってもう一度言ってくれた。3回目だけど、毎回心臓が止まる。',
+          'プロポーズされた時、何も言葉が出なかった。涙だけが出た。幸せ、これだ。',
+          '子どもが生まれた。こんなに小さい命、この子を守らなきゃって初めて思った。'
+        ]
+      },
+      sympathy: {
+        casual: [
+          'LINEを3時間送ってない。なぜか不安。浮気じゃないか気になる。😰',
+          '相手が「何もない」と言った時、これほど怖いセリフはない。絶対何かある。',
+          '相手の友達に会った時、自分の評価を気にしすぎて疲れた。',
+          '遠距離恋愛。月1回の面会。あと29日、どうやって耐えようか。',
+          '相手のSNS、ついつい見てる。見る度に心が重くなる。何してるんだ俺。'
+        ]
+      }
+    },
+    health: {
+      laugh: {
+        casual: [
+          '「今日から運動する」→翌日腕が上がらない。俺の筋肉、ストライキ中🦵',
+          'ジムに行った初日は気分いい→5日目はもう行かない→月額払ってることを忘れる😭',
+          'サラダを食べる→次の日ラーメン→帳消し感覚。栄養学、破綻してる。',
+          'ダイエット開始→3日目→お菓子誘惑に負ける→また明日から→何が明日だ',
+          '「毎日8000歩歩く」→初日楽し→2日目足が痛い→3日目以降は歩数計との戦い'
+        ]
+      },
+      sympathy: {
+        casual: [
+          'ダイエット開始→一週間で-1kg→喜ぶ→その後停滞期地獄😭',
+          '「早寝早起き」宣言→1週間で破綻。体内時計、更新不可。',
+          'おばあちゃんの「早いうちからダイエット心配」。それ圧プレッシャーです😠',
+          'ラーメンを食べる時、罪悪感がセットで付いてくる。楽しみが半減してる。',
+          '毎日同じメニュー→続かない→やっぱり続かない→食べ物は気分で決めるべき'
+        ]
+      }
+    },
+    money: {
+      laugh: {
+        casual: [
+          '給料日の夜：金持ちになった気分。2日後：貯金ゼロ。人間て3日保たない。',
+          'クレカの使用額見て、何に使った？と毎月謎解きしてる。記憶、ない😭',
+          'セール「70%OFF」→買う→家に届く→「何これ」→絶対に着ない。沼ですね。',
+          'サブスク契約数数えるのは怖い。多分月3000円は無駄。認めたくない。',
+          'ATM引き出し手数料100円。これが1年で1200円。金持ちになるわけねー。'
+        ],
+        formal: [
+          '貯金目標を立てる→1ヶ月で挫折。現実と理想のギャップ、激しい。',
+          '家計簿をつける→3日で辞める→毎回の流れ。人間、秩序を求めてない。',
+          '「固定費削減」と決意→何も削減されない→人間は執着の生き物。',
+          'ボーナスで貯金する気→気付いたら普通預金へ移動→結局使う。運命。',
+          '年金、本当に返ってくるのかな。不安しかない。'
+        ]
+      },
+      sympathy: {
+        casual: [
+          '給料日まであと1週間。カップラーメン生活。これが人生だ。😭',
+          '急な出費で貯金がマイナス。信用金庫の手数料がバカにならん。',
+          'ボーナス直前「何に使おう」→直後「え、何に使った？」→人生謎。',
+          '会社の飲み会でおごった。その後、給料まで学生レベルの貧困。',
+          '実家の親に「貯金ある？」と聞かれて、冷や汗が出る。ない。何もない。'
+        ]
+      }
+    },
+    hobby: {
+      laugh: {
+        casual: [
+          '推し活にいくら使った？→計算したくない。向き合えない現実😭',
+          'グッズ買った→次の日「あ、こっちのが欲しかった」→沼。底がない。',
+          'オタ友に「推し誰？」と聞かれて、30分プレゼン。誰も聞いてない。',
+          '推し事件が起きた→人生の優先度が全部変わる。仕事？何それ？',
+          'Twitterで推し情報チェック→3時間経ってた。睡眠時間、確保できない。'
+        ],
+        formal: [
+          '趣味にかけた時間と金を計算するな。計算したら後悔する。',
+          '推し活は人生と同じくらい大事。仕事との両立、難しいけど必要。',
+          'グッズ購入は自己投資。幸福度が上がるから、これは教育費だ。',
+          '推しの成長を見守る。親の気持ちが初めてわかった。',
+          'オタクコミュニティ。年齢性別関係なく繋がれる。人間関係としては最高。'
+        ]
+      },
+      touched: {
+        casual: [
+          '推しの新曲を聞いた。目から涙。こんなの準備できてない。',
+          '推しが成功した。自分のことみたいに嬉しい。応援って最高。',
+          'グッズを手に入れた時、推しと繋がった気がして、心がホッとした。',
+          '推しのファンサービス。あの一瞬、人生で最幸な2秒間だった。',
+          '推し活を通じて、同じ価値観の友達ができた。人生が変わった。'
+        ]
+      }
+    }
+  };
+
+  function generateIdea() {
+    const scene = document.getElementById('scene').value;
+    const emotion = document.getElementById('emotion').value;
+    const tone = document.getElementById('tone').value;
+
+    if (!scene || !emotion || !tone) {
+      alert('3つ全て選んでください！');
+      return;
+    }
+
+    // ランダムに選択
+    const ideas = ideaDatabase[scene]?.[emotion]?.[tone];
+    if (!ideas || ideas.length === 0) {
+      alert('その組み合わせのネタが見つかりません。別の組み合わせを試してください。');
+      return;
+    }
+
+    const randomIdea = ideas[Math.floor(Math.random() * ideas.length)];
+
+    // 結果を表示
+    document.getElementById('rv').textContent = randomIdea;
+    document.getElementById('result').style.display = '';
+    document.getElementById('copy-status').classList.remove('show');
+
+    // localStorage に保存
+    saveToFavorites(randomIdea);
+  }
+
+  function copyToClipboard() {
+    const text = document.getElementById('rv').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const status = document.getElementById('copy-status');
+      status.classList.add('show');
+      setTimeout(() => {
+        status.classList.remove('show');
+      }, 2000);
+    }).catch(() => {
+      alert('コピーに失敗しました。手動でコピーしてください。');
+    });
+  }
+
+  function saveToFavorites(idea) {
+    let favorites = JSON.parse(localStorage.getItem('sns-neta-favorites') || '[]');
+    if (!favorites.includes(idea)) {
+      favorites.unshift(idea);
+      if (favorites.length > 10) favorites.pop();
+      localStorage.setItem('sns-neta-favorites', JSON.stringify(favorites));
+    }
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
