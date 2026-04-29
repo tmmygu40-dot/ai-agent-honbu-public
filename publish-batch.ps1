@@ -79,7 +79,7 @@ if ($ok -and -not $noInputApps -and $apps.Count -gt 0) {
                 $crit = [int]$rep.agent_severity_counts.critical
             }
         } catch {
-            Write-Host "Quality gate error on $a -- BLOCK for safety" -ForegroundColor Yellow
+            Write-Output "Quality gate error on $a -- BLOCK for safety"
             $crit = 999
         }
 
@@ -94,7 +94,7 @@ if ($ok -and -not $noInputApps -and $apps.Count -gt 0) {
         # auto-fix retry (1 try only)
         if ($crit -gt 0 -and $rep -and $rep.issues) {
             $fixTried = $true
-            Write-Host "FIX TRY: $a" -ForegroundColor Yellow
+            Write-Output "FIX TRY: $a"
             $devIdx = Join-Path (Join-Path $dev $a) "index.html"
             $issTxt = ($rep.issues | ForEach-Object { "- [$($_.issue_type)/$($_.severity)] $($_.detail)" }) -join "`n"
             $fixPrompt = @"
@@ -123,21 +123,21 @@ $issTxt
                     }
                 }
                 if ($crit -eq 0) {
-                    Write-Host "FIX OK: $a" -ForegroundColor Green
+                    Write-Output "FIX OK: $a"
                     $fixed_ok++
                 } else {
-                    Write-Host "FIX FAIL: $a (critical=$crit)" -ForegroundColor Red
+                    Write-Output "FIX FAIL: $a (critical=$crit)"
                     $fixed_fail++
                 }
             } catch {
-                Write-Host "FIX FAIL: $a (exception)" -ForegroundColor Red
+                Write-Output "FIX FAIL: $a (exception)"
                 $fixed_fail++
                 $crit = 999
             }
         }
 
         if ($crit -gt 0) {
-            Write-Host "BLOCKED: $a (critical=$crit)" -ForegroundColor Red
+            Write-Output "BLOCKED: $a (critical=$crit)"
             $blocked++
         } else {
             if (-not $fixTried) { $passed++ }
@@ -146,12 +146,12 @@ $issTxt
     }
     $apps = @($allowed)
 
-    Write-Host ""
-    Write-Host "=== Quality Summary ===" -ForegroundColor Cyan
-    Write-Host "PASS: $passed"
-    Write-Host "FIX OK: $fixed_ok"
-    Write-Host "FIX FAIL: $fixed_fail"
-    Write-Host "BLOCKED: $blocked"
+    Write-Output ""
+    Write-Output "=== Quality Summary ==="
+    Write-Output "PASS: $passed"
+    Write-Output "FIX OK: $fixed_ok"
+    Write-Output "FIX FAIL: $fixed_fail"
+    Write-Output "BLOCKED: $blocked"
 
     $gateTotal = $passed + $fixed_ok + $blocked
     if ($gateTotal -gt 0) {
@@ -161,10 +161,10 @@ $issTxt
         $fixRate   = 0
         $blockRate = 0
     }
-    Write-Host ""
-    Write-Host "=== Quality Rates ===" -ForegroundColor Cyan
-    Write-Host "FIX RATE: $fixRate %"
-    Write-Host "BLOCK RATE: $blockRate %"
+    Write-Output ""
+    Write-Output "=== Quality Rates ==="
+    Write-Output "FIX RATE: $fixRate %"
+    Write-Output "BLOCK RATE: $blockRate %"
 
     Write-Host ""
     Write-Host "=== Issue Ranking (Top 5) ===" -ForegroundColor Cyan
