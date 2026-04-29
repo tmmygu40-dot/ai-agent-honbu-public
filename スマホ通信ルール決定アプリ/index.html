@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="スマホ通信が絶たれた時の「家族ルール」を事前に決めておくアプリ。家族人数と無線設定の優先順位を入力するだけで、推奨ルールと管理チェックリストが出来上がります。">
+  <title>スマホ通信ルール決定アプリ｜通信障害時の家族ルール決定</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* 入力フォーム ── */
+    .rule-list { margin-bottom: 1rem; }
+    .rule-item { display: flex; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; }
+    .rule-item input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+    .rule-item label { flex: 1; cursor: pointer; margin-bottom: 0; }
+
+    /* 結果テーブル ── */
+    .result-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+    .result-table td { padding: 0.5rem; border-bottom: 1px solid var(--border); }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A（ENABLE_RESULT_QA=true のときだけ表示） ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── チェックボックス行（label で行全体を包む / 行クリックでON-OFF / チェック済みは取り消し線+薄表示） ── */
+    .check-item {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.7rem 0.6rem; border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; }
+    .check-item .check-text { font-size: 0.92rem; color: var(--text); line-height: 1.4; }
+    .check-item input[type="checkbox"]:checked ~ .check-text {
+      text-decoration: line-through; color: var(--text-sub); opacity: 0.6;
+    }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>スマホ通信ルール決定アプリ</h1>
+    <p class="subtitle">通信障害時の家族ルール｜5分で決まる</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">ステップ1：家族情報</p>
+    <div class="field">
+      <label for="familyCount">家族人数</label>
+      <select id="familyCount">
+        <option value="">選択してください</option>
+        <option value="1">1人</option>
+        <option value="2">2人</option>
+        <option value="3">3人</option>
+        <option value="4">4人</option>
+        <option value="5">5人以上</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-title">ステップ2：無線ルール確認</p>
+    <div class="rule-list">
+      <div class="rule-item">
+        <input type="checkbox" id="rule1" checked>
+        <label for="rule1">Wi-Fi優先度（複数Wi-Fi時の選択ルール）</label>
+      </div>
+      <div class="rule-item">
+        <input type="checkbox" id="rule2" checked>
+        <label for="rule2">パスワード管理（共有方法・保管場所）</label>
+      </div>
+      <div class="rule-item">
+        <input type="checkbox" id="rule3">
+        <label for="rule3">通信量制限（月間上限・超過時の対応）</label>
+      </div>
+      <div class="rule-item">
+        <input type="checkbox" id="rule4">
+        <label for="rule4">緊急時の連絡方法（通信不可時の集合場所）</label>
+      </div>
+      <div class="rule-item">
+        <input type="checkbox" id="rule5">
+        <label for="rule5">デバイス管理（親・子・共有デバイスの役割分担）</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- 実行ボタン -->
+  <button class="btn-calc" onclick="generateRules()">家族ルールを作成する</button>
+
+  <!-- 結論カード（JS で表示） -->
+  <div class="result-card" id="result" style="display:none;">
+    <p class="result-label">📋 あなたの家族ルール</p>
+    <table class="result-table" id="rulesTable"></table>
+    <p class="result-note"  id="rn" style="margin-top:1rem;"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 絵文字ひとこと＆結果別Q&A（ENABLE_RESULT_QA=true のときだけ表示） -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、総務省・観光庁・国税庁などの官公庁資料や、信頼できる公開データを参考に、目安として使いやすく整理しています。
+  </p>
+
+  <!-- checkbox を使う場合の模範UI（必要時にコピーして使う / label で行全体を包む / 行クリックでON-OFF / チェック済みは取り消し線+薄表示）
+  <div class="card">
+    <p class="card-title">チェックリスト</p>
+    <label class="check-item">
+      <input type="checkbox">
+      <span class="check-text">項目1</span>
+    </label>
+    <label class="check-item">
+      <input type="checkbox">
+      <span class="check-text">項目2</span>
+    </label>
+  </div>
+  -->
+
+  <!-- 広告枠（仮・将来差し替え予定。広告コードは未実装。結果と補足を見た後の位置に配置） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── 結果別Q&A・絵文字ひとこと（不安・備え系アプリのみ true に） ──
+  var ENABLE_RESULT_QA = false;
+
+  var EMOJI_MSG = {
+    ok:   { e: '😌', t: 'ほっ、今回は大丈夫そう' },
+    warn: { e: '🤔', t: 'うーん、少し見直すと安心' },
+    ng:   { e: '😱', t: 'ガーン、早めに確認しよう' }
+  };
+
+  var QA = {
+    ok: [
+      { q: '今のままで大丈夫？', a: '今回は安心ゾーンです。今の習慣を続けるのが一番の備えになります。' },
+      { q: 'もっと余裕を持つには？', a: '毎月少しずつ見直すだけで、急な変化にも慌てずに済みます。' },
+      { q: '備えを強化するなら？', a: '家庭の備蓄や保険の見直しを、年に1回チェックしておくと安心です。' },
+      { q: '比較・確認したい時は？', a: '同じ条件で他のプランも見ておくと、選び直す目安になります。' }
+    ],
+    warn: [
+      { q: 'すぐ危ない？', a: 'すぐに危険ではありません。今のうちに確認すると後で楽になります。' },
+      { q: '何から見直す？', a: '一番金額が大きい項目・一番頻度が高い項目から1つずつで十分です。' },
+      { q: '備えを足すなら？', a: '足りない部分だけ補えばOK。一気に揃える必要はありません。' },
+      { q: '比較してみたい時は？', a: '今の条件をメモして、別の選択肢と並べて見ると判断しやすくなります。' }
+    ],
+    ng: [
+      { q: 'パニックになりそう…', a: '焦らなくて大丈夫です。やることを「今日／今週／今月」に分ければ進められます。' },
+      { q: '今日できることは？', a: 'まず現状をメモして、家族や関係者と共有するだけでも一歩前進です。' },
+      { q: '相談したほうがいい？', a: '一人で抱え込まず、専門窓口・公的相談を見ておくのも一つの方法です。' },
+      { q: '備えや代替を探すなら？', a: '同じ用途の代替・比較情報を見ておくと、選択肢が広がって安心できます。' }
+    ]
+  };
+
+  function generateRules() {
+    var familyCount = document.getElementById('familyCount').value;
+    if (!familyCount) { alert('家族人数を選択してください'); return; }
+
+    var rulesData = [
+      { title: 'Wi-Fi優先度', content: '【推奨順序】\n1. 自宅Wi-Fi\n2. 公開Wi-Fi\n3. モバイルデータ' },
+      { title: 'パスワード管理', content: '【共有方法】\n親が管理し、子に口頭で伝える\n【保管場所】\n玄関に貼紙（テキスト化）' },
+      { title: '通信量制限', content: '【月間上限】\n家族合計 10GB\n【超過時対応】\n自動制限なし。親に報告' },
+      { title: '緊急連絡', content: '【集合場所】\n自宅玄関前\n【無線がない場合】\n公衆電話/コンビニWi-Fi' },
+      { title: 'デバイス管理', content: '【親デバイス】\nスマホ・タブレット\n【子デバイス】\nスマホ限定' }
+    ];
+
+    var selectedRules = [];
+    for (var i = 1; i <= 5; i++) {
+      if (document.getElementById('rule' + i).checked) {
+        selectedRules.push(rulesData[i - 1]);
+      }
+    }
+
+    if (selectedRules.length === 0) { alert('最低1つはルール項目を選択してください'); return; }
+
+    // localStorage に保存
+    localStorage.setItem('familyRules', JSON.stringify({
+      familyCount: familyCount,
+      rules: selectedRules,
+      createdAt: new Date().toLocaleString('ja-JP')
+    }));
+
+    // 結果表示
+    var resultCard = document.getElementById('result');
+    var table = document.getElementById('rulesTable');
+    var html = selectedRules.map(function(r) {
+      return '<tr><td style="font-weight:bold;color:var(--accent);width:120px;">' + r.title + '</td><td><pre style="margin:0;white-space:pre-wrap;">' + r.content + '</pre></td></tr>';
+    }).join('');
+    table.innerHTML = html;
+
+    var msg = '✅ 家族' + familyCount + '人向けのルールが完成しました。必要に応じてプリント（PDF保存）して、家族みんなで確認してください。';
+    document.getElementById('rn').textContent = msg;
+    resultCard.className = 'result-card ok';
+    resultCard.style.display = '';
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
