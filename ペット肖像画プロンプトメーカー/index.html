@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ペットの特徴と背景を選ぶだけで、SNSアイコン向けのAIプロンプトが作れる無料ツール。生成結果はすぐコピーできます。">
+  <title>🐾 ペット肖像画プロンプトメーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1.5; margin-bottom: 0.4rem; word-break: break-word; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── コピーボタン（結果カード内） ── */
+    .btn-copy {
+      display: inline-block; margin-top: 0.8rem; padding: 0.5rem 1rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-copy:hover { background: #d86e00; }
+    .btn-copy:active { background: #b35e00; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🐾 ペット肖像画プロンプトメーカー</h1>
+    <p class="subtitle">ペットの特徴と背景を選ぶだけで、SNSアイコン向けのAIプロンプトを楽しくサクッと作れます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="pet">ペットの種類</label>
+      <select id="pet">
+        <option value="">選択してください</option>
+        <option value="犬">犬</option>
+        <option value="猫">猫</option>
+        <option value="ウサギ">ウサギ</option>
+        <option value="ハムスター">ハムスター</option>
+        <option value="鳥">鳥</option>
+        <option value="爬虫類">爬虫類</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="background">背景</label>
+      <select id="background">
+        <option value="">選択してください</option>
+        <option value="室内">室内</option>
+        <option value="庭">庭</option>
+        <option value="公園">公園</option>
+        <option value="スタジオ風">スタジオ風</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="generate()">プロンプトを作る</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成されたプロンプト</p>
+    <p class="result-value" id="rv">—</p>
+    <button class="btn-copy" onclick="copyPrompt()">📋 コピー</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このプロンプトは Stable Diffusion、DALL-E、Midjourney などのAI画像生成ツール向けです。生成結果はツールにより異なります。
+  </p>
+
+  <!-- 広告枠（将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ペットプロンプト生成ロジック
+  var PROMPTS = {
+    犬: {
+      室内: "A cute dog portrait in a cozy living room, soft warm lighting, sitting on a sofa, professional photography",
+      庭: "A beautiful dog in a sunny garden, playing fetch, natural lighting, garden background",
+      公園: "A happy dog portrait at the park, trees and grass in background, daytime, vibrant colors",
+      スタジオ風: "A professional dog portrait on a clean studio background, studio lighting, sharp focus"
+    },
+    猫: {
+      室内: "A cute cat portrait in a living room, soft lighting, sitting on a windowsill, cozy atmosphere",
+      庭: "A graceful cat in a garden, flowers around, natural sunlight, serene",
+      公園: "A playful cat in a park setting, grass and trees, outdoor natural lighting",
+      スタジオ風: "A professional cat portrait on a studio background, studio lighting, sharp and clear"
+    },
+    ウサギ: {
+      室内: "A cute rabbit portrait in a room, soft lighting, cozy atmosphere, fluffy",
+      庭: "A adorable rabbit in a garden, flowers and grass, natural lighting",
+      公園: "A fluffy rabbit in a park, green background, outdoor natural light",
+      スタジオ風: "A professional rabbit portrait on a studio background, studio lights"
+    },
+    ハムスター: {
+      室内: "A tiny hamster portrait in a room, soft warm lighting, cute expression",
+      庭: "A small hamster in a garden setting, natural background",
+      公園: "A hamster portrait in an outdoor park environment, natural lighting",
+      スタジオ風: "A professional hamster portrait on a clean studio background"
+    },
+    鳥: {
+      室内: "A beautiful bird portrait in a room, soft lighting, perching",
+      庭: "A colorful bird in a garden, flowers and plants, natural lighting",
+      公園: "A bird portrait in a park setting, trees and nature in background",
+      スタジオ風: "A professional bird portrait on a studio background, clear lighting"
+    },
+    爬虫類: {
+      室内: "A reptile portrait in an indoor setting, warm lighting, detailed scales",
+      庭: "A reptile in a garden or natural setting, outdoor lighting",
+      公園: "A reptile portrait in a park environment, natural background",
+      スタジオ風: "A professional reptile portrait on a studio background, studio lighting"
+    }
+  };
+
+  var currentPrompt = '';
+
+  function generate() {
+    var pet = document.getElementById('pet').value;
+    var background = document.getElementById('background').value;
+
+    if (!pet || !background) {
+      showErr('ペットの種類と背景を選んでください');
+      return;
+    }
+
+    // プロンプト生成
+    currentPrompt = PROMPTS[pet][background] || 'プロンプト生成エラー';
+
+    // 結果表示
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = currentPrompt;
+  }
+
+  function copyPrompt() {
+    if (!currentPrompt) return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(currentPrompt).then(function() {
+        // コピー成功
+        var btn = event.target;
+        var original = btn.textContent;
+        btn.textContent = '✓ コピーしました';
+        setTimeout(function() {
+          btn.textContent = original;
+        }, 2000);
+      }).catch(function(err) {
+        alert('コピーに失敗しました: ' + err);
+      });
+    } else {
+      // フォールバック（古いブラウザ対応）
+      var textarea = document.createElement('textarea');
+      textarea.value = currentPrompt;
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        var btn = event.target;
+        var original = btn.textContent;
+        btn.textContent = '✓ コピーしました';
+        setTimeout(function() {
+          btn.textContent = original;
+        }, 2000);
+      } catch (err) {
+        alert('コピーに失敗しました');
+      }
+      document.body.removeChild(textarea);
+    }
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️ ' + msg;
+  }
+
+  // localStorage から前回の選択を復元
+  window.addEventListener('load', function() {
+    var savedPet = localStorage.getItem('pet_pet');
+    var savedBg = localStorage.getItem('pet_background');
+    if (savedPet) document.getElementById('pet').value = savedPet;
+    if (savedBg) document.getElementById('background').value = savedBg;
+  });
+
+  // 選択が変わったら localStorage に保存
+  document.getElementById('pet').addEventListener('change', function() {
+    localStorage.setItem('pet_pet', this.value);
+  });
+  document.getElementById('background').addEventListener('change', function() {
+    localStorage.setItem('pet_background', this.value);
+  });
+  </script>
+
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
