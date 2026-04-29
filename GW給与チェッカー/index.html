@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GW休暇中の時給計算で手当漏れをなくす無料ツール。基本給とGW期間の日数、各種手当を入力するだけで、合計給与を自動計算します。GW明けの給与確認の前に、手当漏れをチェック！">
+  <title>GW給与チェッカー ｜ GW休暇中の時給計算で手当漏れをなくす</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <!-- AdSense 必須・削除禁止 -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>GW給与チェッカー</h1>
+    <p class="subtitle">※ 2026年度の参考。最新情報は勤務先にご確認ください</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">給与情報入力</p>
+    <div class="field">
+      <label for="baseSalary">月額基本給（円）</label>
+      <input type="number" id="baseSalary" placeholder="例: 250000" min="0">
+      <p class="hint">月の給与額をご入力ください</p>
+    </div>
+    <div class="field">
+      <label for="gwDays">GW期間の日数（日）</label>
+      <input type="number" id="gwDays" placeholder="例: 8" min="1" max="31">
+      <p class="hint">連続して休暇を取った日数</p>
+    </div>
+  </div>
+
+  <!-- 手当入力カード -->
+  <div class="card">
+    <p class="card-title">手当入力</p>
+    <div class="field">
+      <label for="nightShift">夜勤手当（円）</label>
+      <input type="number" id="nightShift" placeholder="例: 5000" min="0">
+      <p class="hint">GW中の夜勤手当があれば入力</p>
+    </div>
+    <div class="field">
+      <label for="holidayShift">休日手当（円）</label>
+      <input type="number" id="holidayShift" placeholder="例: 3000" min="0">
+      <p class="hint">休日出勤手当</p>
+    </div>
+    <div class="field">
+      <label for="lateShift">深夜手当（円）</label>
+      <input type="number" id="lateShift" placeholder="例: 2000" min="0">
+      <p class="hint">深夜勤務手当</p>
+    </div>
+    <div class="field">
+      <label for="otherShift">その他手当（円）</label>
+      <input type="number" id="otherShift" placeholder="例: 1000" min="0">
+      <p class="hint">その他の手当があれば入力</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">給与を計算する</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result" class="ok">
+    <p class="result-label">GW期間の給与見積もり</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは参考値です。実際の給与計算は勤務先の給与規程に従ってください。手当の金額や計算方法は企業ごとに異なります。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // localStorage キー
+  const STORAGE_KEY = 'gw-salary-checker';
+
+  // ページ読み込み時に前回の値を復元
+  window.addEventListener('load', function() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        document.getElementById('baseSalary').value = data.baseSalary || '';
+        document.getElementById('gwDays').value = data.gwDays || '';
+        document.getElementById('nightShift').value = data.nightShift || '';
+        document.getElementById('holidayShift').value = data.holidayShift || '';
+        document.getElementById('lateShift').value = data.lateShift || '';
+        document.getElementById('otherShift').value = data.otherShift || '';
+      } catch (e) {
+        console.log('localStorage 復元エラー:', e);
+      }
+    }
+  });
+
+  function calc() {
+    const baseSalary = parseFloat(document.getElementById('baseSalary').value) || 0;
+    const gwDays = parseFloat(document.getElementById('gwDays').value) || 0;
+    const nightShift = parseFloat(document.getElementById('nightShift').value) || 0;
+    const holidayShift = parseFloat(document.getElementById('holidayShift').value) || 0;
+    const lateShift = parseFloat(document.getElementById('lateShift').value) || 0;
+    const otherShift = parseFloat(document.getElementById('otherShift').value) || 0;
+
+    // 入力値の検証
+    if (baseSalary <= 0 || gwDays <= 0) {
+      showErr('基本給とGW日数を入力してください');
+      return;
+    }
+
+    // 日額給与を計算（月30日ベース）
+    const dailySalary = baseSalary / 30;
+    const totalAllowance = nightShift + holidayShift + lateShift + otherShift;
+    const totalSalary = (dailySalary * gwDays) + totalAllowance;
+
+    // 手当が入力されているかで ok/warn を判定
+    const level = totalAllowance > 0 ? 'ok' : 'warn';
+    const note = totalAllowance > 0
+      ? 'GW期間の給与と手当を合計した見積もりです'
+      : '手当が入力されていません。夜勤や休日出勤があればご入力ください';
+
+    showResult(level, fmt(totalSalary) + ' 円', note);
+
+    // 内訳を表示
+    const rows = [
+      ['GW期間の日給', fmt(dailySalary * gwDays) + ' 円'],
+      ['夜勤手当', fmt(nightShift) + ' 円'],
+      ['休日手当', fmt(holidayShift) + ' 円'],
+      ['深夜手当', fmt(lateShift) + ' 円'],
+      ['その他手当', fmt(otherShift) + ' 円'],
+      ['合計', fmt(totalSalary) + ' 円', true]
+    ];
+    showDetail(rows);
+
+    // localStorage に保存
+    const data = {
+      baseSalary: baseSalary,
+      gwDays: gwDays,
+      nightShift: nightShift,
+      holidayShift: holidayShift,
+      lateShift: lateShift,
+      otherShift: otherShift
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function showResult(level, val, note) {
+    const rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
