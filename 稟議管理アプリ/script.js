@@ -139,18 +139,13 @@ document.getElementById('listBody').addEventListener('click', e => {
   }
 });
 
-// フィルターボタン
-document.querySelectorAll('.filter-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentFilter = btn.dataset.filter;
-    render();
-  });
-});
-
-// 登録ボタン
-document.getElementById('addBtn').addEventListener('click', addApplication);
+// フィルター切替（onclick="setFilter(this)" から呼ばれる）
+function setFilter(btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = btn.dataset.filter;
+  render();
+}
 
 // Enterキーでも登録
 document.querySelectorAll('#content, #applicant, #amount').forEach(el => {
