@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎭 スチームパンク風キャラクタープロンプトメーカー</title>
+  <meta name="description" content="キャラクターの特徴を選ぶだけで、スチームパンク風のAI呪文を即生成。Stable Diffusion・Midjourney用のプロンプトを描きたいイメージごとサクッと作れます。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.6; margin-bottom: 0.4rem; color: var(--text); word-break: break-word; }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── コピーボタン（結果カード内） ── */
+    .btn-copy {
+      display: inline-block; margin-top: 0.8rem; padding: 0.5rem 1rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:active { opacity: 0.8; }
+    .btn-copy.copied { background: var(--ok); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎭 スチームパンク風キャラクタープロンプトメーカー</h1>
+    <p class="subtitle">キャラクターの特徴を選ぶだけで、スチームパンク風のAI呪文を即生成。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">キャラクター情報を入力</p>
+    <div class="field">
+      <label for="f_job">職業・役割</label>
+      <input type="text" id="f_job" placeholder="例: 機関士、海賊、探偵">
+      <p class="hint">キャラクターの職業を入力</p>
+    </div>
+    <div class="field">
+      <label for="f_equip">装備・持ち物</label>
+      <input type="text" id="f_equip" placeholder="例: ゴーグル、懐中時計、ライフル">
+    </div>
+    <div class="field">
+      <label for="f_personality">性格・特徴</label>
+      <input type="text" id="f_personality" placeholder="例: 真面目、冷たい、優雅">
+    </div>
+    <div class="field">
+      <label for="f_color">色・素材</label>
+      <input type="text" id="f_color" placeholder="例: 赤と黒、黄銅色、革">
+    </div>
+    <div class="field">
+      <label for="f_weapon">武器・道具</label>
+      <input type="text" id="f_weapon" placeholder="例: スチーム銃、剣、ロボットアーム">
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">✨ プロンプト生成</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成されたプロンプト</p>
+    <p class="result-value" id="rv">—</p>
+    <button class="btn-copy" id="btn-copy" onclick="copyPrompt()">📋 コピー</button>
+  </div>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // LocalStorage キー
+  var STORAGE_KEY_JOB = 'steamPunk_job';
+  var STORAGE_KEY_EQUIP = 'steamPunk_equip';
+  var STORAGE_KEY_PERSONALITY = 'steamPunk_personality';
+  var STORAGE_KEY_COLOR = 'steamPunk_color';
+  var STORAGE_KEY_WEAPON = 'steamPunk_weapon';
+
+  // ページ読み込み時に保存値を復帰
+  window.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('f_job').value = localStorage.getItem(STORAGE_KEY_JOB) || '';
+    document.getElementById('f_equip').value = localStorage.getItem(STORAGE_KEY_EQUIP) || '';
+    document.getElementById('f_personality').value = localStorage.getItem(STORAGE_KEY_PERSONALITY) || '';
+    document.getElementById('f_color').value = localStorage.getItem(STORAGE_KEY_COLOR) || '';
+    document.getElementById('f_weapon').value = localStorage.getItem(STORAGE_KEY_WEAPON) || '';
+  });
+
+  function generate() {
+    var job = document.getElementById('f_job').value.trim();
+    var equip = document.getElementById('f_equip').value.trim();
+    var personality = document.getElementById('f_personality').value.trim();
+    var color = document.getElementById('f_color').value.trim();
+    var weapon = document.getElementById('f_weapon').value.trim();
+
+    // 入力値を保存
+    localStorage.setItem(STORAGE_KEY_JOB, job);
+    localStorage.setItem(STORAGE_KEY_EQUIP, equip);
+    localStorage.setItem(STORAGE_KEY_PERSONALITY, personality);
+    localStorage.setItem(STORAGE_KEY_COLOR, color);
+    localStorage.setItem(STORAGE_KEY_WEAPON, weapon);
+
+    // バリデーション
+    if (!job && !equip && !personality && !color && !weapon) {
+      showErr('最低1項目は入力してください');
+      return;
+    }
+
+    // プロンプト生成ロジック
+    var parts = [];
+    parts.push('a steampunk');
+    if (job) parts.push(job);
+    if (equip) parts.push('with ' + equip);
+    if (color) parts.push('in ' + color);
+    if (weapon) parts.push('wielding ' + weapon);
+    if (personality) parts.push(personality + ' demeanor');
+
+    var prompt = parts.join(', ') + ', intricate details, high quality, detailed clothing, ornate gears, brass, leather, goggles, industrial aesthetic';
+
+    showResult(prompt);
+  }
+
+  function showResult(prompt) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = prompt;
+    document.getElementById('btn-copy').textContent = '📋 コピー';
+    document.getElementById('btn-copy').classList.remove('copied');
+  }
+
+  function copyPrompt() {
+    var text = document.getElementById('rv').textContent;
+    if (!text || text === '—') return;
+
+    navigator.clipboard.writeText(text).then(function() {
+      var btn = document.getElementById('btn-copy');
+      btn.textContent = '✓ コピーしました';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = '📋 コピー';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(function(err) {
+      alert('コピーに失敗しました。手動でコピーしてください。');
+    });
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ng';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = msg;
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

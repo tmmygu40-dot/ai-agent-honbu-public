@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💬 PTA挨拶ジェネレーター</title>
+  <meta name="description" content="PTA役員向けの挨拶・自己紹介文を3パターン即生成できるジェネレーター。立場とシーンを選ぶだけで、急な指名にも対応できる文案がサクッと出ます。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 結果カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: left;
+    }
+    .result-card.ok { display: block; border-color: var(--ok); background: var(--ok-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1rem; font-weight: 600; line-height: 1.6; margin-bottom: 1rem; color: var(--text); }
+    .btn-copy {
+      display: block; width: 100%;
+      margin: 0.5rem 0 0; padding: 0.6rem;
+      font-size: 0.85rem; font-weight: 600;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-copy:hover { background: #d06b00; }
+    .btn-copy:active { transform: scale(0.98); }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💬 PTA挨拶ジェネレーター</h1>
+    <p class="subtitle">立場とシーンを選ぶだけで、PTA役員向けの挨拶文が3パターン即座に出ます。急な指名にもサクッと対応。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="position">あなたの立場</label>
+      <select id="position">
+        <option value="">選択してください</option>
+        <option value="新人">新人（初年度）</option>
+        <option value="経験者">経験者（2年目以上）</option>
+        <option value="委員長経験">委員長経験者</option>
+        <option value="副会長">副会長</option>
+        <option value="会長">会長</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="scene">シーン</label>
+      <select id="scene">
+        <option value="">選択してください</option>
+        <option value="自己紹介">自己紹介</option>
+        <option value="総会開始">総会開始</option>
+        <option value="学期始め">学期始め</option>
+        <option value="新学期初会議">新学期初会議</option>
+        <option value="イベント前">イベント前</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">💬 挨拶文を生成</button>
+
+  <!-- バリデーションエラー -->
+  <div id="error-msg" style="display:none;max-width:600px;margin:0 auto 1rem;padding:0.75rem 1rem;background:var(--ng-bg);border:1.5px solid var(--ng);border-radius:var(--radius);font-size:0.9rem;color:var(--ng);"></div>
+
+  <!-- 結果エリア -->
+  <div id="results"></div>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+    var PATTERNS = {
+      '新人_自己紹介': [
+        '初めてPTA役員を務めます。皆さんのお力添えをいただきながら、お役に立てるよう努めます。どうぞよろしくお願いいたします。',
+        '新しくPTA役員に就任しました。まだ不慣れなところがありますが、精いっぱい頑張ります。皆様のご指導をお待ちしております。',
+        'PTA役員として参加させていただくことになりました。皆さんと協力して、楽しく活動できればと思います。よろしくお願いします。'
+      ],
+      '新人_総会開始': [
+        'これより総会を始めさせていただきます。本日は皆様のご参加をありがとうございます。スムーズに進めるよう務めさせていただきます。',
+        '総会を開会いたします。限られた時間になりますが、重要な議題がございますので、ご協力をお願いいたします。',
+        '皆様、お忙しいところご参集いただきありがとうございます。本日の総会の進行を務めさせていただきます。'
+      ],
+      '新人_学期始め': [
+        'いよいよ新学期がスタートしました。ご協力をいただき、充実した学期にしたいと思います。どうぞよろしくお願いいたします。',
+        '本年度も子どもたちの成長を見守りながら、保護者一同で支援していきたいと思います。ご協力をお願いします。',
+        '新学期が始まりました。皆様と力を合わせて、素敵な学期にしていけたらと思います。'
+      ],
+      '新人_新学期初会議': [
+        'あらためまして、本年度最初の会議となります。大切なお話がございますので、よろしくお願いいたします。',
+        '新年度初の会議です。年間スケジュールや重点施策についてご説明させていただきます。',
+        'こちらが新年度初めての会議となります。皆様のご意見をお聞きしながら進めさせていただきたいと思います。'
+      ],
+      '新人_イベント前': [
+        'いよいよこのイベントを迎えることになりました。皆様のサポートがあってこそ実現できます。ありがとうございます。',
+        'このイベントに向けて、一緒に準備を進めてくれた皆様に感謝いたします。本番も楽しく盛り上げていきたいと思います。',
+        'いよいよ当日です。皆様と力を合わせて、子どもたちにとって思い出深いイベントにしたいと思います。'
+      ],
+      '経験者_自己紹介': [
+        '昨年に引き続き、PTA活動に携わらせていただきます。昨年の経験を活かしながら、より良い活動ができるよう努めます。',
+        'PTA経験も重ねてまいりました。昨年の工夫を今年も継続しながら、さらに改善を進めたいと思います。',
+        'PTA活動も2年目となりました。昨年の反省を踏まえて、今年は一層効率的に進めたいと考えています。'
+      ],
+      '経験者_総会開始': [
+        'これより本年度の総会を開会いたします。本日の議題は3点ございます。スムーズに進行できるようご協力をお願いいたします。',
+        '総会を始めさせていただきます。昨年度の活動報告と本年度の計画について、ご承認をお願いいたします。',
+        '総会を開会いたします。本日は重要な議決がございますので、皆様のご注視をお願いいたします。'
+      ],
+      '経験者_学期始め': [
+        'いよいよ新学期が始まりました。昨年の経験を踏まえて、さらに良い環境づくりに取り組みます。',
+        '新学期のスタートです。前学期の課題を改善しながら、保護者の協力体制を整えていきたいと思います。',
+        '新学期を迎えました。子どもたちの成長を支援できるよう、保護者との連携を大切にしていきます。'
+      ],
+      '経験者_新学期初会議': [
+        '本年度最初の会議です。前年度の実績を踏まえながら、新しい目標に向かって進みたいと思います。',
+        'あらためて新年度の会議を開きます。昨年度の良かった点を継続し、課題を改善していきます。',
+        '新年度のスタート会議です。昨年の工夫を活かしつつ、新しい取り組みもご紹介させていただきます。'
+      ],
+      '経験者_イベント前': [
+        'このイベントも今年で複数回目となります。昨年の経験を活かし、さらに良い企画にしたいと思います。',
+        'イベントの準備も最終段階です。皆様のご協力のおかげで、今年も盛大に開催できそうです。ありがとうございます。',
+        '昨年のイベントの成功を踏まえて、今年もパワーアップして開催したいと考えています。'
+      ],
+      '委員長経験_自己紹介': [
+        '昨年は委員長として活動させていただきました。今年は経験を活かして、サポート役として貢献したいと思います。',
+        '昨年の委員長経験を踏まえて、引き続き活動に参加させていただきます。必要な時はサポートもいたします。',
+        '前年度は委員長を務めさせていただきました。今年はその経験を活かしながら、皆さんの力になれたらと思います。'
+      ],
+      '委員長経験_総会開始': [
+        '昨年に引き続き、本年度の総会を進めさせていただきます。円滑な進行に努めます。ご協力をお願いいたします。',
+        'これより総会を開会いたします。昨年の経験も踏まえながら、効率的に進めたいと思います。',
+        '総会を開会いたします。議事進行も工夫して、時間内に終了するよう努めます。'
+      ],
+      '委員長経験_学期始め': [
+        '新学期が始まります。昨年度の実績に基づき、今年もより良い環境づくりに注力します。',
+        '新学期のご挨拶です。前年度の取り組みを継続しながら、さらに充実した学期にしたいと考えています。',
+        '新学期を迎えました。昨年度の経験を活かして、保護者の皆様と一緒に支援の輪を広げていきます。'
+      ],
+      '委員長経験_新学期初会議': [
+        '本年度最初の会議です。昨年度の実績と今年度の計画について、ご説明させていただきます。',
+        'あらためまして、新年度のキックオフ会議となります。昨年の経験を踏まえながら、前へ進みたいと思います。',
+        '新年度初の会議を開きます。昨年度の課題改善と新しい施策について、皆様のご意見をお聞きしたいと思います。'
+      ],
+      '委員長経験_イベント前': [
+        'このイベントも昨年同様、責任を持って進めさせていただきます。皆様のご協力をお願いいたします。',
+        'イベント開催が間近です。昨年の実績を踏まえ、今年もさらに質の高い企画をお届けしたいと思います。',
+        '昨年のイベント経験を活かし、今年も盛況に開催する予定です。準備の最後の詰めに入ります。'
+      ],
+      '副会長_自己紹介': [
+        '副会長として，会長のお手伝いをさせていただきます。何かご不明な点はお気軽にお声がけください。',
+        '副会長を務めさせていただくことになりました。会長と協力して、スムーズな運営に努めます。',
+        '本年度の副会長です。会長を全力でサポートしながら、PTA活動の充実に尽力いたします。'
+      ],
+      '副会長_総会開始': [
+        '本日は総会にご参加いただき、ありがとうございます。会長と共に、円滑な進行に努めます。',
+        'これより本年度の総会を開会いたします。重要な議題がございますので、ご注視をお願いいたします。',
+        '総会を始めさせていただきます。会長の進行をサポートしながら、スムーズに進めてまいります。'
+      ],
+      '副会長_学期始め': [
+        '新学期のご挨拶です。副会長として会長をサポートしながら、皆様と共に活動してまいります。',
+        '新学期が始まりました。会長と共に、子どもたちの成長を支援する環境づくりに取り組みます。',
+        'いよいよ新学期です。副会長として、保護者の皆様の声をお聞きしながら、全力でサポートいたします。'
+      ],
+      '副会長_新学期初会議': [
+        'あらためまして、新年度初の会議です。会長の方針を踏まえながら、年間計画をご説明させていただきます。',
+        '新年度スタートの会議です。副会長として、会長の企画をしっかりと実行するよう務めます。',
+        '本年度初の会議となります。皆様のご意見をお聞きしながら、より良い計画を立てていきたいと思います。'
+      ],
+      '副会長_イベント前': [
+        'いよいよイベント開催が近づいてまいりました。会長と共に、万全の準備を整えてまいります。',
+        'このイベントに向けて、会長と協力して準備を進めてまいりました。本番の成功を祈ります。',
+        'イベント開催まであとわずかです。副会長として、会長をしっかりサポートしながら本番に臨みます。'
+      ],
+      '会長_自己紹介': [
+        '本年度のPTA会長を務めさせていただくことになりました。皆様のご協力をいただきながら、全力で取り組みます。',
+        'PTA会長として，この貴重な機会を大切にし，皆様と一緒に充実した活動を目指します。',
+        '会長として，学校と保護者の架け橋となり，子どもたちの教育環境の充実に貢献したいと思います。'
+      ],
+      '会長_総会開始': [
+        '本日は多くの皆様にご参集いただき，心より感謝申し上げます。これより本年度総会を開会いたします。',
+        'これより本年度の総会を開会いたします。昨年度の活動報告と本年度の計画についてご報告申し上げます。',
+        '総会にご参加いただきありがとうございます。会長として，本日の議題を円滑に進めてまいります。'
+      ],
+      '会長_学期始め': [
+        '新学期のご挨拶です。本年度も子どもたちの成長を最優先に，保護者一同で全力でサポートしてまいります。',
+        'いよいよ新学期が始まりました。会長として，学校との協働を深め，素晴らしい学期にしたいと思います。',
+        '新学期を迎えました。会長として，皆様と共に，子どもたちが安心して学べる環境づくりに努めます。'
+      ],
+      '会長_新学期初会議': [
+        'あらためまして，本年度最初の会議です。本年度の基本方針と重点項目についてご説明申し上げます。',
+        '新年度スタートの会議です。会長として，今年度のビジョンと具体的な活動計画をお示しいたします。',
+        'これが本年度初の会議となります。皆様のご知恵をお借りしながら，一緒に歩んでいきたいと思います。'
+      ],
+      '会長_イベント前': [
+        'このイベント開催に向けて，皆様の温かいご協力をいただいております。心より感謝申し上げます。本番の成功を祈ります。',
+        'いよいよイベント開催の時を迎えました。会長として，このイベントが子どもたちにとって最高の思い出になることを願っています。',
+        'イベント開催まであと僅かとなりました。皆様のご協力のおかげで，盛大に開催できる見通しです。ありがとうございます。'
+      ]
+    };
+
+    function showError(msg) {
+      var el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function hideError() {
+      document.getElementById('error-msg').style.display = 'none';
+    }
+
+    function generate() {
+      var pos = document.getElementById('position').value;
+      var scene = document.getElementById('scene').value;
+
+      if (!pos || !scene) {
+        showError('⚠️ 立場とシーンを両方選択してください');
+        return;
+      }
+      hideError();
+
+      var key = pos + '_' + scene;
+      var patterns = PATTERNS[key] || [];
+
+      if (patterns.length === 0) {
+        showError('⚠️ 申し訳ありません。このシーンはまだ用意されていません。');
+        document.getElementById('results').innerHTML = '';
+        return;
+      }
+
+      // #results へ .result-card.ok 要素を動的生成して書き込む
+      var resultsEl = document.getElementById('results');
+      resultsEl.innerHTML = '';
+      patterns.forEach(function(text, idx) {
+        var card = document.createElement('div');
+        card.className = 'card result-card ok'; // .result-card.ok → CSS で display:block
+        var label = document.createElement('p');
+        label.className = 'result-label';
+        label.textContent = 'パターン ' + (idx + 1);
+        var value = document.createElement('p');
+        value.className = 'result-value';
+        value.textContent = text;
+        var btn = document.createElement('button');
+        btn.className = 'btn-copy';
+        btn.textContent = '📋 コピー';
+        btn.setAttribute('data-text', text);
+        btn.addEventListener('click', function() { copyToClipboard(btn); });
+        card.appendChild(label);
+        card.appendChild(value);
+        card.appendChild(btn);
+        resultsEl.appendChild(card);
+      });
+      resultsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // localStorage に履歴を保存
+      var history = JSON.parse(localStorage.getItem('pta-history') || '[]');
+      history.push({ pos: pos, scene: scene, time: new Date().toLocaleString('ja-JP') });
+      if (history.length > 10) history.shift();
+      localStorage.setItem('pta-history', JSON.stringify(history));
+    }
+
+    function copyToClipboard(btn) {
+      var text = btn.getAttribute('data-text');
+      var orig = btn.textContent;
+      function onSuccess() {
+        btn.textContent = '✅ コピーしました';
+        setTimeout(function() { btn.textContent = orig; }, 1500);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(onSuccess).catch(function() { fallbackCopy(text, onSuccess); });
+      } else {
+        fallbackCopy(text, onSuccess);
+      }
+    }
+
+    function fallbackCopy(text, cb) {
+      var tmp = document.createElement('textarea');
+      tmp.value = text;
+      tmp.style.position = 'fixed';
+      tmp.style.opacity = '0';
+      document.body.appendChild(tmp);
+      tmp.select();
+      try { document.execCommand('copy'); if (cb) cb(); } catch (e) {}
+      document.body.removeChild(tmp);
+    }
+
+    // ページ読み込み時に localStorage から履歴を復元
+    window.addEventListener('load', function() {
+      // 必要に応じて履歴の表示処理
+    });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
