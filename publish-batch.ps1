@@ -450,22 +450,36 @@ if ($ok) {
     Write-Host "FAILED: see errors above" -ForegroundColor Red
 }
 
-# (10) Post-publish helper scripts
+# (10) Post-publish helper scripts (per-script timeout; failure does NOT change $ok)
 foreach ($s in @(
-    @{ File = "sync-missing.py";   Label = "Sync check" },
-    @{ File = "check-apps.py";     Label = "Post-publish check" },
-    @{ File = "make-fix-queue.py"; Label = "Fix queue" }
+    @{ File = "sync-missing.py";   Label = "Sync check";         Timeout = 60  },
+    @{ File = "check-apps.py";     Label = "Post-publish check"; Timeout = 600 },
+    @{ File = "make-fix-queue.py"; Label = "Fix queue";          Timeout = 60  }
 )) {
     $sp = Join-Path $pub $s.File
     if (Test-Path $sp) {
-        Write-Host ""
-        Write-Host "-- $($s.Label) --" -ForegroundColor Cyan
-        python $sp
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "$($s.Label): OK" -ForegroundColor Green
+        Write-Output ""
+        Write-Output "-- $($s.Label) --"
+        $tmpOut = Join-Path $env:TEMP ("phase10_" + $s.File + ".out")
+        $tmpErr = Join-Path $env:TEMP ("phase10_" + $s.File + ".err")
+        $proc = Start-Process -FilePath python -ArgumentList @($sp) -NoNewWindow -PassThru `
+            -RedirectStandardOutput $tmpOut -RedirectStandardError $tmpErr
+        $timeoutMs = [int]$s.Timeout * 1000
+        if ($proc.WaitForExit($timeoutMs)) {
+            $exit = $proc.ExitCode
+            if (Test-Path $tmpOut) { Get-Content -LiteralPath $tmpOut | ForEach-Object { Write-Output $_ } }
+            if (Test-Path $tmpErr) { Get-Content -LiteralPath $tmpErr | ForEach-Object { Write-Output $_ } }
+            if ($exit -eq 0) {
+                Write-Output "$($s.Label): OK"
+            } else {
+                Write-Output "$($s.Label): issues found (exit=$exit)"
+            }
         } else {
-            Write-Host "$($s.Label): issues found (see above)" -ForegroundColor Yellow
+            try { Stop-Process -Id $proc.Id -Force -ErrorAction Stop } catch {}
+            Write-Output ("PHASE10 TIMEOUT: " + $s.File + " (>" + $s.Timeout + "s, killed; publish OK 維持)")
         }
+        Remove-Item -LiteralPath $tmpOut -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $tmpErr -ErrorAction SilentlyContinue
     }
 }
 
