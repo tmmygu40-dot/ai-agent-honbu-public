@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎨 ペット・推し活アールヌーヴォーメーカー</title>
+  <meta name="description" content="ペットや推しをアールヌーヴォー風に変えるAI画像呪文を30秒で生成。SNS投稿やファンアート用のプロンプトを自動生成します。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #8b7d6b;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #6b5d5b, 0 6px 16px rgba(139,125,107,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #6b5d5b, 0 2px 8px rgba(139,125,107,0.2);
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.4; margin-bottom: 0.4rem; word-break: break-all; color: var(--text); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; margin-top: 0.5rem; }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: inline-block; margin-top: 0.8rem; padding: 0.5rem 1rem;
+      font-size: 0.82rem; font-weight: 600;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-copy:active { opacity: 0.8; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print, .btn-copy { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎨 ペット・推し活アールヌーヴォーメーカー</h1>
+    <p class="subtitle">ペットや推しをアールヌーヴォー風に変えるAI画像呪文を30秒で生成</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">設定</p>
+    <div class="field">
+      <label for="subject">被写体の種類</label>
+      <select id="subject">
+        <option value="">-- 選んでください --</option>
+        <option value="pet">ペット（犬・猫など）</option>
+        <option value="fanart">推しキャラ / タレント</option>
+        <option value="other">その他キャラクター</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="feature">被写体の特徴（例：白い毛、青い瞳）</label>
+      <input type="text" id="feature" placeholder="例：黒い猫、長い髪">
+      <p class="hint">特徴を書くほど、より詳しいプロンプトが生成されます</p>
+    </div>
+    <div class="field">
+      <label for="style">アールヌーヴォースタイル</label>
+      <select id="style">
+        <option value="">-- 選んでください --</option>
+        <option value="classic">クラシック（曲線・装飾的）</option>
+        <option value="nature">自然モチーフ（花・蝶・葉）</option>
+        <option value="japan">ジャポニスム風（浮世絵要素）</option>
+        <option value="luxury">豪華版（金箔・宝石要素）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">✨ プロンプトを生成</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result" class="ok">
+    <p class="result-label">生成されたAI画像呪文</p>
+    <p class="result-value" id="rv">—</p>
+    <button class="btn-copy" onclick="copyPrompt()">📋 コピーしてAIに貼る</button>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、アールヌーヴォーの特徴や美術様式を参考に、生成AIに理解しやすいプロンプトを作成しています。
+  </p>
+
+  <!-- 広告枠（仮・将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // アールヌーヴォープロンプト生成
+  var STYLES = {
+    classic: {
+      desc: 'アールヌーヴォー古典様式',
+      elements: '優雅な曲線、対称的な装飾、繊細な線画'
+    },
+    nature: {
+      desc: 'アールヌーヴォー自然モチーフ',
+      elements: '花、蝶、葉、つるなどの自然要素、有機的な形状'
+    },
+    japan: {
+      desc: 'ジャポニスム融合アールヌーヴォー',
+      elements: '浮世絵風、日本的な色使い、唐草模様、金銀の背景'
+    },
+    luxury: {
+      desc: '豪華版アールヌーヴォー',
+      elements: '金箔、宝石のような輝き、華麗な装飾、光の効果'
+    }
+  };
+
+  var SUBJECTS = {
+    pet: {
+      desc: 'ペット写真',
+      prompt: '[被写体：かわいいペット]'
+    },
+    fanart: {
+      desc: '推しキャラ/タレント',
+      prompt: '[被写体：アニメキャラクターまたはタレント]'
+    },
+    other: {
+      desc: 'その他',
+      prompt: '[被写体：オリジナルキャラクター]'
+    }
+  };
+
+  function generate() {
+    var subject = document.getElementById('subject').value;
+    var feature = document.getElementById('feature').value;
+    var style = document.getElementById('style').value;
+
+    if (!subject || !style) {
+      showErr('被写体とスタイルを選んでください');
+      return;
+    }
+
+    var featureTxt = feature ? ', 特徴：' + feature : '';
+    var subjectInfo = SUBJECTS[subject];
+    var styleInfo = STYLES[style];
+
+    // プロンプト生成
+    var prompt = 'Art Nouveau style digital illustration. ' +
+      subjectInfo.prompt + featureTxt + '. ' +
+      styleInfo.desc + ' featuring ' + styleInfo.elements + '. ' +
+      'Beautiful composition, detailed line work, elegant and refined. ' +
+      'High quality, artistic, professional illustration.';
+
+    var note = '✅ このプロンプトを、ChatGPT・Midjourney・Stable Diffusionなどに貼り付けてください。';
+
+    showResult(prompt, note);
+    savHistory(subject, style, feature);
+  }
+
+  function showResult(prompt, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ok';
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = prompt;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showErr(msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card';
+    rc.style.display = 'none';
+    alert(msg);
+  }
+
+  function copyPrompt() {
+    var text = document.getElementById('rv').textContent;
+    if (!text || text === '—') return;
+    navigator.clipboard.writeText(text).then(function() {
+      alert('プロンプトをコピーしました！');
+    }).catch(function() {
+      // フォールバック
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('プロンプトをコピーしました！');
+    });
+  }
+
+  function savHistory(subject, style, feature) {
+    try {
+      var history = JSON.parse(localStorage.getItem('artHistory') || '[]');
+      history.unshift({ subject: subject, style: style, feature: feature, date: new Date().toLocaleString('ja-JP') });
+      if (history.length > 20) history.pop();
+      localStorage.setItem('artHistory', JSON.stringify(history));
+    } catch(e) {}
+  }
+
+  window.addEventListener('load', function() {
+    // localStorage から履歴を復元（必要に応じて）
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
