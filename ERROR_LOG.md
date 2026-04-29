@@ -445,3 +445,4 @@ commit: dea0c02
 [2026-04-30_040338] SCAN apps=スマホ通信ルール決定アプリ total=0 exit=0
 [2026-04-30_050639] SCAN apps=スマホ依存度チェッカー total=0 exit=0
 [2026-04-30_053629] SCAN apps=サブスク家計負担チェッカー total=0 exit=0
+[2026-04-30_060507] SCAN apps=GW疲労リセット診断 total=0 exit=0
