@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💰 ガス代びっくり予測｜月別ガス代シミュレーター</title>
+  <meta name="description" content="月別のガス代を入力するだけで、ヤバい月がサッと分かるアプリ。年間のガス使用量パターンから危険月を事前に把握できます。冬の暖房シーズンの家計対策に。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 0.75rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .month-input-group {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.8rem; margin-bottom: 0.5rem;
+    }
+    @media (max-width: 450px) {
+      .month-input-group { grid-template-columns: 1fr; }
+    }
+    .month-input-group .field { margin-bottom: 0; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .chart-container {
+      margin: 1.2rem 0; padding: 1rem;
+      background: var(--bg); border-radius: 10px;
+    }
+    .chart-title { font-size: 0.85rem; font-weight: 700; color: var(--text-sub); margin-bottom: 1rem; }
+    .chart-bar { display: flex; align-items: flex-end; gap: 0.5rem; height: 180px; }
+    .bar-item { flex: 1; display: flex; flex-direction: column; align-items: center; }
+    .bar-label { font-size: 0.68rem; color: var(--text-sub); margin-top: 0.4rem; }
+    .bar-fill { width: 100%; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 4px; transition: background 0.3s; }
+    .bar-fill.max-bar { background: var(--ng); }
+    .bar-value { font-size: 0.68rem; font-weight: 700; color: var(--text); margin-top: 0.2rem; }
+
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 0.5rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); background: var(--accent-light); }
+    .detail-table .hl td:last-child { color: var(--ng); font-size: 1.05rem; }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 ガス代びっくり予測</h1>
+    <p class="subtitle">月別のガス代を入力するだけで、ヤバい月がサッと分かります。</p>
+  </header>
+
+  <div class="card">
+    <p class="card-title">月別ガス代入力</p>
+    <p class="hint" style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 1rem;">直近12ヶ月のガス代を入力してください（円）</p>
+    <div class="month-input-group">
+      <div class="field">
+        <label for="m1">1月</label>
+        <input type="number" id="m1" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m2">2月</label>
+        <input type="number" id="m2" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m3">3月</label>
+        <input type="number" id="m3" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m4">4月</label>
+        <input type="number" id="m4" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m5">5月</label>
+        <input type="number" id="m5" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m6">6月</label>
+        <input type="number" id="m6" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m7">7月</label>
+        <input type="number" id="m7" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m8">8月</label>
+        <input type="number" id="m8" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m9">9月</label>
+        <input type="number" id="m9" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m10">10月</label>
+        <input type="number" id="m10" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m11">11月</label>
+        <input type="number" id="m11" placeholder="0" min="0">
+      </div>
+      <div class="field">
+        <label for="m12">12月</label>
+        <input type="number" id="m12" placeholder="0" min="0">
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">予測する</button>
+
+  <div class="result-card" id="result">
+    <p class="result-label">ヤバい月（最高月）</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <div class="card" id="chart-card" style="display:none">
+    <p class="card-title">月別グラフ</p>
+    <div class="chart-container">
+      <div class="chart-title">月別ガス代（円）</div>
+      <div class="chart-bar" id="chart-bars"></div>
+    </div>
+    <table class="detail-table" id="detail-table"><tbody></tbody></table>
+  </div>
+
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <p style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、月別のガス使用料金から家計管理をサポートするものです。実際のガス代は地域・プラン・契約内容により異なりますので、参考値としてご利用ください。詳細は各ガス会社の公式情報をご確認ください。
+  </p>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <div id="fav-widget"></div>
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+
+  <script>
+  const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+  const STORAGE_KEY = 'gasDailyData';
+
+  function loadData() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      MONTHS.forEach((_, i) => {
+        document.getElementById('m' + (i + 1)).value = data[i] || '';
+      });
+    }
+  }
+
+  function saveData() {
+    const data = MONTHS.map((_, i) => {
+      const val = parseFloat(document.getElementById('m' + (i + 1)).value) || 0;
+      return val;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+
+  function calc() {
+    const values = MONTHS.map((_, i) => {
+      const val = parseFloat(document.getElementById('m' + (i + 1)).value);
+      return isNaN(val) || val < 0 ? 0 : val;
+    });
+
+    const maxVal = Math.max(...values);
+    const maxIdx = values.indexOf(maxVal);
+    const total = values.reduce((a, b) => a + b, 0);
+    const avg = total > 0 ? total / 12 : 0;
+    const minVal = Math.min(...values.filter(v => v > 0));
+
+    if (total === 0) {
+      document.getElementById('result').style.display = 'none';
+      alert('少なくとも1つの月のガス代を入力してください');
+      return;
+    }
+
+    saveData();
+
+    // 判定ロジック
+    let level = 'ok';
+    let evalMsg = '';
+    if (maxVal > avg * 1.5) {
+      level = 'ng';
+      evalMsg = `${MONTHS[maxIdx]}が平均の${((maxVal / avg) * 100).toFixed(0)}%！冬は特に注意`;
+    } else if (maxVal > avg * 1.2) {
+      level = 'warn';
+      evalMsg = `${MONTHS[maxIdx]}は平均より${((maxVal / avg) * 100 - 100).toFixed(0)}%高い月です`;
+    } else {
+      level = 'ok';
+      evalMsg = 'ガス代のばらつきは比較的少ない状態です';
+    }
+
+    // 結果カード表示
+    document.getElementById('result').className = 'result-card ' + level;
+    document.getElementById('rv').textContent = `${MONTHS[maxIdx]} ${fmt(maxVal)}円`;
+    document.getElementById('rn').innerHTML = `<strong>${evalMsg}</strong><br>年間合計：${fmt(total)}円 / 月平均：${fmt(avg)}円`;
+    document.getElementById('result').style.display = 'block';
+
+    // グラフ表示
+    const maxForScale = Math.max(...values) || 100;
+    let chartHTML = '';
+    values.forEach((val, i) => {
+      const height = val > 0 ? (val / maxForScale) * 150 : 0;
+      const isMax = val === maxVal && val > 0 ? 'max-bar' : '';
+      chartHTML += `
+        <div class="bar-item">
+          <div class="bar-fill ${isMax}" style="height: ${height}px;"></div>
+          <div class="bar-value">${fmt(val)}</div>
+          <div class="bar-label">${MONTHS[i]}</div>
+        </div>
+      `;
+    });
+    document.getElementById('chart-bars').innerHTML = chartHTML;
+
+    // 詳細テーブル
+    let tableHTML = '';
+    values.forEach((val, i) => {
+      const isMaxRow = val === maxVal && val > 0 ? 'hl' : '';
+      tableHTML += `<tr class="${isMaxRow}"><td>${MONTHS[i]}</td><td>${fmt(val)}円</td></tr>`;
+    });
+    tableHTML += `<tr class="hl"><td>年間合計</td><td>${fmt(total)}円</td></tr>`;
+    tableHTML += `<tr><td>月平均</td><td>${fmt(avg)}円</td></tr>`;
+    document.getElementById('detail-table').innerHTML = tableHTML;
+    document.getElementById('chart-card').style.display = 'block';
+  }
+
+  window.addEventListener('load', loadData);
+  </script>
+
+</body>
+</html>
