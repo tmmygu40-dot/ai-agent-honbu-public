@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="名前やキャラクター特徴を入力するだけで、ファミコン風ドット絵のSNSアイコンに使えるAIプロンプトを自動生成。ファミコン懐かしの8ビットスタイルで、あなたのアイコンをレトロゲーム風に変身させます。">
+  <title>🎮 ファミコン風SNSアイコンメーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field textarea, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      font-family: inherit;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1rem; padding: 0.75rem;
+      font-size: 0.95rem; font-weight: 700;
+      background: var(--card); color: var(--accent);
+      border: 2px solid var(--accent); border-radius: var(--radius); cursor: pointer;
+      transition: background-color 0.15s, color 0.15s;
+    }
+    .btn-copy:active { background: var(--accent-light); }
+    .btn-copy.copied { color: var(--ok); border-color: var(--ok); }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value {
+      font-size: 1rem; font-weight: 600; line-height: 1.6;
+      background: rgba(255,255,255,0.6);
+      padding: 1rem 0.9rem;
+      border-radius: 8px;
+      word-break: break-word;
+      margin-bottom: 0.8rem;
+      font-family: "Monaco", "Menlo", monospace;
+      color: var(--text);
+    }
+    .result-card.ok   .result-value { background: rgba(255,255,255,0.8); color: var(--text); }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <!-- 計測タグ -->
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎮 ファミコン風SNSアイコンメーカー</h1>
+    <p class="subtitle">名前や特徴を入力するだけで、ファミコン風ドット絵のSNSアイコンAIプロンプトをサクッと生成できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">プロンプト生成</p>
+    <div class="field">
+      <label for="name">あなたの名前（またはキャラクター名）</label>
+      <input type="text" id="name" placeholder="例: 太郎、ねこ、ドラゴン">
+      <p class="hint">AIに分かりやすい名前を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="features">特徴・設定（自由記入）</label>
+      <textarea id="features" placeholder="例: 赤いネコ、魔法使い、可愛い系、ドット絵、8bit"></textarea>
+      <p class="hint">キャラクターの特徴や雰囲気を書くと、より好みに近いプロンプトができます</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">✨ プロンプトを生成</button>
+
+  <!-- 結果カード -->
+  <div class="result-card" id="result">
+    <p class="card-title">生成されたプロンプト</p>
+    <p class="result-value" id="rv"></p>
+    <button class="btn-copy" id="copyBtn" onclick="copyToClipboard()">📋 コピー</button>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="history-card" style="display:none">
+    <p class="card-title">最近のプロンプト</p>
+    <div id="history-list"></div>
+    <button class="btn-copy" onclick="clearHistory()" style="background: var(--ng-bg); color: var(--ng); border-color: var(--ng); margin-top: 0.5rem;">🗑️ 履歴をクリア</button>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、AI画像生成（Midjourney、Stable Diffusion など）で使いやすいように、プロンプトを整形しています。生成されたプロンプトを、お好みの画像生成AIにコピー&ペーストしてご利用ください。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // プロンプト生成ロジック
+  var TEMPLATES = [
+    { suffix: ', famicom pixel art style, 8bit, cute, icon' },
+    { suffix: ', retro 8bit pixel art, game character, famicom style' },
+    { suffix: ', pixel art icon, 8 bit, famicom, simple colors' }
+  ];
+
+  function generate() {
+    var name = document.getElementById('name').value.trim();
+    var features = document.getElementById('features').value.trim();
+
+    if (!name) {
+      showResult('ng', '名前を入力してください');
+      return;
+    }
+
+    // プロンプト構築
+    var promptParts = [name];
+    if (features) {
+      promptParts.push(features);
+    }
+
+    var template = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)];
+    var prompt = promptParts.join(', ') + template.suffix;
+
+    // 結果表示
+    document.getElementById('rv').textContent = prompt;
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('rn').innerHTML = '💡 このプロンプトをコピーして、Midjourney や Stable Diffusion などのAI画像生成ツールに貼り付けてください。';
+    document.getElementById('result').className = 'result-card ok';
+    document.getElementById('copyBtn').className = 'btn-copy';
+
+    // 履歴に保存
+    saveToHistory(name, prompt);
+  }
+
+  function showResult(level, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = '';
+    document.getElementById('rn').textContent = note;
+  }
+
+  function copyToClipboard() {
+    var text = document.getElementById('rv').textContent;
+    if (!text) return;
+
+    navigator.clipboard.writeText(text).then(function() {
+      var btn = document.getElementById('copyBtn');
+      btn.classList.add('copied');
+      btn.textContent = '✅ コピーしました！';
+      setTimeout(function() {
+        btn.classList.remove('copied');
+        btn.textContent = '📋 コピー';
+      }, 2000);
+    });
+  }
+
+  function saveToHistory(name, prompt) {
+    var history = JSON.parse(localStorage.getItem('famiconPromptHistory') || '[]');
+    history.unshift({ name: name, prompt: prompt, date: new Date().toLocaleString('ja-JP') });
+    if (history.length > 10) history.pop();
+    localStorage.setItem('famiconPromptHistory', JSON.stringify(history));
+    showHistory();
+  }
+
+  function showHistory() {
+    var history = JSON.parse(localStorage.getItem('famiconPromptHistory') || '[]');
+    if (history.length === 0) return;
+
+    var card = document.getElementById('history-card');
+    var list = document.getElementById('history-list');
+
+    list.innerHTML = history.map(function(item, idx) {
+      return '<div style="padding:0.7rem 0;border-bottom:1px solid var(--border);font-size:0.85rem;">'
+           + '<p style="font-weight:600;color:var(--text);margin-bottom:0.3rem;">' + item.name + '</p>'
+           + '<p style="color:var(--text-sub);word-break:break-word;margin-bottom:0.3rem;">' + item.prompt + '</p>'
+           + '<p style="font-size:0.75rem;color:var(--text-sub);">' + item.date + '</p>'
+           + '</div>';
+    }).join('');
+
+    card.style.display = '';
+  }
+
+  function clearHistory() {
+    if (confirm('履歴をすべて削除しますか？')) {
+      localStorage.removeItem('famiconPromptHistory');
+      document.getElementById('history-card').style.display = 'none';
+    }
+  }
+
+  // ページロード時に履歴を表示
+  window.addEventListener('load', function() {
+    showHistory();
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
