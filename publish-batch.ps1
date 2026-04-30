@@ -109,7 +109,7 @@ $issTxt
 - fav-widget.js / PDF ボタンなど必須要素は保持
 "@
             try {
-                & claude --dangerously-skip-permissions --print $fixPrompt 2>&1 | Out-Null
+                & claude --dangerously-skip-permissions --model claude-haiku-4-5 --print $fixPrompt 2>&1 | Out-Null
                 & python $agentPath --target $a --no-plan --base $dev | Out-Null
                 if (Test-Path -LiteralPath $reportPath) {
                     $rep2 = Get-Content -LiteralPath $reportPath -Raw -Encoding UTF8 | ConvertFrom-Json
