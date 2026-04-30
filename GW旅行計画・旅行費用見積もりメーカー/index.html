@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GW旅行の日数・目的地・参加人数を選ぶだけで、旅行費用の見積もりが自動計算される無料ツール。予算を事前に把握して、家計への影響を最小化できます。">
+  <title>GW旅行計画・旅行費用見積もりメーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    @media print { .no-print { display: none !important; } }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>GW旅行計画・旅行費用見積もりメーカー</h1>
+    <p class="subtitle">※2026年度の目安。最新の料金は公式情報をご確認ください</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">旅行情報を入力</p>
+    <div class="field">
+      <label for="days">GW日数</label>
+      <select id="days">
+        <option value="">選択してください</option>
+        <option value="1">日帰り（1日）</option>
+        <option value="2">1泊2日</option>
+        <option value="3">2泊3日</option>
+        <option value="4">3泊4日</option>
+        <option value="5">4泊5日</option>
+        <option value="7">6泊7日</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="destination">旅行先</label>
+      <select id="destination">
+        <option value="">選択してください</option>
+        <option value="near">近場（日帰りor1泊）</option>
+        <option value="mid">中距離（2泊3日向け）</option>
+        <option value="far">遠方（3泊4日向け）</option>
+        <option value="overseas">海外（5泊6日向け）</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="people">参加人数</label>
+      <input type="number" id="people" placeholder="例: 2" min="1" max="10">
+      <p class="hint">何人で行きますか？</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">見積もりを計算</button>
+
+  <!-- 結論カード -->
+  <div class="result-card" id="result">
+    <p class="result-label">旅行費用の目安</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">費用内訳（1人当たり）</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは観光庁・旅行業界の公開データを参考に、一般的な見積もりの目安として整理しています。実際の費用は旅行先・季節・ホテルランクによって変わります。
+  </p>
+
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // 目的地別の費用テンプレート（1人当たり）
+  var costTemplate = {
+    near: {
+      days: { 1: 1, 2: 2, 3: 3 },
+      transport: 3000,
+      hotel: 0,
+      food: 3000,
+      other: 2000
+    },
+    mid: {
+      days: { 2: 2, 3: 3, 4: 4 },
+      transport: 8000,
+      hotel: 8000,
+      food: 6000,
+      other: 4000
+    },
+    far: {
+      days: { 3: 3, 4: 4, 5: 5 },
+      transport: 20000,
+      hotel: 12000,
+      food: 9000,
+      other: 6000
+    },
+    overseas: {
+      days: { 5: 5, 6: 6, 7: 7 },
+      transport: 80000,
+      hotel: 50000,
+      food: 15000,
+      other: 10000
+    }
+  };
+
+  function loadState() {
+    var state = localStorage.getItem('gw-travel-state');
+    if (state) {
+      state = JSON.parse(state);
+      document.getElementById('days').value = state.days || '';
+      document.getElementById('destination').value = state.destination || '';
+      document.getElementById('people').value = state.people || '';
+    }
+  }
+
+  function saveState() {
+    var state = {
+      days: document.getElementById('days').value,
+      destination: document.getElementById('destination').value,
+      people: document.getElementById('people').value
+    };
+    localStorage.setItem('gw-travel-state', JSON.stringify(state));
+  }
+
+  function calc() {
+    var days = parseFloat(document.getElementById('days').value);
+    var destination = document.getElementById('destination').value;
+    var people = parseFloat(document.getElementById('people').value);
+
+    if (!days || !destination || isNaN(people) || people < 1) {
+      showErr('すべて選択・入力してください');
+      return;
+    }
+
+    saveState();
+
+    var costs = costTemplate[destination];
+    var perPersonCost = costs.transport + costs.hotel + costs.food + costs.other;
+    var totalCost = perPersonCost * people;
+
+    var level = totalCost < 100000 ? 'ok' : totalCost < 250000 ? 'warn' : 'ng';
+    var msg = level === 'ok' ? 'リーズナブルな予算です'
+            : level === 'warn' ? '適度な旅行予算ですね'
+            : '贅沢な旅行になりそう';
+
+    showResult(level, fmt(totalCost) + ' 円', msg);
+    showDetail(days, destination, people, costs, perPersonCost);
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = 'block';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('rn').textContent = note;
+  }
+
+  function showDetail(days, dest, people, costs, perPerson) {
+    var rows = [
+      ['交通費', fmt(costs.transport) + ' 円'],
+      ['宿泊費（' + days + '泊分）', fmt(costs.hotel * days) + ' 円'],
+      ['食事代', fmt(costs.food) + ' 円'],
+      ['その他', fmt(costs.other) + ' 円'],
+      ['小計（1人当たり）', fmt(perPerson) + ' 円', true],
+      ['合計（' + people + '人分）', fmt(perPerson * people) + ' 円', true]
+    ];
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg);
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  window.addEventListener('load', loadState);
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
