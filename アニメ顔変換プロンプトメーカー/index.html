@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="顔写真をアップロードして、雰囲気を選ぶだけで、AI画像生成ツール用のアニメ化プロンプトを素早く生成できます。">
+  <title>🎨 アニメ顔変換プロンプトメーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input[type="file"], .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input[type="file"]:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 雰囲気ボタン ── */
+    .mood-buttons {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem;
+      margin: 0.8rem 0;
+    }
+    .mood-btn {
+      padding: 0.6rem 0.8rem; font-size: 0.85rem; font-weight: 600;
+      background: var(--bg); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .mood-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .mood-btn.active {
+      background: var(--accent); color: #fff; border-color: var(--accent);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+    .btn-calc:disabled {
+      background: var(--text-sub); cursor: not-allowed;
+      box-shadow: 0 4px 0 #6b6663, 0 6px 16px rgba(120,113,108,0.2);
+    }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード（プロンプト出力） ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok { border-color: var(--ok); background: var(--ok-bg); }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value {
+      font-size: 1.1rem; font-weight: 600; letter-spacing: 0;
+      line-height: 1.6; margin-bottom: 0.8rem; word-wrap: break-word;
+      background: #fafafa; padding: 0.8rem; border-radius: 8px;
+      font-family: "Courier New", monospace; color: var(--text);
+    }
+    .btn-copy {
+      display: block; width: 100%;
+      padding: 0.6rem; margin-top: 0.5rem;
+      font-size: 0.9rem; font-weight: 600;
+      background: var(--text); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-copy:hover { background: var(--accent); }
+
+    /* ── 履歴カード ── */
+    .history-list {
+      max-height: 200px; overflow-y: auto;
+    }
+    .history-item {
+      padding: 0.5rem 0.7rem; margin-bottom: 0.5rem;
+      background: var(--bg); border-radius: 8px; border-left: 3px solid var(--accent);
+      font-size: 0.82rem; color: var(--text-sub); cursor: pointer;
+      transition: background 0.15s;
+    }
+    .history-item:hover { background: var(--accent-light); }
+    .history-item:last-child { margin-bottom: 0; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🎨 アニメ顔変換プロンプトメーカー</h1>
+    <p class="subtitle">自分の顔写真をアニメ化するAI呪文を雰囲気別に素早く生成できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="imageFile">顔写真を選択</label>
+      <input type="file" id="imageFile" accept="image/*" placeholder="画像ファイルを選択">
+      <p class="hint">JPG・PNG・GIF などの画像ファイルを選択してください。</p>
+    </div>
+    <div class="field">
+      <label>雰囲気を選択</label>
+      <div class="mood-buttons">
+        <button class="mood-btn" data-mood="アニメ風">アニメ風</button>
+        <button class="mood-btn" data-mood="水彩画">水彩画</button>
+        <button class="mood-btn" data-mood="サイバーパンク">サイバーパンク</button>
+        <button class="mood-btn" data-mood="浮世絵">浮世絵</button>
+        <button class="mood-btn" data-mood="油絵">油絵</button>
+        <button class="mood-btn" data-mood="アニメセル画">アニメセル画</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" id="genBtn" onclick="generatePrompt()" disabled>プロンプトを生成</button>
+
+  <!-- 結論カード（プロンプト出力） -->
+  <div class="result-card" id="result">
+    <p class="result-label">生成されたプロンプト</p>
+    <p class="result-value" id="promptText">—</p>
+    <button class="btn-copy" onclick="copyPrompt()">📋 コピー</button>
+  </div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="historyCard" style="display:none">
+    <p class="card-title">最近生成したプロンプト</p>
+    <div class="history-list" id="historyList"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、顔写真をアニメ化するための AI 画像生成ツール用のプロンプト（呪文）を生成します。生成されたプロンプトを、DALL-E・Midjourney・Stable Diffusion などのツールに貼り付けてご使用ください。
+  </p>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+    const MOODS = {
+      'アニメ風': 'anime style portrait illustration',
+      '水彩画': 'watercolor painting portrait',
+      'サイバーパンク': 'cyberpunk style portrait',
+      '浮世絵': 'ukiyo-e style portrait',
+      '油絵': 'oil painting portrait',
+      'アニメセル画': 'anime cel animation portrait'
+    };
+
+    let selectedMood = '';
+    let selectedFileName = '';
+    let promptHistory = [];
+
+    // 初期化：localStorage から履歴を読み込む
+    window.addEventListener('load', function() {
+      const saved = localStorage.getItem('promptHistory');
+      if (saved) {
+        try {
+          promptHistory = JSON.parse(saved);
+          displayHistory();
+        } catch (e) {
+          console.error('履歴の読み込みに失敗しました');
+        }
+      }
+    });
+
+    // ── 雰囲気ボタンのクリック処理 ──
+    document.querySelectorAll('.mood-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        selectedMood = this.getAttribute('data-mood');
+        updateGenerateBtn();
+      });
+    });
+
+    // ── ファイル選択処理 ──
+    document.getElementById('imageFile').addEventListener('change', function(e) {
+      if (e.target.files.length > 0) {
+        selectedFileName = e.target.files[0].name.replace(/\.[^/.]+$/, '');
+        updateGenerateBtn();
+      } else {
+        selectedFileName = '';
+        updateGenerateBtn();
+      }
+    });
+
+    // ── 生成ボタンの有効/無効を更新 ──
+    function updateGenerateBtn() {
+      const btn = document.getElementById('genBtn');
+      btn.disabled = !selectedFileName || !selectedMood;
+    }
+
+    // ── プロンプト生成 ──
+    function generatePrompt() {
+      if (!selectedFileName || !selectedMood) return;
+
+      // プロンプト生成（シンプルなテンプレート）
+      const englishMood = MOODS[selectedMood] || selectedMood;
+      const prompt = `${englishMood}, portrait of a person, high quality, detailed, best quality`;
+
+      // 結果表示
+      document.getElementById('promptText').textContent = prompt;
+      document.getElementById('result').classList.add('ok');
+      document.getElementById('result').style.display = 'block';
+
+      // 履歴に追加
+      addToHistory(prompt);
+    }
+
+    // ── 履歴に追加 ──
+    function addToHistory(prompt) {
+      const entry = {
+        text: prompt,
+        mood: selectedMood,
+        time: new Date().toLocaleString('ja-JP')
+      };
+      promptHistory.unshift(entry);
+      if (promptHistory.length > 20) promptHistory.pop();
+      localStorage.setItem('promptHistory', JSON.stringify(promptHistory));
+      displayHistory();
+    }
+
+    // ── 履歴表示 ──
+    function displayHistory() {
+      if (promptHistory.length === 0) {
+        document.getElementById('historyCard').style.display = 'none';
+        return;
+      }
+      const historyList = document.getElementById('historyList');
+      historyList.innerHTML = promptHistory.map((item, idx) => {
+        return `<div class="history-item" onclick="copyHistoryItem(${idx})" title="クリックでコピー">${item.mood} (${item.time})</div>`;
+      }).join('');
+      document.getElementById('historyCard').style.display = 'block';
+    }
+
+    // ── 履歴からコピー ──
+    function copyHistoryItem(idx) {
+      const item = promptHistory[idx];
+      document.getElementById('promptText').textContent = item.text;
+      document.getElementById('result').classList.add('ok');
+      document.getElementById('result').style.display = 'block';
+      copyPrompt();
+    }
+
+    // ── コピー処理 ──
+    function copyPrompt() {
+      const text = document.getElementById('promptText').textContent;
+      if (text === '—') return;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✓ コピーしました！';
+        setTimeout(() => {
+          btn.textContent = originalText;
+        }, 2000);
+      }).catch(() => {
+        alert('コピーに失敗しました。手動でコピーしてください。');
+      });
+    }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+</body>
+</html>
