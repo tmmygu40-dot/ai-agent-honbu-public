@@ -466,3 +466,31 @@ commit: dea0c02
 [2026-04-30 15:07:43] ERROR: git push failed
 [2026-04-30_182730] SCAN apps=SNS映え推奨コーデジェネレーター total=0 exit=0
 [2026-04-30 18:28:53] ERROR: git push failed
+
+
+## [2026-04-30 19:30] daily-count.txt 未push による「本日追加バッジ」非表示
+
+### 症状
+ネコポケトップの「🐾 今日もネコポケ増殖中：本日 +◯個追加！」バッジが表示されなくなった。
+
+### 原因
+- index.html の HTML/JS は正しく残っていた
+- しかし `daily-count.txt` が `publish-batch.ps1` の `git add` 対象に含まれておらず、GitHub Pages 側は前日（2026-04-29）のデータのまま
+- ローカル: `{"date":"2026-04-30","count":180}` / GitHub: `{"date":"2026-04-29","count":260}`
+
+### 影響
+- JS の日付判定 `d.date === today` で今日（"2026-04-30"）と一致せず
+- バッジが `display:none` のままで非表示
+- 表示が消えたように見えていたが、実態は古いデータを fetch していただけ
+
+### 修正
+- `publish-batch.ps1` の git add 行に `daily-count.txt` を追加
+- ローカルの `daily-count.txt` を即時 commit / push して GitHub Pages を最新化
+
+### commit
+- `4e0cca0` fix: stage daily-count.txt in publish-batch git add
+- `cc4cf24` chore: refresh daily-count.txt for today
+
+### 再発防止
+- 今後 `publish-batch.ps1` が走るたびに `daily-count.txt` も自動で stage/push される
+- run_publish.ps1 が `daily-count.txt` を更新 → publish-batch.ps1 が `git add daily-count.txt` → push の自動フロー成立
