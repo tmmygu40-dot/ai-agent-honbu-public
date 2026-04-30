@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>メール返信ジェネレーター</title>
+  <meta name="description" content="受け取ったメール内容と相手のトーン（丁寧・カジュアルなど）を選ぶだけで、相手に好印象な返信文を秒で自動生成。ビジネスメールの返信作成時間を大幅短縮できる無料ツールです。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select, .field textarea {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: #fff; }
+    .field textarea {
+      resize: vertical;
+      font-family: inherit;
+      min-height: 100px;
+    }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── コピーボタン ── */
+    .btn-copy {
+      display: inline-block;
+      margin-top: 0.8rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      background: var(--accent-light);
+      color: var(--accent);
+      border: 1.5px solid var(--accent);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-copy:active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-text { font-size: 0.95rem; line-height: 1.6; margin-bottom: 0.6rem; word-break: break-word; white-space: pre-wrap; }
+    .result-card.ok   .result-text { color: var(--ok);   }
+    .result-card.warn .result-text { color: var(--warn); }
+    .result-card.ng   .result-text { color: var(--ng);   }
+
+    /* ── 生成結果リスト ── */
+    .result-list {
+      display: none;
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .result-item {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.2rem;
+      margin-bottom: 0.8rem;
+      box-shadow: var(--shadow);
+    }
+    .result-item-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 0.6rem;
+    }
+    .result-item-text {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text);
+      word-break: break-word;
+      white-space: pre-wrap;
+      margin-bottom: 0.8rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .btn-copy, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card, .result-item { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📧 メール返信ジェネレーター</h1>
+    <p class="subtitle">受け取ったメール内容とトーンを選ぶだけで、相手に好印象な返信文を秒で生成できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">メール情報</p>
+    <div class="field">
+      <label for="mailContent">受け取ったメール内容</label>
+      <textarea id="mailContent" placeholder="例：お疲れ様です。先日お問い合わせいただいた件について、確認させていただきたいことがあります。お忙しいところ恐れ入りますが、お返事をいただけますでしょうか。"></textarea>
+      <p class="hint">相手から受け取ったメール内容を貼り付けてください</p>
+    </div>
+    <div class="field">
+      <label for="tone">返信のトーン</label>
+      <select id="tone">
+        <option value="">選んでください</option>
+        <option value="polite">丁寧・フォーマル</option>
+        <option value="casual">カジュアル・親友風</option>
+        <option value="neutral">普通・中立的</option>
+      </select>
+      <p class="hint">返信のトーンを選択してください</p>
+    </div>
+  </div>
+
+  <!-- 生成ボタン -->
+  <button class="btn-calc" onclick="generate()">返信文を生成する</button>
+
+  <!-- 生成結果 -->
+  <div id="result" style="display:none">
+    <div class="result-list" id="rv">
+      <div class="result-item" id="result1">
+        <p class="result-item-title">パターン1</p>
+        <p class="result-item-text" id="rv1"></p>
+        <button class="btn-copy" onclick="copyText('rv1')">📋 コピー</button>
+      </div>
+      <div class="result-item" id="result2" style="display:none">
+        <p class="result-item-title">パターン2</p>
+        <p class="result-item-text" id="rv2"></p>
+        <button class="btn-copy" onclick="copyText('rv2')">📋 コピー</button>
+      </div>
+      <div class="result-item" id="result3" style="display:none">
+        <p class="result-item-title">パターン3</p>
+        <p class="result-item-text" id="rv3"></p>
+        <button class="btn-copy" onclick="copyText('rv3')">📋 コピー</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、ビジネスメール作成の参考として使いやすく整理しています。重要な対外メールは送信前に内容をご確認ください。
+  </p>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── テンプレートベース返信文生成 ──
+  var TEMPLATES = {
+    polite: {
+      positive: [
+        'いつもお世話になっております。\nご連絡ありがとうございます。\n{content}\n今後ともよろしくお願いいたします。',
+        '平素よりお世話になっております。\nご連絡をいただき、ありがとうございます。\n{content}\n引き続き、ご支援のほどよろしくお願いいたします。',
+        'お疲れ様です。\n貴重なご連絡をいただき、感謝申し上げます。\n{content}\nご不明な点やご不安な点がございましたら、いつでもお気軽にお声がけください。'
+      ],
+      inquiry: [
+        'お忙しいところ、お手数をおかけして申し訳ございません。\nご確認いただけますでしょうか。\n{content}\nよろしくお願いいたします。',
+        'いつもご支援をいただき、ありがとうございます。\nお忙しいところ恐れ入りますが、ご確認のほどよろしくお願いいたします。\n{content}',
+        'お世話になっております。\nご多忙とは存じますが、以下の件についてご確認いただけますでしょうか。\n{content}\nお手数ですがよろしくお願いいたします。'
+      ]
+    },
+    casual: {
+      positive: [
+        'こんにちは。\nメールありがとうございます！\n{content}\n今後ともよろしくね。',
+        'お疲れ様です。\nいつもありがとうございます。\n{content}\n何かあればいつでも声かけてください。',
+        'こんにちは。\nご連絡ありがとう。\n{content}\n引き続きよろしくお願いします。'
+      ],
+      inquiry: [
+        'お忙しいとは思いますが、確認してもらえますか？\n{content}\nよろしくお願いします。',
+        'お手数ですが、以下のことについて教えていただけますか？\n{content}\nありがとうございます。',
+        'すみませんが、確認いただけますでしょうか。\n{content}\nよろしくお願いします。'
+      ]
+    },
+    neutral: {
+      positive: [
+        'ご連絡ありがとうございます。\n{content}\nよろしくお願いいたします。',
+        'メールをいただき、ありがとうございます。\n{content}\n引き続きお願いいたします。',
+        'ご連絡をいただき、感謝申し上げます。\n{content}\nご不明な点やご質問などございましたら、お気軽にお問い合わせください。'
+      ],
+      inquiry: [
+        'お忙しいところ恐れ入りますが、ご確認いただけますでしょうか。\n{content}\nよろしくお願いいたします。',
+        'ご確認のほどよろしくお願いいたします。\n{content}',
+        '以下の件についてご確認いただけますでしょうか。\n{content}\nお手数ですがよろしくお願いいたします。'
+      ]
+    }
+  };
+
+  function generate() {
+    var content = document.getElementById('mailContent').value.trim();
+    var tone = document.getElementById('tone').value;
+
+    if (!content) {
+      alert('メール内容を入力してください');
+      return;
+    }
+    if (!tone) {
+      alert('トーンを選択してください');
+      return;
+    }
+
+    // ── メール内容から「質問」か「報告」かを推測 ──
+    var isInquiry = /(\？|ですか|いただき|確認|確認)/i.test(content);
+    var type = isInquiry ? 'inquiry' : 'positive';
+
+    // ── テンプレから3パターン生成 ──
+    var templates = TEMPLATES[tone][type];
+    var results = templates.slice(0, 3).map(function(tmpl) {
+      // content 部分を簡略化して挿入
+      var contentPart = type === 'inquiry'
+        ? '承知いたしました。早速確認させていただきます。'
+        : '引き続きよろしくお願いいたします。';
+      return tmpl.replace('{content}', contentPart);
+    });
+
+    showResults(results);
+  }
+
+  function showResults(results) {
+    var resultContainer = document.getElementById('result');
+    var rv = document.getElementById('rv');
+
+    // 結果コンテナを表示
+    if (resultContainer) {
+      resultContainer.style.display = 'block';
+    }
+    if (rv) {
+      rv.style.display = 'block';
+    }
+
+    // 各パターンを書込
+    results.forEach(function(result, i) {
+      var num = i + 1;
+      var rvElement = document.getElementById('rv' + num);
+      var resultElement = document.getElementById('result' + num);
+
+      if (rvElement) {
+        rvElement.textContent = result;
+      }
+      if (resultElement && num <= 3) {
+        resultElement.style.display = 'block';
+      }
+    });
+
+    // スクロール
+    setTimeout(function() {
+      if (resultContainer) {
+        resultContainer.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+  }
+
+  function copyText(id) {
+    var text = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(text).then(function() {
+      alert('コピーしました！');
+    }).catch(function() {
+      // fallback
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      alert('コピーしました！');
+    });
+  }
+
+  // ── localStorage 保存・読み込み ──
+  window.addEventListener('load', function() {
+    var saved = localStorage.getItem('mailGeneratorData');
+    if (saved) {
+      var data = JSON.parse(saved);
+      document.getElementById('mailContent').value = data.content || '';
+      document.getElementById('tone').value = data.tone || '';
+    }
+  });
+
+  document.getElementById('mailContent').addEventListener('change', function() {
+    localStorage.setItem('mailGeneratorData', JSON.stringify({
+      content: document.getElementById('mailContent').value,
+      tone: document.getElementById('tone').value
+    }));
+  });
+
+  document.getElementById('tone').addEventListener('change', function() {
+    localStorage.setItem('mailGeneratorData', JSON.stringify({
+      content: document.getElementById('mailContent').value,
+      tone: document.getElementById('tone').value
+    }));
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
