@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="朝礼で話すネタに困ったら、ボタン1クリックでポジティブなネタを自動生成。複数パターン表示・コピー可能・過去のネタも履歴で確認できる朝礼サポートアプリです。">
+  <title>不安な日のための朝礼ネタ自動生成ジェネレーター</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── ネタカード ── */
+    .neta-card {
+      background: var(--accent-light);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      margin: 0 auto 0.8rem;
+      max-width: 600px;
+      display: none;
+    }
+    .neta-card.show { display: block; animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    .neta-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .neta-text {
+      flex: 1;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .btn-copy {
+      flex-shrink: 0;
+      padding: 0.5rem 0.8rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .btn-copy:active {
+      transform: scale(0.95);
+    }
+    .btn-copy.copied {
+      background: var(--ok);
+    }
+
+    /* ── 履歴 ── */
+    .history-item {
+      padding: 0.7rem 0.8rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+      color: var(--text-sub);
+      line-height: 1.5;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .history-time {
+      font-size: 0.75rem;
+      color: #aaa;
+      margin-top: 0.3rem;
+    }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 結果エリア ── */
+    .result-card {
+      display: none;
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.4rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+      text-align: center;
+    }
+
+    /* ── 広告枠 ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .neta-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>不安な日のための朝礼ネタ自動生成</h1>
+    <p class="subtitle">ボタン1クリックで、朝礼の話題に困らない</p>
+  </header>
+
+  <!-- 生成エリア -->
+  <button class="btn-calc" onclick="generateNetas()">✨ ネタを生成する</button>
+
+  <!-- ネタ表示エリア -->
+  <div id="neta-container" style="max-width: 600px; margin: 0 auto;"></div>
+
+  <!-- 履歴カード -->
+  <div class="card" id="history-card" style="display: none;">
+    <p class="card-title">生成履歴</p>
+    <div id="history-list"></div>
+  </div>
+
+  <!-- 広告枠 -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+  const NETA_DB = [
+    // 仕事関連
+    '昨日見つけた業務効率化のコツをシェアします。〇〇を〇〇に変えるだけで、時間が3割短縮できました。',
+    '最近読んだ本の中で、仕事に活かせる考え方を学びました。「失敗は学びの機会」という視点が新鮮でした。',
+    'チーム内での連携がスムーズだったおかげで、昨日のプロジェクトが期限より早く完了しました。',
+    '顧客からの急な相談への対応を通じて、臨機応変さの重要性を改めて感じました。',
+    '朝のルーティンを少し変えたら、頭がスッキリして仕事のペースが上がった気がします。',
+
+    // 生活・学び
+    '今朝、散歩中に見つけた季節の変化。春への歩みを感じます。',
+    '昨日の夕食で作った新しいレシピが思った以上に上手くいきました。今晩もリベンジ予定です。',
+    'いつもの駅の掲示板で見つけたイベントが面白そう。週末チェックしてみます。',
+    '朝日を浴びながらのコーヒーは、心と体を整える最高の時間だと改めて感じました。',
+    'ニュースで見つけた新しい技術。自分の仕事にも応用できるかもしれません。',
+
+    // ポジティブ思考
+    '今日という日が、人生で二度と来ない特別な日だと考えると、モチベーションが上がります。',
+    '昨日の「失敗」も、今日の「成功」に必要なステップだったんだと思います。',
+    '周りの人のサポートがあってこそ、自分が動けている。感謝の気持ちを忘れずに。',
+    'どんなに小さなことでも、「続ける」ことの価値を実感しています。',
+    '予想外の課題が出ても、「どう乗り越えようか」と考えるのが楽しみになってきました。',
+
+    // 日常の気づき
+    'スマートフォンを置いて、本を読む時間を増やしたら、気持ちがリセットされた気がします。',
+    '朝ごはんをしっかり食べることで、午前中の集中力が全然違うことに気付きました。',
+    'メールを確認する前に、優先順位を決める。この順番を変えたら効率が上がりました。',
+    '昨日から始めた瞑想。5分でも心が落ち着くのを感じます。',
+    '身近な人の良いところを1つ見つけるという習慣。今日は誰の何を褒めようかな。',
+
+    // 自分への励まし
+    'やることは多いけど、1つ1つ進めば大丈夫。焦らずいこう。',
+    'できないことを数えるより、できたことを数える。その方が気持ちが前向きになります。',
+    'ミスは誰にでもある。大事なのは、そこからどう学ぶか。',
+    'きっと何とかなる。だからこそ、今できることに集中しよう。',
+    '昨日の自分よりも、少しでも成長できたら十分。',
+
+    // 環境・季節
+    '今朝は天気がいいですね。こういう日のエネルギーって伝染するんだと思います。',
+    '季節が変わるたびに「また新しいスタート」という気持ちになれるのが好きです。',
+    'オフィスの緑を見ると、心が整う。自然の力はすごいなって思います。',
+    '雨の音を聞いていたら、頭がリセットされた。悪いことばかりじゃないんですね。',
+    '風が気持ちいい朝。こういう時は何でもうまくいく気がします。',
+  ];
+
+  const STORAGE_KEY = '朝礼ネタ履歴';
+
+  function generateNetas() {
+    // ランダムに3～5パターンを選択
+    const count = Math.floor(Math.random() * 3) + 3; // 3～5
+    const shuffled = NETA_DB.sort(() => Math.random() - 0.5);
+    const selected = shuffled.slice(0, count);
+
+    // ネタコンテナをクリア
+    const container = document.getElementById('neta-container');
+    container.innerHTML = '';
+
+    // ネタを表示
+    selected.forEach((neta, idx) => {
+      const div = document.createElement('div');
+      div.className = 'neta-card';
+      div.innerHTML = `
+        <div class="neta-content">
+          <p class="neta-text">${neta}</p>
+          <button class="btn-copy" onclick="copyNeta('${escapeQuotes(neta)}', this)">コピー</button>
+        </div>
+      `;
+      container.appendChild(div);
+      // アニメーション用に少し遅延させて表示
+      setTimeout(() => {
+        div.classList.add('show');
+      }, idx * 100);
+    });
+
+    // 履歴に保存
+    saveToHistory(selected);
+    updateHistory();
+  }
+
+  function copyNeta(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+      const originalText = btn.textContent;
+      btn.textContent = '✓ コピー済み';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(err => {
+      console.error('コピー失敗:', err);
+    });
+  }
+
+  function saveToHistory(netas) {
+    let history = [];
+    try {
+      history = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch (e) {
+      history = [];
+    }
+
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    history.unshift({
+      netas: netas,
+      time: timeStr,
+      date: now.toLocaleDateString('ja-JP')
+    });
+
+    // 最大50件まで保存
+    history = history.slice(0, 50);
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    } catch (e) {
+      console.error('履歴保存失敗:', e);
+    }
+  }
+
+  function updateHistory() {
+    let history = [];
+    try {
+      history = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch (e) {
+      history = [];
+    }
+
+    if (history.length === 0) {
+      document.getElementById('history-card').style.display = 'none';
+      return;
+    }
+
+    const historyCard = document.getElementById('history-card');
+    const historyList = document.getElementById('history-list');
+    historyList.innerHTML = '';
+
+    history.forEach((item, idx) => {
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      const netaPreview = item.netas[0].substring(0, 40) + (item.netas[0].length > 40 ? '...' : '');
+      div.innerHTML = `
+        ${netaPreview}
+        <div class="history-time">${item.date} ${item.time} (${item.netas.length}パターン)</div>
+      `;
+      historyList.appendChild(div);
+    });
+
+    historyCard.style.display = 'block';
+  }
+
+  function escapeQuotes(str) {
+    return str.replace(/'/g, "\\'").replace(/"/g, '\\"');
+  }
+
+  // 初期化時に履歴を表示
+  updateHistory();
+  </script>
+
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+</body>
+</html>
