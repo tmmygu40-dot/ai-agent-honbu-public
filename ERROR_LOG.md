@@ -501,3 +501,4 @@ commit: dea0c02
 [2026-05-01_002705] SCAN apps=不安な日のための朝礼ネタ自動生成ジェネレーター_v2 total=1 exit=0
 [2026-05-01_005427] SCAN apps=世界料理診断アプリ total=0 exit=0
 [2026-05-01_012649] SCAN apps=世界遺産クイズゲーム total=0 exit=0
+[2026-05-01_022715] SCAN apps=今日の英単語クイズ total=0 exit=0
