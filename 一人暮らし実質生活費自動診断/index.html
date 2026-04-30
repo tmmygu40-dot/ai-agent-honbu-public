@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>👛 一人暮らし実質生活費自動診断</title>
+  <meta name="description" content="家計簿から支出を入力すると、食費・家賃・通信費などカテゴリ別に自動分類し、実質生活費（基本生活費）を即座に診断します。一人暮らしの家計管理に。">
+  <style>
+    :root {
+      --accent: #e07b00;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --border: #e8ddd0;
+      --bg: #f5f0e8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 1.5rem;
+      min-height: 100vh;
+    }
+    .container { max-width: 600px; margin: 0 auto; }
+    .header {
+      background: #fff;
+      padding: 1.5rem;
+      border-bottom: 3px solid var(--accent);
+      margin-bottom: 1.5rem;
+      border-radius: 10px;
+    }
+    h1 { font-size: 1.3rem; font-weight: 900; margin-bottom: 0.3rem; }
+    .subtitle { font-size: 0.85rem; color: var(--text-sub); }
+    .card {
+      background: #fff;
+      border: 1px solid var(--border);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border-radius: 10px;
+    }
+    .field { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; color: var(--text-sub); }
+    input, select {
+      width: 100%;
+      padding: 0.7rem;
+      font-size: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #f9f9f9;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent); background: #fff; }
+    button {
+      width: 100%;
+      padding: 1rem;
+      font-size: 1.05rem;
+      font-weight: 800;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin: 1rem 0;
+    }
+    button:active { transform: scale(0.98); }
+    .result { display: none; background: #f0fdf4; border: 2px solid #15803d; padding: 1.5rem; border-radius: 10px; text-align: center; }
+    .result.show { display: block; }
+    .result-label { font-size: 0.8rem; color: var(--text-sub); margin-bottom: 0.3rem; }
+    .result-value { font-size: 2.5rem; font-weight: 900; color: #15803d; margin: 0.5rem 0; }
+    .result-note { font-size: 0.9rem; color: var(--text-sub); margin-top: 0.5rem; }
+    table { width: 100%; margin-top: 1rem; font-size: 0.9rem; }
+    th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { background: #f5f5f5; font-weight: 700; }
+    td:last-child { text-align: right; }
+    .item-list { margin-top: 1rem; }
+    .item-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; align-items: flex-end; }
+    .item-row input { flex: 1; }
+    .item-row button { flex: 0.3; margin: 0; padding: 0.5rem; font-weight: 700; }
+    .btn-add { width: 100%; padding: 0.7rem; margin-bottom: 1rem; background: #f5f5f5; color: var(--text); font-weight: 700; border: 1px solid var(--border); }
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.85rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+    .btn-pdf { display: block; margin: 1.5rem auto 0; padding: 0.6rem 1.2rem; background: #fff; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; width: 100%; max-width: 600px; font-weight: 700; }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+    @media print { .btn-pdf, .back-link, .item-row button { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>👛 一人暮らし実質生活費自動診断</h1>
+      <p class="subtitle">家計簿から支出を入力すると、カテゴリ別に自動分類し、実質生活費を診断します。</p>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label>支出項目を入力（例：食費、家賃、通信費など）</label>
+        <div class="item-list" id="itemList">
+          <div class="item-row">
+            <input type="text" class="item-name" placeholder="項目名（例：スーパー）">
+            <input type="number" class="item-amount" placeholder="金額" style="width: 100px;">
+            <button class="remove-btn" onclick="removeItem(this)">削除</button>
+          </div>
+        </div>
+        <button class="btn-add" onclick="addItem()">+ 項目を追加</button>
+      </div>
+    </div>
+
+    <button onclick="calculate()">診断する</button>
+
+    <div class="result" id="result">
+      <div class="result-label">実質生活費（月額推定）</div>
+      <div class="result-value" id="resultValue">¥0</div>
+      <div class="result-note" id="resultNote"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>カテゴリ</th>
+            <th>合計</th>
+          </tr>
+        </thead>
+        <tbody id="resultTable"></tbody>
+      </table>
+    </div>
+
+    <button class="btn-pdf" onclick="window.print()">📄 PDFで保存</button>
+    <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+  </div>
+
+  <script>
+    const CATEGORIES = {
+      '食': ['食費', 'スーパー', '食料', '朝食', '昼食', '夕食', '弁当', 'コンビニ'],
+      '家賃': ['家賃', '住宅', 'アパート'],
+      '光熱費': ['電気', 'ガス', '水道', '光熱', '電気代', 'ガス代'],
+      '通信': ['通信', 'スマホ', '携帯', 'インターネット', 'WiFi', '電話'],
+      '交通': ['交通', 'バス', '電車', 'タクシー', 'ガソリン', '駐車場'],
+      '其他': []
+    };
+
+    function getCategory(name) {
+      for (let cat in CATEGORIES) {
+        if (CATEGORIES[cat].some(k => name.includes(k))) return cat;
+      }
+      return '其他';
+    }
+
+    function addItem() {
+      let list = document.getElementById('itemList');
+      let div = document.createElement('div');
+      div.className = 'item-row';
+      div.innerHTML = `
+        <input type="text" class="item-name" placeholder="項目名">
+        <input type="number" class="item-amount" placeholder="金額" style="width: 100px;">
+        <button class="remove-btn" onclick="removeItem(this)">削除</button>
+      `;
+      list.appendChild(div);
+    }
+
+    function removeItem(btn) {
+      btn.parentElement.remove();
+    }
+
+    function calculate() {
+      let items = document.querySelectorAll('.item-row');
+      let data = {};
+      let total = 0;
+
+      items.forEach(row => {
+        let name = row.querySelector('.item-name').value;
+        let amount = parseFloat(row.querySelector('.item-amount').value) || 0;
+        if (name && amount > 0) {
+          let cat = getCategory(name);
+          if (!data[cat]) data[cat] = 0;
+          data[cat] += amount;
+          total += amount;
+        }
+      });
+
+      if (total === 0) {
+        alert('支出を入力してください');
+        return;
+      }
+
+      let html = '';
+      for (let cat in data) {
+        html += `<tr><td>${cat}</td><td>¥${data[cat].toLocaleString('ja-JP')}</td></tr>`;
+      }
+
+      document.getElementById('resultValue').textContent = '¥' + total.toLocaleString('ja-JP');
+      document.getElementById('resultNote').textContent = `${Object.keys(data).length}つのカテゴリで自動分類されました。`;
+      document.getElementById('resultTable').innerHTML = html;
+      document.getElementById('result').classList.add('show');
+
+      // localStorage 保存
+      localStorage.setItem('liveExpense', JSON.stringify({date: new Date().toLocaleDateString('ja-JP'), items: data, total}));
+    }
+
+    // ページ読込時の復元
+    window.addEventListener('load', function() {
+      let saved = localStorage.getItem('liveExpense');
+      if (saved) console.log('前回のデータ:', JSON.parse(saved));
+    });
+  </script>
+
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

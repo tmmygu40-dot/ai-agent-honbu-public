@@ -496,3 +496,4 @@ commit: dea0c02
 - run_publish.ps1 が `daily-count.txt` を更新 → publish-batch.ps1 が `git add daily-count.txt` → push の自動フロー成立
 [2026-04-30_193648] SCAN apps=SNSネタフレーズメーカー_v2,クローゼット整理おしゃれ写真プロンプト生成メーカー total=0 exit=0
 [2026-04-30_230104] SCAN apps=メルカリ売値提案メーカー total=0 exit=0
+[2026-04-30_232707] SCAN apps=サブスク解約リマインダーメール自動生成,一人暮らし実質生活費自動診断 total=0 exit=0

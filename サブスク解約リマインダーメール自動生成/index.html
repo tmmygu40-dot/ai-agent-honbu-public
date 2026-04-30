@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📧 サブスク解約リマインダーメール自動生成</title>
+  <meta name="description" content="解約したいサブスクの名前と日付を入力するだけで、相手に送れるメール文が自動生成されます。解約手続きの際にそのままコピーして使えます。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 絵文字ひとこと＆結果別Q&A（ENABLE_RESULT_QA=true のときだけ表示） ── */
+    .result-emoji { font-size: 2.4rem; text-align: center; margin-bottom: 0.3rem; line-height: 1.2; }
+    .result-emoji-text { font-size: 1.05rem; font-weight: 700; text-align: center; margin-bottom: 1rem; line-height: 1.4; }
+    #qa-card.ok   .result-emoji-text { color: var(--ok); }
+    #qa-card.warn .result-emoji-text { color: var(--warn); }
+    #qa-card.ng   .result-emoji-text { color: var(--ng); }
+    .qa-item { padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+    .qa-item:last-child { border-bottom: none; }
+    .qa-q { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 0.3rem; line-height: 1.4; }
+    .qa-a { font-size: 0.88rem; color: var(--text-sub); line-height: 1.55; }
+
+    /* ── チェックボックス行（label で行全体を包む / 行クリックでON-OFF / チェック済みは取り消し線+薄表示） ── */
+    .check-item {
+      display: flex; align-items: center; gap: 0.7rem;
+      padding: 0.7rem 0.6rem; border-bottom: 1px solid var(--border);
+      cursor: pointer; user-select: none;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; }
+    .check-item .check-text { font-size: 0.92rem; color: var(--text); line-height: 1.4; }
+    .check-item input[type="checkbox"]:checked ~ .check-text {
+      text-decoration: line-through; color: var(--text-sub); opacity: 0.6;
+    }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>📧 サブスク解約リマインダーメール自動生成</h1>
+    <p class="subtitle">解約したいサブスクの名前と日付を入れるだけで、相手に送れるメール文が一発で出来上がります。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="f1">サブスクリプション名</label>
+      <input type="text" id="f1" placeholder="例: Netflix、Spotify">
+      <p class="hint">解約したいサービスの名前を入力してください</p>
+    </div>
+    <div class="field">
+      <label for="f2">解約予定日</label>
+      <input type="date" id="f2">
+      <p class="hint">いつ解約するか選択してください</p>
+    </div>
+  </div>
+
+  <!-- メール生成ボタン -->
+  <button class="btn-calc" id="btn-gen">メール文を生成</button>
+
+  <!-- メール文表示カード（JS で結果を書き込み・クラス切替） -->
+  <div class="result-card" id="result">
+    <p class="result-label" id="result-label-text">生成されたメール文</p>
+    <p class="result-value" id="rv-val" style="display:none"></p>
+    <div id="email-box" style="max-width:600px;margin:0 auto 1rem;padding:1.2rem;background:white;border:1.5px solid var(--border);border-radius:10px;text-align:left;font-size:0.92rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;">
+      <p id="rv" style="font-family:monospace;margin:0;">—</p>
+    </div>
+    <button id="copy-btn" class="btn-calc" style="margin:1rem auto 0;background:var(--accent);">コピーする</button>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 絵文字ひとこと＆結果別Q&A（ENABLE_RESULT_QA=true のときだけ表示） -->
+  <div class="card" id="qa-card" style="display:none">
+    <p class="result-emoji" id="qe"></p>
+    <p class="result-emoji-text" id="qt"></p>
+    <div id="qa-list"></div>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    💡 解約メール文は目安です。実際の解約手続きはサービスの利用規約をご確認の上、ご対応ください。
+  </p>
+
+  <!-- checkbox を使う場合の模範UI（必要時にコピーして使う / label で行全体を包む / 行クリックでON-OFF / チェック済みは取り消し線+薄表示）
+  <div class="card">
+    <p class="card-title">チェックリスト</p>
+    <label class="check-item">
+      <input type="checkbox">
+      <span class="check-text">項目1</span>
+    </label>
+    <label class="check-item">
+      <input type="checkbox">
+      <span class="check-text">項目2</span>
+    </label>
+  </div>
+  -->
+
+  <!-- 広告枠（将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── メール文生成ロジック ──
+  function calc() {
+    console.log('[CALC] Starting email generation...');
+    try {
+      var resultEl = document.getElementById('result');
+      if (!resultEl) {
+        console.error('[CRITICAL] result-card not found during calc()');
+        alert('エラー: 結果表示要素が見つかりません');
+        return;
+      }
+
+      var serviceName = document.getElementById('f1').value.trim();
+      var cancelDate = document.getElementById('f2').value;
+
+      if (!serviceName || !cancelDate) {
+        console.log('[CALC] Missing input: serviceName=' + serviceName + ', cancelDate=' + cancelDate);
+        showErr('サブスク名と解約日を両方入力してください');
+        return;
+      }
+
+      var dateObj = new Date(cancelDate);
+      var year = dateObj.getFullYear();
+      var month = dateObj.getMonth() + 1;
+      var day = dateObj.getDate();
+      var formattedDate = year + '年' + month + '月' + day + '日';
+
+      var emailText = serviceName + 'の解約申請\n\nいつもお世話になっております。\n\n' + serviceName + 'の利用を、' + formattedDate + 'をもって解約希望いたします。\n\nご対応のほどよろしくお願いいたします。';
+
+      console.log('[CALC] Generated email text: ' + emailText.length + ' chars, calling showResult...');
+      showResult('ok', emailText, '✓ メール文が生成されました。下のコピーボタンで全文をコピーできます。');
+
+      try {
+        var history = {
+          serviceName: serviceName,
+          cancelDate: cancelDate,
+          emailText: emailText,
+          timestamp: new Date().toISOString()
+        };
+        var histories = JSON.parse(localStorage.getItem('emailHistories') || '[]');
+        histories.unshift(history);
+        if (histories.length > 10) histories.pop();
+        localStorage.setItem('emailHistories', JSON.stringify(histories));
+        console.log('[CALC] History saved to localStorage');
+      } catch (storageErr) {
+        console.warn('[CALC] localStorage error (non-critical): ' + storageErr.message);
+      }
+    } catch (e) {
+      console.error('[EXCEPTION] calc() error: ' + e.message);
+      showErr('エラーが発生しました: ' + e.message);
+    }
+  }
+
+  function copyEmail() {
+    console.log('[COPYEMAIL] Starting copy operation...');
+    try {
+      var rvEl = document.getElementById('rv');
+      if (!rvEl) {
+        console.error('[CRITICAL] rv element not found in copyEmail()');
+        showErr('メール文要素が見つかりません');
+        return;
+      }
+
+      var emailText = rvEl.textContent;
+      if (!emailText || emailText === '—') {
+        console.log('[COPYEMAIL] No email text to copy');
+        showErr('メール文を生成してください');
+        return;
+      }
+
+      console.log('[COPYEMAIL] Copying ' + emailText.length + ' chars to clipboard');
+      navigator.clipboard.writeText(emailText).then(function() {
+        console.log('[COPYEMAIL] ✓ Successfully copied');
+        var btn = document.getElementById('copy-btn');
+        if (btn) {
+          var originalText = btn.textContent;
+          btn.textContent = 'コピーしました！';
+          setTimeout(function() {
+            btn.textContent = originalText;
+            console.log('[COPYEMAIL] Button text restored');
+          }, 2000);
+        }
+      }).catch(function(err) {
+        console.error('[COPYEMAIL] Copy failed: ' + err.message);
+        showErr('コピーに失敗しました。ブラウザの設定をご確認ください。');
+      });
+    } catch (e) {
+      console.error('[COPYEMAIL] Exception: ' + e.message);
+      showErr('コピー処理エラー: ' + e.message);
+    }
+  }
+
+  function showResult(level, val, note) {
+    console.log('[SHOWRESULT] Entering showResult with level=' + level);
+    var resultEl = document.getElementById('result');
+    if (!resultEl) {
+      console.error('[CRITICAL] .result-card element (id="result") not found in showResult()');
+      alert('エラー: 結果表示要素が見つかりません');
+      return;
+    }
+
+    try {
+      // ── result-card への直接書き込み：クラス・スタイル ──
+      resultEl.classList.remove('ok', 'warn', 'ng');
+      resultEl.classList.add(level);
+      resultEl.dataset.level = level;
+      resultEl.style.display = 'block';
+      console.log('[SHOWRESULT] ✓ Writing to #result: class=' + level + ', display=block');
+
+      var labelEl = document.getElementById('result-label-text');
+      var valEl = document.getElementById('rv-val');
+      var rvEl = document.getElementById('rv');
+      var rnEl = document.getElementById('rn');
+      var copyBtn = document.getElementById('copy-btn');
+      var emailBox = document.getElementById('email-box');
+
+      // ── result-card 内部の各要素への書き込み ──
+      if (labelEl) {
+        labelEl.textContent = '生成されたメール文';
+        console.log('[SHOWRESULT] ✓ Writing to #result-label-text: 生成されたメール文');
+      } else {
+        console.warn('[SHOWRESULT] labelEl not found');
+      }
+
+      if (valEl) {
+        valEl.style.display = 'none';
+        valEl.textContent = '';
+      }
+
+      if (rvEl) {
+        rvEl.textContent = val;
+        console.log('[SHOWRESULT] ✓ Writing to #rv: ' + val.length + ' chars');
+      } else {
+        console.error('[CRITICAL] rvEl (#rv) not found in showResult()');
+      }
+
+      if (rnEl) {
+        rnEl.textContent = note;
+        console.log('[SHOWRESULT] ✓ Writing to #rn: ' + note);
+      }
+
+      if (copyBtn) {
+        copyBtn.style.display = (level === 'ok') ? 'block' : 'none';
+      }
+
+      if (emailBox) {
+        emailBox.style.display = (level === 'ok') ? 'block' : 'none';
+      }
+
+      console.log('[SHOWRESULT] ✓✓ All writes to #result complete. Level=' + level + ', Content length=' + val.length);
+    } catch (e) {
+      console.error('[SHOWRESULT] Exception: ' + e.message);
+      alert('結果表示エラー: ' + e.message);
+    }
+  }
+
+  function showErr(msg) {
+    console.log('[SHOWERR] Entering showErr with message: ' + msg);
+    var resultEl = document.getElementById('result');
+    if (!resultEl) {
+      console.error('[CRITICAL] .result-card element (id="result") not found in showErr()');
+      alert('エラー表示エラー: ' + msg);
+      return;
+    }
+
+    try {
+      // ── result-card への直接書き込み：クラス・スタイル（エラーモード） ──
+      resultEl.classList.remove('ok', 'warn', 'ng');
+      resultEl.classList.add('ng');
+      resultEl.dataset.level = 'ng';
+      resultEl.style.display = 'block';
+      console.log('[SHOWERR] ✓ Writing to #result: class=ng, display=block');
+
+      var labelEl = document.getElementById('result-label-text');
+      var valEl = document.getElementById('rv-val');
+      var rvEl = document.getElementById('rv');
+      var rnEl = document.getElementById('rn');
+      var copyBtn = document.getElementById('copy-btn');
+      var emailBox = document.getElementById('email-box');
+
+      // ── result-card 内部の各要素への書き込み（エラーメッセージ） ──
+      if (labelEl) {
+        labelEl.textContent = '入力エラー';
+        console.log('[SHOWERR] ✓ Writing to #result-label-text: 入力エラー');
+      }
+
+      if (valEl) {
+        valEl.textContent = '✗ 入力内容を確認してください';
+        valEl.style.display = 'block';
+      }
+
+      if (rvEl) {
+        rvEl.textContent = '';
+      }
+
+      if (rnEl) {
+        rnEl.textContent = msg;
+        console.log('[SHOWERR] ✓ Writing to #rn: ' + msg);
+      } else {
+        console.warn('[SHOWERR] rnEl (#rn) not found');
+      }
+
+      if (copyBtn) {
+        copyBtn.style.display = 'none';
+      }
+
+      if (emailBox) {
+        emailBox.style.display = 'none';
+      }
+
+      console.log('[SHOWERR] ✓✓ All writes to #result complete. Error=' + msg);
+    } catch (e) {
+      console.error('[SHOWERR] Exception: ' + e.message);
+      alert('エラー表示中に例外: ' + e.message);
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', function() {
+    // ── ボタンバインディング ──
+    var btn = document.getElementById('btn-gen');
+    if (btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        calc();
+      });
+      console.log('[INIT] Button #btn-gen ✓ bound to calc()');
+    } else {
+      console.error('[CRITICAL] Button #btn-gen not found - emails cannot be generated');
+    }
+
+    // ── コピーボタンバインディング ──
+    var copyBtn = document.getElementById('copy-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        copyEmail();
+      });
+      console.log('[INIT] Button #copy-btn ✓ bound to copyEmail()');
+    } else {
+      console.warn('[WARN] Button #copy-btn not found');
+    }
+
+    // ── 結果表示先の確認 ──
+    var resultEl = document.getElementById('result');
+    if (!resultEl) {
+      console.error('[CRITICAL] .result-card element (id="result") not found - cannot display results');
+    } else {
+      console.log('[INIT] .result-card (id="result") ✓ ready for writing');
+    }
+  });
+  </script>
+
+  <script src="../fav-widget.js" onerror="console.error('fav-widget.js load error')"></script>
+  <script src="../related-widget.js" onerror="console.error('related-widget.js load error')"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
