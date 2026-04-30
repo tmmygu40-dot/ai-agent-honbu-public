@@ -396,8 +396,8 @@ $prevEAP = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
 
 if ($ok) {
-    git add -- index.html PUBLISHED.md sitemap.xml
-    if ($LASTEXITCODE -ne 0) { LogError "git add index.html/PUBLISHED.md/sitemap.xml failed"; $ok = $false }
+    git add -- index.html PUBLISHED.md sitemap.xml daily-count.txt
+    if ($LASTEXITCODE -ne 0) { LogError "git add index.html/PUBLISHED.md/sitemap.xml/daily-count.txt failed"; $ok = $false }
 }
 
 if ($ok) {
