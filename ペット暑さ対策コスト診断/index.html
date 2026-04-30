@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ペットのための夏場のエアコン代を犬種・猫種別に即試算。電気代がいくらかかるか、一目でわかります。">
+  <title>🐾 ペット暑さ対策コスト診断</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🐾 ペット暑さ対策コスト診断</h1>
+    <p class="subtitle">夏のエアコン代、ペットのために月いくらかかる？犬種・猫種別に即試算できます。</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">ペット情報</p>
+    <div class="field">
+      <label for="petType">ペットの種類</label>
+      <select id="petType" onchange="updateBreeds()">
+        <option value="">選んでください</option>
+        <option value="dog">犬</option>
+        <option value="cat">猫</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="breed">犬種・猫種</label>
+      <select id="breed">
+        <option value="">まずペットの種類を選んでください</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- エアコン設定カード -->
+  <div class="card">
+    <p class="card-title">エアコン設定</p>
+    <div class="field">
+      <label for="temperature">設定温度</label>
+      <input type="number" id="temperature" placeholder="例: 25" min="16" max="30" value="25">
+      <p class="hint">一般的にペット向けは23～27℃が目安です</p>
+    </div>
+    <div class="field">
+      <label for="hours">1日の使用時間</label>
+      <input type="number" id="hours" placeholder="例: 8" min="0" max="24" value="8">
+      <p class="hint">夜間や外出時の使用時間を含めてください</p>
+    </div>
+    <div class="field">
+      <label for="months">稼働月数</label>
+      <select id="months">
+        <option value="3">3ヶ月（7-9月）</option>
+        <option value="4">4ヶ月（6-9月）</option>
+        <option value="5">5ヶ月（5-9月）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" id="calcBtn">計算する</button>
+
+  <!-- 結論カード（JS で class="result-card ok/warn/ng" を切替・innerHTML で書込） -->
+  <div class="result-card" id="result"></div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">計算内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、一般的な家庭用エアコンの消費電力と、2026年4月時点の電力単価を参考に、概算値として計算しています。実際の電気代は、エアコンメーカー・型番・地域の電力会社により異なります。
+  </p>
+
+  <!-- 広告枠（将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  var BREEDS = {
+    dog: ['トイ・プードル', 'チワワ', 'ダックスフンド', 'ポメラニアン', 'ヨークシャー・テリア', '柴犬', 'ビーグル', 'コッカー・スパニエル', 'ラブラドール・レトリーバー', 'ゴールデン・レトリーバー', 'ジャーマン・シェパード', 'ボーダー・コリー'],
+    cat: ['スコティッシュ・フォールド', 'マンチカン', 'ラグドール', 'アメリカン・ショートヘア', 'ペルシャ', 'メイン・クーン', 'ベンガル', 'ロシアン・ブルー']
+  };
+
+  var POWER_BY_SIZE = {
+    small: 800,
+    medium: 1000,
+    large: 1200
+  };
+
+  function getBreedSize(breed) {
+    var smallBreeds = ['チワワ', 'ポメラニアン', 'ヨークシャー・テリア', 'マンチカン', 'スコティッシュ・フォールド'];
+    var largeBreeds = ['ラブラドール・レトリーバー', 'ゴールデン・レトリーバー', 'ジャーマン・シェパード', 'メイン・クーン'];
+    if (smallBreeds.includes(breed)) return 'small';
+    if (largeBreeds.includes(breed)) return 'large';
+    return 'medium';
+  }
+
+  function updateBreeds() {
+    var type = document.getElementById('petType').value;
+    var breedSelect = document.getElementById('breed');
+    breedSelect.innerHTML = '';
+    if (!type) {
+      breedSelect.innerHTML = '<option value="">まずペットの種類を選んでください</option>';
+      return;
+    }
+    var breeds = BREEDS[type] || [];
+    breedSelect.innerHTML = '<option value="">選んでください</option>' +
+      breeds.map(function(b) { return '<option value="' + b + '">' + b + '</option>'; }).join('');
+  }
+
+  function calc() {
+    console.log('▶ calc() called');
+    var petType = document.getElementById('petType').value;
+    var breed = document.getElementById('breed').value;
+    var temp = parseFloat(document.getElementById('temperature').value);
+    var hours = parseFloat(document.getElementById('hours').value);
+    var months = parseFloat(document.getElementById('months').value);
+
+    // ★ バリデーション失敗時も result-card に必ず書き込む
+    if (!petType || !breed) {
+      console.log('▶ Validation failed: pet type or breed missing');
+      writeResultCard('ng', '⚠️ ペットを選んでください', 'ペットの種類と犬種・猫種を選んでください');
+      hideDetail();
+      return;
+    }
+    if (isNaN(temp) || isNaN(hours)) {
+      console.log('▶ Validation failed: temperature or hours missing');
+      writeResultCard('ng', '⚠️ 入力が不足しています', '温度と使用時間を入力してください');
+      hideDetail();
+      return;
+    }
+
+    try {
+      console.log('▶ Calculation started for breed: ' + breed);
+
+      // 消費電力計算
+      var breedSize = getBreedSize(breed);
+      var basePower = POWER_BY_SIZE[breedSize];
+      var tempFactor = 1 + ((28 - temp) * 0.05);
+      var power = Math.round(basePower * tempFactor);
+
+      // 電気代計算（電力単価: 30円/kWh）
+      var unitPrice = 30;
+      var daysPerMonth = 30;
+      var monthlyKwh = (power * hours * daysPerMonth) / 1000;
+      var monthlyPrice = Math.round(monthlyKwh * unitPrice);
+      var totalPrice = Math.round(monthlyPrice * months);
+
+      var level = totalPrice > 15000 ? 'ng' : totalPrice > 10000 ? 'warn' : 'ok';
+      var msg = level === 'ok' ? 'ペット向けエアコン費用は適度です'
+              : level === 'warn' ? '工夫次第で削減できる可能性があります'
+              : '節電対策を検討してみてください';
+
+      // ★ 直接 result-card に結果を書き込む
+      var resultVal = '月額約 ' + fmt(monthlyPrice) + ' 円<br>（' + months + 'ヶ月計 ' + fmt(totalPrice) + ' 円）';
+      console.log('▶ Calling writeResultCard with level=' + level + ', price=' + monthlyPrice);
+      writeResultCard(level, resultVal, msg);
+
+      // 詳細テーブルを表示
+      showDetail([
+        [breed + 'のサイズ', breedSize === 'small' ? '小型' : breedSize === 'large' ? '大型' : '中型'],
+        ['推定消費電力', power + ' W'],
+        ['1日の稼働', hours + ' 時間'],
+        ['1ヶ月の使用電力', Math.round(monthlyKwh) + ' kWh'],
+        ['月額電気代（概算）', fmt(monthlyPrice) + ' 円', true],
+        [months + 'ヶ月合計', fmt(totalPrice) + ' 円', true]
+      ]);
+    } catch (e) {
+      console.error('✗ Calculation error:', e.message);
+      console.error('✗ Stack: ' + e.stack);
+      // ★ エラー時も result-card に書き込む
+      writeResultCard('ng', '⚠️ エラーが発生', '計算中にエラーが発生しました: ' + e.message);
+      hideDetail();
+    }
+  }
+
+  // ★ result-card に直接書き込む（全パスで確実に呼ばれる）
+  function writeResultCard(level, val, note) {
+    console.log('▶ writeResultCard() called with level=' + level);
+
+    var resultElem = document.getElementById('result');
+    if (!resultElem) {
+      // フォールバック: querySelector でも試す
+      resultElem = document.querySelector('.result-card');
+      if (!resultElem) {
+        console.error('✗ Result element not found (id="result" or .result-card)');
+        return;
+      }
+    }
+
+    var tips = {
+      ok:   '快適な温度を維持しつつ、外出時は少し高めに設定すると節電になります。',
+      warn: '設定温度を1℃上げるだけで約10%の節電効果が見込めます。',
+      ng:   'サーキュレーター併用や断熱カーテンで体感温度を下げると費用を抑えられます。'
+    };
+
+    var html = '<p class="result-label">夏場のエアコン代（概算）</p>'
+             + '<p class="result-value">' + val + '</p>'
+             + '<p class="result-eval">' + note + '</p>'
+             + '<p class="result-note">' + (tips[level] || '') + '</p>';
+
+    // ★ 確実に result-card へ書き込む
+    resultElem.className = 'result-card ' + level;
+    resultElem.innerHTML = html;
+    resultElem.style.display = 'block';
+
+    // ★ 書き込み完了を確認
+    console.log('✓ Result written to .result-card (class=' + level + ')');
+    console.log('✓ Display set to: ' + resultElem.style.display);
+    console.log('✓ innerHTML length: ' + resultElem.innerHTML.length);
+  }
+
+  function showDetail(rows) {
+    var dbElem = document.getElementById('db');
+    if (!dbElem) {
+      console.error('db element not found');
+      return;
+    }
+    dbElem.innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    var detailElem = document.getElementById('detail');
+    if (detailElem) {
+      detailElem.style.display = 'block';
+    }
+  }
+
+  function hideDetail() {
+    var detailElem = document.getElementById('detail');
+    if (detailElem) {
+      detailElem.style.display = 'none';
+    }
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+
+  // ── 初期化：ボタンバインド ──
+  function initApp() {
+    console.log('▶ initApp() called');
+    var calcBtn = document.getElementById('calcBtn');
+    if (!calcBtn) {
+      console.error('✗ Calculate button not found (id="calcBtn")');
+      return false;
+    }
+    console.log('✓ Calculate button element found');
+
+    // addEventListener で バインド（第一優先）
+    try {
+      calcBtn.addEventListener('click', function(e) {
+        console.log('▶ Button click detected');
+        e.preventDefault();
+        calc();
+      });
+      console.log('✓ Calculate button bound via addEventListener');
+      return true;
+    } catch (e) {
+      console.error('✗ addEventListener failed:', e.message);
+      return false;
+    }
+  }
+
+  function onDOMReady() {
+    console.log('▶ onDOMReady() called');
+    var success = initApp();
+    if (!success) {
+      console.error('⚠ addEventListener failed - using fallback onclick');
+      // フォールバック: onclick で直接バインド
+      var btn = document.getElementById('calcBtn');
+      if (btn) {
+        btn.onclick = function(e) {
+          console.log('▶ Button click detected (fallback onclick)');
+          if (e) e.preventDefault();
+          calc();
+        };
+        console.log('✓ Button bound via fallback onclick');
+      } else {
+        console.error('✗ Fallback failed: button element not found');
+      }
+    }
+    // 最終確認ログ
+    var resultElem = document.getElementById('result');
+    console.log('✓ App initialized - result container ready: ' + !!resultElem);
+  }
+
+  console.log('▶ Script loaded, document.readyState: ' + document.readyState);
+  if (document.readyState === 'loading') {
+    console.log('▶ DOM is loading, waiting for DOMContentLoaded...');
+    document.addEventListener('DOMContentLoaded', onDOMReady);
+  } else {
+    console.log('▶ DOM already loaded, calling onDOMReady() directly');
+    onDOMReady();
+  }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

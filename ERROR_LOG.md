@@ -504,3 +504,4 @@ commit: dea0c02
 [2026-05-01_022715] SCAN apps=今日の英単語クイズ total=0 exit=0
 [2026-05-01_032931] SCAN apps=今日の英単語クイズ_v2 total=0 exit=0
 [2026-05-01_035541] SCAN apps=今日の運勢レーダーチャート診断 total=0 exit=0
+[2026-05-01_042701] SCAN apps=ペット暑さ対策コスト診断,今日の運勢レーダーチャート診断_v2 total=0 exit=0

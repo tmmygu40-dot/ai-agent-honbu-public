@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="今日の日付と気分を入力すると、仕事・恋愛・金運を5段階で診断。レーダーチャートで今日の運勢を可視化する無料Webアプリです。毎日の運勢チェックにご利用ください。">
+  <title>今日の運勢レーダーチャート診断</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    .radar-container { text-align: center; margin: 1.2rem auto; max-width: 500px; }
+    svg.radar { width: 100%; height: auto; }
+
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>今日の運勢レーダーチャート診断</h1>
+    <p class="subtitle">今日の気分から仕事・恋愛・金運を5段階診断</p>
+  </header>
+
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="date">今日の日付</label>
+      <input type="date" id="date">
+    </div>
+    <div class="field">
+      <label for="mood">今の気分</label>
+      <select id="mood">
+        <option value="">選んでください</option>
+        <option value="1">最悪😭</option>
+        <option value="2">悪い😞</option>
+        <option value="3">普通😐</option>
+        <option value="4">良い😊</option>
+        <option value="5">最高🎉</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calc()">診断する</button>
+
+  <div class="result-card" id="result">
+    <p class="result-value" id="rv">—</p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <div class="radar-container" id="radarContainer" style="display:none">
+    <svg class="radar" id="radarChart" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">詳細結果</p>
+    <table style="width:100%;border-collapse:collapse;">
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.5rem;color:var(--text);">仕事運</td>
+        <td style="padding:0.5rem;text-align:right;font-weight:700;" id="w-work">—</td>
+      </tr>
+      <tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:0.5rem;color:var(--text);">恋愛運</td>
+        <td style="padding:0.5rem;text-align:right;font-weight:700;" id="w-love">—</td>
+      </tr>
+      <tr>
+        <td style="padding:0.5rem;color:var(--text);">金運</td>
+        <td style="padding:0.5rem;text-align:right;font-weight:700;" id="w-money">—</td>
+      </tr>
+    </table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    ⭐ このアプリは日付と気分から運勢を予測します。結果は参考までに。毎日の気分チェック用です。
+  </p>
+
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  function pseudoRandom(seed) {
+    var x = Math.sin(seed) * 10000;
+    return Math.floor((x - Math.floor(x)) * 5) + 1;
+  }
+
+  function getDateSeeds(dateStr) {
+    var d = new Date(dateStr);
+    var day = d.getDate();
+    var month = d.getMonth() + 1;
+    var dow = d.getDay();
+    return { day: day, month: month, dow: dow };
+  }
+
+  function calc() {
+    var dateStr = document.getElementById('date').value;
+    var moodVal = parseInt(document.getElementById('mood').value);
+
+    if (!dateStr || !moodVal) {
+      showErr('日付と気分を選んでください');
+      return;
+    }
+
+    var seeds = getDateSeeds(dateStr);
+    var work = Math.min(5, Math.max(1, pseudoRandom(seeds.day + seeds.month * 0.1) + moodVal - 3));
+    var love = Math.min(5, Math.max(1, pseudoRandom(seeds.day * seeds.month + 0.5) + moodVal - 3));
+    var money = Math.min(5, Math.max(1, pseudoRandom(seeds.dow * 10 + seeds.day) + moodVal - 3));
+
+    document.getElementById('w-work').textContent = '⭐' .repeat(work);
+    document.getElementById('w-love').textContent = '♥' .repeat(love);
+    document.getElementById('w-money').textContent = '💰'.repeat(money);
+
+    drawRadar(work, love, money);
+    showResult('今日の運勢', work, love, money, moodVal);
+    saveTolocalStorage(dateStr, moodVal, work, love, money);
+    document.getElementById('detail').style.display = '';
+  }
+
+  function drawRadar(work, love, money) {
+    var svg = document.getElementById('radarChart');
+    svg.innerHTML = '';
+    var cx = 150, cy = 150, maxR = 100;
+
+    var angle1 = -Math.PI / 2;
+    var angle2 = -Math.PI / 2 + (2 * Math.PI / 3);
+    var angle3 = -Math.PI / 2 + (4 * Math.PI / 3);
+
+    var x1 = cx + maxR * Math.cos(angle1);
+    var y1 = cy + maxR * Math.sin(angle1);
+    var x2 = cx + maxR * Math.cos(angle2);
+    var y2 = cy + maxR * Math.sin(angle2);
+    var x3 = cx + maxR * Math.cos(angle3);
+    var y3 = cy + maxR * Math.sin(angle3);
+
+    for (var i = 1; i <= 5; i++) {
+      var r = (maxR / 5) * i;
+      var px1 = cx + r * Math.cos(angle1);
+      var py1 = cy + r * Math.sin(angle1);
+      var px2 = cx + r * Math.cos(angle2);
+      var py2 = cy + r * Math.sin(angle2);
+      var px3 = cx + r * Math.cos(angle3);
+      var py3 = cy + r * Math.sin(angle3);
+
+      var hexagon = svg.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'polygon'));
+      hexagon.setAttribute('points', px1 + ',' + py1 + ' ' + px2 + ',' + py2 + ' ' + px3 + ',' + py3);
+      hexagon.setAttribute('fill', 'none');
+      hexagon.setAttribute('stroke', '#e0e0e0');
+      hexagon.setAttribute('stroke-width', '1');
+    }
+
+    var vx1 = cx + (maxR / 5) * work * Math.cos(angle1);
+    var vy1 = cy + (maxR / 5) * work * Math.sin(angle1);
+    var vx2 = cx + (maxR / 5) * love * Math.cos(angle2);
+    var vy2 = cy + (maxR / 5) * love * Math.sin(angle2);
+    var vx3 = cx + (maxR / 5) * money * Math.cos(angle3);
+    var vy3 = cy + (maxR / 5) * money * Math.sin(angle3);
+
+    var data = svg.appendChild(document.createElementNS('http://www.w3.org/2000/svg', 'polygon'));
+    data.setAttribute('points', vx1 + ',' + vy1 + ' ' + vx2 + ',' + vy2 + ' ' + vx3 + ',' + vy3);
+    data.setAttribute('fill', '#e07b00');
+    data.setAttribute('fill-opacity', '0.3');
+    data.setAttribute('stroke', '#e07b00');
+    data.setAttribute('stroke-width', '2');
+
+    svg.appendChild(createLabel(x1, y1, '仕事'));
+    svg.appendChild(createLabel(x2, y2, '恋愛'));
+    svg.appendChild(createLabel(x3, y3, '金運'));
+
+    document.getElementById('radarContainer').style.display = '';
+  }
+
+  function createLabel(x, y, text) {
+    var label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', x);
+    label.setAttribute('y', y);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('dy', '0.3em');
+    label.setAttribute('font-size', '14');
+    label.setAttribute('font-weight', '700');
+    label.setAttribute('fill', '#1c1917');
+    label.textContent = text;
+    return label;
+  }
+
+  function showResult(title, work, love, money, mood) {
+    var avg = Math.round((work + love + money) / 3 * 10) / 10;
+    var resultCard = document.getElementById('result');
+    var level = avg >= 4 ? 'ok' : avg >= 3 ? 'warn' : 'ng';
+    resultCard.className = 'result-card ' + level;
+    resultCard.style.display = 'block';
+
+    var emoji = level === 'ok' ? '🌟' : level === 'warn' ? '✨' : '🌧️';
+    document.getElementById('rv').textContent = emoji + ' 運気レベル: ' + avg;
+
+    var msg = level === 'ok' ? '今日は運勢好調！積極的に進めるのに良い日です。'
+            : level === 'warn' ? '平凡な1日。焦らず、やるべきことを丁寧に。'
+            : '運気が低め。無理は避けて、守りの1日にしましょう。';
+    document.getElementById('rn').textContent = msg;
+  }
+
+  function saveTolocalStorage(date, mood, work, love, money) {
+    var data = { date: date, mood: mood, work: work, love: love, money: money, ts: new Date().getTime() };
+    var key = 'radar_' + date;
+    localStorage.setItem(key, JSON.stringify(data));
+  }
+
+  function showErr(msg) {
+    var resultCard = document.getElementById('result');
+    resultCard.className = 'result-card ng';
+    resultCard.style.display = 'block';
+    document.getElementById('rv').textContent = '⚠️';
+    document.getElementById('rn').textContent = msg;
+    document.getElementById('radarContainer').style.display = 'none';
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  window.addEventListener('load', function() {
+    var today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').value = today;
+
+    var savedData = localStorage.getItem('radar_' + today);
+    if (savedData) {
+      var data = JSON.parse(savedData);
+      document.getElementById('mood').value = data.mood;
+      calc();
+    }
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
