@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="商品情報を入力するだけで、メルカリで売れやすい商品タイトルと相場が分かる無料ツールです。ブランド・状態から最適な価格設定をサクッと提案します。">
+  <title>💰 メルカリ売値提案メーカー</title>
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #e07b00;
+      --accent-light: #fff8ee;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #b35e00, 0 6px 16px rgba(224,123,0,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #b35e00, 0 2px 8px rgba(224,123,0,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（</head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 メルカリ売値提案メーカー</h1>
+    <p class="subtitle">商品を選ぶだけで、売れやすいタイトルと相場が分かる</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">商品情報</p>
+    <div class="field">
+      <label for="category">商品カテゴリー</label>
+      <select id="category">
+        <option value="">選択してください</option>
+        <option value="book">書籍・本</option>
+        <option value="clothes">衣類・ファッション</option>
+        <option value="electronics">電子機器</option>
+        <option value="cosmetics">コスメ・美容</option>
+        <option value="toys">おもちゃ・ホビー</option>
+        <option value="sports">スポーツ・アウトドア</option>
+        <option value="other">その他</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="brand">ブランド・メーカー名</label>
+      <input type="text" id="brand" placeholder="例: ユニクロ、NIKE、無印良品">
+      <p class="hint">ブランドがあれば入力（ないなら空でOK）</p>
+    </div>
+    <div class="field">
+      <label for="condition">商品の状態</label>
+      <select id="condition">
+        <option value="">選択してください</option>
+        <option value="new">新品・未使用</option>
+        <option value="newlike">新品同様</option>
+        <option value="good">目立つ傷や汚れなし</option>
+        <option value="normal">やや傷や汚れあり</option>
+        <option value="bad">傷や汚れあり</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="price">参考定価（税別・円）</label>
+      <input type="number" id="price" placeholder="例: 3000">
+      <p class="hint">オリジナル定価がわかれば入力</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" id="calcBtn">相場と売れやすいタイトルを提案する</button>
+
+  <!-- 結論カード（JS で class="result-card ok/warn/ng" を切替） -->
+  <div class="result-card" id="result"></div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">詳細</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <!-- 売れやすいタイトル提案カード -->
+  <div class="card" id="titleCard" style="display:none">
+    <p class="card-title">売れやすいタイトル案</p>
+    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text); margin-bottom: 0.8rem;" id="titleSuggestion"></p>
+    <p style="font-size: 0.78rem; color: var(--text-sub); line-height: 1.5;">💡 チェックリスト：ブランド名 ✓ 状態の明記 ✓ 希少性・セット情報 ✓ 売価を含める</p>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、メルカリの相場分析データと売れやすい商品タイトルの傾向を参考に、目安として使いやすく整理しています。実際の相場は変動するため、最新の売却事例をご確認ください。
+  </p>
+
+  <!-- 広告枠（将来差し替え予定） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // ── localStorage キー定義 ──
+  var STORAGE_KEY = 'mercariPriceMaker';
+
+  // ── 初期化（ページロード時） ──
+  window.addEventListener('DOMContentLoaded', function() {
+    loadSavedData();
+    // result-card を初期化（表示待機状態）
+    var rc = document.querySelector('.result-card');
+    if (rc) {
+      rc.innerHTML = '';
+      rc.style.display = 'none';
+    }
+    // ボタンイベントリスナーバインド
+    var btn = document.getElementById('calcBtn');
+    if (btn) {
+      btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        calc();
+      });
+    } else {
+      console.warn('警告: 計算ボタン (id=calcBtn) が見つかりません');
+      showErr('ボタン要素が見つかりません。ページを再読み込みしてください。');
+    }
+  });
+
+  function loadSavedData() {
+    try {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        var data = JSON.parse(saved);
+        if (data.category) document.getElementById('category').value = data.category;
+        if (data.brand) document.getElementById('brand').value = data.brand;
+        if (data.condition) document.getElementById('condition').value = data.condition;
+        if (data.price) document.getElementById('price').value = data.price;
+      }
+    } catch (e) {
+      // localStorage 使用不可の場合は無視
+    }
+  }
+
+  function saveData() {
+    try {
+      var data = {
+        category: document.getElementById('category').value,
+        brand: document.getElementById('brand').value,
+        condition: document.getElementById('condition').value,
+        price: document.getElementById('price').value
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      // localStorage 保存不可の場合は無視
+    }
+  }
+
+  // ── 相場データ（ダミー） ──
+  var priceTable = {
+    book: {
+      new:     { minRate: 0.5, maxRate: 0.7, title: '【新品未読】' },
+      newlike: { minRate: 0.45, maxRate: 0.65, title: '【新品同様】' },
+      good:    { minRate: 0.3, maxRate: 0.5, title: '【美品】' },
+      normal:  { minRate: 0.2, maxRate: 0.35, title: '【良好】' },
+      bad:     { minRate: 0.1, maxRate: 0.25, title: '【傷汚あり】' }
+    },
+    clothes: {
+      new:     { minRate: 0.5, maxRate: 0.7, title: '【新品タグ付き】' },
+      newlike: { minRate: 0.45, maxRate: 0.65, title: '【新品同様・未着用】' },
+      good:    { minRate: 0.35, maxRate: 0.55, title: '【美品・目立つ傷なし】' },
+      normal:  { minRate: 0.25, maxRate: 0.4, title: '【良好】' },
+      bad:     { minRate: 0.15, maxRate: 0.3, title: '【傷汚あり】' }
+    },
+    electronics: {
+      new:     { minRate: 0.6, maxRate: 0.8, title: '【新品未開封】' },
+      newlike: { minRate: 0.55, maxRate: 0.75, title: '【新品同様】' },
+      good:    { minRate: 0.4, maxRate: 0.6, title: '【美品】' },
+      normal:  { minRate: 0.3, maxRate: 0.45, title: '【良好】' },
+      bad:     { minRate: 0.2, maxRate: 0.35, title: '【傷汚あり】' }
+    },
+    cosmetics: {
+      new:     { minRate: 0.4, maxRate: 0.6, title: '【新品未使用】' },
+      newlike: { minRate: 0.35, maxRate: 0.55, title: '【新品同様】' },
+      good:    { minRate: 0.25, maxRate: 0.4, title: '【良好】' },
+      normal:  { minRate: 0.15, maxRate: 0.3, title: '【使用感あり】' },
+      bad:     { minRate: 0.05, maxRate: 0.2, title: '【訳あり】' }
+    },
+    toys: {
+      new:     { minRate: 0.55, maxRate: 0.75, title: '【新品未開封】' },
+      newlike: { minRate: 0.5, maxRate: 0.7, title: '【新品同様】' },
+      good:    { minRate: 0.35, maxRate: 0.55, title: '【美品】' },
+      normal:  { minRate: 0.25, maxRate: 0.4, title: '【良好】' },
+      bad:     { minRate: 0.15, maxRate: 0.3, title: '【傷汚あり】' }
+    },
+    sports: {
+      new:     { minRate: 0.6, maxRate: 0.8, title: '【新品未使用】' },
+      newlike: { minRate: 0.55, maxRate: 0.75, title: '【新品同様】' },
+      good:    { minRate: 0.4, maxRate: 0.6, title: '【美品】' },
+      normal:  { minRate: 0.3, maxRate: 0.45, title: '【良好】' },
+      bad:     { minRate: 0.2, maxRate: 0.35, title: '【傷汚あり】' }
+    },
+    other: {
+      new:     { minRate: 0.5, maxRate: 0.7, title: '【新品】' },
+      newlike: { minRate: 0.45, maxRate: 0.65, title: '【新品同様】' },
+      good:    { minRate: 0.35, maxRate: 0.55, title: '【美品】' },
+      normal:  { minRate: 0.25, maxRate: 0.4, title: '【良好】' },
+      bad:     { minRate: 0.15, maxRate: 0.3, title: '【傷汚あり】' }
+    }
+  };
+
+  function calc() {
+    console.log('[calc] 計算開始');
+    try {
+      // ボタン押下時に result-card を初期化
+      var rc = document.querySelector('.result-card');
+      if (rc) {
+        rc.innerHTML = '';
+        rc.className = 'result-card';
+        rc.style.display = 'none';
+      }
+
+      var category  = document.getElementById('category').value;
+      var condition = document.getElementById('condition').value;
+      var brand     = document.getElementById('brand').value.trim();
+      var price     = parseFloat(document.getElementById('price').value);
+
+      if (!category || !condition) {
+        showErr('カテゴリーと状態を選択してください');
+        return;
+      }
+
+      // ── データを保存 ──
+      saveData();
+
+      // ── 相場を計算 ──
+      var basePriceWithTax = price || 1000; // 参考定価がないなら1000円として計算
+      var rateData = priceTable[category] ? priceTable[category][condition] : { minRate: 0.3, maxRate: 0.5, title: '【一般】' };
+
+      var minPrice = Math.round(basePriceWithTax * rateData.minRate);
+      var maxPrice = Math.round(basePriceWithTax * rateData.maxRate);
+      var midPrice = Math.round((minPrice + maxPrice) / 2);
+
+      // ── 評価レベルを判定（価格帯に基づく） ──
+      var level = condition === 'new' ? 'ok' : (condition === 'good' || condition === 'newlike') ? 'warn' : 'ng';
+
+      // ── タイトル案を生成 ──
+      var titleBase = rateData.title;
+      var titleSuggestions = generateTitles(category, brand, condition, titleBase, maxPrice);
+
+      // ── 結果表示先 (.result-card) に書込 ──
+      var resultWritten = showResult(level, '¥' + fmt(midPrice), '相場目安: ¥' + fmt(minPrice) + ' ～ ¥' + fmt(maxPrice));
+      if (!resultWritten) {
+        console.error('[警告] 結果表示に失敗しました');
+        showErr('結果の表示に失敗しました。ページを再読み込みしてください。');
+        return;
+      }
+
+      showDetail([
+        ['参考定価',   '¥' + fmt(basePriceWithTax)],
+        ['推奨売値',   '¥' + fmt(midPrice), true],
+        ['相場下限',   '¥' + fmt(minPrice)],
+        ['相場上限',   '¥' + fmt(maxPrice)],
+        ['期待利幅',   rateData.minRate * 100 + '～' + rateData.maxRate * 100 + '%'],
+      ]);
+      showTitleSuggestion(titleSuggestions);
+      console.log('[calc] 計算完了・結果表示成功');
+    } catch (e) {
+      console.error('[calc] 例外発生: ' + e.message);
+      showErr('エラーが発生しました: ' + e.message);
+    }
+  }
+
+  function generateTitles(cat, brand, cond, titleTag, price) {
+    var titles = [];
+
+    // タイトル案1：基本形
+    var basic = titleTag;
+    if (brand) basic += ' ' + brand;
+    var condLabel = {
+      'new': '新品・未使用',
+      'newlike': '新品同様',
+      'good': '美品',
+      'normal': '良好',
+      'bad': '傷汚あり'
+    }[cond] || cond;
+    basic += ' (' + condLabel + ')';
+    titles.push(basic);
+
+    // タイトル案2：価格・セット情報
+    var withPrice = titleTag + (brand ? ' ' + brand : '') + ' ¥' + fmt(price);
+    titles.push(withPrice);
+
+    // タイトル案3：希少性・限定感
+    var rarity = titleTag + (brand ? ' ' + brand : '') + ' ★ ★ ★';
+    titles.push(rarity);
+
+    return titles;
+  }
+
+  function showResult(level, val, note) {
+    var rc = document.getElementById('result');
+    if (!rc) {
+      rc = document.querySelector('.result-card');
+    }
+    if (!rc) {
+      console.error('[エラー] result-card 要素が見つかりません。DOM構造を確認してください');
+      return false;
+    }
+    try {
+      // クラスとコンテンツを確実に設定
+      rc.className = 'result-card ' + (level || 'ng');
+      rc.innerHTML = '<p class="result-label">推奨売値（税込）</p>'
+                   + '<p class="result-value">' + (val || '計算中') + '</p>'
+                   + '<p class="result-note">' + (note || '') + '</p>';
+      rc.style.display = 'block';
+
+      // 書込完了を確認（classList で class 確認）
+      if (rc.classList.contains('result-card') && rc.innerHTML.length > 0) {
+        console.log('[成功] result-card に書き込み完了: ' + val);
+        return true;
+      } else {
+        throw new Error('result-card への書き込みが不完全です');
+      }
+    } catch (e) {
+      console.error('[showResult エラー] ' + e.message);
+      try {
+        rc.innerHTML = '<p class="result-label">エラー</p><p class="result-value">計算失敗</p>';
+        rc.className = 'result-card ng';
+        rc.style.display = 'block';
+        console.error('[フォールバック] result-card にエラー表示');
+      } catch (fallbackErr) {
+        console.error('[致命的] result-card の更新に失敗: ' + fallbackErr.message);
+      }
+      return false;
+    }
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showTitleSuggestion(titles) {
+    var html = titles.map(function(t, i) {
+      return (i+1) + '. ' + t;
+    }).join('<br>');
+    document.getElementById('titleSuggestion').innerHTML = html;
+    document.getElementById('titleCard').style.display = '';
+  }
+
+  function showErr(msg) {
+    // 結果カード に必ず エラー を表示
+    var rc = document.getElementById('result');
+    if (!rc) {
+      rc = document.querySelector('.result-card');
+    }
+    if (rc) {
+      rc.className = 'result-card ng';
+      rc.innerHTML = '<p class="result-label">エラー</p>'
+                   + '<p class="result-value">⚠️</p>'
+                   + '<p class="result-note">' + msg + '</p>';
+      rc.style.display = 'block';
+      console.error('[ユーザーへ] エラー表示: ' + msg);
+    } else {
+      console.error('[致命的エラー] result-card 要素がありません');
+      // result 要素が見つからない場合でも、アラートで通知（代替手段）
+      alert('エラーが発生しました: ' + msg);
+    }
+    // 詳細・タイトル提案 は非表示に
+    var detailEl = document.getElementById('detail');
+    var titleEl = document.getElementById('titleCard');
+    if (detailEl) detailEl.style.display = 'none';
+    if (titleEl) titleEl.style.display = 'none';
+  }
+
+  function fmt(n) { return Math.round(n).toLocaleString('ja-JP'); }
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
