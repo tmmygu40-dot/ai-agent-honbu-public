@@ -224,6 +224,7 @@ def _build_x_text(app_name: str, url: str, idx: int) -> str:
     rhythm_lines = _rhythm_lines(q2)
     desc_line, note_line = _desc_and_note_lines(q3, idx)
     body = [
+        "【今日のチェック】",
         "",
         q1.strip(),
         "",
