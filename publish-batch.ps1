@@ -254,7 +254,18 @@ if ($ok) {
 
 if ($ok) {
     $tagClose    = $idx.IndexOf('>', $si) + 1
-    $allAppsHtml = ($allApps | ForEach-Object {
+    # AdSense向け薄いコンテンツ対策: index.html の #all-apps 一覧からは
+    # index.html サイズ < 5KB のアプリを非表示にする（フォルダ・URL は温存）。
+    # sitemap.xml / PUBLISHED.md は引き続き $allApps（全件）を使う。
+    $thinThreshold = 5000
+    $visibleApps = @($allApps | Where-Object {
+        $idxFile = Join-Path $pub (Join-Path $_ 'index.html')
+        try {
+            (Test-Path -LiteralPath $idxFile) -and ((Get-Item -LiteralPath $idxFile).Length -ge $thinThreshold)
+        } catch { $false }
+    })
+    Write-Host "Visible (>=${thinThreshold}B): $($visibleApps.Count) / $totalApps (filtered out: $($totalApps - $visibleApps.Count))"
+    $allAppsHtml = ($visibleApps | ForEach-Object {
         "    <li><a href=`"./$_/`">$_</a></li>"
     }) -join "`r`n"
     $idx = $idx.Substring(0, $tagClose) + "`r`n" + $allAppsHtml + "`r`n    " + $idx.Substring($ei)
@@ -373,14 +384,18 @@ if ($ok) {
     $cntPub = [regex]::Matches($chkPub, '^\| \d+', [System.Text.RegularExpressions.RegexOptions]::Multiline).Count
 
     $cntDir = $allApps.Count
+    # AdSense 対策で index.html は visibleApps（5KB 以上）のみ表示しているため、
+    # 3-point check は「index.html == visibleApps」「folders == PUBLISHED.md」で整合性確認する。
+    $cntVisible = $visibleApps.Count
 
     Write-Host ""
     Write-Host "=== 3-point check ===" -ForegroundColor Cyan
     Write-Host "  Folders:       $cntDir"
+    Write-Host "  Visible apps:  $cntVisible"
     Write-Host "  index.html:    $cntIdx"
     Write-Host "  PUBLISHED.md:  $cntPub"
 
-    if ($cntDir -ne $cntIdx -or $cntDir -ne $cntPub) {
+    if ($cntDir -ne $cntPub -or $cntIdx -ne $cntVisible) {
         LogError "3-point mismatch: folders=$cntDir index=$cntIdx published=$cntPub"
         $ok = $false
         Write-Host "STOP: mismatch -- will NOT commit" -ForegroundColor Red
