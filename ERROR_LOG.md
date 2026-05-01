@@ -507,3 +507,4 @@ commit: dea0c02
 [2026-05-01_042701] SCAN apps=ペット暑さ対策コスト診断,今日の運勢レーダーチャート診断_v2 total=0 exit=0
 [2026-05-01_045338] SCAN apps=仕事帰りのミニ占い total=0 exit=0
 [2026-05-01_051541] SCAN apps=会議議事録生成器 total=0 exit=0
+[2026-05-01 10:49:07] ERROR: git add 4月値上げ家計コスト診断チェッカー failed
