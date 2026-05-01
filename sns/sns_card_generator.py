@@ -14,6 +14,86 @@ SNS_DIR = ROOT / "sns"
 CARDS_DIR = SNS_DIR / "cards"
 QUEUE_PATH = SNS_DIR / "sns_queue.json"
 
+STYLE_MAP = {
+    "money": {
+        "bg": (255, 248, 214),
+        "header": (188, 142, 23),
+        "panel": (255, 255, 244),
+        "outline": (236, 218, 146),
+        "title": (82, 63, 10),
+        "sub": (117, 96, 36),
+        "app": (119, 98, 42),
+        "cta": (154, 121, 22),
+        "icons": ["💰"],
+    },
+    "insurance": {
+        "bg": (231, 243, 255),
+        "header": (39, 108, 195),
+        "panel": (245, 250, 255),
+        "outline": (176, 207, 242),
+        "title": (19, 56, 105),
+        "sub": (44, 86, 143),
+        "app": (67, 98, 140),
+        "cta": (29, 118, 194),
+        "icons": ["🛡"],
+    },
+    "disaster": {
+        "bg": (255, 239, 225),
+        "header": (213, 104, 44),
+        "panel": (255, 250, 244),
+        "outline": (244, 192, 154),
+        "title": (116, 54, 16),
+        "sub": (142, 78, 33),
+        "app": (142, 91, 58),
+        "cta": (213, 104, 44),
+        "icons": ["⚠️"],
+    },
+    "health": {
+        "bg": (230, 246, 236),
+        "header": (48, 133, 89),
+        "panel": (246, 252, 248),
+        "outline": (176, 222, 191),
+        "title": (25, 85, 53),
+        "sub": (46, 106, 73),
+        "app": (72, 118, 91),
+        "cta": (53, 149, 94),
+        "icons": ["🏥"],
+    },
+    "work": {
+        "bg": (233, 237, 247),
+        "header": (45, 64, 115),
+        "panel": (244, 247, 255),
+        "outline": (183, 193, 226),
+        "title": (31, 47, 84),
+        "sub": (58, 74, 115),
+        "app": (81, 91, 121),
+        "cta": (52, 74, 132),
+        "icons": ["💼"],
+    },
+    "life": {
+        "bg": (246, 239, 227),
+        "header": (145, 110, 70),
+        "panel": (252, 249, 244),
+        "outline": (226, 205, 176),
+        "title": (89, 63, 34),
+        "sub": (115, 85, 52),
+        "app": (124, 100, 74),
+        "cta": (166, 128, 82),
+        "icons": ["🏠"],
+    },
+    "other": {
+        "bg": (245, 249, 255),
+        "header": (28, 76, 161),
+        "panel": (255, 255, 255),
+        "outline": (218, 229, 245),
+        "title": (19, 36, 66),
+        "sub": (62, 84, 120),
+        "app": (72, 88, 112),
+        "cta": (31, 132, 69),
+        "icons": ["✨"],
+    },
+}
+
 
 def _load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     candidates = [
@@ -38,6 +118,68 @@ def _safe_card_basename(app_path: str) -> str:
     if not base:
         base = "app"
     return f"{base}_{h}"
+
+
+def _variant_seed(item: dict[str, Any]) -> int:
+    key = str(item.get("app_path") or item.get("id") or "")
+    h = hashlib.sha1(key.encode("utf-8")).hexdigest()[:8]
+    return int(h, 16)
+
+
+def _pick_theme(item: dict[str, Any]) -> dict[str, Any]:
+    category = str(item.get("category_guess") or "")
+    app_name = str(item.get("app_name") or "")
+    text = f"{category} {app_name}"
+
+    if any(k in text for k in ["お金", "家計", "税", "値上げ", "住民税", "手取り", "年収"]):
+        return STYLE_MAP["money"]
+    if any(k in text for k in ["保険", "補償", "火災"]):
+        return STYLE_MAP["insurance"]
+    if any(k in text for k in ["防災", "地震", "台風", "避難", "災害"]):
+        return STYLE_MAP["disaster"]
+    if any(k in text for k in ["健康", "医療", "病院", "症状", "受診"]):
+        return STYLE_MAP["health"]
+    if any(k in text for k in ["仕事", "実務", "業務", "人事", "給与"]):
+        return STYLE_MAP["work"]
+    if any(k in text for k in ["生活", "契約", "引っ越し", "退去", "暮らし"]):
+        return STYLE_MAP["life"]
+    return STYLE_MAP["other"]
+
+
+def _draw_background_decor(draw: ImageDraw.ImageDraw, theme: dict[str, Any], seed: int) -> None:
+    bg = theme["bg"]
+    overlay1 = (255, 255, 255, 58)
+    overlay2 = (255, 255, 255, 42)
+    overlay3 = (255, 255, 255, 36)
+
+    # soft circles
+    shift = seed % 70
+    draw.ellipse((40 - shift, 120, 480 - shift, 560), fill=overlay1)
+    draw.ellipse((760 + (shift // 2), 220, 1200 + (shift // 2), 660), fill=overlay2)
+    draw.ellipse((180, 780 + (shift // 4), 600, 1180 + (shift // 4)), fill=overlay3)
+
+    # soft diagonal-ish bands
+    band_y = 880 + (seed % 60)
+    draw.rounded_rectangle((0, band_y, 1200, band_y + 64), radius=28, fill=(255, 255, 255, 55))
+    band_y2 = 190 + (seed % 40)
+    draw.rounded_rectangle((0, band_y2, 1200, band_y2 + 36), radius=18, fill=(255, 255, 255, 48))
+
+    # background recolor layer for subtle tinting
+    draw.rectangle((0, 0, 1200, 1200), fill=(*bg, 120))
+
+
+def _draw_large_icon(draw: ImageDraw.ImageDraw, icon: str, seed: int) -> None:
+    font = _load_font(184, bold=True)
+    fill = (34, 58, 99, 150)
+    # Always top-right for clearer genre cue in feed.
+    draw.text((918, 54), icon, font=font, fill=fill)
+
+
+def _shorten_app_name(name: str, max_chars: int = 20) -> str:
+    text = name.strip()
+    if len(text) <= max_chars:
+        return text
+    return text[: max_chars - 1] + "…"
 
 
 def _fix_orphan_punctuation(lines: list[str]) -> list[str]:
@@ -120,33 +262,64 @@ def _draw_multiline_center(
 
 
 def _generate_card(item: dict[str, Any], path: Path) -> None:
-    image = Image.new("RGB", (1200, 1200), (245, 249, 255))
-    draw = ImageDraw.Draw(image)
+    theme = _pick_theme(item)
+    seed = _variant_seed(item)
+    icon_list = theme.get("icons") or ["✨"]
+    icon = icon_list[seed % len(icon_list)]
+    image = Image.new("RGB", (1200, 1200), theme["bg"])
+    draw = ImageDraw.Draw(image, "RGBA")
+    _draw_background_decor(draw, theme, seed)
+    _draw_large_icon(draw, icon, seed)
 
     # Header band
-    draw.rectangle((0, 0, 1200, 160), fill=(28, 76, 161))
-    draw.text((68, 52), "ネコポケ", font=_load_font(56, bold=True), fill=(255, 255, 255))
+    draw.rectangle((0, 0, 1200, 160), fill=theme["header"])
+    draw.text((68, 52), "ネコポケ", font=_load_font(56, bold=True), fill=(255, 255, 255, 255))
 
     # Soft content panel
-    draw.rounded_rectangle((56, 190, 1144, 980), radius=28, fill=(255, 255, 255), outline=(218, 229, 245), width=4)
+    panel_y = 190 + (seed % 18)
+    panel_h = 790 - (seed % 16)
+    draw.rounded_rectangle(
+        (56, panel_y, 1144, panel_y + panel_h),
+        radius=28,
+        fill=theme["panel"],
+        outline=theme["outline"],
+        width=4,
+    )
 
-    title = str(item.get("image_title") or "無料チェック")
-    subtitle = str(item.get("image_subtitle") or "まずは目安を確認")
-    app_name = str(item.get("app_name") or "")
+    title = str(item.get("image_title") or "いまの状況を確認")
+    app_name = _shorten_app_name(str(item.get("app_name") or ""), max_chars=20)
 
-    y = 260
-    y = _draw_multiline_center(draw, title, y, size=82, color=(19, 36, 66), max_width=960, max_lines=2, bold=True)
+    # Fixed line 1 (always the same, red and eye-catching)
+    y = panel_y + 56
+    y = _draw_multiline_center(
+        draw,
+        "えっ、知らないの⁈",
+        y,
+        size=76,
+        color=(214, 38, 38),
+        max_width=980,
+        max_lines=1,
+        bold=True,
+    )
+    y += 20
+
+    # Line 2 (per-app main heading)
+    y = _draw_multiline_center(draw, title, y, size=86, color=theme["title"], max_width=960, max_lines=2, bold=True)
+    y += 20
+
+    # Line 3 (fixed subtitle baseline)
+    y = _draw_multiline_center(draw, "30秒で目安チェック", y, size=52, color=theme["sub"], max_width=940, max_lines=1)
     y += 24
-    y = _draw_multiline_center(draw, subtitle, y, size=52, color=(62, 84, 120), max_width=940, max_lines=2)
-    y += 34
-    _draw_multiline_center(draw, app_name, y, size=42, color=(72, 88, 112), max_width=940, max_lines=3)
+
+    # Line 4 (app name, small)
+    _draw_multiline_center(draw, app_name, y, size=40, color=theme["app"], max_width=940, max_lines=3)
 
     # CTA-like footer label (for card only, not posting)
-    draw.rounded_rectangle((340, 1020, 860, 1110), radius=45, fill=(31, 132, 69))
+    draw.rounded_rectangle((340, 1020, 860, 1110), radius=45, fill=theme["cta"])
     cta_text = "無料チェック"
     cta_font = _load_font(54, bold=True)
     cta_w = draw.textbbox((0, 0), cta_text, font=cta_font)[2]
-    draw.text((600 - int(cta_w / 2), 1041), cta_text, font=cta_font, fill=(255, 255, 255))
+    draw.text((600 - int(cta_w / 2), 1041), cta_text, font=cta_font, fill=(255, 255, 255, 255))
 
     path.parent.mkdir(parents=True, exist_ok=True)
     image.save(path, format="PNG")
@@ -165,7 +338,7 @@ def main(force: bool = False) -> int:
     for item in queue:
         if not isinstance(item, dict):
             continue
-        if item.get("status") != "draft":
+        if item.get("status") not in {"draft", "scheduled"}:
             continue
         app_path = str(item.get("app_path") or item.get("id") or "post")
         existing_rel = item.get("card_image")
