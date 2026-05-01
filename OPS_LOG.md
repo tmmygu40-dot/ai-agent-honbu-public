@@ -41,3 +41,50 @@
 - 外部通信
 - API接続
 - ログイン処理
+
+---
+
+## 2026-05-01 X運用開始メモ（ネコポケ）
+
+### 実施内容
+- Xアカウント `@nekopoke_jp` をネコポケ用に設定
+- 表示名、自己紹介、リンクをネコポケ用に更新
+- 初回投稿を手動で実施
+
+### 運用方針
+- 現時点では X 自動投稿 / API接続は未実施
+- まずは手動投稿でリンク誘導と反応を見る
+
+---
+
+## 2026-05-01 SNS運用開始メモ（Instagram / X）
+
+### 実施内容
+- Instagramアカウント `nekopoke_jp` をネコポケ用に設定
+- Xアカウント `@nekopoke_jp` をネコポケ用に設定
+- 両方にプロフィール名・自己紹介・`nekopoke.jp` リンクを設定
+- Xで初回投稿を手動実施
+- Instagramで初回投稿を手動実施
+- Instagramプロフィールリンクから `nekopoke.jp` が開くことを確認
+
+### 運用方針
+- 現時点では Instagram / X の自動投稿 API 接続は未実施
+- まずは手動投稿でリンク誘導と反応を見る
+
+---
+
+## 2026-05-01 SNSスケジューラー追加メモ
+
+### 実施内容
+- `sns/sns_scheduler.py` を追加
+- `sns_queue.json` から `status=draft` の投稿を優先度順に1件選べるようにした
+- dry-run では投稿予定内容を表示するだけで、実投稿はしない
+- `--schedule` 実行時のみ `status` を `draft` から `scheduled` に変更し、`scheduled_at` を保存する
+- `--list-scheduled` で scheduled 投稿一覧を確認できる
+- 2026-05-01 時点で schedule テストを1回実施し、`値上げラッシュ家計防衛診断` を scheduled にした
+- `posted_at` は `null` のままで、実投稿・外部通信・API接続・ログイン処理は未実施
+
+### 今後の検討順
+- 手動確認
+- X API投稿テスト
+- Instagram / TikTok は後回し
