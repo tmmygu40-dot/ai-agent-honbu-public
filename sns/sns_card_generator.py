@@ -77,7 +77,7 @@ def _wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont, 
             out.append(line)
         if len(out) >= max_lines:
             break
-    lines = out[:max_lines] if out else [""]
+    lines = [ln.strip() for ln in (out[:max_lines] if out else [""])]
     return _fix_orphan_punctuation(lines)
 
 
