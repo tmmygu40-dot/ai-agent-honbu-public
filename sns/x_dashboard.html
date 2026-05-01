@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>X投稿ダッシュボード</title>
+  <style>
+    :root {
+      --bg: #0a1020;
+      --bg2: #101b33;
+      --panel: #121c34;
+      --line: #2b3b60;
+      --text: #e9f1ff;
+      --muted: #9caed3;
+      --accent: #4ea3ff;
+      --ok: #38c785;
+      --warn: #ffcf65;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background: radial-gradient(1100px 700px at 0% -10%, #1a2b4a 0, var(--bg) 55%);
+      font-family: "Yu Gothic UI", "Meiryo", sans-serif;
+    }
+    .wrap {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+    }
+    h1 { margin: 0; font-size: 30px; letter-spacing: .02em; }
+    .meta {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--bg2), #0f1830);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+    }
+    .metaTop {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .big {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--warn);
+    }
+    .sub { color: var(--muted); font-size: 14px; }
+    .notice {
+      color: #b6cbef;
+      background: #15213e;
+      border: 1px solid #2d406d;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+    button {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #1b2b4f;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 9px 12px;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.1); }
+    .btnMini { padding: 6px 9px; font-size: 12px; }
+    .hero {
+      border: 1px solid #3865a8;
+      background: linear-gradient(180deg, #16305d, #14284d);
+      border-radius: 16px;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .heroTitle { font-size: 18px; font-weight: 800; color: #b8d8ff; }
+    .slots {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+    .card {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, var(--panel), #0f1830);
+      border-radius: 14px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .card.posted {
+      opacity: .62;
+      filter: grayscale(.18);
+    }
+    .slot {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    .pillRow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #13213f;
+      padding: 3px 8px;
+    }
+    .name { font-size: 18px; font-weight: 800; line-height: 1.4; }
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      font-size: 14px;
+      background: #0c1428;
+      border: 1px solid #243960;
+      border-radius: 10px;
+      padding: 10px;
+      word-break: break-word;
+    }
+    .url {
+      color: #9ad1ff;
+      font-size: 12px;
+      word-break: break-all;
+    }
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .btnCopy { background: #1f5f4b; border-color: #2a8b6e; }
+    .btnOpen { background: #225aa9; border-color: #2e70cc; }
+    .btnDone { background: #694b76; border-color: #9c73af; }
+    .slotEmpty {
+      border: 1px dashed #3a4f79;
+      color: var(--muted);
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 12px;
+      min-height: 70px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>AIエージェント本部 / X投稿ダッシュボード</h1>
+
+    <section class="meta">
+      <div class="metaTop">
+        <div>
+          <div class="big" id="displayDate">表示中の日付: ----</div>
+          <div class="sub" id="nextPost">次の投稿予定: ----</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button id="reloadBtn" type="button">再読み込み</button>
+          <button id="resetPostedBtn" class="btnMini" type="button">投稿済みローカル状態をリセット</button>
+        </div>
+      </div>
+      <div class="notice" id="noticeText">読み込み中...</div>
+    </section>
+
+    <section class="hero" id="hero"></section>
+    <section class="slots" id="slots"></section>
+  </div>
+
+  <script>
+    const QUEUE_PATH = "./sns_queue.json";
+    const POSTED_KEY = "x_dashboard_posted_ids_v2";
+    const SLOT_DEFS = [
+      { key: "08:00", label: "朝 08:00" },
+      { key: "12:30", label: "昼 12:30" },
+      { key: "20:30", label: "夜 20:30" },
+    ];
+
+    const displayDateEl = document.getElementById("displayDate");
+    const nextPostEl = document.getElementById("nextPost");
+    const noticeEl = document.getElementById("noticeText");
+    const heroEl = document.getElementById("hero");
+    const slotsEl = document.getElementById("slots");
+    const reloadBtn = document.getElementById("reloadBtn");
+    const resetPostedBtn = document.getElementById("resetPostedBtn");
+
+    let scheduledItems = [];
+    let targetDate = "";
+
+    function ymdJst(date = new Date()) {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Tokyo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+    }
+
+    function fmtJst(date) {
+      return new Intl.DateTimeFormat("ja-JP", {
+        timeZone: "Asia/Tokyo",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(date).replace(/\//g, "-");
+    }
+
+    function parseDate(item) {
+      const dt = new Date(String(item.scheduled_at || ""));
+      return Number.isNaN(dt.getTime()) ? null : dt;
+    }
+
+    function postedSet() {
+      try {
+        const raw = localStorage.getItem(POSTED_KEY);
+        const arr = JSON.parse(raw || "[]");
+        return new Set(Array.isArray(arr) ? arr : []);
+      } catch {
+        return new Set();
+      }
+    }
+
+    function savePosted(set) {
+      localStorage.setItem(POSTED_KEY, JSON.stringify([...set]));
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function openX(text) {
+      const url = "https://x.com/intent/tweet?text=" + encodeURIComponent(text);
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+    function decideDisplayDate(items) {
+      const today = ymdJst(new Date());
+      const days = [...new Set(items.map(x => String(x.scheduled_at || "").slice(0, 10)))].sort();
+      if (days.includes(today)) return { date: today, fallback: false };
+      const next = days.find(d => d >= today);
+      if (next) return { date: next, fallback: true };
+      return { date: days[0] || today, fallback: true };
+    }
+
+    function pickNextPost(items) {
+      const now = new Date();
+      const all = items
+        .map(x => ({ item: x, dt: parseDate(x) }))
+        .filter(x => x.dt)
+        .sort((a, b) => a.dt - b.dt);
+      const upcoming = all.find(x => x.dt >= now);
+      return (upcoming || all[0] || null);
+    }
+
+    function pickNextUnposted(items, posted) {
+      const now = new Date();
+      const all = items
+        .filter(x => !posted.has(String(x.id || "")))
+        .map(x => ({ item: x, dt: parseDate(x) }))
+        .filter(x => x.dt)
+        .sort((a, b) => a.dt - b.dt);
+      const upcoming = all.find(x => x.dt >= now);
+      return (upcoming || all[0] || null);
+    }
+
+    function renderHero(item, posted) {
+      heroEl.innerHTML = "";
+      if (!item) {
+        heroEl.innerHTML = `<div class="slotEmpty">今日/次回の予定はすべて投稿済みです。</div>`;
+        return;
+      }
+      const isPosted = posted.has(String(item.id || ""));
+      const card = buildCard({ key: "next", label: "次に投稿する1件" }, item, isPosted, true);
+      heroEl.appendChild(card);
+    }
+
+    function buildCard(slot, item, isPosted, hero = false) {
+      const card = document.createElement("article");
+      card.className = "card";
+      if (isPosted) card.classList.add("posted");
+
+      const slotEl = document.createElement("div");
+      slotEl.className = "slot";
+      slotEl.textContent = slot.label;
+      card.appendChild(slotEl);
+
+      const row = document.createElement("div");
+      row.className = "pillRow";
+      row.innerHTML = `
+        <span class="pill">scheduled_at: ${item.scheduled_at || "-"}</span>
+        <span class="pill">category: ${item.category_guess || "-"}</span>
+        <span class="pill">status: ${isPosted ? "posted(local)" : (item.status || "-")}</span>
+      `;
+      card.appendChild(row);
+
+      const name = document.createElement("div");
+      name.className = "name";
+      name.textContent = item.app_name || "(no app_name)";
+      card.appendChild(name);
+
+      const text = document.createElement("pre");
+      text.textContent = item.x_text || "";
+      card.appendChild(text);
+
+      const url = document.createElement("div");
+      url.className = "url";
+      url.textContent = item.url || "";
+      card.appendChild(url);
+
+      const actions = document.createElement("div");
+      actions.className = "actions";
+
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "btnCopy";
+      copyBtn.type = "button";
+      copyBtn.textContent = "投稿文コピー";
+      copyBtn.addEventListener("click", async () => {
+        const ok = await copyText(item.x_text || "");
+        copyBtn.textContent = ok ? "コピー完了" : "コピー失敗";
+        setTimeout(() => { copyBtn.textContent = "投稿文コピー"; }, 1200);
+      });
+
+      const openBtn = document.createElement("button");
+      openBtn.className = "btnOpen";
+      openBtn.type = "button";
+      openBtn.textContent = "Xを開く";
+      openBtn.addEventListener("click", () => openX(item.x_text || ""));
+
+      const doneBtn = document.createElement("button");
+      doneBtn.className = "btnDone";
+      doneBtn.type = "button";
+      doneBtn.textContent = isPosted ? "投稿済み(解除)" : "投稿済みにする";
+      doneBtn.addEventListener("click", () => {
+        const set = postedSet();
+        const id = String(item.id || "");
+        if (set.has(id)) set.delete(id);
+        else set.add(id);
+        savePosted(set);
+        render();
+      });
+
+      actions.append(copyBtn, openBtn, doneBtn);
+      card.appendChild(actions);
+      return card;
+    }
+
+    function renderSlots(items, posted) {
+      slotsEl.innerHTML = "";
+      const bySlot = SLOT_DEFS.map(slot => {
+        const it = items.find(x => String(x.scheduled_at || "").includes(`T${slot.key}:`));
+        return { slot, item: it };
+      });
+
+      bySlot.sort((a, b) => {
+        const aHas = a.item ? 0 : 1;
+        const bHas = b.item ? 0 : 1;
+        if (aHas !== bHas) return aHas - bHas;
+        return a.slot.key.localeCompare(b.slot.key);
+      });
+
+      for (const row of bySlot) {
+        if (!row.item) {
+          const e = document.createElement("div");
+          e.className = "slotEmpty";
+          e.textContent = `${row.slot.label}: 予定なし`;
+          slotsEl.appendChild(e);
+          continue;
+        }
+        const isPosted = posted.has(String(row.item.id || ""));
+        slotsEl.appendChild(buildCard(row.slot, row.item, isPosted, false));
+      }
+    }
+
+    function renderNotice(fallback, allPosted) {
+      if (allPosted) {
+        noticeEl.textContent = "今日/次回の予定はすべて投稿済みです。必要なら「投稿済み(解除)」で戻せます。";
+        return;
+      }
+      if (fallback) {
+        noticeEl.textContent = "今日の予定がありません。次の投稿予定日を表示中です。";
+      } else {
+        noticeEl.textContent = "今日の投稿予定を表示中です。上から順にコピーしてXへ貼り付けてください。";
+      }
+    }
+
+    function renderMeta(nextInfo) {
+      displayDateEl.textContent = `表示中の日付: ${targetDate}`;
+      if (!nextInfo) {
+        nextPostEl.textContent = "次の投稿予定: なし";
+      } else {
+        nextPostEl.textContent = `次の投稿予定: ${fmtJst(nextInfo.dt)}`;
+      }
+    }
+
+    function render() {
+      const posted = postedSet();
+      const shown = scheduledItems.filter(x => String(x.scheduled_at || "").startsWith(targetDate));
+      const nextInfo = pickNextUnposted(scheduledItems, posted);
+      const absoluteNext = pickNextPost(scheduledItems);
+      const fallback = targetDate !== ymdJst(new Date());
+      const allPosted = scheduledItems.length > 0 && scheduledItems.every(x => posted.has(String(x.id || "")));
+      renderMeta(absoluteNext);
+      renderNotice(fallback, allPosted);
+      renderHero(nextInfo ? nextInfo.item : null, posted);
+      renderSlots(shown, posted);
+    }
+
+    async function load() {
+      try {
+        const res = await fetch(QUEUE_PATH, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!Array.isArray(data)) throw new Error("sns_queue.json is not array");
+
+        scheduledItems = data
+          .filter(x => x && x.status === "scheduled" && x.scheduled_at)
+          .sort((a, b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at)));
+
+        const picked = decideDisplayDate(scheduledItems);
+        targetDate = picked.date;
+        render();
+      } catch (err) {
+        noticeEl.textContent = `読み込み失敗: ${err.message}`;
+        heroEl.innerHTML = `<div class="slotEmpty">ローカルサーバー経由で開いてください（file:// は不可）。</div>`;
+        slotsEl.innerHTML = "";
+      }
+    }
+
+    reloadBtn.addEventListener("click", load);
+    resetPostedBtn.addEventListener("click", () => {
+      localStorage.removeItem(POSTED_KEY);
+      render();
+    });
+
+    load();
+  </script>
+</body>
+</html>
