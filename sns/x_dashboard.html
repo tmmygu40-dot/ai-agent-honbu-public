@@ -71,6 +71,28 @@
       cursor: pointer;
     }
     button:hover { filter: brightness(1.1); }
+    .urlXHint {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #9bb3d9;
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+    .withIcon {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .withIcon svg {
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex: 0 0 auto;
+    }
     .btnMini { padding: 6px 9px; font-size: 12px; }
     .hero {
       border: 1px solid #3865a8;
@@ -195,6 +217,7 @@
     const resetPostedBtn = document.getElementById("resetPostedBtn");
 
     let scheduledItems = [];
+    let nextCandidateItems = [];
     let targetDate = "";
 
     function ymdJst(date = new Date()) {
@@ -216,6 +239,19 @@
         minute: "2-digit",
         hour12: false,
       }).format(date).replace(/\//g, "-");
+    }
+
+    function icon(name) {
+      const map = {
+        refresh: '<svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>',
+        reset: '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
+        calendar: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+        clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></svg>',
+        copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><rect x="2" y="2" width="13" height="13" rx="2"/></svg>',
+        external: '<svg viewBox="0 0 24 24"><path d="M14 3h7v7"/><path d="M10 14 21 3"/><path d="M21 14v7H3V3h7"/></svg>',
+        check: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>',
+      };
+      return map[name] || "";
     }
 
     function parseDate(item) {
@@ -246,6 +282,190 @@
       }
     }
 
+    /**
+     * X向けにパスの各セグメントを decode→encode で1回だけ正規化（二重エンコード防止）。
+     */
+    function toXPostUrl(rawUrl) {
+      const value = String(rawUrl || "").trim();
+      if (!value) return "";
+      try {
+        const u = new URL(value);
+        const path = u.pathname || "/";
+        if (path === "/" || path === "") {
+          return `${u.origin}/${u.search}`;
+        }
+        const segments = path.split("/").filter(Boolean);
+        const encodedSegs = segments.map((seg) => {
+          try {
+            return encodeURIComponent(decodeURIComponent(seg));
+          } catch {
+            return encodeURIComponent(seg);
+          }
+        });
+        const trailing = path.endsWith("/") ? "/" : "";
+        const newPath = "/" + encodedSegs.join("/") + trailing;
+        return `${u.origin}${newPath}${u.search}`;
+      } catch {
+        return value;
+      }
+    }
+
+    /** ダッシュボード本文・コピー・Xインテント共通の末尾URL（short_url があれば常にそれを優先）。 */
+    function postUrlLine(item, forX) {
+      const short = String(item?.short_url || "").trim();
+      if (short) return short;
+      const displayUrl = String(item?.url || "").trim();
+      if (!displayUrl) return "";
+      return forX ? (toXPostUrl(displayUrl) || displayUrl) : displayUrl;
+    }
+
+    function buildTweetText(item, opts = {}) {
+      const useX = opts.forX === true;
+      const base = String(item?.x_text || "").trim();
+      const short = String(item?.short_url || "").trim();
+      const raw = String(item?.url || "").trim();
+      const postUrl = short
+        ? short
+        : raw
+          ? (useX ? (toXPostUrl(raw) || raw) : raw)
+          : "";
+      if (!postUrl) return base;
+      let merged = base;
+      if (raw && postUrl && raw !== postUrl && merged.includes(raw)) {
+        merged = merged.split(raw).join(postUrl);
+      }
+      if (merged.includes(postUrl)) return merged;
+      return merged ? `${merged}\n\n${postUrl}` : postUrl;
+    }
+
+    function isRiskTopic(item) {
+      const text = [
+        String(item?.app_name || ""),
+        String(item?.category_guess || ""),
+        String(item?.category || ""),
+        String(item?.x_text || ""),
+        String(item?.url || ""),
+      ].join(" ").toLowerCase();
+      return /(保険|税|住民税|手取り|家計|お金|ローン|投資|医療|健康|法律|退去費用)/.test(text);
+    }
+
+    function trimAppSuffix(name) {
+      return String(name || "")
+        .replace(/アプリ$/u, "")
+        .replace(/ツール$/u, "")
+        .trim();
+    }
+
+    function pickHook(item) {
+      const app = String(item?.app_name || "").trim();
+      if (app === "16bitマップタイルプロンプトジェネレーター") {
+        return "レトロゲームのマップ、雰囲気づくりで止まりがち。";
+      }
+      if (/退去費用|シミュレーター/u.test(app)) {
+        return "退去費用、最後にドンと来る前に。";
+      }
+      if (/家計|節約|生活費|手取り|住民税/u.test(app)) {
+        return "家計の見直し、どこから触るか迷う。";
+      }
+      if (/保険|補償/u.test(app)) {
+        return "保険、必要なところだけ見直したい。";
+      }
+      if (/プロンプトジェネレーター/u.test(app)) {
+        return "作業素材づくり、毎回ゼロから考えるの重い。";
+      }
+      if (/チェッカー/u.test(app)) {
+        return "見落とし、あとで気づく前に潰したい。";
+      }
+      if (/計算アプリ/u.test(app)) {
+        return "手計算で迷う前に、まず1回。";
+      }
+      if (/診断/u.test(app)) {
+        return "いまの状況、ざっくり掴んでおきたい。";
+      }
+      return "気になるところ、先に1分で整理。";
+    }
+
+    function pickDescription(item) {
+      const app = String(item?.app_name || "").trim();
+      if (app === "16bitマップタイルプロンプトジェネレーター") {
+        return "ドット絵・RPG風・街・森・洞窟などのマップタイル案を作る時のプロンプト補助に使えます。";
+      }
+      if (/プロンプトジェネレーター/u.test(app)) {
+        const base = app.replace(/プロンプトジェネレーター/u, "").trim() || app;
+        return `${base}の案出しで詰まった時、最初のたたき台を短時間で作るのに使えます。`;
+      }
+      if (/シミュレーター/u.test(app)) {
+        const base = app.replace(/シミュレーター/u, "").trim() || app;
+        return `${base}の見込みを先に置いて、準備漏れを減らしたい場面で使えます。`;
+      }
+      if (/チェッカー/u.test(app)) {
+        const base = app.replace(/チェッカー/u, "").trim() || app;
+        return `${base}の抜け漏れ確認を、短時間で回したい時に使えます。`;
+      }
+      if (/計算アプリ/u.test(app)) {
+        const base = app.replace(/計算アプリ/u, "").trim() || app;
+        return `${base}を手元でさっと試算して、次の判断を早めるのに便利です。`;
+      }
+      if (/診断/u.test(app)) {
+        const base = trimAppSuffix(app.replace(/診断/u, "").trim() || app);
+        return `${base}の現状をざっくり把握して、次に確認すべき点を絞るのに使えます。`;
+      }
+      return "気になるポイントを先に整理して、次の行動を決めやすくする用途で使えます。";
+    }
+
+    function fitTweetLength(text, fallbackUrl) {
+      const hardLimit = 280;
+      if (text.length <= hardLimit) return text;
+      const url = String(fallbackUrl || "").trim();
+      const keep = url ? `\n\n${url}` : "";
+      const tailLimit = hardLimit - keep.length;
+      if (tailLimit <= 0) return (url || "").slice(0, hardLimit);
+      const head = text.slice(0, tailLimit - 1).trimEnd();
+      return `${head}…${keep}`;
+    }
+
+    /**
+     * @param {boolean} forX true のとき本文末尾URLは X で途切れにくい percent 形式。表示用は false。
+     */
+    function buildDashboardPostText(item, forX = false) {
+      const urlLine = postUrlLine(item, forX);
+      const fitUrl = urlLine;
+
+      if (hasAppAndUrl(item)) {
+        const hook = pickHook(item);
+        const app = String(item.app_name || "").trim();
+        const desc = pickDescription(item);
+        const out = [hook, "", app, "", desc, "", urlLine];
+        if (isRiskTopic(item)) out.push("", "※参考・確認用です");
+        return fitTweetLength(out.join("\n"), fitUrl);
+      }
+      return fitTweetLength(buildTweetText(item, { forX }), fitUrl);
+    }
+
+    function guessNameFromUrl(rawUrl) {
+      const value = String(rawUrl || "").trim();
+      if (!value) return "";
+      try {
+        const u = new URL(value);
+        if (!/^(www\.)?nekopoke\.jp$/i.test(u.hostname)) return "";
+        const path = (u.pathname || "/").replace(/\/+$/, "");
+        if (!path || path === "/") return "ネコポケ";
+        const last = path.split("/").filter(Boolean).pop();
+        if (!last) return "ネコポケ";
+        return decodeURIComponent(last);
+      } catch {
+        return "";
+      }
+    }
+
+    function displayName(item) {
+      const app = String(item?.app_name || "").trim();
+      if (app) return app;
+      const title = String(item?.title || "").trim();
+      if (title) return title;
+      return guessNameFromUrl(item?.url) || "ネコポケ投稿";
+    }
+
     function openX(text) {
       const url = "https://x.com/intent/tweet?text=" + encodeURIComponent(text);
       window.open(url, "_blank", "noopener,noreferrer");
@@ -270,15 +490,52 @@
       return (upcoming || all[0] || null);
     }
 
+    function isTopNekopokeUrl(rawUrl) {
+      const value = String(rawUrl || "").trim();
+      if (!value) return false;
+      return /^https?:\/\/(www\.)?nekopoke\.jp\/?$/i.test(value);
+    }
+
+    function hasAppAndUrl(item) {
+      const app = String(item?.app_name || "").trim();
+      const url = String(item?.url || "").trim();
+      if (!app || !url) return false;
+      if (app === "ネコポケ" || app === "ネコポケ投稿") return false;
+      return !isTopNekopokeUrl(url);
+    }
+
+    function isUrlVerified(item) {
+      if (!hasAppAndUrl(item)) return true;
+      if (item?.url_verified_public === true) return true;
+      if (String(item?.url_check_status_public || "") === "verified_public") return true;
+      if (item?.url_verified === true) return true;
+      return String(item?.url_check_status || "") === "verified";
+    }
+
     function pickNextUnposted(items, posted) {
       const now = new Date();
       const all = items
         .filter(x => !posted.has(String(x.id || "")))
-        .map(x => ({ item: x, dt: parseDate(x) }))
-        .filter(x => x.dt)
+        .filter(x => isUrlVerified(x))
+        .map(x => ({ item: x, dt: parseDate(x) }));
+
+      if (all.length === 0) return null;
+
+      // Prefer concrete app posts whenever at least one exists.
+      const preferred = all.filter(x => hasAppAndUrl(x.item));
+      const pool = preferred.length > 0 ? preferred : all;
+
+      const withUpcomingDt = pool
+        .filter(x => x.dt && x.dt >= now)
         .sort((a, b) => a.dt - b.dt);
-      const upcoming = all.find(x => x.dt >= now);
-      return (upcoming || all[0] || null);
+      if (withUpcomingDt.length > 0) return withUpcomingDt[0];
+
+      const withAnyDt = pool.filter(x => x.dt).sort((a, b) => a.dt - b.dt);
+      if (withAnyDt.length > 0) return withAnyDt[0];
+
+      return pool
+        .slice()
+        .sort((a, b) => String(a.item.id || "").localeCompare(String(b.item.id || "")))[0];
     }
 
     function renderHero(item, posted) {
@@ -313,41 +570,67 @@
 
       const name = document.createElement("div");
       name.className = "name";
-      name.textContent = item.app_name || "(no app_name)";
+      name.textContent = displayName(item);
       card.appendChild(name);
 
       const text = document.createElement("pre");
-      text.textContent = item.x_text || "";
+      text.textContent = buildDashboardPostText(item, false);
       card.appendChild(text);
 
       const url = document.createElement("div");
       url.className = "url";
-      url.textContent = item.url || "";
+      const displayLine = document.createElement("div");
+      displayLine.textContent = item.url ? `表示URL: ${item.url}` : "";
+      url.appendChild(displayLine);
+      if (item.url && hasAppAndUrl(item)) {
+        const xLine = document.createElement("div");
+        xLine.className = "urlXHint";
+        const postHint = String(item.short_url || "").trim() || toXPostUrl(item.url);
+        xLine.textContent = `X投稿用URL: ${postHint}`;
+        url.appendChild(xLine);
+      }
       card.appendChild(url);
 
       const actions = document.createElement("div");
       actions.className = "actions";
 
       const copyBtn = document.createElement("button");
-      copyBtn.className = "btnCopy";
+      copyBtn.className = "btnCopy withIcon";
       copyBtn.type = "button";
-      copyBtn.textContent = "投稿文コピー";
+      copyBtn.innerHTML = `${icon("copy")}<span>投稿文コピー</span>`;
       copyBtn.addEventListener("click", async () => {
-        const ok = await copyText(item.x_text || "");
-        copyBtn.textContent = ok ? "コピー完了" : "コピー失敗";
-        setTimeout(() => { copyBtn.textContent = "投稿文コピー"; }, 1200);
+        const ok = await copyText(buildDashboardPostText(item, true));
+        copyBtn.innerHTML = ok ? `${icon("check")}<span>コピー完了</span>` : `${icon("copy")}<span>コピー失敗</span>`;
+        setTimeout(() => { copyBtn.innerHTML = `${icon("copy")}<span>投稿文コピー</span>`; }, 1200);
       });
 
       const openBtn = document.createElement("button");
-      openBtn.className = "btnOpen";
+      openBtn.className = "btnOpen withIcon";
       openBtn.type = "button";
-      openBtn.textContent = "Xを開く";
-      openBtn.addEventListener("click", () => openX(item.x_text || ""));
+      openBtn.innerHTML = `${icon("external")}<span>Xを開く</span>`;
+      openBtn.addEventListener("click", () => {
+        const postText = buildDashboardPostText(item, true);
+        const checkUrl = String(item?.url || "").trim();
+        const xLine =
+          checkUrl && hasAppAndUrl(item)
+            ? (String(item?.short_url || "").trim() || toXPostUrl(checkUrl))
+            : checkUrl;
+        if (checkUrl) {
+          const msg = hasAppAndUrl(item)
+            ? `投稿前URL確認\n\n表示（ブラウザ用）:\n${checkUrl}\n\nX投稿に入るURL:\n${xLine}\n\nこの内容でX投稿画面を開きますか？`
+            : `投稿前URL確認:\n${checkUrl}\n\nこのURLでX投稿画面を開きますか？`;
+          const ok = window.confirm(msg);
+          if (!ok) return;
+        }
+        openX(postText);
+      });
 
       const doneBtn = document.createElement("button");
-      doneBtn.className = "btnDone";
+      doneBtn.className = "btnDone withIcon";
       doneBtn.type = "button";
-      doneBtn.textContent = isPosted ? "投稿済み(解除)" : "投稿済みにする";
+      doneBtn.innerHTML = isPosted
+        ? `${icon("check")}<span>投稿済み(解除)</span>`
+        : `${icon("check")}<span>投稿済みにする</span>`;
       doneBtn.addEventListener("click", () => {
         const set = postedSet();
         const id = String(item.id || "");
@@ -402,18 +685,21 @@
     }
 
     function renderMeta(nextInfo) {
-      displayDateEl.textContent = `表示中の日付: ${targetDate}`;
+      displayDateEl.classList.add("withIcon");
+      displayDateEl.innerHTML = `${icon("calendar")}<span>表示中の日付: ${targetDate}</span>`;
       if (!nextInfo) {
-        nextPostEl.textContent = "次の投稿予定: なし";
+        nextPostEl.classList.add("withIcon");
+        nextPostEl.innerHTML = `${icon("clock")}<span>次の投稿予定: なし</span>`;
       } else {
-        nextPostEl.textContent = `次の投稿予定: ${fmtJst(nextInfo.dt)}`;
+        nextPostEl.classList.add("withIcon");
+        nextPostEl.innerHTML = `${icon("clock")}<span>次の投稿予定: ${fmtJst(nextInfo.dt)}</span>`;
       }
     }
 
     function render() {
       const posted = postedSet();
       const shown = scheduledItems.filter(x => String(x.scheduled_at || "").startsWith(targetDate));
-      const nextInfo = pickNextUnposted(scheduledItems, posted);
+      const nextInfo = pickNextUnposted(nextCandidateItems, posted);
       const absoluteNext = pickNextPost(scheduledItems);
       const fallback = targetDate !== ymdJst(new Date());
       const allPosted = scheduledItems.length > 0 && scheduledItems.every(x => posted.has(String(x.id || "")));
@@ -433,6 +719,9 @@
         scheduledItems = data
           .filter(x => x && x.status === "scheduled" && x.scheduled_at)
           .sort((a, b) => String(a.scheduled_at).localeCompare(String(b.scheduled_at)));
+        nextCandidateItems = data.filter(
+          x => x && (x.status === "scheduled" || x.status === "draft")
+        );
 
         const picked = decideDisplayDate(scheduledItems);
         targetDate = picked.date;
@@ -449,6 +738,11 @@
       localStorage.removeItem(POSTED_KEY);
       render();
     });
+
+    reloadBtn.classList.add("withIcon");
+    reloadBtn.innerHTML = `${icon("refresh")}<span>再読み込み</span>`;
+    resetPostedBtn.classList.add("withIcon");
+    resetPostedBtn.innerHTML = `${icon("reset")}<span>投稿済みローカル状態をリセット</span>`;
 
     load();
   </script>
