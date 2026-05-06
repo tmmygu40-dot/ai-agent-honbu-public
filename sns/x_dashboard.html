@@ -59,6 +59,16 @@
       border-radius: 10px;
       padding: 8px 10px;
       font-size: 13px;
+      white-space: pre-wrap;
+    }
+    .bannerWarn {
+      color: #ffe8bf;
+      background: #3d2a14;
+      border: 1px solid #99662e;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+      line-height: 1.45;
     }
     button {
       border: 1px solid var(--line);
@@ -504,6 +514,33 @@
       return !isTopNekopokeUrl(url);
     }
 
+    /** ネコポケの実アプリURLで、パスに非ASCII（日本語等）が含まれるとき true */
+    function urlPathHasNonAscii(urlStr) {
+      try {
+        const path = new URL(urlStr).pathname || "";
+        return /[^\x00-\x7F]/.test(path);
+      } catch {
+        return false;
+      }
+    }
+
+    /**
+     * 日本語URLを含み、short_url が空のとき。Xでリンク欠損のリスクあり。
+     */
+    function needsShortUrlForX(item) {
+      if (!hasAppAndUrl(item)) return false;
+      const raw = String(item?.url || "").trim();
+      if (!/^https?:\/\/(www\.)?nekopoke\.jp\//i.test(raw)) return false;
+      if (String(item?.short_url || "").trim()) return false;
+      return urlPathHasNonAscii(raw);
+    }
+
+    function cmpShortRisk(a, b) {
+      const ra = needsShortUrlForX(a.item) ? 1 : 0;
+      const rb = needsShortUrlForX(b.item) ? 1 : 0;
+      return ra - rb;
+    }
+
     function isUrlVerified(item) {
       if (!hasAppAndUrl(item)) return true;
       if (item?.url_verified_public === true) return true;
@@ -527,15 +564,27 @@
 
       const withUpcomingDt = pool
         .filter(x => x.dt && x.dt >= now)
-        .sort((a, b) => a.dt - b.dt);
+        .sort((a, b) => {
+          const c = cmpShortRisk(a, b);
+          if (c !== 0) return c;
+          return a.dt - b.dt;
+        });
       if (withUpcomingDt.length > 0) return withUpcomingDt[0];
 
-      const withAnyDt = pool.filter(x => x.dt).sort((a, b) => a.dt - b.dt);
+      const withAnyDt = pool.filter(x => x.dt).sort((a, b) => {
+        const c = cmpShortRisk(a, b);
+        if (c !== 0) return c;
+        return a.dt - b.dt;
+      });
       if (withAnyDt.length > 0) return withAnyDt[0];
 
       return pool
         .slice()
-        .sort((a, b) => String(a.item.id || "").localeCompare(String(b.item.id || "")))[0];
+        .sort((a, b) => {
+          const c = cmpShortRisk(a, b);
+          if (c !== 0) return c;
+          return String(a.item.id || "").localeCompare(String(b.item.id || ""));
+        })[0];
     }
 
     function renderHero(item, posted) {
@@ -568,6 +617,14 @@
       `;
       card.appendChild(row);
 
+      if (!isPosted && needsShortUrlForX(item)) {
+        const ban = document.createElement("div");
+        ban.className = "bannerWarn";
+        ban.textContent =
+          "注意: short_url 未設定（日本語URLはXで途中切れ・404になりやすい）。短縮リダイレクトを公開してキューへ short_url を追加してください。";
+        card.appendChild(ban);
+      }
+
       const name = document.createElement("div");
       name.className = "name";
       name.textContent = displayName(item);
@@ -586,7 +643,9 @@
         const xLine = document.createElement("div");
         xLine.className = "urlXHint";
         const postHint = String(item.short_url || "").trim() || toXPostUrl(item.url);
-        xLine.textContent = `X投稿用URL: ${postHint}`;
+        xLine.textContent = needsShortUrlForX(item)
+          ? `X投稿用URL（暫定・長いencoder URL）: ${postHint}`
+          : `X投稿用URL: ${postHint}`;
         url.appendChild(xLine);
       }
       card.appendChild(url);
@@ -616,9 +675,14 @@
             ? (String(item?.short_url || "").trim() || toXPostUrl(checkUrl))
             : checkUrl;
         if (checkUrl) {
-          const msg = hasAppAndUrl(item)
+          const risky = needsShortUrlForX(item);
+          let msg = hasAppAndUrl(item)
             ? `投稿前URL確認\n\n表示（ブラウザ用）:\n${checkUrl}\n\nX投稿に入るURL:\n${xLine}\n\nこの内容でX投稿画面を開きますか？`
             : `投稿前URL確認:\n${checkUrl}\n\nこのURLでX投稿画面を開きますか？`;
+          if (risky) {
+            msg =
+              `${msg}\n\n【警告】日本語パスで short_url がありません。Xでリンク欠損のリスクがあります。`;
+          }
           const ok = window.confirm(msg);
           if (!ok) return;
         }
@@ -672,16 +736,20 @@
       }
     }
 
-    function renderNotice(fallback, allPosted) {
+    function renderNotice(fallback, allPosted, riskyShortMissing) {
+      const n = typeof riskyShortMissing === "number" ? riskyShortMissing : 0;
+      let base = "";
       if (allPosted) {
-        noticeEl.textContent = "今日/次回の予定はすべて投稿済みです。必要なら「投稿済み(解除)」で戻せます。";
-        return;
-      }
-      if (fallback) {
-        noticeEl.textContent = "今日の予定がありません。次の投稿予定日を表示中です。";
+        base = "今日/次回の予定はすべて投稿済みです。必要なら「投稿済み(解除)」で戻せます。";
+      } else if (fallback) {
+        base = "今日の予定がありません。次の投稿予定日を表示中です。";
       } else {
-        noticeEl.textContent = "今日の投稿予定を表示中です。上から順にコピーしてXへ貼り付けてください。";
+        base = "今日の投稿予定を表示中です。上から順にコピーしてXへ貼り付けてください。";
       }
+      if (n > 0 && !allPosted) {
+        base += `\n\n日本語パスかつ short_url 未設定の候補が ${n} 件あります。「次に投稿する1件」は short_url のあるまたはASCIIのみの URL を優先します。`;
+      }
+      noticeEl.textContent = base;
     }
 
     function renderMeta(nextInfo) {
@@ -703,8 +771,9 @@
       const absoluteNext = pickNextPost(scheduledItems);
       const fallback = targetDate !== ymdJst(new Date());
       const allPosted = scheduledItems.length > 0 && scheduledItems.every(x => posted.has(String(x.id || "")));
+      const riskyShortMissing = nextCandidateItems.filter(x => needsShortUrlForX(x)).length;
       renderMeta(absoluteNext);
-      renderNotice(fallback, allPosted);
+      renderNotice(fallback, allPosted, riskyShortMissing);
       renderHero(nextInfo ? nextInfo.item : null, posted);
       renderSlots(shown, posted);
     }
