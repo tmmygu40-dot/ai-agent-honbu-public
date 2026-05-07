@@ -407,8 +407,12 @@ def _replace_tail_url_with_short(x_text: str, short_url: str) -> str:
     return text + "\n\n" + short_url
 
 
-def ensure_short_urls(dry_run: bool = True) -> dict[str, int]:
-    queue = _load_queue()
+def ensure_short_urls(
+    dry_run: bool = True,
+    queue_override: list[dict[str, Any]] | None = None,
+    suppress_print: bool = False,
+) -> dict[str, int]:
+    queue = queue_override if queue_override is not None else _load_queue()
     existing_slugs: set[str] = set()
     s_root = ROOT / "s"
     if s_root.is_dir():
@@ -456,16 +460,17 @@ def ensure_short_urls(dry_run: bool = True) -> dict[str, int]:
         existing_slugs.add(slug)
         targets.append((item, slug, target))
 
-    print(f"[ensure-short-urls] dry_run={dry_run}")
-    print(f"candidates: {len(targets)}")
-    print(f"manual_check_needed: {manual}")
-    print(f"skipped_meta: {skipped_meta}")
-    print(f"skipped_posted: {skipped_posted}")
-    print(f"skipped_existing_index: {file_exists}")
-    for item, slug, target in targets[:50]:
-        post_id = str(item.get("id") or "")
-        short_url = f"{BASE_URL}/s/{slug}/"
-        print(f"- {post_id}: {short_url} -> {target}")
+    if not suppress_print:
+        print(f"[ensure-short-urls] dry_run={dry_run}")
+        print(f"candidates: {len(targets)}")
+        print(f"manual_check_needed: {manual}")
+        print(f"skipped_meta: {skipped_meta}")
+        print(f"skipped_posted: {skipped_posted}")
+        print(f"skipped_existing_index: {file_exists}")
+        for item, slug, target in targets[:50]:
+            post_id = str(item.get("id") or "")
+            short_url = f"{BASE_URL}/s/{slug}/"
+            print(f"- {post_id}: {short_url} -> {target}")
 
     if dry_run:
         return {
@@ -491,8 +496,9 @@ def ensure_short_urls(dry_run: bool = True) -> dict[str, int]:
         updated += 1
 
     _save_queue(queue)
-    print(f"updated_queue: {updated}")
-    print(f"created_redirect_pages: {created}")
+    if not suppress_print:
+        print(f"updated_queue: {updated}")
+        print(f"created_redirect_pages: {created}")
     return {
         "planned": len(targets),
         "manual": manual,
@@ -502,6 +508,17 @@ def ensure_short_urls(dry_run: bool = True) -> dict[str, int]:
         "skipped_posted": skipped_posted,
         "skipped_existing_index": file_exists,
     }
+
+
+def _collect_unposted_candidates(queue: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        x
+        for x in queue
+        if isinstance(x, dict)
+        and x.get("status") in {"draft", "scheduled"}
+        and str(x.get("app_name") or "").strip()
+        and str(x.get("url") or "").strip()
+    ]
 
 
 def normalize_urls() -> tuple[int, int]:
@@ -533,8 +550,11 @@ def normalize_urls() -> tuple[int, int]:
     return updated_url, updated_text
 
 
-def append_x_drafts(limit: int = 3) -> list[dict[str, Any]]:
-    limit = max(3, min(5, limit))
+def append_x_drafts(limit: int = 3, dry_run: bool = False, allow_single: bool = False) -> list[dict[str, Any]]:
+    if allow_single:
+        limit = max(1, limit)
+    else:
+        limit = max(3, min(5, limit))
     queue = _load_queue()
     existing_paths = {
         x.get("app_path")
@@ -578,9 +598,55 @@ def append_x_drafts(limit: int = 3) -> list[dict[str, Any]]:
             }
         )
 
-    queue.extend(new_items)
-    _save_queue(queue)
+    if not dry_run:
+        queue.extend(new_items)
+        _save_queue(queue)
     return new_items
+
+
+def refill_x_posts(target: int = 30, dry_run: bool = True) -> dict[str, int]:
+    target = max(1, int(target))
+    queue = _load_queue()
+    current = _collect_unposted_candidates(queue)
+    current_count = len(current)
+    need = max(0, target - current_count)
+
+    print(f"[refill-x-posts] dry_run={dry_run} target={target}")
+    print(f"current_unposted_candidates: {current_count}")
+    print(f"need_to_add: {need}")
+
+    planned_new: list[dict[str, Any]] = []
+    if need > 0:
+        # Plan/generate in memory using existing generator logic, then optionally persist.
+        generated = append_x_drafts(limit=need, dry_run=True, allow_single=True)
+        planned_new = generated[:need]
+        print(f"planned_new_posts: {len(planned_new)}")
+        for item in planned_new[:30]:
+            print(f"- add: {item.get('id')} {item.get('app_name')}")
+        if not dry_run and planned_new:
+            queue.extend(planned_new)
+    else:
+        print("planned_new_posts: 0")
+
+    short_summary = ensure_short_urls(
+        dry_run=dry_run,
+        queue_override=queue,
+        suppress_print=True,
+    )
+    print(f"planned_short_url_updates: {short_summary.get('planned', 0)}")
+    print(f"manual_check_needed: {short_summary.get('manual', 0)}")
+    print(f"skipped_meta: {short_summary.get('skipped_meta', 0)}")
+    if not dry_run:
+        # ensure_short_urls already saved queue and html files.
+        print("applied: queue/json + redirect pages updated")
+
+    return {
+        "current": current_count,
+        "need": need,
+        "planned_new": len(planned_new),
+        "planned_short": int(short_summary.get("planned", 0)),
+        "manual": int(short_summary.get("manual", 0)),
+    }
 
 
 def preview_x_drafts(limit: int = 5) -> list[dict[str, Any]]:
@@ -749,6 +815,8 @@ def main() -> int:
     parser.add_argument("--refresh-x-copy", action="store_true", help="Regenerate draft x_text with latest templates.")
     parser.add_argument("--ensure-short-urls", action="store_true", help="Ensure short_url and s/<slug>/index.html for queue items.")
     parser.add_argument("--dry-run", action="store_true", help="Preview changes without writing files.")
+    parser.add_argument("--refill-x-posts", action="store_true", help="Refill queue up to target then ensure short URLs.")
+    parser.add_argument("--target", type=int, default=30, help="Target count for --refill-x-posts.")
     parser.add_argument("--daily-plan", action="store_true", help="Create 3 scheduled posts for a target date.")
     parser.add_argument("--date", type=str, help="Target date for --daily-plan (YYYY-MM-DD).")
     parser.add_argument("--mark-posted", type=str, metavar="ID", help="Mark a queue item as posted by id.")
@@ -759,7 +827,7 @@ def main() -> int:
         print(f"Normalized URL fields: {u1}, text fields: {u2}")
 
     if args.generate:
-        items = append_x_drafts(limit=args.limit)
+        items = append_x_drafts(limit=args.limit, dry_run=args.dry_run)
         print(f"Added {len(items)} X draft posts.")
         for x in items:
             print(f"- {x['app_name']} ({x['url']})")
@@ -770,6 +838,10 @@ def main() -> int:
 
     if args.ensure_short_urls:
         ensure_short_urls(dry_run=args.dry_run)
+        return 0
+
+    if args.refill_x_posts:
+        refill_x_posts(target=args.target, dry_run=args.dry_run)
         return 0
 
     if args.daily_plan:
