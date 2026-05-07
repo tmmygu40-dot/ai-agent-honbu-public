@@ -332,6 +332,7 @@
     function buildTweetText(item, opts = {}) {
       const useX = opts.forX === true;
       const base = String(item?.x_text || "").trim();
+      const appName = String(item?.app_name || "").trim();
       const short = String(item?.short_url || "").trim();
       const raw = String(item?.url || "").trim();
       const postUrl = short
@@ -339,13 +340,39 @@
         : raw
           ? (useX ? (toXPostUrl(raw) || raw) : raw)
           : "";
-      if (!postUrl) return base;
       let merged = base;
+      if (appName && merged && !merged.includes(appName)) {
+        const lines = merged.split("\n");
+        if (lines.length >= 2) {
+          // Insert app_name after hook line with a blank line around it.
+          merged = `${lines[0]}\n\n${appName}\n\n${lines.slice(1).join("\n").trim()}`;
+        } else {
+          merged = `${merged}\n\n${appName}`;
+        }
+      }
+      if (!postUrl) return merged;
       if (raw && postUrl && raw !== postUrl && merged.includes(raw)) {
         merged = merged.split(raw).join(postUrl);
       }
-      if (merged.includes(postUrl)) return merged;
-      return merged ? `${merged}\n\n${postUrl}` : postUrl;
+      if (merged.includes(postUrl)) {
+        const markerRe = new RegExp(`\\n(?:\\n)?↓↓↓\\n${postUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
+        if (markerRe.test(merged)) return merged;
+        const tailUrlRe = new RegExp(`\\n${postUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`);
+        if (tailUrlRe.test(merged)) return merged.replace(tailUrlRe, `\n\n↓↓↓\n${postUrl}`);
+        return `${merged}\n\n↓↓↓\n${postUrl}`;
+      }
+      return merged ? `${merged}\n\n↓↓↓\n${postUrl}` : `↓↓↓\n${postUrl}`;
+    }
+
+    function buildAppPostTemplate(item) {
+      const app = String(item?.app_name || "").trim();
+      const short = String(item?.short_url || "").trim();
+      const hook = pickHook(item);
+      const desc = pickDescription(item);
+      const out = ["【今日のチェック】", "", hook, "", app, "", desc];
+      if (isRiskTopic(item)) out.push("", "※参考・確認用です");
+      out.push("↓↓↓", short);
+      return out.join("\n");
     }
 
     function isRiskTopic(item) {
@@ -397,6 +424,15 @@
 
     function pickDescription(item) {
       const app = String(item?.app_name || "").trim();
+      if (app === "一人暮らし実質生活費自動診断") {
+        return "家賃・食費・光熱費などをまとめて、毎月どれくらい必要か整理できます。";
+      }
+      if (app === "火災保険請求書類逆引きアプリ") {
+        return "火災保険の請求で必要になりやすい書類を、状況別に確認できます。";
+      }
+      if (app === "賃貸退去費用シミュレーター") {
+        return "請求項目を先に整理して、退去費用の想定額を確認する目安に使えます。";
+      }
       if (app === "16bitマップタイルプロンプトジェネレーター") {
         return "ドット絵・RPG風・街・森・洞窟などのマップタイル案を作る時のプロンプト補助に使えます。";
       }
@@ -439,17 +475,12 @@
      */
     function buildDashboardPostText(item, forX = false) {
       const urlLine = postUrlLine(item, forX);
-      const fitUrl = urlLine;
-
-      if (hasAppAndUrl(item)) {
-        const hook = pickHook(item);
-        const app = String(item.app_name || "").trim();
-        const desc = pickDescription(item);
-        const out = [hook, "", app, "", desc, "", urlLine];
-        if (isRiskTopic(item)) out.push("", "※参考・確認用です");
-        return fitTweetLength(out.join("\n"), fitUrl);
+      if (hasAppAndShortUrl(item)) {
+        const text = buildAppPostTemplate(item);
+        return fitTweetLength(text, String(item.short_url || "").trim());
       }
-      return fitTweetLength(buildTweetText(item, { forX }), fitUrl);
+      const text = buildTweetText(item, { forX });
+      return fitTweetLength(text, urlLine);
     }
 
     function guessNameFromUrl(rawUrl) {
@@ -514,6 +545,11 @@
       return !isTopNekopokeUrl(url);
     }
 
+    function hasAppAndShortUrl(item) {
+      if (!hasAppAndUrl(item)) return false;
+      return String(item?.short_url || "").trim().length > 0;
+    }
+
     /** ネコポケの実アプリURLで、パスに非ASCII（日本語等）が含まれるとき true */
     function urlPathHasNonAscii(urlStr) {
       try {
@@ -558,8 +594,8 @@
 
       if (all.length === 0) return null;
 
-      // Prefer concrete app posts whenever at least one exists.
-      const preferred = all.filter(x => hasAppAndUrl(x.item));
+      // Prefer concrete app posts with short_url whenever at least one exists.
+      const preferred = all.filter(x => hasAppAndShortUrl(x.item));
       const pool = preferred.length > 0 ? preferred : all;
 
       const withUpcomingDt = pool
@@ -585,6 +621,28 @@
           if (c !== 0) return c;
           return String(a.item.id || "").localeCompare(String(b.item.id || ""));
         })[0];
+    }
+
+    function rankForSlots(items, posted) {
+      const now = new Date();
+      return items
+        .filter(x => !posted.has(String(x.id || "")))
+        .filter(x => isUrlVerified(x))
+        .filter(x => hasAppAndShortUrl(x))
+        .map(x => ({ item: x, dt: parseDate(x) }))
+        .sort((a, b) => {
+          // upcoming scheduled first
+          const aFuture = a.dt && a.dt >= now ? 0 : 1;
+          const bFuture = b.dt && b.dt >= now ? 0 : 1;
+          if (aFuture !== bFuture) return aFuture - bFuture;
+          // then scheduled before unscheduled
+          const aHasDt = a.dt ? 0 : 1;
+          const bHasDt = b.dt ? 0 : 1;
+          if (aHasDt !== bHasDt) return aHasDt - bHasDt;
+          if (a.dt && b.dt && a.dt.getTime() !== b.dt.getTime()) return a.dt - b.dt;
+          return String(a.item.id || "").localeCompare(String(b.item.id || ""));
+        })
+        .map(x => x.item);
     }
 
     function renderHero(item, posted) {
@@ -711,10 +769,9 @@
 
     function renderSlots(items, posted) {
       slotsEl.innerHTML = "";
-      const bySlot = SLOT_DEFS.map(slot => {
-        const it = items.find(x => String(x.scheduled_at || "").includes(`T${slot.key}:`));
-        return { slot, item: it };
-      });
+      const prioritized = rankForSlots(nextCandidateItems, posted);
+      const picked = prioritized.slice(0, SLOT_DEFS.length);
+      const bySlot = SLOT_DEFS.map((slot, idx) => ({ slot, item: picked[idx] || null }));
 
       bySlot.sort((a, b) => {
         const aHas = a.item ? 0 : 1;
