@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote, urlparse, urlunparse
 
 ROOT = Path(__file__).resolve().parent.parent
 QUEUE_PATH = ROOT / "sns" / "sns_queue.json"
@@ -127,6 +128,30 @@ X_TEMPLATES_BY_KIND: dict[str, list[tuple[str, str, str]]] = {
         ),
     ],
 }
+
+SLUG_TOKEN_MAP: list[tuple[str, str]] = [
+    ("火災保険", "kasai-hoken"),
+    ("自動車保険", "car-insurance"),
+    ("一人暮らし", "hitori-living"),
+    ("住民税", "resident-tax"),
+    ("最低賃金", "minimum-wage"),
+    ("退去費用", "taikyo-cost"),
+    ("退去", "taikyo"),
+    ("賃貸", "chintai"),
+    ("値上げ", "neage"),
+    ("家計", "kakei"),
+    ("請求書類", "claim-docs"),
+    ("逆引き", "reverse"),
+    ("補償", "coverage"),
+    ("風水害", "fusuigai"),
+    ("節約", "save"),
+    ("生活費", "living-cost"),
+    ("診断", "check"),
+    ("シミュレーター", "sim"),
+    ("チェッカー", "checker"),
+    ("ツール", "tool"),
+    ("アプリ", "app"),
+]
 
 
 def _configure_stdout_utf8() -> None:
@@ -278,6 +303,205 @@ def _pick_x_copy_kind(app_name: str) -> str:
     if any(k in n for k in ["防災", "地震", "台風", "避難", "災害"]):
         return "disaster"
     return "default"
+
+
+def _slug_from_short_url(value: str) -> str:
+    m = re.search(r"/s/([A-Za-z0-9-]+)/?$", value.strip())
+    return m.group(1) if m else ""
+
+
+def _ascii_slugify(value: str) -> str:
+    s = value.lower()
+    s = s.replace("_", "-").replace(" ", "-")
+    s = re.sub(r"[^a-z0-9-]+", "-", s)
+    s = re.sub(r"-{2,}", "-", s).strip("-")
+    return s
+
+
+def _looks_meta_app_name(app_name: str) -> bool:
+    n = app_name.strip()
+    if not n:
+        return True
+    return n in {"ネコポケ", "ネコポケ投稿"} or n.startswith("ネコポケ")
+
+
+def _build_slug_seed(item: dict[str, Any]) -> str:
+    raw = " ".join(
+        [
+            str(item.get("app_name") or ""),
+            str(item.get("app_path") or ""),
+            str(item.get("id") or ""),
+        ]
+    )
+    seed = raw
+    for jp, en in SLUG_TOKEN_MAP:
+        seed = seed.replace(jp, f" {en} ")
+    seed = _ascii_slugify(seed)
+    # keep readable length
+    if len(seed) > 40:
+        seed = seed[:40].rstrip("-")
+    return seed
+
+
+def _build_unique_slug(seed: str, used: set[str]) -> str:
+    if not seed:
+        return ""
+    base = seed
+    if base not in used:
+        return base
+    for i in range(2, 1000):
+        cand = f"{base}-{i}"
+        if cand not in used:
+            return cand
+    return ""
+
+
+def _pick_redirect_target(item: dict[str, Any]) -> str:
+    final_url = str(item.get("url_final_url_public") or "").strip()
+    if final_url:
+        return final_url
+    raw = str(item.get("url") or "").strip()
+    if not raw:
+        return ""
+    try:
+        u = urlparse(raw)
+        segs = [quote(x, safe="") for x in (u.path or "/").split("/") if x]
+        path = "/" + "/".join(segs)
+        if (u.path or "").endswith("/"):
+            path += "/"
+        return urlunparse((u.scheme, u.netloc, path, "", u.query, ""))
+    except Exception:
+        return raw
+
+
+def _redirect_html(title: str, target: str) -> str:
+    t = target.replace("&", "&amp;")
+    safe_title = title.replace("&", "&amp;").replace("<", "&lt;")
+    return (
+        "<!DOCTYPE html>\n"
+        "<html lang=\"ja\">\n"
+        "<head>\n"
+        "  <meta charset=\"utf-8\" />\n"
+        f"  <meta http-equiv=\"refresh\" content=\"0;url={t}\" />\n"
+        f"  <link rel=\"canonical\" href=\"{t}\" />\n"
+        f"  <title>{safe_title}へ移動中</title>\n"
+        "</head>\n"
+        "<body>\n"
+        f"  <script>location.replace({json.dumps(target, ensure_ascii=False)});</script>\n"
+        f"  <p><a href=\"{t}\">続きはこちら</a></p>\n"
+        "</body>\n"
+        "</html>\n"
+    )
+
+
+def _replace_tail_url_with_short(x_text: str, short_url: str) -> str:
+    text = (x_text or "").rstrip()
+    if not text:
+        return short_url
+    lines = text.splitlines()
+    # replace last nekopoke URL line, otherwise append
+    for i in range(len(lines) - 1, -1, -1):
+        if "https://nekopoke.jp/" in lines[i]:
+            lines[i] = short_url
+            return "\n".join(lines)
+    return text + "\n\n" + short_url
+
+
+def ensure_short_urls(dry_run: bool = True) -> dict[str, int]:
+    queue = _load_queue()
+    existing_slugs: set[str] = set()
+    s_root = ROOT / "s"
+    if s_root.is_dir():
+        for d in s_root.iterdir():
+            if d.is_dir():
+                existing_slugs.add(d.name)
+    for item in queue:
+        su = str(item.get("short_url") or "")
+        if su:
+            slug = _slug_from_short_url(su)
+            if slug:
+                existing_slugs.add(slug)
+
+    targets: list[tuple[dict[str, Any], str, str]] = []
+    skipped_meta = 0
+    skipped_posted = 0
+    manual = 0
+    file_exists = 0
+    for item in queue:
+        app_name = str(item.get("app_name") or "").strip()
+        url = str(item.get("url") or "").strip()
+        if not app_name or not url:
+            continue
+        if str(item.get("short_url") or "").strip():
+            continue
+        if _looks_meta_app_name(app_name):
+            skipped_meta += 1
+            continue
+        if str(item.get("status") or "") == "posted":
+            skipped_posted += 1
+            continue
+        seed = _build_slug_seed(item)
+        slug = _build_unique_slug(seed, existing_slugs)
+        if not slug:
+            manual += 1
+            continue
+        html_path = ROOT / "s" / slug / "index.html"
+        if html_path.exists():
+            file_exists += 1
+            continue
+        target = _pick_redirect_target(item)
+        if not target:
+            manual += 1
+            continue
+        existing_slugs.add(slug)
+        targets.append((item, slug, target))
+
+    print(f"[ensure-short-urls] dry_run={dry_run}")
+    print(f"candidates: {len(targets)}")
+    print(f"manual_check_needed: {manual}")
+    print(f"skipped_meta: {skipped_meta}")
+    print(f"skipped_posted: {skipped_posted}")
+    print(f"skipped_existing_index: {file_exists}")
+    for item, slug, target in targets[:50]:
+        post_id = str(item.get("id") or "")
+        short_url = f"{BASE_URL}/s/{slug}/"
+        print(f"- {post_id}: {short_url} -> {target}")
+
+    if dry_run:
+        return {
+            "planned": len(targets),
+            "manual": manual,
+            "skipped_meta": skipped_meta,
+            "skipped_posted": skipped_posted,
+            "skipped_existing_index": file_exists,
+        }
+
+    updated = 0
+    created = 0
+    for item, slug, target in targets:
+        short_url = f"{BASE_URL}/s/{slug}/"
+        html_path = ROOT / "s" / slug / "index.html"
+        if html_path.exists():
+            continue
+        html_path.parent.mkdir(parents=True, exist_ok=True)
+        html_path.write_text(_redirect_html(str(item.get("app_name") or "アプリ"), target), encoding="utf-8")
+        created += 1
+        item["short_url"] = short_url
+        item["x_text"] = _replace_tail_url_with_short(str(item.get("x_text") or ""), short_url)
+        updated += 1
+
+    _save_queue(queue)
+    print(f"updated_queue: {updated}")
+    print(f"created_redirect_pages: {created}")
+    return {
+        "planned": len(targets),
+        "manual": manual,
+        "updated": updated,
+        "created": created,
+        "skipped_meta": skipped_meta,
+        "skipped_posted": skipped_posted,
+        "skipped_existing_index": file_exists,
+    }
 
 
 def normalize_urls() -> tuple[int, int]:
@@ -523,6 +747,8 @@ def main() -> int:
     parser.add_argument("--preview", action="store_true", help="Show top draft/scheduled X posts for manual review.")
     parser.add_argument("--normalize-urls", action="store_true", help="Normalize queue URLs to https://nekopoke.jp/")
     parser.add_argument("--refresh-x-copy", action="store_true", help="Regenerate draft x_text with latest templates.")
+    parser.add_argument("--ensure-short-urls", action="store_true", help="Ensure short_url and s/<slug>/index.html for queue items.")
+    parser.add_argument("--dry-run", action="store_true", help="Preview changes without writing files.")
     parser.add_argument("--daily-plan", action="store_true", help="Create 3 scheduled posts for a target date.")
     parser.add_argument("--date", type=str, help="Target date for --daily-plan (YYYY-MM-DD).")
     parser.add_argument("--mark-posted", type=str, metavar="ID", help="Mark a queue item as posted by id.")
@@ -541,6 +767,10 @@ def main() -> int:
     if args.refresh_x_copy:
         n = refresh_x_copy()
         print(f"Refreshed X copy for draft posts: {n}")
+
+    if args.ensure_short_urls:
+        ensure_short_urls(dry_run=args.dry_run)
+        return 0
 
     if args.daily_plan:
         if not args.date:
