@@ -42,3 +42,32 @@ short_url
 - キュー: `sns/sns_queue.json`
 - ダッシュボード: `sns/x_dashboard.html`
 - 補助メモ: `sns/SNS_OPERATION_MEMO.md`
+
+## 2026-05-07 追加メモ（半自動運用）
+
+1. X投稿は完全自動投稿ではなく、兄貴が手動でポストする半自動運用にする。  
+2. ダッシュボードで「投稿済みにする」を押すと、localStorage上で次候補に切り替わる。  
+3. 投稿候補が減ったら `refill` コマンドで補充する。  
+4. 補充確認（dry-run）:  
+   `python sns/sns_x_post_manager.py --refill-x-posts --target 30 --dry-run`  
+5. 実補充:  
+   `python sns/sns_x_post_manager.py --refill-x-posts --target 30`  
+6. short_url補完確認（dry-run）:  
+   `python sns/sns_x_post_manager.py --ensure-short-urls --dry-run`  
+7. 実補完:  
+   `python sns/sns_x_post_manager.py --ensure-short-urls`  
+8. Xでは日本語URLを直接貼らず、必ず short_url を使う。  
+9. 投稿前に short_url の遷移確認をする。  
+10. 投稿文の基本型:
+
+```text
+【今日のチェック】
+
+あるある・少しユーモア
+
+アプリ名
+
+用途説明
+↓↓↓
+short_url
+```
