@@ -406,11 +406,105 @@
       return n === "ネコポケ" || n === "ネコポケ投稿" || n.startsWith("ネコポケ");
     }
 
-    function pickHook(item) {
+    /** sns_x_post_manager.pick_hook と同じプール・同じ SHA-256 先頭8hex で index（プール追記で結果が変わり得る） */
+    const HOOK_POOLS = {
+      kakei: [
+        "財布、なんか毎月こっそり軽くなってない？",
+        "家計簿つける前に、まず現実をチラ見。",
+        "「まあ大丈夫」の正体、だいたい数字でバレる。",
+        "節約より先に、どこで減ってるか見たい。",
+      ],
+      moveout: [
+        "退去費用、最後にドン！は心臓に悪い。",
+        "敷金、帰ってくるのか旅に出たのか問題。",
+        "退去の請求書、開く前に深呼吸したいやつ。",
+        "壁のキズより、請求額のキズが怖い。",
+      ],
+      hoken: [
+        "保険の書類、必要な時ほど見つからない説。",
+        "保険まわり、あとで見る詐欺してない？",
+        "「これ対象？」を先に軽く見たい日用。",
+        "保険の確認、気合い入れる前に入口だけ。",
+      ],
+      docs: [
+        "書類探し、だいたい一番イヤなところ。",
+        "必要書類、検索より逆引きしたい派。",
+        "あの紙どこ？を先に減らしたい。",
+        "書類の迷子、そろそろ捜索打ち切りたい。",
+      ],
+      oneonone: [
+        "1on1、記憶だけで戦うのそろそろ無理。",
+        "あの話、何だったっけ？を減らしたい。",
+        "面談メモ、未来の自分への救援物資。",
+        "話したこと、脳内保存はだいたい危ない。",
+      ],
+      generic: [
+        "それ、あとでやると高確率で忘れるやつ。",
+        "迷ったら、とりあえず軽く見える形にする。",
+        "面倒なことほど、入口だけ小さくしたい。",
+        "今日の自分に、ちょっとだけ親切する。",
+      ],
+      health: [
+        "体調のモヤモヤ、箇条書きにすると妙にスッとする。",
+        "からだの不調、言語化すると不思議と軽い。",
+        "受診まわり、頭の中だけだと散らかりがち。",
+        "体の話、メモに落とすと一段ラクになることが多い。",
+      ],
+      legal: [
+        "堅い話ほど、入り口だけはカジュアルでいい。",
+        "難しい話ほど、最初の一歩は小さくしたい。",
+        "数字の話、いきなり本気モードで入らなくていい。",
+        "契約まわり、用語より先に全体像だけ掴みたい。",
+      ],
+      prompt: [
+        "先生、それ手作業でやる量じゃないかも。",
+        "素材づくり、ゼロからだと一番しんどいやつ。",
+        "プロンプト、思いつきより型から入りたい日。",
+        "量産の前に、叩き台を短時間で置きたい。",
+      ],
+      checker: [
+        "不安って、メモにすると少し弱くなる。",
+        "見落とし、気づいた瞬間が一番しんどい。",
+        "チェックリスト、脳内だと抜けがち。",
+        "抜け漏れ、先に一回さらう派。",
+      ],
+      calc: [
+        "暗算で勝てると思った日もありました。",
+        "電卓を開く前に、まずざっくり置きたい。",
+        "数字の感触、手元で一回触りたい。",
+        "試算、スプレッドシートより先に軽く。",
+      ],
+      shindan: [
+        "診断のあと、だいたい「で、何する？」問題。",
+        "結果より、次に何を見るかが本題なやつ。",
+        "診断って、答えより地図が欲しいとき。",
+        "ざっくり把握してから、深掘りに行きたい。",
+      ],
+    };
+
+    async function sha256hexUtf8(str) {
+      const buf = new TextEncoder().encode(str);
+      const digest = await crypto.subtle.digest("SHA-256", buf);
+      return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    function hookSeedId(item) {
+      const id = String(item?.id || "").trim();
+      if (id) return id;
+      return String(item?.app_name || "").trim() || "unknown";
+    }
+
+    async function pickHookStable(poolKey, pool, item) {
+      const seed = `hook:${poolKey}:${hookSeedId(item)}`;
+      const h = await sha256hexUtf8(seed);
+      const idx = parseInt(h.slice(0, 8), 16) % pool.length;
+      return pool[idx];
+    }
+
+    async function resolveHookForItem(item) {
       const app = String(item?.app_name || "").trim();
       const cat = String(item?.category_guess || "").trim();
       const blob = `${app} ${cat}`.trim();
-
       if (looksMetaAppName(app)) {
         return "ネコポケ、今日も小さい面倒を1個だけ減らします。";
       }
@@ -418,39 +512,44 @@
         return "レトロ素材、雰囲気で沼って朝になるやつ。";
       }
       if (/1on1/i.test(app)) {
-        return "1on1、記憶だけで戦うのそろそろ無理。";
+        return await pickHookStable("oneonone", HOOK_POOLS.oneonone, item);
       }
       if (/書類|請求書類|逆引き/u.test(app)) {
-        return "書類探し、だいたい一番イヤなところ。";
+        return await pickHookStable("docs", HOOK_POOLS.docs, item);
       }
       if (/保険|補償/u.test(blob)) {
-        return "保険まわり、あとで見る詐欺してない？";
+        return await pickHookStable("hoken", HOOK_POOLS.hoken, item);
       }
       if (/健康|医療|病院|診療/u.test(blob)) {
-        return "体調のモヤモヤ、箇条書きにすると妙にスッとする。";
+        return await pickHookStable("health", HOOK_POOLS.health, item);
       }
       if (/法律|ローン|投資|金融/u.test(blob)) {
-        return "堅い話ほど、入り口だけはカジュアルでいい。";
+        return await pickHookStable("legal", HOOK_POOLS.legal, item);
       }
       if (moveoutHookContext(item)) {
-        return "退去費用、最後にドン！は心臓に悪い。";
+        return await pickHookStable("moveout", HOOK_POOLS.moveout, item);
       }
       if (/税|税金|住民税|所得税|手取り|家計|節約|生活費|値上げ|最低賃金|給与|お金/u.test(blob)) {
-        return "家計のモヤモヤ、数字にしたらちょっと黙る。";
+        return await pickHookStable("kakei", HOOK_POOLS.kakei, item);
       }
       if (/プロンプトジェネレーター/u.test(app)) {
-        return "先生、それ手作業でやる量じゃないかも。";
+        return await pickHookStable("prompt", HOOK_POOLS.prompt, item);
       }
       if (/チェッカー/u.test(app)) {
-        return "不安って、メモにすると少し弱くなる。";
+        return await pickHookStable("checker", HOOK_POOLS.checker, item);
       }
       if (/計算アプリ/u.test(app)) {
-        return "暗算で勝てると思った日もありました。";
+        return await pickHookStable("calc", HOOK_POOLS.calc, item);
       }
       if (/診断/u.test(app)) {
-        return "診断のあと、だいたい「で、何する？」問題。";
+        return await pickHookStable("shindan", HOOK_POOLS.shindan, item);
       }
-      return "「あとでやる」を、今日ちょっとだけ退治。";
+      return await pickHookStable("generic", HOOK_POOLS.generic, item);
+    }
+
+    function pickHook(item) {
+      if (item && item._hookCached !== undefined) return item._hookCached;
+      return "（フック未計算: 再読み込みしてください）";
     }
 
     function pickDescription(item) {
@@ -879,6 +978,16 @@
         nextCandidateItems = data.filter(
           x => x && (x.status === "scheduled" || x.status === "draft")
         );
+
+        if (!globalThis.crypto?.subtle) {
+          noticeEl.textContent = "この環境では Web Crypto が使えません（https または localhost で開いてください）。";
+        } else {
+          for (const x of data) {
+            if (!x || (x.status !== "draft" && x.status !== "scheduled")) continue;
+            delete x._hookCached;
+            x._hookCached = await resolveHookForItem(x);
+          }
+        }
 
         const picked = decideDisplayDate(scheduledItems);
         targetDate = picked.date;

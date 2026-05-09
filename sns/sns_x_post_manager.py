@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -210,6 +211,97 @@ def _moveout_hook_context(item: dict[str, Any]) -> bool:
     return False
 
 
+# X向けフック候補（カテゴリ別）。プールに文を足すと len が変わり、同じ seed でも別 index になり得る点に注意。
+HOOK_POOL_KAKEI: list[str] = [
+    "財布、なんか毎月こっそり軽くなってない？",
+    "家計簿つける前に、まず現実をチラ見。",
+    "「まあ大丈夫」の正体、だいたい数字でバレる。",
+    "節約より先に、どこで減ってるか見たい。",
+]
+HOOK_POOL_MOVEOUT: list[str] = [
+    "退去費用、最後にドン！は心臓に悪い。",
+    "敷金、帰ってくるのか旅に出たのか問題。",
+    "退去の請求書、開く前に深呼吸したいやつ。",
+    "壁のキズより、請求額のキズが怖い。",
+]
+HOOK_POOL_HOKEN: list[str] = [
+    "保険の書類、必要な時ほど見つからない説。",
+    "保険まわり、あとで見る詐欺してない？",
+    "「これ対象？」を先に軽く見たい日用。",
+    "保険の確認、気合い入れる前に入口だけ。",
+]
+HOOK_POOL_DOCS: list[str] = [
+    "書類探し、だいたい一番イヤなところ。",
+    "必要書類、検索より逆引きしたい派。",
+    "あの紙どこ？を先に減らしたい。",
+    "書類の迷子、そろそろ捜索打ち切りたい。",
+]
+HOOK_POOL_ONEONONE: list[str] = [
+    "1on1、記憶だけで戦うのそろそろ無理。",
+    "あの話、何だったっけ？を減らしたい。",
+    "面談メモ、未来の自分への救援物資。",
+    "話したこと、脳内保存はだいたい危ない。",
+]
+HOOK_POOL_GENERIC: list[str] = [
+    "それ、あとでやると高確率で忘れるやつ。",
+    "迷ったら、とりあえず軽く見える形にする。",
+    "面倒なことほど、入口だけ小さくしたい。",
+    "今日の自分に、ちょっとだけ親切する。",
+]
+# 健康・法律・プロンプト／チェッカー／計算／診断など、専用プール未指定の枝は汎用プール＋別 pool_key で振り分け
+HOOK_POOL_HEALTH: list[str] = [
+    "体調のモヤモヤ、箇条書きにすると妙にスッとする。",
+    "からだの不調、言語化すると不思議と軽い。",
+    "受診まわり、頭の中だけだと散らかりがち。",
+    "体の話、メモに落とすと一段ラクになることが多い。",
+]
+HOOK_POOL_LEGAL: list[str] = [
+    "堅い話ほど、入り口だけはカジュアルでいい。",
+    "難しい話ほど、最初の一歩は小さくしたい。",
+    "数字の話、いきなり本気モードで入らなくていい。",
+    "契約まわり、用語より先に全体像だけ掴みたい。",
+]
+HOOK_POOL_PROMPT: list[str] = [
+    "先生、それ手作業でやる量じゃないかも。",
+    "素材づくり、ゼロからだと一番しんどいやつ。",
+    "プロンプト、思いつきより型から入りたい日。",
+    "量産の前に、叩き台を短時間で置きたい。",
+]
+HOOK_POOL_CHECKER: list[str] = [
+    "不安って、メモにすると少し弱くなる。",
+    "見落とし、気づいた瞬間が一番しんどい。",
+    "チェックリスト、脳内だと抜けがち。",
+    "抜け漏れ、先に一回さらう派。",
+]
+HOOK_POOL_CALC: list[str] = [
+    "暗算で勝てると思った日もありました。",
+    "電卓を開く前に、まずざっくり置きたい。",
+    "数字の感触、手元で一回触りたい。",
+    "試算、スプレッドシートより先に軽く。",
+]
+HOOK_POOL_SHINDAN: list[str] = [
+    "診断のあと、だいたい「で、何する？」問題。",
+    "結果より、次に何を見るかが本題なやつ。",
+    "診断って、答えより地図が欲しいとき。",
+    "ざっくり把握してから、深掘りに行きたい。",
+]
+
+
+def _hook_seed_item_id(item: dict[str, Any]) -> str:
+    """フック安定選択のシード。id があれば優先、なければ app_name。"""
+    iid = str(item.get("id") or "").strip()
+    if iid:
+        return iid
+    return str(item.get("app_name") or "").strip() or "unknown"
+
+
+def _pick_hook_stable(pool_key: str, pool: list[str], item: dict[str, Any]) -> str:
+    """同一 id（なければ app_name）なら常に同じフック。プール追記で index がずれ得る。"""
+    seed = f"hook:{pool_key}:{_hook_seed_item_id(item)}".encode("utf-8")
+    h = hashlib.sha256(seed).hexdigest()
+    return pool[int(h[:8], 16) % len(pool)]
+
+
 def pick_hook(item: dict[str, Any]) -> str:
     """X向けフック（軽いノリ／医療・法律・金融などは断定しないトーンを維持）。"""
     app = str(item.get("app_name") or "").strip()
@@ -223,39 +315,39 @@ def pick_hook(item: dict[str, Any]) -> str:
         return "レトロ素材、雰囲気で沼って朝になるやつ。"
 
     if re.search(r"1on1", app, re.I):
-        return "1on1、記憶だけで戦うのそろそろ無理。"
+        return _pick_hook_stable("oneonone", HOOK_POOL_ONEONONE, item)
 
     if re.search(r"書類|請求書類|逆引き", app):
-        return "書類探し、だいたい一番イヤなところ。"
+        return _pick_hook_stable("docs", HOOK_POOL_DOCS, item)
 
     if re.search(r"保険|補償", blob):
-        return "保険まわり、あとで見る詐欺してない？"
+        return _pick_hook_stable("hoken", HOOK_POOL_HOKEN, item)
 
     if re.search(r"健康|医療|病院|診療", blob):
-        return "体調のモヤモヤ、箇条書きにすると妙にスッとする。"
+        return _pick_hook_stable("health", HOOK_POOL_HEALTH, item)
 
     if re.search(r"法律|ローン|投資|金融", blob):
-        return "堅い話ほど、入り口だけはカジュアルでいい。"
+        return _pick_hook_stable("legal", HOOK_POOL_LEGAL, item)
 
     if _moveout_hook_context(item):
-        return "退去費用、最後にドン！は心臓に悪い。"
+        return _pick_hook_stable("moveout", HOOK_POOL_MOVEOUT, item)
 
     if re.search(r"税|税金|住民税|所得税|手取り|家計|節約|生活費|値上げ|最低賃金|給与|お金", blob):
-        return "家計のモヤモヤ、数字にしたらちょっと黙る。"
+        return _pick_hook_stable("kakei", HOOK_POOL_KAKEI, item)
 
     if re.search(r"プロンプトジェネレーター", app):
-        return "先生、それ手作業でやる量じゃないかも。"
+        return _pick_hook_stable("prompt", HOOK_POOL_PROMPT, item)
 
     if re.search(r"チェッカー", app):
-        return "不安って、メモにすると少し弱くなる。"
+        return _pick_hook_stable("checker", HOOK_POOL_CHECKER, item)
 
     if re.search(r"計算アプリ", app):
-        return "暗算で勝てると思った日もありました。"
+        return _pick_hook_stable("calc", HOOK_POOL_CALC, item)
 
     if re.search(r"診断", app):
-        return "診断のあと、だいたい「で、何する？」問題。"
+        return _pick_hook_stable("shindan", HOOK_POOL_SHINDAN, item)
 
-    return "「あとでやる」を、今日ちょっとだけ退治。"
+    return _pick_hook_stable("generic", HOOK_POOL_GENERIC, item)
 
 
 def pick_description(item: dict[str, Any]) -> str:
