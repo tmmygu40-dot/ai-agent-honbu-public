@@ -211,31 +211,45 @@ def _moveout_hook_context(item: dict[str, Any]) -> bool:
 
 
 def pick_hook(item: dict[str, Any]) -> str:
+    """X向けフック（軽いノリ／医療・法律・金融・保険・税金は断定しないトーンを維持）。"""
     app = str(item.get("app_name") or "").strip()
     cat = str(item.get("category_guess") or "").strip()
     blob = f"{app} {cat}".strip()
 
+    if _looks_meta_app_name(app):
+        return "ネコポケ、今日も小さい面倒を1個だけ減らします。"
+
     if app == "16bitマップタイルプロンプトジェネレーター":
-        return "レトロゲームのマップ、雰囲気づくりで止まりがち。"
-    if re.search(r"税|税金|住民税|所得税|手取り|家計|節約|生活費|値上げ|最低賃金|給与|お金", blob):
-        return "家計の見直し、どこから触るか迷う。"
+        return "レトロのマップ、雰囲気で沼るタイプにおすすめ。"
+
     if re.search(r"保険|補償", blob):
-        return "保険、必要なところだけ見直したい。"
+        return "保険まわりは、チェックリストから片づけたい。"
+
     if re.search(r"健康|医療|病院|診療", blob):
-        return "いまの状況、ざっくり掴んでおきたい。"
+        return "からだや受診の話、並べられると頭が楽になることが多い。"
+
     if re.search(r"法律|ローン|投資|金融", blob):
-        return "気になるところ、先に1分で整理。"
+        return "難しい話ほど、入口は軽くしたい。"
+
     if _moveout_hook_context(item):
         return "退去費用、最後にドンと来る前に。"
+
+    if re.search(r"税|税金|住民税|所得税|手取り|家計|節約|生活費|値上げ|最低賃金|給与|お金", blob):
+        return "家計のモヤモヤ、まずは数字にして黙らせよう。"
+
     if re.search(r"プロンプトジェネレーター", app):
-        return "作業素材づくり、毎回ゼロから考えるの重い。"
+        return "先生、それ手作業でやる量じゃないかも。"
+
     if re.search(r"チェッカー", app):
-        return "見落とし、あとで気づく前に潰したい。"
+        return "なんとなく不安、を一回メモに変える。"
+
     if re.search(r"計算アプリ", app):
-        return "手計算で迷う前に、まず1回。"
+        return "暗算より先に、アプリにお任せしちゃう派。"
+
     if re.search(r"診断", app):
-        return "いまの状況、ざっくり掴んでおきたい。"
-    return "気になるところ、先に1分で整理。"
+        return "結果ドンより、論点だけ先に掴む。"
+
+    return "あとでやる、を減らす仕組みづくり中。"
 
 
 def pick_description(item: dict[str, Any]) -> str:
@@ -287,6 +301,8 @@ def _build_x_text(item: dict[str, Any], idx: int) -> str:
     out: list[str] = ["【今日のチェック】", "", hook, "", app_line, "", desc]
     if is_risk_topic(item):
         out.extend(["", "※参考・確認用です"])
+    # 「↓↓↓」＋末尾URLはキュー保存本文に含める（x_dashboard の buildAppPostTemplate と同型）。
+    # 画面の <pre> は buildDashboardPostText(item,false)、コピーは同関数 forX=true で同じ文字列になる。
     out.extend(["↓↓↓", tail])
     return "\n".join(out)
 
