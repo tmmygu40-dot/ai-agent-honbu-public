@@ -211,7 +211,7 @@ def _moveout_hook_context(item: dict[str, Any]) -> bool:
 
 
 def pick_hook(item: dict[str, Any]) -> str:
-    """X向けフック（軽いノリ／医療・法律・金融・保険・税金は断定しないトーンを維持）。"""
+    """X向けフック（軽いノリ／医療・法律・金融などは断定しないトーンを維持）。"""
     app = str(item.get("app_name") or "").strip()
     cat = str(item.get("category_guess") or "").strip()
     blob = f"{app} {cat}".strip()
@@ -220,36 +220,42 @@ def pick_hook(item: dict[str, Any]) -> str:
         return "ネコポケ、今日も小さい面倒を1個だけ減らします。"
 
     if app == "16bitマップタイルプロンプトジェネレーター":
-        return "レトロのマップ、雰囲気で沼るタイプにおすすめ。"
+        return "レトロ素材、雰囲気で沼って朝になるやつ。"
+
+    if re.search(r"1on1", app, re.I):
+        return "1on1、記憶だけで戦うのそろそろ無理。"
+
+    if re.search(r"書類|請求書類|逆引き", app):
+        return "書類探し、だいたい一番イヤなところ。"
 
     if re.search(r"保険|補償", blob):
-        return "保険まわりは、チェックリストから片づけたい。"
+        return "保険まわり、あとで見る詐欺してない？"
 
     if re.search(r"健康|医療|病院|診療", blob):
-        return "からだや受診の話、並べられると頭が楽になることが多い。"
+        return "体調のモヤモヤ、箇条書きにすると妙にスッとする。"
 
     if re.search(r"法律|ローン|投資|金融", blob):
-        return "難しい話ほど、入口は軽くしたい。"
+        return "堅い話ほど、入り口だけはカジュアルでいい。"
 
     if _moveout_hook_context(item):
-        return "退去費用、最後にドンと来る前に。"
+        return "退去費用、最後にドン！は心臓に悪い。"
 
     if re.search(r"税|税金|住民税|所得税|手取り|家計|節約|生活費|値上げ|最低賃金|給与|お金", blob):
-        return "家計のモヤモヤ、まずは数字にして黙らせよう。"
+        return "家計のモヤモヤ、数字にしたらちょっと黙る。"
 
     if re.search(r"プロンプトジェネレーター", app):
         return "先生、それ手作業でやる量じゃないかも。"
 
     if re.search(r"チェッカー", app):
-        return "なんとなく不安、を一回メモに変える。"
+        return "不安って、メモにすると少し弱くなる。"
 
     if re.search(r"計算アプリ", app):
-        return "暗算より先に、アプリにお任せしちゃう派。"
+        return "暗算で勝てると思った日もありました。"
 
     if re.search(r"診断", app):
-        return "結果ドンより、論点だけ先に掴む。"
+        return "診断のあと、だいたい「で、何する？」問題。"
 
-    return "あとでやる、を減らす仕組みづくり中。"
+    return "「あとでやる」を、今日ちょっとだけ退治。"
 
 
 def pick_description(item: dict[str, Any]) -> str:
