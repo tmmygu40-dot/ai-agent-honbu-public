@@ -70,6 +70,35 @@
       font-size: 12px;
       line-height: 1.45;
     }
+    .statsPanel {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #0f1830;
+      display: grid;
+      gap: 6px;
+    }
+    .statsHead {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+    }
+    .statsBody {
+      margin: 0;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #dce6fb;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .statsMuted {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
     button {
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -197,11 +226,17 @@
           <div class="big" id="displayDate">表示中の日付: ----</div>
           <div class="sub" id="nextPost">次の投稿予定: ----</div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
           <button id="reloadBtn" type="button">再読み込み</button>
           <button id="resetPostedBtn" class="btnMini" type="button">投稿済みローカル状態をリセット</button>
           <button id="copyMarkPostedCmdBtn" class="btnMini" type="button">投稿済み反映コマンドをコピー</button>
         </div>
+      </div>
+      <div class="statsPanel" id="statsPanel" aria-live="polite">
+        <div class="statsHead">候補サマリー</div>
+        <pre class="statsBody" id="statsBody">読み込み中...</pre>
+        <div class="statsMuted" id="statsOrphan" hidden></div>
+        <div class="bannerWarn" id="statsRefillHint" hidden></div>
       </div>
       <div class="notice" id="noticeText">読み込み中...</div>
     </section>
@@ -227,6 +262,9 @@
     const reloadBtn = document.getElementById("reloadBtn");
     const resetPostedBtn = document.getElementById("resetPostedBtn");
     const copyMarkPostedCmdBtn = document.getElementById("copyMarkPostedCmdBtn");
+    const statsBodyEl = document.getElementById("statsBody");
+    const statsOrphanEl = document.getElementById("statsOrphan");
+    const statsRefillHintEl = document.getElementById("statsRefillHint");
 
     /** sns_queue.json を posted にするための PowerShell 用（リポジトリルート固定） */
     const REPO_ROOT_PS = "C:\\Users\\tmmyg\\OneDrive\\デスクトップ\\ai-agent-honbu-public";
@@ -298,6 +336,59 @@
 
     function savePosted(set) {
       localStorage.setItem(POSTED_KEY, JSON.stringify([...set]));
+    }
+
+    /**
+     * draft/scheduled 候補と localStorage（POSTED_KEY）から件数を更新する。
+     * ローカル投稿済み・本体反映待ちは「現在の候補リストに含まれるID」のみを数える。
+     */
+    function renderStatsSummary() {
+      if (!statsBodyEl) return;
+      const posted = postedSet();
+      const items = Array.isArray(nextCandidateItems) ? nextCandidateItems : [];
+      const candidateIds = new Set(
+        items.map((x) => String(x && x.id != null ? x.id : "").trim()).filter(Boolean)
+      );
+      const total = items.length;
+      let localAmongCandidates = 0;
+      for (const id of posted) {
+        const sid = String(id || "").trim();
+        if (sid && candidateIds.has(sid)) localAmongCandidates += 1;
+      }
+      const remaining = Math.max(0, total - localAmongCandidates);
+      const pendingSync = localAmongCandidates;
+      const orphanPosted = [...posted].filter((id) => {
+        const sid = String(id || "").trim();
+        return sid && !candidateIds.has(sid);
+      }).length;
+
+      statsBodyEl.textContent =
+        `投稿候補：${total}件\n` +
+        `ローカル投稿済み：${localAmongCandidates}件\n` +
+        `残り表示候補：${remaining}件\n` +
+        `本体反映待ち：${pendingSync}件`;
+
+      if (statsOrphanEl) {
+        if (orphanPosted > 0) {
+          statsOrphanEl.hidden = false;
+          statsOrphanEl.textContent =
+            `※ localStorage に、いまの候補リストに無いIDが ${orphanPosted} 件残っています（過去の投稿済みトグル）。リセットで整理できます。`;
+        } else {
+          statsOrphanEl.hidden = true;
+          statsOrphanEl.textContent = "";
+        }
+      }
+
+      if (statsRefillHintEl) {
+        if (total > 0 && remaining <= 5) {
+          statsRefillHintEl.hidden = false;
+          statsRefillHintEl.textContent =
+            "残り表示候補が5件以下です。そろそろ補充（`sns_x_post_manager.py --generate` など）を検討してもよさそうです。";
+        } else {
+          statsRefillHintEl.hidden = true;
+          statsRefillHintEl.textContent = "";
+        }
+      }
     }
 
     async function copyText(text) {
@@ -980,6 +1071,7 @@
       renderNotice(fallback, allPosted, riskyShortMissing);
       renderHero(nextInfo ? nextInfo.item : null, posted);
       renderSlots(shown, posted);
+      renderStatsSummary();
     }
 
     async function load() {
@@ -1013,6 +1105,17 @@
         noticeEl.textContent = `読み込み失敗: ${err.message}`;
         heroEl.innerHTML = `<div class="slotEmpty">ローカルサーバー経由で開いてください（file:// は不可）。</div>`;
         slotsEl.innerHTML = "";
+        if (statsBodyEl) {
+          statsBodyEl.textContent = "読み込み失敗のため集計できません。";
+        }
+        if (statsOrphanEl) {
+          statsOrphanEl.hidden = true;
+          statsOrphanEl.textContent = "";
+        }
+        if (statsRefillHintEl) {
+          statsRefillHintEl.hidden = true;
+          statsRefillHintEl.textContent = "";
+        }
       }
     }
 
