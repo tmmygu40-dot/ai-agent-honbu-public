@@ -287,6 +287,9 @@ def _post_url_for_x_template(item: dict[str, Any]) -> str:
     return str(item.get("url") or "").strip()
 
 
+X_POST_ARROW_LINE = "↓ ↓ ↓"
+
+
 def _build_x_text(item: dict[str, Any], idx: int) -> str:
     _ = idx  # reserved for future rotation
     app_name = str(item.get("app_name") or "").strip()
@@ -298,12 +301,9 @@ def _build_x_text(item: dict[str, Any], idx: int) -> str:
         ap = str(item.get("app_path") or "").strip().strip("/")
         if ap:
             tail = f"{BASE_URL}/{ap}/"
-    out: list[str] = ["【今日のチェック】", "", hook, "", app_line, "", desc]
-    if is_risk_topic(item):
-        out.extend(["", "※参考・確認用です"])
-    # 「↓↓↓」＋末尾URLはキュー保存本文に含める（x_dashboard の buildAppPostTemplate と同型）。
-    # 画面の <pre> は buildDashboardPostText(item,false)、コピーは同関数 forX=true で同じ文字列になる。
-    out.extend(["↓↓↓", tail])
+    # 順: タイトル → フック → 説明 → 🐾行 → 「↓ ↓ ↓」→ URL（※参考・確認用は本文に含めない）
+    out: list[str] = ["【今日のチェック】", "", hook, "", desc, "", app_line]
+    out.extend([X_POST_ARROW_LINE, tail])
     return "\n".join(out)
 
 
