@@ -270,8 +270,7 @@
     const REPO_ROOT_PS = "C:\\Users\\tmmyg\\OneDrive\\デスクトップ\\ai-agent-honbu-public";
 
     function buildMarkPostedPowerShellCommands() {
-      const ids = [...postedSet()].map((x) => String(x || "").trim()).filter(Boolean);
-      ids.sort((a, b) => a.localeCompare(b));
+      const ids = idsForMarkPostedSync();
       if (ids.length === 0) return "";
       const lines = [`Set-Location "${REPO_ROOT_PS}"`];
       for (const id of ids) {
@@ -338,6 +337,41 @@
       localStorage.setItem(POSTED_KEY, JSON.stringify([...set]));
     }
 
+    /** draft / scheduled のみ（archived_*・posted は対象外） */
+    function isActiveSnsCandidate(item) {
+      if (!item) return false;
+      const st = String(item.status || "").trim();
+      return st === "draft" || st === "scheduled";
+    }
+
+    /** 現在キュー上の「投稿候補」ID（sns_queue 上で draft または scheduled のみ） */
+    function activeCandidateIdSet() {
+      const items = Array.isArray(nextCandidateItems) ? nextCandidateItems : [];
+      const ids = new Set();
+      for (const x of items) {
+        if (!isActiveSnsCandidate(x)) continue;
+        const id = String(x && x.id != null ? x.id : "").trim();
+        if (id) ids.add(id);
+      }
+      return ids;
+    }
+
+    /**
+     * 投稿済み反映コマンド用: localStorage の posted ID のうち、
+     * いまの draft/scheduled 候補に載っている ID のみ（古いIDは除外）。
+     */
+    function idsForMarkPostedSync() {
+      const candidateIds = activeCandidateIdSet();
+      const posted = postedSet();
+      const out = [];
+      for (const id of posted) {
+        const sid = String(id || "").trim();
+        if (sid && candidateIds.has(sid)) out.push(sid);
+      }
+      out.sort((a, b) => a.localeCompare(b));
+      return out;
+    }
+
     /**
      * draft/scheduled 候補と localStorage（POSTED_KEY）から件数を更新する。
      * ローカル投稿済み・本体反映待ちは「現在の候補リストに含まれるID」のみを数える。
@@ -346,10 +380,8 @@
       if (!statsBodyEl) return;
       const posted = postedSet();
       const items = Array.isArray(nextCandidateItems) ? nextCandidateItems : [];
-      const candidateIds = new Set(
-        items.map((x) => String(x && x.id != null ? x.id : "").trim()).filter(Boolean)
-      );
-      const total = items.length;
+      const candidateIds = activeCandidateIdSet();
+      const total = items.filter(isActiveSnsCandidate).length;
       let localAmongCandidates = 0;
       for (const id of posted) {
         const sid = String(id || "").trim();
@@ -1131,7 +1163,7 @@
       render();
     });
     copyMarkPostedCmdBtn.addEventListener("click", async () => {
-      const ids = [...postedSet()].map((x) => String(x || "").trim()).filter(Boolean);
+      const ids = idsForMarkPostedSync();
       if (ids.length === 0) {
         window.alert("投稿済みにした候補がありません");
         return;
