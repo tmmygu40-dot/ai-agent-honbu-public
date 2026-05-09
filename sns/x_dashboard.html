@@ -200,6 +200,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button id="reloadBtn" type="button">再読み込み</button>
           <button id="resetPostedBtn" class="btnMini" type="button">投稿済みローカル状態をリセット</button>
+          <button id="copyMarkPostedCmdBtn" class="btnMini" type="button">投稿済み反映コマンドをコピー</button>
         </div>
       </div>
       <div class="notice" id="noticeText">読み込み中...</div>
@@ -225,6 +226,22 @@
     const slotsEl = document.getElementById("slots");
     const reloadBtn = document.getElementById("reloadBtn");
     const resetPostedBtn = document.getElementById("resetPostedBtn");
+    const copyMarkPostedCmdBtn = document.getElementById("copyMarkPostedCmdBtn");
+
+    /** sns_queue.json を posted にするための PowerShell 用（リポジトリルート固定） */
+    const REPO_ROOT_PS = "C:\\Users\\tmmyg\\OneDrive\\デスクトップ\\ai-agent-honbu-public";
+
+    function buildMarkPostedPowerShellCommands() {
+      const ids = [...postedSet()].map((x) => String(x || "").trim()).filter(Boolean);
+      ids.sort((a, b) => a.localeCompare(b));
+      if (ids.length === 0) return "";
+      const lines = [`Set-Location "${REPO_ROOT_PS}"`];
+      for (const id of ids) {
+        lines.push(`python sns/sns_x_post_manager.py --mark-posted ${id}`);
+      }
+      lines.push("git status --short");
+      return lines.join("\n");
+    }
 
     let scheduledItems = [];
     let nextCandidateItems = [];
@@ -1004,11 +1021,28 @@
       localStorage.removeItem(POSTED_KEY);
       render();
     });
+    copyMarkPostedCmdBtn.addEventListener("click", async () => {
+      const ids = [...postedSet()].map((x) => String(x || "").trim()).filter(Boolean);
+      if (ids.length === 0) {
+        window.alert("投稿済みにした候補がありません");
+        return;
+      }
+      const text = buildMarkPostedPowerShellCommands();
+      const ok = await copyText(text);
+      copyMarkPostedCmdBtn.innerHTML = ok
+        ? `${icon("check")}<span>コピー完了</span>`
+        : `${icon("copy")}<span>コピー失敗</span>`;
+      setTimeout(() => {
+        copyMarkPostedCmdBtn.innerHTML = `${icon("copy")}<span>投稿済み反映コマンドをコピー</span>`;
+      }, 1500);
+    });
 
     reloadBtn.classList.add("withIcon");
     reloadBtn.innerHTML = `${icon("refresh")}<span>再読み込み</span>`;
     resetPostedBtn.classList.add("withIcon");
     resetPostedBtn.innerHTML = `${icon("reset")}<span>投稿済みローカル状態をリセット</span>`;
+    copyMarkPostedCmdBtn.classList.add("withIcon");
+    copyMarkPostedCmdBtn.innerHTML = `${icon("copy")}<span>投稿済み反映コマンドをコピー</span>`;
 
     load();
   </script>
