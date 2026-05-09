@@ -42,92 +42,12 @@ PRIORITY_BONUS = {
     "その他": 0,
 }
 
-X_TEMPLATES_BY_KIND: dict[str, list[tuple[str, str, str]]] = {
-    "moveout": [
-        (
-            "退去費用、最後のボス感ある。",
-            "敷金で足りる？\n原状回復ってどこまで見る？\n退去前に、ここが迷いやすい。",
-            "あとで焦る前に、ざっくり目安チェック。\n※断定ではなく、確認用です",
-        ),
-        (
-            "引っ越し完了で油断した頃、請求がこんにちはしがち。",
-            "請求ってどこまで見込む？\nクリーニング代は含める？\n退去前に、先に整理しておく。",
-            "あとで慌てないように、目安を先に確認。\n※断定ではなく、確認用です",
-        ),
-    ],
-    "living_cost": [
-        (
-            "一人暮らし、財布のHP削られがち。",
-            "家賃で削られ、\n食費で削られ、\n光熱費でトドメ刺されるやつ。",
-            "毎月いくら必要そうか、ざっくり目安チェック。\n※断定ではなく、確認用です",
-        ),
-        (
-            "給料、入った瞬間どこかへ旅立つ説。",
-            "固定費って重い？\n見直しはどこから？\nまずは支出の流れを整理。",
-            "使いすぎの犯人探しに、ざっくり確認。\n※断定ではなく、確認用です",
-        ),
-    ],
-    "insurance": [
-        (
-            "火災保険、名前だけで判断しがち。",
-            "これって補償対象？\n自己負担はどれくらい？\n気になる点を先に整理。",
-            "補償の見直し前に、まずは比較用の目安チェック。\n※断定ではなく、確認用です",
-        ),
-        (
-            "保険の見直し、明日の自分に託しがち。",
-            "重複してない？\n不足はない？\nいまの契約をざっくり棚卸し。",
-            "結論を急がず、確認ポイントを先に把握。\n※断定ではなく、確認用です",
-        ),
-    ],
-    "tax": [
-        (
-            "住民税、忘れた頃に現れるラスボス。",
-            "住民税や手取りへの影響を、入力ベースでざっくり確認できます。",
-            "正式な金額を断定せず、先回りで準備するための判断材料にどうぞ。",
-        ),
-        (
-            "税金イベント、だいたい突然始まる。",
-            "通知前に負担感の目安をチェックして、家計の準備に回せます。",
-            "確定額を示すものではないので、判断材料としてご活用ください。",
-        ),
-    ],
-    "household": [
-        (
-            "値上げ、気づくと日常にしれっと常駐。",
-            "食費や固定費の増加分をまとめて確認し、負担の全体像をつかめます。",
-            "断定せず、どこから手をつけるか考える判断材料として使えます。",
-        ),
-        (
-            "家計、ラスボスより中ボスの連戦がつらい。",
-            "支出の変化を数字で整理して、見直しの優先順位を決められます。",
-            "結果を断定しないチェックなので、落ち着いて判断する材料づくりに向いています。",
-        ),
-    ],
-    "disaster": [
-        (
-            "防災グッズ、買おうと思って3年経ってる。",
-            "備えの抜け漏れを短時間で確認して、優先して準備する項目を整理できます。",
-            "不安をあおるためではなく、現実的に動くための判断材料として使えます。",
-        ),
-        (
-            "防災、後でやるリストの常連になりがち。",
-            "家族分も含めた備えを見直し、優先順位をつけるのに使えます。",
-            "断定せず、今の備えを確認するための目安としてどうぞ。",
-        ),
-    ],
-    "default": [
-        (
-            "気になるテーマ、ブックマークだけ増えがち。",
-            "短時間で現状を整理して、次に何を確認するか決められます。",
-            "断定せずに考えたい人向けの、判断材料づくりチェックです。",
-        ),
-        (
-            "情報収集、沼る前に一回だけ整理したい。",
-            "入力ベースで目安をつかんで、確認ポイントを見える化できます。",
-            "結論を押しつけない設計なので、比較前の下準備に使えます。",
-        ),
-    ],
-}
+# Leading pictographic / symbol emoji (subset; mirrors dashboard intent without extra deps).
+_LEADING_EMOJI_HEAD_RE = re.compile(
+    r"^[\U0001F300-\U0001FAFF\U0001F900-\U0001F9FF\U0001F600-\U0001F64F\U0001F680-\U0001F6FF"
+    r"\U00002600-\U000026FF\U00002700-\U000027BF\U0001F1E6-\U0001F1FF\U0001F200-\U0001F2FF]",
+    re.UNICODE,
+)
 
 SLUG_TOKEN_MAP: list[tuple[str, str]] = [
     ("火災保険", "kasai-hoken"),
@@ -242,50 +162,133 @@ def _next_id(queue: list[dict[str, Any]], now: datetime) -> int:
     return mx + 1
 
 
-def _build_x_text(app_name: str, url: str, idx: int) -> str:
-    kind = _pick_x_copy_kind(app_name)
-    patterns = X_TEMPLATES_BY_KIND.get(kind) or X_TEMPLATES_BY_KIND["default"]
-    q1, q2, q3 = patterns[idx % len(patterns)]
-    rhythm_lines = _rhythm_lines(q2)
-    desc_line, note_line = _desc_and_note_lines(q3, idx)
-    body = [
-        "【今日のチェック】",
-        "",
-        q1.strip(),
-        "",
-        *rhythm_lines,
-        "",
-        desc_line,
-        note_line,
-        "",
-        url,
-    ]
-    return "\n".join(body)
+def trim_app_suffix(name: str) -> str:
+    s = str(name or "").strip()
+    s = re.sub(r"アプリ$", "", s)
+    s = re.sub(r"ツール$", "", s)
+    return s.strip()
 
 
-def _rhythm_lines(text: str) -> list[str]:
-    lines = [x.strip() for x in text.splitlines() if x.strip()]
-    if len(lines) >= 2:
-        return lines[:3]
-    # Fallback: split a plain sentence into short rhythm lines.
-    parts = [x.strip() for x in re.split(r"[。！？]", text) if x.strip()]
-    if len(parts) >= 2:
-        return [f"{parts[0]}。", f"{parts[1]}。"] + ([f"{parts[2]}。"] if len(parts) >= 3 else [])
-    one = lines[0] if lines else "ざっくり整理してみる。"
-    return [one, "まずは今の状況を見える化。"]
+def format_app_line_for_post(raw: str) -> str:
+    app = str(raw or "").strip()
+    if not app:
+        return ""
+    if app.startswith("🐾"):
+        return app
+    if _LEADING_EMOJI_HEAD_RE.match(app):
+        return app
+    return f"🐾 {app}"
 
 
-def _desc_and_note_lines(text: str, idx: int) -> tuple[str, str]:
-    lines = [x.strip() for x in text.splitlines() if x.strip()]
-    if lines:
-        desc = lines[0]
-    else:
-        desc = "まずは目安をサッと確認。"
-    if len(lines) >= 2:
-        note = lines[1]
-    else:
-        note = "※断定ではなく、確認用です"
-    return desc, note
+def is_risk_topic(item: dict[str, Any]) -> bool:
+    text = " ".join(
+        [
+            str(item.get("app_name") or ""),
+            str(item.get("category_guess") or ""),
+            str(item.get("category") or ""),
+            str(item.get("x_text") or ""),
+            str(item.get("url") or ""),
+        ]
+    ).lower()
+    return bool(
+        re.search(
+            r"(保険|税|税金|住民税|手取り|家計|お金|ローン|投資|医療|健康|法律|退去費用|金融)",
+            text,
+        )
+    )
+
+
+def _moveout_hook_context(item: dict[str, Any]) -> bool:
+    """退去費用系フックは、退去・引っ越し・原状回復などの文脈があるときだけ（シミュレーター単体では付けない）。"""
+    app = str(item.get("app_name") or "").strip()
+    cat = str(item.get("category_guess") or "").strip()
+    blob = f"{app} {cat}".strip()
+    if re.search(r"退去費用", app):
+        return True
+    if re.search(r"退去|引っ越し|原状回復|敷金|立ち退き", blob):
+        return True
+    return False
+
+
+def pick_hook(item: dict[str, Any]) -> str:
+    app = str(item.get("app_name") or "").strip()
+    cat = str(item.get("category_guess") or "").strip()
+    blob = f"{app} {cat}".strip()
+
+    if app == "16bitマップタイルプロンプトジェネレーター":
+        return "レトロゲームのマップ、雰囲気づくりで止まりがち。"
+    if re.search(r"税|税金|住民税|所得税|手取り|家計|節約|生活費|値上げ|最低賃金|給与|お金", blob):
+        return "家計の見直し、どこから触るか迷う。"
+    if re.search(r"保険|補償", blob):
+        return "保険、必要なところだけ見直したい。"
+    if re.search(r"健康|医療|病院|診療", blob):
+        return "いまの状況、ざっくり掴んでおきたい。"
+    if re.search(r"法律|ローン|投資|金融", blob):
+        return "気になるところ、先に1分で整理。"
+    if _moveout_hook_context(item):
+        return "退去費用、最後にドンと来る前に。"
+    if re.search(r"プロンプトジェネレーター", app):
+        return "作業素材づくり、毎回ゼロから考えるの重い。"
+    if re.search(r"チェッカー", app):
+        return "見落とし、あとで気づく前に潰したい。"
+    if re.search(r"計算アプリ", app):
+        return "手計算で迷う前に、まず1回。"
+    if re.search(r"診断", app):
+        return "いまの状況、ざっくり掴んでおきたい。"
+    return "気になるところ、先に1分で整理。"
+
+
+def pick_description(item: dict[str, Any]) -> str:
+    app = str(item.get("app_name") or "").strip()
+    if app == "一人暮らし実質生活費自動診断":
+        return "家賃・食費・光熱費などをまとめて、毎月どれくらい必要か整理できます。"
+    if app == "火災保険請求書類逆引きアプリ":
+        return "火災保険の請求で必要になりやすい書類を、状況別に確認できます。"
+    if app == "賃貸退去費用シミュレーター":
+        return "請求項目を先に整理して、退去費用の想定額を確認する目安に使えます。"
+    if app == "16bitマップタイルプロンプトジェネレーター":
+        return "ドット絵・RPG風・街・森・洞窟などのマップタイル案を作る時のプロンプト補助に使えます。"
+    if re.search(r"プロンプトジェネレーター", app):
+        base = re.sub(r"プロンプトジェネレーター", "", app).strip() or app
+        return f"{base}の案出しで詰まった時、最初のたたき台を短時間で作るのに使えます。"
+    if re.search(r"シミュレーター", app):
+        base = re.sub(r"シミュレーター", "", app).strip() or app
+        return f"{base}の見込みを先に置いて、準備漏れを減らしたい場面で使えます。"
+    if re.search(r"チェッカー", app):
+        base = re.sub(r"チェッカー", "", app).strip() or app
+        return f"{base}の抜け漏れ確認を、短時間で回したい時に使えます。"
+    if re.search(r"計算アプリ", app):
+        base = re.sub(r"計算アプリ", "", app).strip() or app
+        return f"{base}を手元でさっと試算して、次の判断を早めるのに便利です。"
+    if re.search(r"診断", app):
+        base = trim_app_suffix(re.sub(r"診断", "", app).strip() or app)
+        return f"{base}の現状をざっくり把握して、次に確認すべき点を絞るのに使えます。"
+    return "気になるポイントを先に整理して、次の行動を決めやすくする用途で使えます。"
+
+
+def _post_url_for_x_template(item: dict[str, Any]) -> str:
+    short = str(item.get("short_url") or "").strip()
+    if short:
+        return short
+    return str(item.get("url") or "").strip()
+
+
+def _build_x_text(item: dict[str, Any], idx: int) -> str:
+    _ = idx  # reserved for future rotation
+    app_name = str(item.get("app_name") or "").strip()
+    hook = pick_hook(item)
+    desc = pick_description(item)
+    app_line = format_app_line_for_post(app_name)
+    tail = _post_url_for_x_template(item)
+    if not tail:
+        ap = str(item.get("app_path") or "").strip().strip("/")
+        if ap:
+            tail = f"{BASE_URL}/{ap}/"
+    out: list[str] = ["【今日のチェック】", "", hook, "", app_line, "", desc]
+    if is_risk_topic(item):
+        out.extend(["", "※参考・確認用です"])
+    out.extend(["↓↓↓", tail])
+    return "\n".join(out)
 
 
 def _pick_x_copy_kind(app_name: str) -> str:
@@ -576,7 +579,16 @@ def append_x_drafts(limit: int = 3, dry_run: bool = False, allow_single: bool = 
     new_items: list[dict[str, Any]] = []
     for i, (score, app_name, app_path, category) in enumerate(picked):
         url = f"{BASE_URL}/{app_path}/"
-        x_text = _build_x_text(app_name, url, i)
+        stub_item: dict[str, Any] = {
+            "app_name": app_name,
+            "app_path": app_path,
+            "url": url,
+            "category_guess": category,
+            "short_url": "",
+            "category": "",
+            "x_text": "",
+        }
+        x_text = _build_x_text(stub_item, i)
         new_items.append(
             {
                 "id": f"{now.strftime('%Y%m%d')}-{seq + i:03d}",
@@ -663,9 +675,10 @@ def preview_x_drafts(limit: int = 5) -> list[dict[str, Any]]:
     return rows[:limit]
 
 
-def refresh_x_copy() -> int:
+def refresh_x_copy(dry_run: bool = False) -> int:
     queue = _load_queue()
     updated = 0
+    samples: list[tuple[str, str]] = []
     for item in queue:
         if item.get("status") not in {"draft", "scheduled"}:
             continue
@@ -674,10 +687,23 @@ def refresh_x_copy() -> int:
         if not app_name or not app_path:
             continue
         url = f"{BASE_URL}/{app_path}/"
-        item["url"] = url
-        item["x_text"] = _build_x_text(app_name, url, updated)
+        preview_item = {**item, "url": url}
+        new_x = _build_x_text(preview_item, updated)
+        if dry_run:
+            if len(samples) < 3:
+                samples.append((str(item.get("id") or ""), new_x))
+        else:
+            item["url"] = url
+            item["x_text"] = new_x
         updated += 1
-    _save_queue(queue)
+    if dry_run:
+        print(f"[refresh-x-copy dry-run] would_update={updated}")
+        for sid, xt in samples:
+            print(f"--- sample id={sid} ---")
+            print(xt)
+            print("--- end sample ---")
+    else:
+        _save_queue(queue)
     return updated
 
 
@@ -812,9 +838,17 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=3, help="Draft count for --generate (3..5).")
     parser.add_argument("--preview", action="store_true", help="Show top draft/scheduled X posts for manual review.")
     parser.add_argument("--normalize-urls", action="store_true", help="Normalize queue URLs to https://nekopoke.jp/")
-    parser.add_argument("--refresh-x-copy", action="store_true", help="Regenerate draft x_text with latest templates.")
+    parser.add_argument(
+        "--refresh-x-copy",
+        action="store_true",
+        help="Regenerate draft x_text with latest templates. Use with --dry-run to preview without saving sns_queue.json.",
+    )
     parser.add_argument("--ensure-short-urls", action="store_true", help="Ensure short_url and s/<slug>/index.html for queue items.")
-    parser.add_argument("--dry-run", action="store_true", help="Preview changes without writing files.")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview changes without writing files (e.g. with --refresh-x-copy or --ensure-short-urls).",
+    )
     parser.add_argument("--refill-x-posts", action="store_true", help="Refill queue up to target then ensure short URLs.")
     parser.add_argument("--target", type=int, default=30, help="Target count for --refill-x-posts.")
     parser.add_argument("--daily-plan", action="store_true", help="Create 3 scheduled posts for a target date.")
@@ -833,8 +867,9 @@ def main() -> int:
             print(f"- {x['app_name']} ({x['url']})")
 
     if args.refresh_x_copy:
-        n = refresh_x_copy()
-        print(f"Refreshed X copy for draft posts: {n}")
+        n = refresh_x_copy(dry_run=args.dry_run)
+        if not args.dry_run:
+            print(f"Refreshed X copy for draft posts: {n}")
 
     if args.ensure_short_urls:
         ensure_short_urls(dry_run=args.dry_run)
@@ -862,7 +897,16 @@ def main() -> int:
             raise SystemExit(f"ID not found: {args.mark_posted}")
         print(f"Marked posted: {args.mark_posted}")
 
-    if args.preview or (not args.generate and not args.normalize_urls and not args.daily_plan and not args.mark_posted):
+    ran_cli_action = (
+        args.generate
+        or args.normalize_urls
+        or args.refresh_x_copy
+        or args.ensure_short_urls
+        or args.refill_x_posts
+        or args.daily_plan
+        or bool(args.mark_posted)
+    )
+    if args.preview or not ran_cli_action:
         rows = preview_x_drafts(limit=10)
         lines = _build_preview_lines(rows)
         for line in lines:
