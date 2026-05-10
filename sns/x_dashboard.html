@@ -197,12 +197,13 @@
     }
     .actions {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
     }
     .btnCopy { background: #1f5f4b; border-color: #2a8b6e; }
     .btnOpen { background: #225aa9; border-color: #2e70cc; }
     .btnDone { background: #694b76; border-color: #9c73af; }
+    .btnSkip { background: #3a4558; border-color: #5a6785; font-size: 12px; }
     .slotEmpty {
       border: 1px dashed #3a4f79;
       color: var(--muted);
@@ -230,6 +231,7 @@
           <button id="reloadBtn" type="button">再読み込み</button>
           <button id="resetPostedBtn" class="btnMini" type="button">投稿済みローカル状態をリセット</button>
           <button id="copyMarkPostedCmdBtn" class="btnMini" type="button">投稿済み反映コマンドをコピー</button>
+          <button id="copyMarkArchivedCmdBtn" class="btnMini" type="button">今は出さない反映コマンドをコピー</button>
         </div>
       </div>
       <div class="statsPanel" id="statsPanel" aria-live="polite">
@@ -248,6 +250,7 @@
   <script>
     const QUEUE_PATH = "./sns_queue.json";
     const POSTED_KEY = "x_dashboard_posted_ids_v2";
+    const SKIPPED_KEY = "x_dashboard_skipped_ids_v1";
     const SLOT_DEFS = [
       { key: "08:00", label: "朝 08:00" },
       { key: "12:30", label: "昼 12:30" },
@@ -262,6 +265,7 @@
     const reloadBtn = document.getElementById("reloadBtn");
     const resetPostedBtn = document.getElementById("resetPostedBtn");
     const copyMarkPostedCmdBtn = document.getElementById("copyMarkPostedCmdBtn");
+    const copyMarkArchivedCmdBtn = document.getElementById("copyMarkArchivedCmdBtn");
     const statsBodyEl = document.getElementById("statsBody");
     const statsOrphanEl = document.getElementById("statsOrphan");
     const statsRefillHintEl = document.getElementById("statsRefillHint");
@@ -275,6 +279,17 @@
       const lines = [`Set-Location "${REPO_ROOT_PS}"`];
       for (const id of ids) {
         lines.push(`python sns/sns_x_post_manager.py --mark-posted ${id}`);
+      }
+      lines.push("git status --short");
+      return lines.join("\n");
+    }
+
+    function buildArchivedNotForNowPowerShellCommands() {
+      const ids = idsForArchivedNotForNowSync();
+      if (ids.length === 0) return "";
+      const lines = [`Set-Location "${REPO_ROOT_PS}"`];
+      for (const id of ids) {
+        lines.push(`python sns/sns_x_post_manager.py --mark-archived-not-for-now ${id}`);
       }
       lines.push("git status --short");
       return lines.join("\n");
@@ -337,6 +352,27 @@
       localStorage.setItem(POSTED_KEY, JSON.stringify([...set]));
     }
 
+    function skippedSet() {
+      try {
+        const raw = localStorage.getItem(SKIPPED_KEY);
+        const arr = JSON.parse(raw || "[]");
+        return new Set(Array.isArray(arr) ? arr : []);
+      } catch {
+        return new Set();
+      }
+    }
+
+    function saveSkipped(set) {
+      localStorage.setItem(SKIPPED_KEY, JSON.stringify([...set]));
+    }
+
+    /** 表示用: draft/scheduled かつローカルで「今は出さない」にしていない候補 */
+    function visibleActiveCandidateItems() {
+      const skipped = skippedSet();
+      const items = Array.isArray(nextCandidateItems) ? nextCandidateItems : [];
+      return items.filter(isActiveSnsCandidate).filter((x) => !skipped.has(String(x.id || "").trim()));
+    }
+
     /** draft / scheduled のみ（archived_*・posted は対象外） */
     function isActiveSnsCandidate(item) {
       if (!item) return false;
@@ -373,19 +409,38 @@
     }
 
     /**
+     * 「今は出さない」反映コマンド用: skipped ID のうち、
+     * いまの sns_queue 上で draft/scheduled のものだけ（posted 用ローカルとは別集合）。
+     */
+    function idsForArchivedNotForNowSync() {
+      const candidateIds = activeCandidateIdSet();
+      const skipped = skippedSet();
+      const out = [];
+      for (const id of skipped) {
+        const sid = String(id || "").trim();
+        if (sid && candidateIds.has(sid)) out.push(sid);
+      }
+      out.sort((a, b) => a.localeCompare(b));
+      return out;
+    }
+
+    /**
      * draft/scheduled 候補と localStorage（POSTED_KEY）から件数を更新する。
      * ローカル投稿済み・本体反映待ちは「現在の候補リストに含まれるID」のみを数える。
      */
     function renderStatsSummary() {
       if (!statsBodyEl) return;
       const posted = postedSet();
+      const skipped = skippedSet();
       const items = Array.isArray(nextCandidateItems) ? nextCandidateItems : [];
       const candidateIds = activeCandidateIdSet();
-      const total = items.filter(isActiveSnsCandidate).length;
+      const visible = visibleActiveCandidateItems();
+      const visibleIds = new Set(visible.map((x) => String(x && x.id != null ? x.id : "").trim()).filter(Boolean));
+      const total = visible.length;
       let localAmongCandidates = 0;
       for (const id of posted) {
         const sid = String(id || "").trim();
-        if (sid && candidateIds.has(sid)) localAmongCandidates += 1;
+        if (sid && visibleIds.has(sid)) localAmongCandidates += 1;
       }
       const remaining = Math.max(0, total - localAmongCandidates);
       const pendingSync = localAmongCandidates;
@@ -393,18 +448,38 @@
         const sid = String(id || "").trim();
         return sid && !candidateIds.has(sid);
       }).length;
+      let skippedInView = 0;
+      for (const id of skipped) {
+        const sid = String(id || "").trim();
+        if (sid && candidateIds.has(sid)) skippedInView += 1;
+      }
+      const orphanSkipped = [...skipped].filter((id) => {
+        const sid = String(id || "").trim();
+        return sid && !candidateIds.has(sid);
+      }).length;
 
       statsBodyEl.textContent =
-        `投稿候補：${total}件\n` +
+        `投稿候補（表示）: ${total}件\n` +
+        `（キュー上 draft/scheduled: ${candidateIds.size}件、今は出さないで非表示: ${skippedInView}件）\n` +
         `ローカル投稿済み：${localAmongCandidates}件\n` +
         `残り表示候補：${remaining}件\n` +
         `本体反映待ち：${pendingSync}件`;
 
       if (statsOrphanEl) {
+        const parts = [];
         if (orphanPosted > 0) {
+          parts.push(
+            `※ 投稿済み localStorage に、いまの draft/scheduled に無いIDが ${orphanPosted} 件（過去の投稿済みトグル）。「投稿済みローカル状態をリセット」で整理できます。`
+          );
+        }
+        if (orphanSkipped > 0) {
+          parts.push(
+            `※ 「今は出さない」localStorage に、いまの draft/scheduled に無いIDが ${orphanSkipped} 件残っています。再読み込み後も出る場合はリセット用キー整理を検討してください。`
+          );
+        }
+        if (parts.length > 0) {
           statsOrphanEl.hidden = false;
-          statsOrphanEl.textContent =
-            `※ localStorage に、いまの候補リストに無いIDが ${orphanPosted} 件残っています（過去の投稿済みトグル）。リセットで整理できます。`;
+          statsOrphanEl.textContent = parts.join("\n");
         } else {
           statsOrphanEl.hidden = true;
           statsOrphanEl.textContent = "";
@@ -862,8 +937,10 @@
     }
 
     function pickNextUnposted(items, posted) {
+      const skipped = skippedSet();
       const now = new Date();
       const all = items
+        .filter(x => !skipped.has(String(x.id || "").trim()))
         .filter(x => !posted.has(String(x.id || "")))
         .filter(x => isUrlVerified(x))
         .map(x => ({ item: x, dt: parseDate(x) }));
@@ -900,8 +977,10 @@
     }
 
     function rankForSlots(items, posted) {
+      const skipped = skippedSet();
       const now = new Date();
       return items
+        .filter(x => !skipped.has(String(x.id || "").trim()))
         .filter(x => !posted.has(String(x.id || "")))
         .filter(x => isUrlVerified(x))
         .filter(x => hasAppAndShortUrl(x))
@@ -1038,7 +1117,24 @@
         render();
       });
 
-      actions.append(copyBtn, openBtn, doneBtn);
+      const actionsChildren = [copyBtn, openBtn, doneBtn];
+      if (!isPosted) {
+        const skipBtn = document.createElement("button");
+        skipBtn.className = "btnSkip";
+        skipBtn.type = "button";
+        skipBtn.textContent = "今は出さない";
+        skipBtn.addEventListener("click", () => {
+          const sk = skippedSet();
+          const id = String(item.id || "").trim();
+          if (!id) return;
+          sk.add(id);
+          saveSkipped(sk);
+          render();
+        });
+        actionsChildren.push(skipBtn);
+      }
+
+      actions.append(...actionsChildren);
       card.appendChild(actions);
       return card;
     }
@@ -1104,7 +1200,7 @@
       const absoluteNext = pickNextPost(scheduledItems);
       const fallback = targetDate !== ymdJst(new Date());
       const allPosted = scheduledItems.length > 0 && scheduledItems.every(x => posted.has(String(x.id || "")));
-      const riskyShortMissing = nextCandidateItems.filter(x => needsShortUrlForX(x)).length;
+      const riskyShortMissing = visibleActiveCandidateItems().filter((x) => needsShortUrlForX(x)).length;
       renderMeta(absoluteNext);
       renderNotice(fallback, allPosted, riskyShortMissing);
       renderHero(nextInfo ? nextInfo.item : null, posted);
@@ -1178,12 +1274,30 @@
       }, 1500);
     });
 
+    copyMarkArchivedCmdBtn.addEventListener("click", async () => {
+      const ids = idsForArchivedNotForNowSync();
+      if (ids.length === 0) {
+        window.alert("今は出さない候補がありません");
+        return;
+      }
+      const text = buildArchivedNotForNowPowerShellCommands();
+      const ok = await copyText(text);
+      copyMarkArchivedCmdBtn.innerHTML = ok
+        ? `${icon("check")}<span>コピー完了</span>`
+        : `${icon("copy")}<span>コピー失敗</span>`;
+      setTimeout(() => {
+        copyMarkArchivedCmdBtn.innerHTML = `${icon("copy")}<span>今は出さない反映コマンドをコピー</span>`;
+      }, 1500);
+    });
+
     reloadBtn.classList.add("withIcon");
     reloadBtn.innerHTML = `${icon("refresh")}<span>再読み込み</span>`;
     resetPostedBtn.classList.add("withIcon");
     resetPostedBtn.innerHTML = `${icon("reset")}<span>投稿済みローカル状態をリセット</span>`;
     copyMarkPostedCmdBtn.classList.add("withIcon");
     copyMarkPostedCmdBtn.innerHTML = `${icon("copy")}<span>投稿済み反映コマンドをコピー</span>`;
+    copyMarkArchivedCmdBtn.classList.add("withIcon");
+    copyMarkArchivedCmdBtn.innerHTML = `${icon("copy")}<span>今は出さない反映コマンドをコピー</span>`;
 
     load();
   </script>

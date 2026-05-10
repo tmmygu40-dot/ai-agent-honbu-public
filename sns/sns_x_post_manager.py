@@ -945,6 +945,22 @@ def mark_posted(post_id: str) -> bool:
     return updated
 
 
+def mark_archived_not_for_now(post_id: str) -> bool:
+    """キュー上の ID を archived_not_for_now にする（posted_at は付与しない／あれば削除）。"""
+    queue = _load_queue()
+    updated = False
+    for item in queue:
+        if str(item.get("id", "")) != post_id:
+            continue
+        item["status"] = "archived_not_for_now"
+        item.pop("posted_at", None)
+        updated = True
+        break
+    if updated:
+        _save_queue(queue)
+    return updated
+
+
 def main() -> int:
     _configure_stdout_utf8()
     parser = argparse.ArgumentParser(description="X-focused post planner (no API posting).")
@@ -968,6 +984,12 @@ def main() -> int:
     parser.add_argument("--daily-plan", action="store_true", help="Create 3 scheduled posts for a target date.")
     parser.add_argument("--date", type=str, help="Target date for --daily-plan (YYYY-MM-DD).")
     parser.add_argument("--mark-posted", type=str, metavar="ID", help="Mark a queue item as posted by id.")
+    parser.add_argument(
+        "--mark-archived-not-for-now",
+        type=str,
+        metavar="ID",
+        help="Mark a queue item as archived_not_for_now by id (no posted_at).",
+    )
     args = parser.parse_args()
 
     if args.normalize_urls:
@@ -1011,6 +1033,12 @@ def main() -> int:
             raise SystemExit(f"ID not found: {args.mark_posted}")
         print(f"Marked posted: {args.mark_posted}")
 
+    if args.mark_archived_not_for_now:
+        ok = mark_archived_not_for_now(args.mark_archived_not_for_now)
+        if not ok:
+            raise SystemExit(f"ID not found: {args.mark_archived_not_for_now}")
+        print(f"Marked archived_not_for_now: {args.mark_archived_not_for_now}")
+
     ran_cli_action = (
         args.generate
         or args.normalize_urls
@@ -1019,6 +1047,7 @@ def main() -> int:
         or args.refill_x_posts
         or args.daily_plan
         or bool(args.mark_posted)
+        or bool(args.mark_archived_not_for_now)
     )
     if args.preview or not ran_cli_action:
         rows = preview_x_drafts(limit=10)
