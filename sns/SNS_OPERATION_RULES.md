@@ -38,6 +38,41 @@ short_url
 ## 6) SNS作業の禁止事項
 - `fix-queue.json` はSNS作業で触らない。
 
+## 7) SNSネタ補充時の重複防止ルール（2026-05-13 追加）
+
+### 7-1) チェック対象 status
+- 重複チェックは **全 status** を対象にする。
+  - `posted` / `draft` / `scheduled` / `archived_not_for_now` / `archived_old_*` を含む。
+- `archived_old_*` も「過去に使った／候補にしたネタ」として扱い、**基本的に再利用しない**。
+
+### 7-2) 絶対 NG（追加禁止）
+既存 `sns_queue.json` の中に同じ値があるものは、status を問わず追加しない。
+- `app_path` が既存と同じ
+- `url` が既存と同じ
+- `short_url` が既存と同じ
+
+### 7-3) 原則 NG
+- `app_name` が既存と同じ → 原則追加禁止。**兄貴が明示した時だけ例外**。
+- `x_text` が既存と似すぎているもの → 避ける。
+- 同じアプリを別文面で再投稿するのも、**兄貴が明示した時だけ**許可。
+
+### 7-4) 補充手順
+1. `sns/sns_queue.json` を全件読み込み、`app_name` / `app_path` / `url` / `short_url` / `x_text` を集合化する。
+2. public repo 直下から `index.html` を持つアプリディレクトリ一覧を取得する。
+3. 上記2から、**sns_queue 未使用の `app_path` だけ**を候補にする。
+4. 候補に対して投稿文を作成する。
+5. **追加直前にもう一度** 5項目（`app_name` / `app_path` / `url` / `short_url` / `x_text`）で重複チェックを行う。
+6. **重複が1件でもあれば追加しない**（補充を中断して兄貴に報告）。
+
+### 7-5) 報告フォーマット
+SNS補充作業の最後に、必ず以下を報告する。
+- 追加数
+- 重複除外数
+- 未使用アプリ候補数
+- 追加した `app_name` / `url` / `status`
+- JSONチェック結果（`json.load` 成功 + 件数）
+- `git status -sb`
+
 ## 関連ファイル
 - キュー: `sns/sns_queue.json`
 - ダッシュボード: `sns/x_dashboard.html`
