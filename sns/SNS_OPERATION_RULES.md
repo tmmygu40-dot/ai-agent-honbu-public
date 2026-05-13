@@ -73,6 +73,43 @@ SNS補充作業の最後に、必ず以下を報告する。
 - JSONチェック結果（`json.load` 成功 + 件数）
 - `git status -sb`
 
+## 8) SNSダッシュボードの起動方法（2026-05-14 追加）
+
+- SNSダッシュボード本体は `sns/x_dashboard.html`。
+- 表示元データは `sns/sns_queue.json`。
+- `x_dashboard.html` は内部で `fetch("./sns_queue.json")` を使うため、`file://` のダブルクリック表示では正常に読めない場合がある（CORS / file scheme 制限）。
+- **必ずローカルHTTPサーバー経由で開く**。
+
+### 起動手順
+
+- 起動場所:
+  ```
+  C:\Users\tmmyg\OneDrive\デスクトップ\ai-agent-honbu-public\sns
+  ```
+- 起動コマンド:
+  ```
+  python -m http.server 8765
+  ```
+- 開くURL:
+  ```
+  http://localhost:8765/x_dashboard.html
+  ```
+
+### 表示・更新
+
+- 表示されない／古い内容が出る時は **Ctrl + F5** で強制更新する。
+- `sns_queue.json` を変更した後は、ブラウザで **Ctrl + F5** すると反映確認しやすい。
+
+### 停止
+
+- サーバー停止は、起動したプロセス／ターミナルを止める。
+- バックグラウンド起動の場合はプロセス停止が必要。
+
+### 注意
+
+- 起動作業ではファイル変更・git 操作は **不要**。
+- 起動中はポート 8765 が使われる。別アプリと衝突する時はポート番号を変える。
+
 ## 関連ファイル
 - キュー: `sns/sns_queue.json`
 - ダッシュボード: `sns/x_dashboard.html`
