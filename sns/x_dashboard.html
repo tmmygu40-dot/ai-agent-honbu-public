@@ -566,14 +566,14 @@
           merged = `${merged}\n\n${appName}`;
         }
       }
-      const arrowLine = "↓ ↓ ↓";
+      const arrowLine = "↓　↓　↓";
       const escPost = postUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       if (!postUrl) return merged;
       if (raw && postUrl && raw !== postUrl && merged.includes(raw)) {
         merged = merged.split(raw).join(postUrl);
       }
       if (merged.includes(postUrl)) {
-        const markerRe = new RegExp(`\\n(?:\\n)?(?:↓↓↓|↓ ↓ ↓)\\n${escPost}$`);
+        const markerRe = new RegExp(`\\n(?:\\n)?(?:↓↓↓|↓ ↓ ↓|↓　↓　↓)\\n${escPost}$`);
         if (markerRe.test(merged)) return merged;
         const tailUrlRe = new RegExp(`\\n${escPost}$`);
         if (tailUrlRe.test(merged)) return merged.replace(tailUrlRe, `\n\n${arrowLine}\n${postUrl}`);
@@ -585,9 +585,8 @@
     function formatAppLineForPost(raw) {
       const app = String(raw || "").trim();
       if (!app) return "";
-      if (/^🐾/u.test(app)) return app;
-      if (/^\p{Extended_Pictographic}/u.test(app)) return app;
-      return `🐾 ${app}`;
+      // 猫の足あと絵文字（🐾）は付けない（新フォーマット）。既存の先頭🐾は除去。
+      return app.replace(/^🐾[ 　]?/u, "").trim();
     }
 
     function buildAppPostTemplate(item) {
@@ -596,7 +595,7 @@
       const hook = pickHook(item);
       const desc = pickDescription(item);
       const out = ["【今日のチェック】", "", hook, "", desc, "", app];
-      out.push("↓ ↓ ↓", short);
+      out.push("↓　↓　↓", short);
       return out.join("\n");
     }
 
@@ -816,22 +815,37 @@
       return `${head}…${keep}`;
     }
 
+    /** 投稿文の見た目を統一: 🐾 を除去し、矢印を ↓　↓　↓（全角スペース区切り）に揃える。
+     * 既存の保存済み x_text にも適用するための表示時正規化。 */
+    function normalizePostFormat(text) {
+      if (!text) return text;
+      let s = String(text);
+      // 猫の足あと絵文字 + 直後の半角/全角スペースを除去（行頭・行中どこでも）
+      s = s.replace(/🐾[ 　]?/gu, "");
+      // 矢印マーカーを全て ↓　↓　↓（全角スペース区切り）に統一
+      // ↓↓↓ / ↓ ↓ ↓ / ↓　↓　↓ / その他空白混在 全部同じ形に。
+      s = s.replace(/↓[\s　]*↓[\s　]*↓/gu, "↓　↓　↓");
+      return s;
+    }
+
     /**
      * @param {boolean} forX true のとき本文末尾URLは X で途切れにくい percent 形式。表示用は false。
      */
     function buildDashboardPostText(item, forX = false) {
       const urlLine = postUrlLine(item, forX);
       const saved = String(item?.x_text || "").trim();
+      let out;
       if (saved) {
         const text = buildTweetText(item, { forX, skipAppNameInject: true });
-        return fitTweetLength(text, urlLine);
-      }
-      if (hasAppAndShortUrl(item)) {
+        out = fitTweetLength(text, urlLine);
+      } else if (hasAppAndShortUrl(item)) {
         const text = buildAppPostTemplate(item);
-        return fitTweetLength(text, String(item.short_url || "").trim());
+        out = fitTweetLength(text, String(item.short_url || "").trim());
+      } else {
+        const text = buildTweetText(item, { forX });
+        out = fitTweetLength(text, urlLine);
       }
-      const text = buildTweetText(item, { forX });
-      return fitTweetLength(text, urlLine);
+      return normalizePostFormat(out);
     }
 
     function guessNameFromUrl(rawUrl) {

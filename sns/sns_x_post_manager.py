@@ -193,11 +193,8 @@ def format_app_line_for_post(raw: str) -> str:
     app = str(raw or "").strip()
     if not app:
         return ""
-    if app.startswith("🐾"):
-        return app
-    if _LEADING_EMOJI_HEAD_RE.match(app):
-        return app
-    return f"🐾 {app}"
+    # 猫の足あと絵文字（🐾）は付けない（新フォーマット）。既存の先頭🐾は除去。
+    return re.sub(r"^🐾[ 　]?", "", app).strip()
 
 
 def is_risk_topic(item: dict[str, Any]) -> bool:
@@ -404,7 +401,7 @@ def _post_url_for_x_template(item: dict[str, Any]) -> str:
     return str(item.get("url") or "").strip()
 
 
-X_POST_ARROW_LINE = "↓ ↓ ↓"
+X_POST_ARROW_LINE = "↓　↓　↓"
 
 
 def _build_x_text(item: dict[str, Any], idx: int) -> str:
