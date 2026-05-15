@@ -3,8 +3,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import random
 import re
 import sys
+import unicodedata
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -42,6 +45,22 @@ PRIORITY_BONUS = {
     "健康": 2,
     "その他": 0,
 }
+
+# --- SNS重複防止 (SNS_DEDUP_REGISTRY.json 連携) ---
+REGISTRY_PATH = ROOT / "sns" / "SNS_DEDUP_REGISTRY.json"
+# normalized_name で吸収する汎用語（build_dedup_registry.py と同一ルール）
+DEDUP_GENERIC_WORDS = [
+    "アプリ", "ツール", "チェッカー", "ジェネレーター", "メーカー",
+    "シミュレーター", "診断", "クイズ", "ゲーム", "早見表", "v2", "v3",
+]
+# 個別アプリ識別に使えない url（重複判定では無視）
+DEDUP_BASE_URLS = {"", "https://nekopoke.jp/", "https://nekopoke.jp"}
+# 候補分散用の用途キーワード（バケット分け）
+DEDUP_PURPOSE_KEYWORDS = [
+    "ジェネレーター", "メーカー", "シミュレーター", "チェッカー", "診断",
+    "クイズ", "ゲーム", "タイマー", "カレンダー", "メモ", "記録", "管理",
+    "計算", "変換", "早見表", "プランナー", "トラッカー",
+]
 
 # Leading pictographic / symbol emoji (subset; mirrors dashboard intent without extra deps).
 _LEADING_EMOJI_HEAD_RE = re.compile(
@@ -667,50 +686,243 @@ def normalize_urls() -> tuple[int, int]:
     return updated_url, updated_text
 
 
-def append_x_drafts(limit: int = 3, dry_run: bool = False, allow_single: bool = False) -> list[dict[str, Any]]:
+def normalize_name(value: str) -> str:
+    """app_name を正規化して表記ゆれ・末尾語ゆれを吸収する（build_dedup_registry.py と同一ルール）。
+
+    1. NFKC正規化 / 2. 小文字化 / 3. 空白・記号除去 / 4. 汎用語除去
+    """
+    if not value:
+        return ""
+    s = unicodedata.normalize("NFKC", value)
+    s = s.lower()
+    s = re.sub(r"[\s_\-・（）()／/、。,.!?！？:：;；'\"`~^|]+", "", s)
+    for w in DEDUP_GENERIC_WORDS:
+        s = s.replace(w.lower(), "")
+    return s
+
+
+def _dedup_purpose(app_name: str) -> str:
+    """候補分散用の用途ラベル（バケット分けに使う）。"""
+    for kw in DEDUP_PURPOSE_KEYWORDS:
+        if kw in app_name:
+            return kw
+    return "汎用"
+
+
+def _load_registry() -> list[dict[str, Any]]:
+    """SNS_DEDUP_REGISTRY.json の entries を読む。無い/壊れている場合は空リスト。"""
+    if not REGISTRY_PATH.is_file():
+        return []
+    try:
+        data = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    entries = data.get("entries") if isinstance(data, dict) else None
+    if not isinstance(entries, list):
+        return []
+    return [e for e in entries if isinstance(e, dict)]
+
+
+def _build_exclusion_index(
+    queue: list[dict[str, Any]],
+    registry: list[dict[str, Any]],
+) -> dict[str, set[str]]:
+    """sns_queue.json 全status + registry entries から多キー除外集合を作る。
+
+    app_path が空の archived_old_* も、app_name / normalized_name / x_text 側で除外できる。
+    """
+    idx: dict[str, set[str]] = {
+        "app_path": set(),
+        "url": set(),
+        "short_url": set(),
+        "app_name": set(),
+        "normalized_name": set(),
+        "x_text": set(),
+    }
+
+    def add(rec: dict[str, Any], with_xtext: bool) -> None:
+        ap = str(rec.get("app_path") or "").strip()
+        if ap:
+            idx["app_path"].add(ap)
+        u = str(rec.get("url") or "").strip()
+        if u and u not in DEDUP_BASE_URLS:
+            idx["url"].add(u)
+        su = str(rec.get("short_url") or "").strip()
+        if su:
+            idx["short_url"].add(su)
+        an = str(rec.get("app_name") or "").strip()
+        if an:
+            idx["app_name"].add(an)
+        nn = str(rec.get("normalized_name") or "").strip() or normalize_name(an)
+        if nn:
+            idx["normalized_name"].add(nn)
+        if with_xtext:
+            xt = str(rec.get("x_text") or "").strip()
+            if xt:
+                idx["x_text"].add(xt)
+
+    for item in queue:          # 全status対象（draft/scheduled/posted/archived_*）
+        add(item, with_xtext=True)
+    for entry in registry:      # registry（x_text は持たない）
+        add(entry, with_xtext=False)
+    return idx
+
+
+def _excluded_reason(
+    app_name: str,
+    app_path: str,
+    url: str,
+    short_url: str,
+    normalized: str,
+    x_text: str,
+    idx: dict[str, set[str]],
+) -> str | None:
+    """多キー重複判定。最初に当たった理由を返す。重複なしなら None。"""
+    if app_path and app_path in idx["app_path"]:
+        return "app_path"
+    if url and url not in DEDUP_BASE_URLS and url in idx["url"]:
+        return "url"
+    if short_url and short_url in idx["short_url"]:
+        return "short_url"
+    if app_name and app_name in idx["app_name"]:
+        return "app_name"
+    if normalized and normalized in idx["normalized_name"]:
+        return "normalized_name"
+    if x_text and x_text in idx["x_text"]:
+        return "x_text"
+    return None
+
+
+def _distribute_candidates(
+    candidates: list[dict[str, Any]],
+    limit: int,
+    seed_str: str,
+    per_bucket_cap: int = 5,
+) -> list[dict[str, Any]]:
+    """カテゴリ/用途バケットからラウンドロビンで候補を選ぶ。
+
+    - 同一バケット（同系統）は最大 per_bucket_cap 件まで（pass1）
+    - バケット内は seed_str 固定シャッフル + score 降順（同点はシャッフル順を維持）
+    - 先頭固定にならないよう、日替わり seed で並びが変わる（同日内は再現性あり）
+    - limit に届かない場合は cap を無視して補充（pass2）
+    """
+    rng = random.Random(seed_str)
+    buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for c in candidates:
+        buckets[c["bucket"]].append(c)
+    for key in buckets:
+        b = buckets[key]
+        rng.shuffle(b)                    # ランダム基底順
+        b.sort(key=lambda c: -c["score"])  # stable sort: 同点はシャッフル順を維持
+    bucket_keys = list(buckets.keys())
+    rng.shuffle(bucket_keys)
+
+    picked: list[dict[str, Any]] = []
+    picked_paths: set[str] = set()
+    cursor = {k: 0 for k in bucket_keys}
+    cap_count = {k: 0 for k in bucket_keys}
+
+    # pass1: cap 付きラウンドロビン
+    while len(picked) < limit:
+        progressed = False
+        for k in bucket_keys:
+            if len(picked) >= limit:
+                break
+            if cap_count[k] >= per_bucket_cap:
+                continue
+            while cursor[k] < len(buckets[k]):
+                c = buckets[k][cursor[k]]
+                cursor[k] += 1
+                if c["app_path"] in picked_paths:
+                    continue
+                picked.append(c)
+                picked_paths.add(c["app_path"])
+                cap_count[k] += 1
+                progressed = True
+                break
+        if not progressed:
+            break
+
+    # pass2: まだ足りなければ cap を無視して補充
+    if len(picked) < limit:
+        for k in bucket_keys:
+            for c in buckets[k]:
+                if len(picked) >= limit:
+                    break
+                if c["app_path"] in picked_paths:
+                    continue
+                picked.append(c)
+                picked_paths.add(c["app_path"])
+    return picked
+
+
+def append_x_drafts(
+    limit: int = 3,
+    dry_run: bool = False,
+    allow_single: bool = False,
+    report: bool = False,
+) -> list[dict[str, Any]]:
     if allow_single:
         limit = max(1, limit)
     else:
         limit = max(3, min(5, limit))
     queue = _load_queue()
-    existing_paths = {
-        x.get("app_path")
-        for x in queue
-        if isinstance(x.get("app_path"), str) and x.get("app_path")
-    }
-    candidates = []
+    registry = _load_registry()
+    excl = _build_exclusion_index(queue, registry)
+
+    skip_stats: Counter[str] = Counter()
+    candidates: list[dict[str, Any]] = []
     for app_name, app_path in _iter_apps():
-        if app_path in existing_paths:
+        url = f"{BASE_URL}/{app_path}/"
+        norm = normalize_name(app_name)
+        reason = _excluded_reason(app_name, app_path, url, "", norm, "", excl)
+        if reason:
+            skip_stats[reason] += 1
             continue
         category = _guess_category(app_name, app_path)
         score = _base_score(app_name) + PRIORITY_BONUS.get(category, 0)
-        candidates.append((score, app_name, app_path, category))
-    candidates.sort(key=lambda x: (-x[0], x[1]))
-    picked = candidates[:limit]
+        candidates.append(
+            {
+                "app_name": app_name,
+                "app_path": app_path,
+                "url": url,
+                "category": category,
+                "normalized_name": norm,
+                "score": score,
+                "bucket": f"{category}/{_dedup_purpose(app_name)}",
+            }
+        )
 
     now = datetime.now().astimezone()
+    seed_str = now.strftime("%Y%m%d")
+    picked = _distribute_candidates(candidates, limit, seed_str)
+
     seq = _next_id(queue, now)
     new_items: list[dict[str, Any]] = []
-    for i, (score, app_name, app_path, category) in enumerate(picked):
-        url = f"{BASE_URL}/{app_path}/"
+    for i, cand in enumerate(picked):
         stub_item: dict[str, Any] = {
-            "app_name": app_name,
-            "app_path": app_path,
-            "url": url,
-            "category_guess": category,
+            "app_name": cand["app_name"],
+            "app_path": cand["app_path"],
+            "url": cand["url"],
+            "category_guess": cand["category"],
             "short_url": "",
             "category": "",
             "x_text": "",
         }
         x_text = _build_x_text(stub_item, i)
+        # x_text 完全一致の最終ガード（別アプリでも同一文面になったら弾く）
+        if x_text in excl["x_text"]:
+            skip_stats["x_text"] += 1
+            continue
+        excl["x_text"].add(x_text)
         new_items.append(
             {
-                "id": f"{now.strftime('%Y%m%d')}-{seq + i:03d}",
-                "app_name": app_name,
-                "app_path": app_path,
-                "url": url,
-                "category_guess": category,
-                "sns_priority_score": score,
+                "id": f"{now.strftime('%Y%m%d')}-{seq + len(new_items):03d}",
+                "app_name": cand["app_name"],
+                "app_path": cand["app_path"],
+                "url": cand["url"],
+                "category_guess": cand["category"],
+                "sns_priority_score": cand["score"],
                 "freshness_penalty": 0,
                 "x_text": x_text,
                 "instagram_caption": "",
@@ -723,6 +935,33 @@ def append_x_drafts(limit: int = 3, dry_run: bool = False, allow_single: bool = 
                 "card_image": "",
             }
         )
+
+    if report:
+        print(
+            f"[append-x-drafts] dedup後候補={len(candidates)} "
+            f"選定={len(picked)} 生成={len(new_items)}"
+        )
+        print("  skip理由集計（除外件数）:")
+        for reason, cnt in skip_stats.most_common():
+            print(f"    {reason}: {cnt}")
+        print(f"    （合計除外: {sum(skip_stats.values())}）")
+        cat_counter = Counter(it.get("category_guess") for it in new_items)
+        print("  選定候補のカテゴリ内訳:")
+        for cat, cnt in cat_counter.most_common():
+            print(f"    {cat}: {cnt}")
+        bucket_counter = Counter(
+            f"{c['category']}/{_dedup_purpose(c['app_name'])}"
+            for c in picked
+        )
+        print("  選定候補のバケット内訳（カテゴリ/用途）:")
+        for bk, cnt in bucket_counter.most_common():
+            print(f"    {bk}: {cnt}")
+        print("  選定候補一覧 (id | app_name | url | category | normalized_name):")
+        for it in new_items:
+            print(
+                f"    {it['id']} | {it['app_name']} | {it['url']} "
+                f"| {it['category_guess']} | {normalize_name(it['app_name'])}"
+            )
 
     if not dry_run:
         queue.extend(new_items)
@@ -742,14 +981,22 @@ def refill_x_posts(target: int = 30, dry_run: bool = True) -> dict[str, int]:
     print(f"need_to_add: {need}")
 
     planned_new: list[dict[str, Any]] = []
-    if need > 0:
-        # Plan/generate in memory using existing generator logic, then optionally persist.
-        generated = append_x_drafts(limit=need, dry_run=True, allow_single=True)
+    if dry_run:
+        # dry-run: need=0 でも target 件ぶんの候補プレビューを表示（書き込みなし）
+        planned_new = append_x_drafts(
+            limit=target, dry_run=True, allow_single=True, report=True
+        )
+        print(f"planned_new_posts(preview): {len(planned_new)}")
+    elif need > 0:
+        # Plan/generate in memory using existing generator logic, then persist.
+        generated = append_x_drafts(
+            limit=need, dry_run=True, allow_single=True, report=True
+        )
         planned_new = generated[:need]
         print(f"planned_new_posts: {len(planned_new)}")
         for item in planned_new[:30]:
             print(f"- add: {item.get('id')} {item.get('app_name')}")
-        if not dry_run and planned_new:
+        if planned_new:
             queue.extend(planned_new)
     else:
         print("planned_new_posts: 0")
