@@ -936,24 +936,34 @@
       return String(item?.url_check_status || "") === "verified";
     }
 
+    /** verified を「優先」するための比較（verified を前へ。ただし非verifiedも除外しない）。 */
+    function cmpVerifiedPref(a, b) {
+      const va = isUrlVerified(a.item) ? 0 : 1;
+      const vb = isUrlVerified(b.item) ? 0 : 1;
+      return va - vb;
+    }
+
     function pickNextUnposted(items, posted) {
       const skipped = skippedSet();
       const now = new Date();
+      // draft/scheduled かつ「個別アプリURLを持つ」候補を対象にする。
+      // short_url が無くても url があれば候補に出す（旧 verified+short_url の少数固定をやめる）。
       const all = items
         .filter(x => !skipped.has(String(x.id || "").trim()))
         .filter(x => !posted.has(String(x.id || "")))
-        .filter(x => isUrlVerified(x))
+        .filter(x => hasAppAndUrl(x))
         .map(x => ({ item: x, dt: parseDate(x) }));
 
       if (all.length === 0) return null;
 
-      // Prefer concrete app posts with short_url whenever at least one exists.
-      const preferred = all.filter(x => hasAppAndShortUrl(x.item));
-      const pool = preferred.length > 0 ? preferred : all;
+      // verified は「優先」するが、verified しか出さない仕様にはしない。
+      const pool = all;
 
       const withUpcomingDt = pool
         .filter(x => x.dt && x.dt >= now)
         .sort((a, b) => {
+          const v = cmpVerifiedPref(a, b);
+          if (v !== 0) return v;
           const c = cmpShortRisk(a, b);
           if (c !== 0) return c;
           return a.dt - b.dt;
@@ -961,6 +971,8 @@
       if (withUpcomingDt.length > 0) return withUpcomingDt[0];
 
       const withAnyDt = pool.filter(x => x.dt).sort((a, b) => {
+        const v = cmpVerifiedPref(a, b);
+        if (v !== 0) return v;
         const c = cmpShortRisk(a, b);
         if (c !== 0) return c;
         return a.dt - b.dt;
@@ -970,6 +982,8 @@
       return pool
         .slice()
         .sort((a, b) => {
+          const v = cmpVerifiedPref(a, b);
+          if (v !== 0) return v;
           const c = cmpShortRisk(a, b);
           if (c !== 0) return c;
           return String(a.item.id || "").localeCompare(String(b.item.id || ""));
@@ -979,11 +993,11 @@
     function rankForSlots(items, posted) {
       const skipped = skippedSet();
       const now = new Date();
+      // short_url 必須・verified 必須をやめ、個別アプリURLを持つ draft/scheduled を広く対象にする。
       return items
         .filter(x => !skipped.has(String(x.id || "").trim()))
         .filter(x => !posted.has(String(x.id || "")))
-        .filter(x => isUrlVerified(x))
-        .filter(x => hasAppAndShortUrl(x))
+        .filter(x => hasAppAndUrl(x))
         .map(x => ({ item: x, dt: parseDate(x) }))
         .sort((a, b) => {
           // upcoming scheduled first
@@ -995,6 +1009,9 @@
           const bHasDt = b.dt ? 0 : 1;
           if (aHasDt !== bHasDt) return aHasDt - bHasDt;
           if (a.dt && b.dt && a.dt.getTime() !== b.dt.getTime()) return a.dt - b.dt;
+          // verified を優先（除外はしない）→ 同条件は id 昇順
+          const v = cmpVerifiedPref(a, b);
+          if (v !== 0) return v;
           return String(a.item.id || "").localeCompare(String(b.item.id || ""));
         })
         .map(x => x.item);
@@ -1023,10 +1040,12 @@
 
       const row = document.createElement("div");
       row.className = "pillRow";
+      const urlMode = String(item.short_url || "").trim() ? "短縮URL" : "個別URL使用";
       row.innerHTML = `
         <span class="pill">scheduled_at: ${item.scheduled_at || "-"}</span>
         <span class="pill">category: ${item.category_guess || "-"}</span>
         <span class="pill">status: ${isPosted ? "posted(local)" : (item.status || "-")}</span>
+        <span class="pill">URL: ${urlMode}</span>
       `;
       card.appendChild(row);
 
