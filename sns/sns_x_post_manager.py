@@ -403,6 +403,61 @@ def _post_url_for_x_template(item: dict[str, Any]) -> str:
 
 X_POST_ARROW_LINE = "↓　↓　↓"
 
+# X投稿文の見出し統一・ディスクレーマー除去（dashboard 側 normalizePostFormat と同じルール）
+POST_HEADER_TARGET = "【今日のチェック】"
+POST_DISCLAIMER_PHRASES = [
+    "参考・目安として使えます",
+    "参考・確認用のミニアプリです",
+    "参考・確認用です",
+    "参考・目安です",
+    "参考目安として",
+    "参考目安です",
+    "あくまで目安です",
+    "参考程度に",
+    "目安としてご利用ください",
+    "参考用ミニアプリです",
+    "確認用ミニアプリです",
+]
+
+
+def _normalize_post_format(text: str) -> str:
+    """投稿文の見た目を統一する（dashboard 側 normalizePostFormat と等価）。
+    新規生成では既に整っているがセーフネットとして適用。
+    """
+    if not text:
+        return text
+    s = str(text)
+    # 1. 🐾 + 直後スペースを除去
+    s = re.sub(r"🐾[ 　]?", "", s)
+    # 2. 矢印を ↓　↓　↓ に統一
+    s = re.sub(r"↓[\s　]*↓[\s　]*↓", "↓　↓　↓", s)
+    # 3. 1行目の【...】見出しを【今日のチェック】に統一（無ければ付与）
+    lines = s.split("\n")
+    first_idx = 0
+    while first_idx < len(lines) and lines[first_idx].strip() == "":
+        first_idx += 1
+    if first_idx < len(lines):
+        first_line = lines[first_idx]
+        if re.match(r"^【.+】$", first_line):
+            if first_line != POST_HEADER_TARGET:
+                lines[first_idx] = POST_HEADER_TARGET
+        else:
+            lines[first_idx:first_idx] = [POST_HEADER_TARGET, ""]
+        s = "\n".join(lines)
+    # 4. ディスクレーマー語句を除去
+    # 4-1. 括弧内に参考/目安を含む節を丸ごと削除（句読点も巻き取る）
+    s = re.sub(r"[（(][^（()）]*(?:参考|目安)[^（()）]*[）)][。、]?", "", s)
+    # 4-2. 明示リスト
+    for ph in POST_DISCLAIMER_PHRASES:
+        s = re.sub(r"\s*※?\s*" + re.escape(ph) + r"[。、]?", "", s)
+    # 4-3. 空括弧の片付け
+    s = re.sub(r"[（(][\s　]*[）)]", "", s)
+    # 4-4. 行末空白除去
+    s = "\n".join(line.rstrip(" 　\t") for line in s.split("\n"))
+    # 4-5. 連続する空行は最大1つ
+    s = re.sub(r"\n{3,}", "\n\n", s)
+    return s
+
 
 def _build_x_text(item: dict[str, Any], idx: int) -> str:
     _ = idx  # reserved for future rotation
@@ -415,10 +470,10 @@ def _build_x_text(item: dict[str, Any], idx: int) -> str:
         ap = str(item.get("app_path") or "").strip().strip("/")
         if ap:
             tail = f"{BASE_URL}/{ap}/"
-    # 順: タイトル → フック → 説明 → 🐾行 → 「↓ ↓ ↓」→ URL（※参考・確認用は本文に含めない）
-    out: list[str] = ["【今日のチェック】", "", hook, "", desc, "", app_line]
+    # 順: タイトル → フック → 説明 → アプリ名行 → 「↓　↓　↓」→ URL
+    out: list[str] = [POST_HEADER_TARGET, "", hook, "", desc, "", app_line]
     out.extend([X_POST_ARROW_LINE, tail])
-    return "\n".join(out)
+    return _normalize_post_format("\n".join(out))
 
 
 def _pick_x_copy_kind(app_name: str) -> str:
