@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="給与明細の控除額が適切か瞬時にチェック。給与所得控除の上限と比較して、不適正な控除額を警告表示するWebツール。">
+  <title>💰 給与明細自動監査ツール</title>
+  <link rel="canonical" href="https://nekopoke.jp/給与明細自動監査ツール/">
+  <meta property="og:title" content="💰 給与明細自動監査ツール">
+  <meta property="og:description" content="給与明細の控除額が適切か瞬時にチェック。給与所得控除の上限と比較して、不適正な控除額を警告表示するWebツール。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nekopoke.jp/給与明細自動監査ツール/">
+  <meta property="og:image" content="https://nekopoke.jp/ogp/default.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="💰 給与明細自動監査ツール">
+  <meta name="twitter:description" content="給与明細の控除額が適切か瞬時にチェック。給与所得控除の上限と比較して、不適正な控除額を警告表示するWebツール。">
+  <style>
+    :root {
+      --bg: #f5f0e8;
+      --card: #ffffff;
+      --border: #e8ddd0;
+      --accent: #4a90d9;
+      --accent-light: #eff6fd;
+      --text: #1c1917;
+      --text-sub: #78716c;
+      --ok: #15803d;     --ok-bg: #f0fdf4;
+      --warn: #b45309;   --warn-bg: #fffbeb;
+      --ng: #b91c1c;     --ng-bg: #fef2f2;
+      --radius: 14px;
+      --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── ヘッダー ── */
+    .app-header {
+      background: var(--card);
+      border-bottom: 3px solid var(--accent);
+      padding: 1.2rem 1.2rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .app-header h1 { font-size: 1.2rem; font-weight: 900; letter-spacing: -0.02em; }
+    .app-header .subtitle { font-size: 0.78rem; color: var(--text-sub); margin-top: 0.25rem; line-height: 1.5; }
+
+    /* ── 共通カード ── */
+    .card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.2rem;
+      box-shadow: var(--shadow);
+      margin: 0 auto 1rem;
+      max-width: 600px;
+    }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700;
+      color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 1rem; padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── 入力 ── */
+    .field { margin-bottom: 1rem; }
+    .field:last-child { margin-bottom: 0; }
+    .field label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--text-sub); margin-bottom: 0.35rem; }
+    .field input, .field select {
+      width: 100%; padding: 0.72rem 0.9rem;
+      font-size: 1rem; border: 1.5px solid var(--border);
+      border-radius: 9px; background: var(--bg); color: var(--text);
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .field input:focus, .field select:focus { border-color: var(--accent); background: #fff; }
+    .field .hint { font-size: 0.72rem; color: var(--text-sub); margin-top: 0.25rem; }
+
+    /* ── ボタン ── */
+    .btn-calc {
+      display: block; width: 100%; max-width: 600px;
+      margin: 0 auto 1.2rem; padding: 1rem;
+      font-size: 1.05rem; font-weight: 800;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius); cursor: pointer;
+      box-shadow: 0 4px 0 #2e5f9a, 0 6px 16px rgba(74,144,217,0.25);
+      transition: transform 0.1s, box-shadow 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn-calc:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #2e5f9a, 0 2px 8px rgba(74,144,217,0.2);
+    }
+
+    /* ── 広告枠（仮・将来差し替え予定） ── */
+    .ad-slot {
+      display: flex; align-items: center; justify-content: center;
+      width: 100%; max-width: 600px;
+      min-height: 90px;
+      margin: 0 auto 1.2rem; padding: 0.5rem;
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-sub); font-size: 0.78rem;
+    }
+
+    /* ── 結論カード ── */
+    .result-card {
+      display: none; background: var(--card);
+      border: 2px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.2rem; box-shadow: var(--shadow);
+      margin: 0 auto 1rem; max-width: 600px; text-align: center;
+    }
+    .result-card.ok   { border-color: var(--ok);   background: var(--ok-bg);   }
+    .result-card.warn { border-color: var(--warn);  background: var(--warn-bg); }
+    .result-card.ng   { border-color: var(--ng);    background: var(--ng-bg);   }
+    .result-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; color: var(--text-sub); margin-bottom: 0.4rem; }
+    .result-value { font-size: 2rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 0.4rem; }
+    .result-card.ok   .result-value { color: var(--ok);   }
+    .result-card.warn .result-value { color: var(--warn); }
+    .result-card.ng   .result-value { color: var(--ng);   }
+    .result-note { font-size: 0.82rem; color: var(--text-sub); line-height: 1.5; }
+    .result-eval {
+      font-size: 1.05rem; font-weight: 700; line-height: 1.4;
+      margin-top: 0.5rem; margin-bottom: 0.6rem;
+    }
+    .result-card.ok   .result-eval { color: var(--ok); }
+    .result-card.warn .result-eval { color: var(--warn); }
+    .result-card.ng   .result-eval { color: var(--ng); }
+
+    /* ── 内訳テーブル ── */
+    .detail-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .detail-table tr { border-bottom: 1px solid var(--border); }
+    .detail-table tr:last-child { border-bottom: none; }
+    .detail-table td { padding: 0.55rem 0.3rem; color: var(--text-sub); }
+    .detail-table td:last-child { text-align: right; font-weight: 600; color: var(--text); }
+    .detail-table .hl td { font-weight: 700; color: var(--text); }
+    .detail-table .hl td:last-child { color: var(--accent); font-size: 1.05rem; }
+
+    /* ── 戻るリンク ── */
+    .back-link { display: block; text-align: center; margin-top: 2rem; font-size: 0.82rem; color: var(--text-sub); text-decoration: none; }
+    .back-link:hover { color: var(--accent); }
+
+    /* ── PDF保存ボタン ── */
+    .btn-pdf {
+      display: block; margin: 1.2rem auto 0; padding: 0.6rem 1.2rem;
+      font-size: 0.85rem; font-weight: 700;
+      background: var(--card); color: var(--text-sub);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      cursor: pointer; max-width: 600px; width: 100%;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-pdf:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── 印刷/PDF出力 ── */
+    @media print {
+      body { background: #fff; padding: 0; }
+      .btn-calc, .back-link, #fav-widget, .ad-slot, .no-print { display: none !important; }
+      .card, .result-card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      .app-header { border-bottom: 2px solid #000; }
+      a { color: #000; text-decoration: none; }
+      @page { margin: 12mm; }
+    }
+  </style>
+  <!-- AdSense 必須・削除禁止・重複追加禁止（
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "給与明細自動監査ツール", "url": "https://nekopoke.jp/給与明細自動監査ツール/", "applicationCategory": "WebApplication", "operatingSystem": "Web"}</script></head> の直前、ca-pub-2840085836089282） -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script data-goatcounter="https://tmmygu40.goatcounter.com/count"
+          async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>💰 給与明細自動監査ツール</h1>
+    <p class="subtitle">給与明細の控除額が適切か瞬時にチェック。税務的なミスに気づけるシンプルツールです。※2026年4月時点の参考データ</p>
+  </header>
+
+  <!-- 入力カード -->
+  <div class="card">
+    <p class="card-title">入力</p>
+    <div class="field">
+      <label for="salary">年間給与額</label>
+      <input type="number" id="salary" placeholder="例: 3000000" min="0">
+      <p class="hint">額面年俸（税引き前）を入力</p>
+    </div>
+    <div class="field">
+      <label for="deduction">給与所得控除額（明細記載）</label>
+      <input type="number" id="deduction" placeholder="例: 600000" min="0">
+      <p class="hint">給与明細の控除額を確認して入力</p>
+    </div>
+  </div>
+
+  <!-- 計算ボタン -->
+  <button class="btn-calc" onclick="calc()">チェックする</button>
+
+  <!-- 結論カード（JS で class="result-card ok/warn/ng" を切替） -->
+  <div class="result-card" id="result">
+    <p class="result-label">判定</p>
+    <p class="result-value" id="rv">—</p>
+    <p class="result-eval" id="re"></p>
+    <p class="result-note" id="rn"></p>
+  </div>
+
+  <!-- 内訳カード -->
+  <div class="card" id="detail" style="display:none">
+    <p class="card-title">内訳</p>
+    <table class="detail-table"><tbody id="db"></tbody></table>
+  </div>
+
+  <p class="source-note" style="max-width:600px;margin:1.6rem auto 0;padding:0.7rem 0.9rem;background:var(--card);border:1px solid var(--border);border-radius:10px;font-size:0.76rem;color:var(--text-sub);line-height:1.6;text-align:left;">
+    📚 このツールは、国税庁・厚生労働省・協会けんぽなどの官公庁資料や、信頼できる公開データを参考に、目安として使いやすく整理しています。最新情報は公式情報をご確認ください。
+  </p>
+  <div class="disclaimer-card"><p class="disclaimer-text">本アプリの結果はあくまで目安です。正確な値は公式仕様書・専門家にご確認ください。入力内容は端末内のみで処理し、外部送信は行いません。</p>
+  <dl class="faq-list"><dt>Q1. このツールは無料で使えますか？</dt><dd>A1. はい、登録不要・無料で使えます。</dd><dt>Q2. スマホでも使えますか？</dt><dd>A2. はい、スマホ・PCどちらでも利用できます。</dd><dt>Q3. 入力した内容は保存されますか？</dt><dd>A3. 端末内のみで処理し、外部送信や保存は行いません。</dd></dl></div>
+
+  <!-- 広告枠（仮・将来差し替え予定。広告コードは未実装。結果と補足を見た後の位置に配置） -->
+  <div class="ad-slot" aria-label="広告枠">広告枠</div>
+
+  <button class="btn-pdf no-print" onclick="window.print()">📄 PDFで保存</button>
+
+  <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+
+  <script>
+  // 給与所得控除の上限・基準額（2026年度参考値）
+  const DEDUCTION_LIMITS = {
+    0: 0,
+    1000000: 550000,
+    1618000: 600000,
+    1622000: 610000,
+    2400000: 760000,
+    2400001: 1100000
+  };
+
+  function getStandardDeduction(salary) {
+    if (salary === 0) return 0;
+    if (salary <= 1618000) return salary * 0.4 - 110000;
+    if (salary <= 1622000) return 600000;
+    if (salary <= 2400000) return salary * 0.3 + 80000;
+    return 1100000;
+  }
+
+  function calc() {
+    var salary = parseFloat(document.getElementById('salary').value);
+    var deduction = parseFloat(document.getElementById('deduction').value);
+
+    if (isNaN(salary) || isNaN(deduction) || salary === '' || deduction === '') {
+      showErr('すべて入力してください');
+      return;
+    }
+
+    if (salary < 0 || deduction < 0) {
+      showErr('正の数値を入力してください');
+      return;
+    }
+
+    var standard = getStandardDeduction(salary);
+    var diff = deduction - standard;
+    var ratio = salary > 0 ? ((standard / salary) * 100).toFixed(1) : 0;
+
+    var level, msg, eval_msg;
+
+    if (diff < -100000) {
+      level = 'ng';
+      msg = '控除額が大きすぎます';
+      eval_msg = '国税庁の基準を大きく超えています。給与明細を確認してください。';
+    } else if (diff < -10000) {
+      level = 'warn';
+      msg = '控除額がやや大きい可能性';
+      eval_msg = '標準値より多めです。給与明細をご確認ください。';
+    } else if (diff > 100000) {
+      level = 'ng';
+      msg = '控除額が小さすぎます';
+      eval_msg = '雇用保険や社会保険の控除が漏れている可能性があります。';
+    } else if (diff > 10000) {
+      level = 'warn';
+      msg = '控除額がやや小さい可能性';
+      eval_msg = '標準値より少なめです。雇用保険等の漏れがないか確認を。';
+    } else {
+      level = 'ok';
+      msg = '適切な範囲内';
+      eval_msg = '給与所得控除が標準値内です。ひとまず安心です。';
+    }
+
+    showResult(level, (diff >= 0 ? '+' : '') + fmt(diff) + '円', msg, eval_msg);
+    showDetail([
+      ['年間給与', fmt(salary) + '円'],
+      ['標準控除額', fmt(Math.round(standard)) + '円'],
+      ['明細記載額', fmt(deduction) + '円'],
+      ['差分', (diff >= 0 ? '+' : '') + fmt(diff) + '円', true],
+      ['標準比率', ratio + '%'],
+    ]);
+  }
+
+  function showResult(level, val, msg, eval_msg) {
+    var rc = document.getElementById('result');
+    rc.className = 'result-card ' + level;
+    rc.style.display = '';
+    document.getElementById('rv').textContent = val;
+    document.getElementById('re').textContent = msg;
+    document.getElementById('rn').textContent = eval_msg;
+  }
+
+  function showDetail(rows) {
+    document.getElementById('db').innerHTML = rows.map(function(r){
+      return '<tr' + (r[2] ? ' class="hl"' : '') + '>'
+           + '<td>' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+    }).join('');
+    document.getElementById('detail').style.display = '';
+  }
+
+  function showErr(msg) {
+    showResult('ng', '⚠️', msg, '');
+    document.getElementById('detail').style.display = 'none';
+  }
+
+  function fmt(n) {
+    return Math.round(n).toLocaleString('ja-JP');
+  }
+
+  // localStorage に入力値を保存
+  window.addEventListener('beforeunload', function() {
+    localStorage.setItem('payroll_salary', document.getElementById('salary').value);
+    localStorage.setItem('payroll_deduction', document.getElementById('deduction').value);
+  });
+
+  // ページ読み込み時に保存値を復元
+  window.addEventListener('load', function() {
+    var saved_salary = localStorage.getItem('payroll_salary');
+    var saved_deduction = localStorage.getItem('payroll_deduction');
+    if (saved_salary) document.getElementById('salary').value = saved_salary;
+    if (saved_deduction) document.getElementById('deduction').value = saved_deduction;
+  });
+  </script>
+
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
