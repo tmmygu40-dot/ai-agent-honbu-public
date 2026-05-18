@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>note見出し候補生成 - 検索される記事タイトル作成</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            font-size: 28px;
+            margin-bottom: 16px;
+            color: #667eea;
+            text-align: center;
+        }
+        .lead-desc {
+            font-size: 15px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 32px;
+            line-height: 1.6;
+        }
+        .howto-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin-bottom: 32px;
+            border-radius: 6px;
+        }
+        .howto-card h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .howto-steps {
+            list-style: none;
+            counter-reset: step-counter;
+        }
+        .howto-steps li {
+            counter-increment: step-counter;
+            margin-bottom: 8px;
+            padding-left: 32px;
+            position: relative;
+            font-size: 14px;
+            color: #555;
+        }
+        .howto-steps li:before {
+            content: counter(step-counter);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .sample-input-card {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            padding: 20px;
+            margin-bottom: 32px;
+            border-radius: 6px;
+        }
+        .sample-input-card h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .sample-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-sample {
+            flex: 1;
+            min-width: 140px;
+            padding: 10px 16px;
+            background: #ffc107;
+            border: none;
+            border-radius: 6px;
+            color: #333;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        .btn-sample:hover {
+            background: #ffb300;
+            transform: translateY(-2px);
+        }
+        .input-section {
+            background: #f8f9fa;
+            padding: 24px;
+            border-radius: 6px;
+            margin-bottom: 32px;
+        }
+        .input-section h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #333;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+        .btn-calc {
+            width: 100%;
+            padding: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 8px;
+        }
+        .btn-calc:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        }
+        .result-card {
+            background: #f0f7ff;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            padding: 24px;
+            margin-bottom: 32px;
+            display: none;
+        }
+        .result-card.show {
+            display: block;
+            animation: slideIn 0.4s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        #result {
+            list-style: none;
+        }
+        #result li {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: white;
+            border-left: 4px solid #667eea;
+            border-radius: 4px;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        .readresult-card {
+            background: #f0fdf4;
+            border-left: 4px solid #22c55e;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 32px;
+        }
+        .readresult-card h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #166534;
+        }
+        .readresult-list {
+            list-style: none;
+        }
+        .readresult-list li {
+            padding: 12px 0;
+            padding-left: 24px;
+            position: relative;
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
+        }
+        .readresult-list li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #22c55e;
+            font-weight: bold;
+        }
+        .faq-card {
+            background: #faf9f7;
+            padding: 24px;
+            border-radius: 6px;
+            margin-bottom: 32px;
+        }
+        .faq-card h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            color: #333;
+        }
+        .faq-list {
+            list-style: none;
+        }
+        .faq-list dt {
+            font-weight: 600;
+            color: #333;
+            margin-top: 12px;
+            font-size: 14px;
+        }
+        .faq-list dd {
+            color: #666;
+            margin-bottom: 16px;
+            padding-left: 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .disclaimer-card {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 32px;
+        }
+        .disclaimer-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #991b1b;
+            margin-bottom: 8px;
+        }
+        .disclaimer-text {
+            font-size: 13px;
+            color: #7f1d1d;
+            line-height: 1.6;
+        }
+        .btn-pdf {
+            width: 100%;
+            padding: 12px;
+            background: #666;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 24px;
+            transition: all 0.3s;
+        }
+        .btn-pdf:hover {
+            background: #555;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 24px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+            h1 {
+                font-size: 22px;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .sample-buttons {
+                flex-direction: column;
+            }
+            .btn-sample {
+                flex: none;
+            }
+        }
+    </style>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <link rel="canonical" href="https://nekopoke.jp/note%E8%A6%8B%E5%87%BA%E3%81%97%E5%80%99%E8%A3%9C%E7%94%9F%E6%88%90%E3%82%A2%E3%83%97%E3%83%AA/">
+  <meta name="description" content="note見出し候補生成 - 検索される記事タイトル作成。記事のテーマやキーワード、トーンを入力すると、noteで検索されやすくクリックされやすい見出し候補を自動生成します。複数の案から最適なタイトルを選べます。">
+  <!-- OGP -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://nekopoke.jp/note%E8%A6%8B%E5%87%BA%E3%81%97%E5%80%99%E8%A3%9C%E7%94%9F%E6%88%90%E3%82%A2%E3%83%97%E3%83%AA/" />
+  <meta property="og:site_name"   content="ネコポケ" />
+  <meta property="og:title"       content="note見出し候補生成 - 検索される記事タイトル作成" />
+  <meta property="og:description" content="note見出し候補生成 - 検索される記事タイトル作成。記事のテーマやキーワード、トーンを入力すると、noteで検索されやすくクリックされやすい見出し候補を自動生成します。複数の案から最適なタイトルを選べます。" />
+  <meta property="og:image"       content="https://nekopoke.jp/assets/mascot/nekopoke-mascot-main.webp" />
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary" />
+  <meta name="twitter:title"       content="note見出し候補生成 - 検索される記事タイトル作成" />
+  <meta name="twitter:description" content="note見出し候補生成 - 検索される記事タイトル作成。記事のテーマやキーワード、トーンを入力すると、noteで検索されやすくクリックされやすい見出し候補を自動生成します。複数の案から最適なタイトルを選べます。" />
+  <meta name="twitter:image"       content="https://nekopoke.jp/assets/mascot/nekopoke-mascot-main.webp" />
+  <!-- SoftwareApplication JSON-LD -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"note見出し候補生成 - 検索される記事タイトル作成","description":"note見出し候補生成 - 検索される記事タイトル作成。記事のテーマやキーワード、トーンを入力すると、noteで検索されやすくクリックされやすい見出し候補を自動生成します。複数の案から最適なタイトルを選べます。","url":"https://nekopoke.jp/note%E8%A6%8B%E5%87%BA%E3%81%97%E5%80%99%E8%A3%9C%E7%94%9F%E6%88%90%E3%82%A2%E3%83%97%E3%83%AA/","applicationCategory":"UtilityApplication","operatingSystem":"Any"}</script>
+  <!-- BreadcrumbList JSON-LD -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ネコポケ","item":"https://nekopoke.jp/"},{"@type":"ListItem","position":2,"name":"note見出し候補生成 - 検索される記事タイトル作成","item":"https://nekopoke.jp/note%E8%A6%8B%E5%87%BA%E3%81%97%E5%80%99%E8%A3%9C%E7%94%9F%E6%88%90%E3%82%A2%E3%83%97%E3%83%AA/"}]}</script>
+</head>
+<body>
+    <div class="container">
+        <h1>note見出し候補生成 - 検索される記事タイトル作成</h1>
+        
+        <p class="lead-desc">記事のテーマやキーワード、トーンを入力すると、noteで検索されやすくクリックされやすい見出し候補を自動生成します。複数の案から最適なタイトルを選べます。</p>
+
+        <div class="howto-card">
+            <h3>使い方</h3>
+            <ol class="howto-steps">
+                <li>記事のテーマ・主なキーワード・望むトーンを入力</li>
+                <li>「見出し候補を生成」ボタンをクリック</li>
+                <li>複数の見出し案から最適なものを選んで記事を作成</li>
+            </ol>
+        </div>
+
+        <div id="sample-input" class="sample-input-card">
+            <h3>サンプルを試す</h3>
+            <div class="sample-buttons">
+                <button class="btn-sample" onclick="loadSample(1)">サンプル1: 節約術</button>
+                <button class="btn-sample" onclick="loadSample(2)">サンプル2: 副業</button>
+                <button class="btn-sample" onclick="loadSample(3)">サンプル3: 子育て</button>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <h3>記事情報を入力</h3>
+            <div class="form-group">
+                <label for="theme">記事のテーマ（必須）</label>
+                <input type="text" id="theme" placeholder="例: 電気代の節約、在宅での副業、子どもの教育費など" value="">
+            </div>
+            <div class="form-group">
+                <label for="keywords">主なキーワード（カンマ区切り）</label>
+                <input type="text" id="keywords" placeholder="例: 節約, 電気代, 月3000円" value="">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="tone">文体・トーン</label>
+                    <select id="tone">
+                        <option value="casual">カジュアル（親しみやすい）</option>
+                        <option value="serious">真面目（信頼感重視）</option>
+                        <option value="humorous">ユーモア（笑える）</option>
+                        <option value="expert">専門家的（詳しさ重視）</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="length">見出しの長さ目安</label>
+                    <select id="length">
+                        <option value="short">短め（10字以内）</option>
+                        <option value="medium">普通（15字前後）</option>
+                        <option value="long">長め（20字以上）</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn-calc" onclick="calc()">見出し候補を生成する</button>
+        </div>
+
+        <div id="result-card-wrapper" class="result-card">
+            <div id="result"></div>
+        </div>
+
+        <div class="readresult-card" id="readresult" style="display:none">
+            <h3>良い見出しを選ぶコツ</h3>
+            <ul class="readresult-list">
+                <li>クリック率を意識して「つい読みたくなる」表現を選ぶ</li>
+                <li>SEO対策として検索キーワードを見出しに含めることで発見されやすくする</li>
+                <li>記事内容と見出しが一致しているか確認してから掲載する</li>
+            </ul>
+        </div>
+
+        <div class="faq-card">
+            <h3>よくある質問</h3>
+            <dl class="faq-list">
+                <dt>Q. 入力データは外部に送信されますか？</dt>
+                <dd>A. 送信しません。すべてブラウザ内で計算が完結します。</dd>
+                <dt>Q. 生成された見出しをそのまま使っても大丈夫ですか？</dt>
+                <dd>A. 生成された見出しは参考案です。実際の記事内容に合わせて調整してから使用してください。</dd>
+                <dt>Q. 何度でも生成できますか？</dt>
+                <dd>A. はい。異なるテーマやキーワードで何度でも生成できます。アイデア出しとしてご活用ください。</dd>
+            </dl>
+        </div>
+
+        <div class="disclaimer-card">
+            <h3>免責事項</h3>
+            <p class="disclaimer-text">本ツールは概算です。正確な金額は給与明細・公式情報・税理士・FP（ファイナンシャルプランナー）にご確認ください。</p>
+        </div>
+
+        <button type="button" onclick="window.print()" class="btn-pdf">PDFで保存</button>
+          <p class="source-note">参考: 一般的な情報をもとにした目安です。必要に応じて各分野の公式情報・専門情報をご確認ください。</p>
+<a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+    </div>
+
+    <script>
+        function loadSample(n) {
+            const samples = [
+                {
+                    theme: "電気代を月3000円削減する方法",
+                    keywords: "節約, 電気代, 家計管理",
+                    tone: "casual",
+                    length: "medium"
+                },
+                {
+                    theme: "会社員が月5万稼ぐ副業事例",
+                    keywords: "副業, 在宅, サラリーマン",
+                    tone: "serious",
+                    length: "long"
+                },
+                {
+                    theme: "子どもの教育費を安くしたい方へ",
+                    keywords: "教育費, 子育て, 貯金",
+                    tone: "casual",
+                    length: "medium"
+                }
+            ];
+            const sample = samples[n - 1];
+            document.getElementById('theme').value = sample.theme;
+            document.getElementById('keywords').value = sample.keywords;
+            document.getElementById('tone').value = sample.tone;
+            document.getElementById('length').value = sample.length;
+        }
+
+        function calc() {
+            const theme = document.getElementById('theme').value.trim();
+            const keywords = document.getElementById('keywords').value.trim();
+            const tone = document.getElementById('tone').value;
+            const length = document.getElementById('length').value;
+
+            if (!theme) {
+                alert('記事のテーマを入力してください');
+                return;
+            }
+
+            const candidates = generateCandidates(theme, keywords, tone, length);
+
+            let resultHtml = '';
+            candidates.forEach((title, index) => {
+                resultHtml += `<li>${(index + 1)}. ${title}</li>`;
+            });
+
+            document.getElementById('result-card-wrapper').insertAdjacentHTML('beforeend', '');
+            document.getElementById('result').innerHTML = resultHtml;
+            document.getElementById('result-card-wrapper').classList.add('show');
+            document.getElementById('readresult').style.display = '';
+        }
+
+        function generateCandidates(theme, keywords, tone, length) {
+            const candidates = [];
+            const keywordList = keywords ? keywords.split(',').map(k => k.trim()).filter(k => k) : [];
+
+            candidates.push(`${theme}${length !== 'short' ? '：実践ガイド' : ''}`);
+
+            if (tone === 'casual' || tone === 'humorous') {
+                candidates.push(`${theme}って本当？試してみた`);
+            } else {
+                candidates.push(`${theme}：データで検証`);
+            }
+
+            if (tone === 'casual') {
+                candidates.push(`${theme}するなら知っておきたい5つのコツ`);
+            } else if (tone === 'expert') {
+                candidates.push(`${theme}：専門家が解説する重要ポイント`);
+            } else {
+                candidates.push(`${theme}のための完全ガイド`);
+            }
+
+            if (keywordList.length > 0) {
+                const keyword = keywordList[0];
+                if (tone === 'humorous') {
+                    candidates.push(`「${keyword}」に頼りすぎていませんか？`);
+                } else if (tone === 'expert') {
+                    candidates.push(`${keyword}から見える${theme}の真実`);
+                } else {
+                    candidates.push(`${theme}と${keyword}の関係性を整理した`);
+                }
+            }
+
+            if (length !== 'short') {
+                candidates.push(`${theme}して気づいた、思わぬメリット3つ`);
+            }
+
+            if (keywordList.length > 1) {
+                const kw1 = keywordList[0];
+                const kw2 = keywordList[1];
+                candidates.push(`${kw1}と${kw2}、結局どっちが得？`);
+            } else if (tone === 'serious') {
+                candidates.push(`${theme}：よくある勘違いと正しい理解`);
+            }
+
+            return candidates.slice(0, 6);
+        }
+    </script>
+    <script src="../fav-widget.js"></script>
+    <script src="../related-widget.js"></script>
+    <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
