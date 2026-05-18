@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>フリーランス取材交通費按分計算機 - 複数案件の交通費を時間で自動按分</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h1 { font-size: 28px; color: #1a1a1a; margin-bottom: 16px; font-weight: 700; }
+        .lead-desc { font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 32px; }
+        .howto-card { background: #f9f9f9; border-left: 4px solid #4CAF50; padding: 20px; border-radius: 8px; margin-bottom: 32px; }
+        .howto-steps { list-style: none; counter-reset: step; }
+        .howto-steps li { position: relative; padding-left: 32px; margin-bottom: 12px; font-size: 14px; color: #333; }
+        .howto-steps li:before { content: counter(step); counter-increment: step; position: absolute; left: 0; background: #4CAF50; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+        .sample-input-card { background: #fafafa; border: 2px dashed #ddd; border-radius: 8px; padding: 20px; margin-bottom: 32px; }
+        .sample-buttons { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        button { padding: 10px 16px; font-size: 13px; border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; transition: all 0.2s; font-weight: 500; }
+        button:hover { background: #f0f0f0; border-color: #999; }
+        .sample-text { font-size: 13px; color: #666; }
+        .input-section { margin-bottom: 32px; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; font-size: 14px; font-weight: 600; color: #333; margin-bottom: 8px; }
+        input[type="number"], input[type="text"] { width: 100%; padding: 12px; font-size: 14px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; }
+        input[type="number"]:focus, input[type="text"]:focus { outline: none; border-color: #4CAF50; box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1); }
+        .project-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .project-item { display: flex; flex-direction: column; }
+        .project-item label { margin-bottom: 6px; }
+        .project-item input { width: 100%; }
+        .btn-calc { width: 100%; padding: 14px; font-size: 16px; background: linear-gradient(135deg, #4CAF50, #45a049); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; transition: all 0.2s; }
+        .btn-calc:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3); }
+        .result-card { background: #f0f7ff; border-left: 4px solid #4CAF50; border-radius: 8px; padding: 24px; margin-bottom: 32px; display: none; }
+        .result-card.ok { border-left-color: #4CAF50; background: #f1f8f5; }
+        .result-card.warn { border-left-color: #ff9800; background: #fef5e7; }
+        .result-card.ng { border-left-color: #f44336; background: #fdebee; }
+        .result-title { font-size: 14px; color: #888; font-weight: 600; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .result-value { font-size: 32px; font-weight: 700; color: #1a1a1a; margin-bottom: 16px; }
+        .result-detail { font-size: 14px; color: #555; line-height: 1.6; margin-top: 12px; }
+        .result-breakdown { margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.1); }
+        .breakdown-item { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 8px; }
+        .breakdown-item-name { color: #666; }
+        .breakdown-item-amount { font-weight: 600; color: #333; }
+        .readresult-card { background: #fffef0; border: 1px solid #fce4a6; border-radius: 8px; padding: 20px; margin-bottom: 32px; display: none; }
+        .readresult-list { list-style: none; }
+        .readresult-list li { position: relative; padding-left: 28px; margin-bottom: 14px; font-size: 14px; color: #333; line-height: 1.6; }
+        .readresult-list li:before { content: "✓"; position: absolute; left: 0; color: #4CAF50; font-weight: 700; font-size: 16px; }
+        .faq-card { background: #fafafa; border-radius: 8px; padding: 20px; margin-bottom: 32px; }
+        .faq-list { list-style: none; }
+        .faq-list dt { font-weight: 700; color: #1a1a1a; margin-top: 16px; margin-bottom: 8px; font-size: 14px; }
+        .faq-list dt:first-child { margin-top: 0; }
+        .faq-list dd { color: #555; font-size: 14px; line-height: 1.6; margin-left: 0; }
+        .disclaimer-card { background: #fff3cd; border-left: 4px solid #ff9800; border-radius: 8px; padding: 16px; margin-bottom: 32px; }
+        .disclaimer-text { font-size: 13px; color: #664d03; line-height: 1.6; margin: 0; }
+        .back-link { display: inline-block; margin-top: 20px; color: #4CAF50; font-size: 14px; text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .btn-pdf { display: block; width: 100%; padding: 12px; margin-top: 20px; background: #4CAF50; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-pdf:hover { background: #45a049; }
+        @media (max-width: 600px) { .container { padding: 20px; } h1 { font-size: 24px; } .result-value { font-size: 28px; } .project-list { grid-template-columns: 1fr; } }
+    </style>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <link rel="canonical" href="https://nekopoke.jp/%E3%83%95%E3%83%AA%E3%83%BC%E3%83%A9%E3%83%B3%E3%82%B9%E5%8F%96%E6%9D%90%E4%BA%A4%E9%80%9A%E8%B2%BB%E6%8C%89%E5%88%86%E3%82%A2%E3%83%97%E3%83%AA/">
+  <meta name="description" content="フリーランス取材交通費按分計算機。複数の取材を1日で回った時、各案件に配分する交通費の目安を自動計算。取材時間から公平に按分できます。スマホでも快適にご利用いただけます。">
+  <!-- OGP -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://nekopoke.jp/%E3%83%95%E3%83%AA%E3%83%BC%E3%83%A9%E3%83%B3%E3%82%B9%E5%8F%96%E6%9D%90%E4%BA%A4%E9%80%9A%E8%B2%BB%E6%8C%89%E5%88%86%E3%82%A2%E3%83%97%E3%83%AA/" />
+  <meta property="og:site_name"   content="ネコポケ" />
+  <meta property="og:title"       content="フリーランス取材交通費按分計算機" />
+  <meta property="og:description" content="フリーランス取材交通費按分計算機。複数の取材を1日で回った時、各案件に配分する交通費の目安を自動計算。取材時間から公平に按分できます。スマホでも快適にご利用いただけます。" />
+  <meta property="og:image"       content="https://nekopoke.jp/assets/mascot/nekopoke-mascot-main.webp" />
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary" />
+  <meta name="twitter:title"       content="フリーランス取材交通費按分計算機" />
+  <meta name="twitter:description" content="フリーランス取材交通費按分計算機。複数の取材を1日で回った時、各案件に配分する交通費の目安を自動計算。取材時間から公平に按分できます。スマホでも快適にご利用いただけます。" />
+  <meta name="twitter:image"       content="https://nekopoke.jp/assets/mascot/nekopoke-mascot-main.webp" />
+  <!-- SoftwareApplication JSON-LD -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"フリーランス取材交通費按分計算機","description":"フリーランス取材交通費按分計算機。複数の取材を1日で回った時、各案件に配分する交通費の目安を自動計算。取材時間から公平に按分できます。スマホでも快適にご利用いただけます。","url":"https://nekopoke.jp/%E3%83%95%E3%83%AA%E3%83%BC%E3%83%A9%E3%83%B3%E3%82%B9%E5%8F%96%E6%9D%90%E4%BA%A4%E9%80%9A%E8%B2%BB%E6%8C%89%E5%88%86%E3%82%A2%E3%83%97%E3%83%AA/","applicationCategory":"UtilityApplication","operatingSystem":"Any"}</script>
+  <!-- BreadcrumbList JSON-LD -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ネコポケ","item":"https://nekopoke.jp/"},{"@type":"ListItem","position":2,"name":"フリーランス取材交通費按分計算機","item":"https://nekopoke.jp/%E3%83%95%E3%83%AA%E3%83%BC%E3%83%A9%E3%83%B3%E3%82%B9%E5%8F%96%E6%9D%90%E4%BA%A4%E9%80%9A%E8%B2%BB%E6%8C%89%E5%88%86%E3%82%A2%E3%83%97%E3%83%AA/"}]}</script>
+</head>
+<body>
+    <div class="container">
+        <h1>フリーランス取材交通費按分計算機</h1>
+        <p class="lead-desc">複数の取材を1日で回った時、各案件に配分する交通費の目安を自動計算。取材時間から公平に按分できます。</p>
+        
+        <div class="howto-card">
+            <ol class="howto-steps">
+                <li>本日の総交通費を入力</li>
+                <li>各案件ごとの取材時間を記入</li>
+                <li>計算ボタンで案件別の按分費用を表示</li>
+            </ol>
+        </div>
+
+        <div class="sample-input-card">
+            <p class="sample-text">サンプルデータを試す：</p>
+            <div class="sample-buttons">
+                <button onclick="loadSample(1)">サンプル1：3案件</button>
+                <button onclick="loadSample(2)">サンプル2：2案件</button>
+                <button onclick="loadSample(3)">サンプル3：4案件</button>
+            </div>
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <label for="totalFare">本日の総交通費（円）</label>
+                <input type="number" id="totalFare" placeholder="例: 5000" min="0" step="100">
+            </div>
+
+            <label>取材案件と時間</label>
+            <div class="project-list">
+                <div class="project-item">
+                    <label for="project1Name" style="font-size: 13px;">案件1の名前</label>
+                    <input type="text" id="project1Name" placeholder="例: A社インタビュー" maxlength="15">
+                </div>
+                <div class="project-item">
+                    <label for="project1Hours" style="font-size: 13px;">取材時間（時間）</label>
+                    <input type="number" id="project1Hours" placeholder="例: 2" min="0" step="0.5">
+                </div>
+                <div class="project-item">
+                    <label for="project2Name" style="font-size: 13px;">案件2の名前</label>
+                    <input type="text" id="project2Name" placeholder="例: B社オフィス訪問" maxlength="15">
+                </div>
+                <div class="project-item">
+                    <label for="project2Hours" style="font-size: 13px;">取材時間（時間）</label>
+                    <input type="number" id="project2Hours" placeholder="例: 1.5" min="0" step="0.5">
+                </div>
+                <div class="project-item">
+                    <label for="project3Name" style="font-size: 13px;">案件3の名前</label>
+                    <input type="text" id="project3Name" placeholder="例: C社撮影" maxlength="15">
+                </div>
+                <div class="project-item">
+                    <label for="project3Hours" style="font-size: 13px;">取材時間（時間）</label>
+                    <input type="number" id="project3Hours" placeholder="例: 1" min="0" step="0.5">
+                </div>
+            </div>
+
+            <button class="btn-calc" onclick="calc()">交通費を按分計算</button>
+        </div>
+
+        <div id="result" class="result-card ok">
+            <div class="result-title">按分結果</div>
+            <div class="result-value">計算結果</div>
+            <div class="result-detail"></div>
+        </div>
+
+        <div id="readresult" class="readresult-card" style="display:none">
+            <ul class="readresult-list">
+                <li>取材時間の比率から公平に按分できました。複数案件の共通交通費を時間ベースで割り振る場合に活用できます。</li>
+                <li>実際の請求書・経費報告では、各案件の担当者に確認して合意を取ると後のトラブルが少なくなります。</li>
+                <li>定期的に同じ形態で取材を進める場合は、この按分ルールを事前に案件側と決めておくとスムーズです。</li>
+            </ul>
+        </div>
+
+        <div class="faq-card">
+            <dl class="faq-list">
+                <dt>Q. 入力データは外部に送信されますか？</dt>
+                <dd>A. 送信しません。すべてブラウザ内で計算が完結します。</dd>
+                <dt>Q. 交通費をどう配分すればいい？</dt>
+                <dd>A. 時間比率で按分するのが一般的です。本ツールは取材に費やした時間から自動計算します。</dd>
+                <dt>Q. 案件が4つ以上ある場合は？</dt>
+                <dd>A. 複数回に分けて計算するか、まずはグループ分けしてから按分するのがおすすめです。</dd>
+            </dl>
+        </div>
+
+        <div class="disclaimer-card">
+            <p class="disclaimer-text">本ツールは概算です。正確な金額は給与明細・公式情報・税理士・FP（ファイナンシャルプランナー）にご確認ください。</p>
+        </div>
+
+        <button type="button" onclick="window.print()" class="btn-pdf">PDFで保存</button>
+          <p class="source-note">参考: 一般的な情報をもとにした目安です。必要に応じて各分野の公式情報・専門情報をご確認ください。</p>
+<a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+    </div>
+
+    <script>
+        function loadSample(n) {
+            if (n === 1) {
+                document.getElementById('totalFare').value = 5000;
+                document.getElementById('project1Name').value = 'A社インタビュー';
+                document.getElementById('project1Hours').value = 2;
+                document.getElementById('project2Name').value = 'B社オフィス訪問';
+                document.getElementById('project2Hours').value = 1.5;
+                document.getElementById('project3Name').value = 'C社撮影';
+                document.getElementById('project3Hours').value = 1;
+            } else if (n === 2) {
+                document.getElementById('totalFare').value = 3200;
+                document.getElementById('project1Name').value = '東京駅周辺取材';
+                document.getElementById('project1Hours').value = 2.5;
+                document.getElementById('project2Name').value = '丸の内エリア取材';
+                document.getElementById('project2Hours').value = 1;
+                document.getElementById('project3Name').value = '';
+                document.getElementById('project3Hours').value = '';
+            } else if (n === 3) {
+                document.getElementById('totalFare').value = 8500;
+                document.getElementById('project1Name').value = '午前案件A';
+                document.getElementById('project1Hours').value = 2;
+                document.getElementById('project2Name').value = '午前案件B';
+                document.getElementById('project2Hours').value = 1;
+                document.getElementById('project3Name').value = '午後案件C';
+                document.getElementById('project3Hours').value = 2;
+            }
+        }
+
+        function calc() {
+            const totalFare = parseFloat(document.getElementById('totalFare').value);
+            const projects = [
+                { name: document.getElementById('project1Name').value, hours: parseFloat(document.getElementById('project1Hours').value) },
+                { name: document.getElementById('project2Name').value, hours: parseFloat(document.getElementById('project2Hours').value) },
+                { name: document.getElementById('project3Name').value, hours: parseFloat(document.getElementById('project3Hours').value) }
+            ];
+
+            if (isNaN(totalFare) || totalFare < 0) {
+                alert('総交通費を正しく入力してください');
+                return;
+            }
+
+            const validProjects = projects.filter(p => !isNaN(p.hours) && p.hours > 0);
+            if (validProjects.length === 0) {
+                alert('少なくとも1つの案件で取材時間を入力してください');
+                return;
+            }
+
+            const totalHours = validProjects.reduce((sum, p) => sum + p.hours, 0);
+            if (totalHours === 0) {
+                alert('取材時間が0時間になっています');
+                return;
+            }
+
+            const resultCard = document.getElementById('result');
+            let breakdown = '';
+            let allocationList = [];
+
+            validProjects.forEach((p, idx) => {
+                const ratio = p.hours / totalHours;
+                const fare = Math.round(totalFare * ratio);
+                allocationList.push({ name: p.name || `案件${idx + 1}`, fare });
+                breakdown += `<div class="breakdown-item"><span class="breakdown-item-name">${p.name || `案件${idx + 1}`}（${p.hours}h）</span><span class="breakdown-item-amount">${fare.toLocaleString()}円</span></div>`;
+            });
+
+            const resultHtml = `<div class="result-title">按分結果</div><div class="result-value">${totalFare.toLocaleString()}円</div><div class="result-detail">を ${validProjects.length} 案件に按分<div class="result-breakdown">${breakdown}</div></div>`;
+
+            document.getElementById('result').innerHTML = resultHtml;
+            document.getElementById('result').style.display = 'block';
+            document.getElementById('readresult').style.display = '';
+        }
+    </script>
+
+    <script src="../fav-widget.js"></script>
+    <script src="../related-widget.js"></script>
+    <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>

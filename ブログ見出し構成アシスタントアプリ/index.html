@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ブログ見出し構成アシスタント｜自動で記事構成を提案</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 1.8rem;
+      color: #667eea;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    .lead-desc {
+      font-size: 0.95rem;
+      color: #666;
+      text-align: center;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    .howto-card {
+      background: #f8f9ff;
+      border-left: 4px solid #667eea;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .howto-steps {
+      list-style: none;
+      padding-left: 0;
+    }
+    .howto-steps li {
+      padding: 0.7rem 0;
+      padding-left: 2rem;
+      position: relative;
+      font-size: 0.95rem;
+      color: #555;
+    }
+    .howto-steps li:before {
+      content: attr(data-step);
+      position: absolute;
+      left: 0;
+      font-weight: bold;
+      color: #667eea;
+    }
+    .sample-input-card {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .sample-input-card h3 {
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      color: #333;
+    }
+    .sample-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.8rem;
+    }
+    @media (max-width: 600px) {
+      .sample-buttons {
+        grid-template-columns: 1fr;
+      }
+    }
+    .btn-sample {
+      padding: 0.7rem 1rem;
+      background: #ffc107;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #333;
+      transition: all 0.3s ease;
+    }
+    .btn-sample:hover {
+      background: #ffb300;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+    }
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+      color: #333;
+      font-size: 0.95rem;
+    }
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .btn-calc {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 1.5rem;
+    }
+    .btn-calc:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+    }
+    .btn-calc:active {
+      transform: translateY(0);
+    }
+    .result-card {
+      background: #f0f7ff;
+      border-left: 4px solid #667eea;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+      display: none;
+    }
+    .result-card.show {
+      display: block;
+    }
+    .result-value {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      color: #333;
+      background: white;
+      padding: 1rem;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+    }
+    .result-value.ok {
+      border-left: 4px solid #28a745;
+      background: #f0fdf4;
+    }
+    .result-value.warn {
+      border-left: 4px solid #ffc107;
+      background: #fffbf0;
+    }
+    .result-value.ng {
+      border-left: 4px solid #dc3545;
+      background: #fdf0f0;
+    }
+    .result-detail {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+      color: #666;
+      line-height: 1.6;
+    }
+    .readresult-card {
+      background: #e8f5e9;
+      border-left: 4px solid #28a745;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .readresult-list {
+      list-style: none;
+      padding-left: 0;
+    }
+    .readresult-list li {
+      padding: 0.8rem 0;
+      padding-left: 2rem;
+      position: relative;
+      font-size: 0.95rem;
+      color: #2d5016;
+      line-height: 1.6;
+    }
+    .readresult-list li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      font-weight: bold;
+      color: #28a745;
+    }
+    .faq-card {
+      background: #f5f5f5;
+      border-left: 4px solid #6c757d;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .faq-list {
+      list-style: none;
+      padding-left: 0;
+    }
+    .faq-list dt {
+      font-weight: 600;
+      color: #333;
+      margin: 1rem 0 0.5rem 0;
+      font-size: 0.95rem;
+    }
+    .faq-list dt:first-of-type {
+      margin-top: 0;
+    }
+    .faq-list dd {
+      color: #666;
+      margin-left: 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .disclaimer-card {
+      background: #fff5e6;
+      border-left: 4px solid #ff6b6b;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .disclaimer-text {
+      font-size: 0.9rem;
+      color: #d84444;
+      line-height: 1.6;
+    }
+    .btn-pdf {
+      width: 100%;
+      padding: 0.8rem;
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      transition: all 0.3s ease;
+    }
+    .btn-pdf:hover {
+      background: #5a6268;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 1rem;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+    }
+    .back-link:hover {
+      color: #764ba2;
+      text-decoration: underline;
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <link rel="canonical" href="https://nekopoke.jp/%E3%83%96%E3%83%AD%E3%82%B0%E8%A6%8B%E5%87%BA%E3%81%97%E6%A7%8B%E6%88%90%E3%82%A2%E3%82%B7%E3%82%B9%E3%82%BF%E3%83%B3%E3%83%88%E3%82%A2%E3%83%97%E3%83%AA/">
+  <meta name="description" content="ブログ見出し構成アシスタント。ブログ記事のテーマを入力するだけで、読者を引き込む見出し構成を自動生成します。記事全体の流れが一目瞭然に。スマホでも快適にご利用いただけます。">
+  <!-- OGP -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://nekopoke.jp/%E3%83%96%E3%83%AD%E3%82%B0%E8%A6%8B%E5%87%BA%E3%81%97%E6%A7%8B%E6%88%90%E3%82%A2%E3%82%B7%E3%82%B9%E3%82%BF%E3%83%B3%E3%83%88%E3%82%A2%E3%83%97%E3%83%AA/" />
+  <meta property="og:site_name"   content="ネコポケ" />
+  <meta property="og:title"       content="ブログ見出し構成アシスタント" />
+  <meta property="og:description" content="ブログ見出し構成アシスタント。ブログ記事のテーマを入力するだけで、読者を引き込む見出し構成を自動生成します。記事全体の流れが一目瞭然に。スマホでも快適にご利用いただけます。" />
+  <meta property="og:image"       content="https://nekopoke.jp/assets/mascot/nekopoke-mascot-main.webp" />
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary" />
+  <meta name="twitter:title"       content="ブログ見出し構成アシスタント" />
+  <meta name="twitter:description" content="ブログ見出し構成アシスタント。ブログ記事のテーマを入力するだけで、読者を引き込む見出し構成を自動生成します。記事全体の流れが一目瞭然に。スマホでも快適にご利用いただけます。" />
+  <meta name="twitter:image"       content="https://nekopoke.jp/assets/mascot/nekopoke-mascot-main.webp" />
+  <!-- SoftwareApplication JSON-LD -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"ブログ見出し構成アシスタント","description":"ブログ見出し構成アシスタント。ブログ記事のテーマを入力するだけで、読者を引き込む見出し構成を自動生成します。記事全体の流れが一目瞭然に。スマホでも快適にご利用いただけます。","url":"https://nekopoke.jp/%E3%83%96%E3%83%AD%E3%82%B0%E8%A6%8B%E5%87%BA%E3%81%97%E6%A7%8B%E6%88%90%E3%82%A2%E3%82%B7%E3%82%B9%E3%82%BF%E3%83%B3%E3%83%88%E3%82%A2%E3%83%97%E3%83%AA/","applicationCategory":"UtilityApplication","operatingSystem":"Any"}</script>
+  <!-- BreadcrumbList JSON-LD -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ネコポケ","item":"https://nekopoke.jp/"},{"@type":"ListItem","position":2,"name":"ブログ見出し構成アシスタント","item":"https://nekopoke.jp/%E3%83%96%E3%83%AD%E3%82%B0%E8%A6%8B%E5%87%BA%E3%81%97%E6%A7%8B%E6%88%90%E3%82%A2%E3%82%B7%E3%82%B9%E3%82%BF%E3%83%B3%E3%83%88%E3%82%A2%E3%83%97%E3%83%AA/"}]}</script>
+</head>
+<body>
+  <div class="container">
+    <h1>ブログ見出し構成アシスタント</h1>
+    <p class="lead-desc">ブログ記事のテーマを入力するだけで、読者を引き込む見出し構成を自動生成します。記事全体の流れが一目瞭然に。</p>
+
+    <div class="howto-card">
+      <ol class="howto-steps">
+        <li data-step="1">記事のテーマと想定読者を入力</li>
+        <li data-step="2">記事の長さ（短編・中編・長編）を選択</li>
+        <li data-step="3">「構成を生成」をクリック</li>
+      </ol>
+    </div>
+
+    <div id="sample-input" class="sample-input-card">
+      <h3>サンプルを試す</h3>
+      <div class="sample-buttons">
+        <button type="button" class="btn-sample" onclick="loadSample(1)">副業ブログ</button>
+        <button type="button" class="btn-sample" onclick="loadSample(2)">ダイエット</button>
+        <button type="button" class="btn-sample" onclick="loadSample(3)">WordPress</button>
+      </div>
+    </div>
+
+    <form onsubmit="calc(); return false;">
+      <div class="form-group">
+        <label for="topic">記事のテーマ・タイトル（例：「副業で月3万円稼ぐコツ」）</label>
+        <input type="text" id="topic" placeholder="ブログ記事のテーマを入力" required>
+      </div>
+
+      <div class="form-group">
+        <label for="audience">想定読者層（例：「会社員・時間がない人」）</label>
+        <input type="text" id="audience" placeholder="誰に向けた記事か">
+      </div>
+
+      <div class="form-group">
+        <label for="length">記事の長さ</label>
+        <select id="length" required>
+          <option value="">選択してください</option>
+          <option value="short">短編（500～1000字）</option>
+          <option value="medium">中編（1000～2000字）</option>
+          <option value="long">長編（2000字以上）</option>
+        </select>
+      </div>
+
+      <button type="submit" class="btn-calc">構成を生成</button>
+    </form>
+
+    <div id="result" class="result-card">
+      <div class="result-value ok">
+        <div class="result-content"></div>
+      </div>
+      <div class="result-detail"></div>
+    </div>
+
+    <div id="readresult" class="readresult-card" style="display:none">
+      <ul class="readresult-list">
+        <li>見出しの階層構造（H2→H3）を意識することで、読者の理解がスムーズになります</li>
+        <li>導入部と結論をセットにすることで、記事全体の説得力が高まります</li>
+        <li>実例やステップを交えることで、読者の満足度と SNS シェア率が上がります</li>
+      </ul>
+    </div>
+
+    <div class="faq-card">
+      <dl class="faq-list">
+        <dt>Q. 入力データは外部に送信されますか？</dt>
+        <dd>A. 送信しません。すべてブラウザ内で計算が完結します。</dd>
+        <dt>Q. 生成された見出しはそのままブログに使えますか？</dt>
+        <dd>A. このツールは構成案です。あなたのブログの目的・読者層に合わせて、見出しをカスタマイズしてください。</dd>
+        <dt>Q. 何度でも生成できますか？</dt>
+        <dd>A. はい、何度でも生成できます。異なるテーマや読者層で試して、自分に合った構成パターンを見つけてください。</dd>
+      </dl>
+    </div>
+
+    <div class="disclaimer-card">
+      <p class="disclaimer-text">本ツールは概算です。正確な金額は給与明細・公式情報・税理士・FP（ファイナンシャルプランナー）にご確認ください。</p>
+    </div>
+
+    <button type="button" onclick="window.print()" class="btn-pdf">PDFで保存</button>
+      <p class="source-note">参考: 一般的な情報をもとにした目安です。必要に応じて各分野の公式情報・専門情報をご確認ください。</p>
+<a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+    <script src="../fav-widget.js"></script>
+    <script src="../related-widget.js"></script>
+    <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+    <script>
+      function loadSample(n) {
+        if (n === 1) {
+          document.getElementById('topic').value = '副業で月3万円稼ぐコツ';
+          document.getElementById('audience').value = '会社員・時間がない人';
+          document.getElementById('length').value = 'medium';
+        } else if (n === 2) {
+          document.getElementById('topic').value = 'ダイエット初心者が3ヶ月で−5kg達成する方法';
+          document.getElementById('audience').value = '30代女性・運動が苦手';
+          document.getElementById('length').value = 'long';
+        } else if (n === 3) {
+          document.getElementById('topic').value = 'WordPress初心者向けプラグイン選び';
+          document.getElementById('audience').value = 'ブログ初心者・非エンジニア';
+          document.getElementById('length').value = 'medium';
+        }
+      }
+
+      function calc() {
+        const topic = document.getElementById('topic').value.trim();
+        const audience = document.getElementById('audience').value.trim();
+        const length = document.getElementById('length').value;
+
+        if (!topic || !length) {
+          alert('テーマと記事の長さを入力してください');
+          return;
+        }
+
+        let structure = '';
+
+        if (length === 'short') {
+          structure = `## 導入
+読者の悩み・疑問を簡潔に示す（1段落）
+
+## 本論
+実践的なコツやポイント（3～4 つ）
+
+## 結論
+まとめと次のアクション`;
+        } else if (length === 'medium') {
+          structure = `## はじめに
+このテーマが重要な理由・読者メリット
+
+## ${topic}とは
+基本定義・背景知識
+
+## ポイント 1：〇〇〇
+実例・データ付きの詳細説明
+
+## ポイント 2：〇〇〇
+読者がすぐに実践できるステップ
+
+## よくある質問
+Q&A 形式で悩みを解消
+
+## さいごに
+記事の要点と推奨アクション`;
+        } else if (length === 'long') {
+          structure = `## 導入
+テーマの背景・市場トレンド（2～3 段落）
+
+## このテーマを学ぶメリット
+読者に得られる具体的な利益・結果
+
+## 基礎知識
+用語説明・仕組み・歴史背景
+
+## 実践方法
+### ステップ 1：準備
+### ステップ 2：実行
+### ステップ 3：検証・改善
+
+## 成功事例
+具体的な事例・インタビュー
+
+## よくあるミスと対策
+初心者が陥りやすい罠と解決法
+
+## 発展編：さらに深める
+次のステップ・応用方法
+
+## FAQ
+5～10 の質問と回答
+
+## まとめ
+記事全体の総括と行動喚起`;
+        }
+
+        const audience_text = audience ? `【想定読者】${audience}` : '';
+        const resultHtml = `<div class="result-value ok"><strong>📝 見出し構成案</strong><br><br>${structure.replace(/\n/g, '<br>')}<br><br>${audience_text}</div>`;
+
+        document.getElementById('result').innerHTML = resultHtml;
+        document.getElementById('result').classList.add('show');
+
+        const detailText = '生成された見出しはサンプルです。あなたの記事目的・データに合わせてカスタマイズしてください。';
+        document.querySelector('.result-detail').textContent = detailText;
+
+        document.getElementById('readresult').style.display = '';
+      }
+    </script>
+  </div>
+</body>
+</html>
