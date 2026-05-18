@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>飲食店仕入れタイミング在庫診断</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 30px 24px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 12px;
+      color: #222;
+      text-align: center;
+    }
+    .lead-desc {
+      font-size: 14px;
+      color: #666;
+      text-align: center;
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+    .howto-card, .sample-input-card, .input-card, .result-card, .readresult-card, .faq-card, .disclaimer-card {
+      margin-bottom: 24px;
+      padding: 18px;
+      background: #f8f9ff;
+      border-radius: 12px;
+      border-left: 4px solid #667eea;
+    }
+    .readresult-card {
+      background: #e8f5e9;
+      border-left-color: #4caf50;
+    }
+    .disclaimer-card {
+      background: #fff3cd;
+      border-left-color: #ffc107;
+    }
+    .howto-steps {
+      list-style: none;
+      counter-reset: step;
+    }
+    .howto-steps li {
+      margin: 12px 0;
+      padding-left: 28px;
+      position: relative;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #555;
+    }
+    .howto-steps li:before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0;
+      background: #667eea;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .sample-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      flex: 1;
+      min-width: 100px;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn-sample {
+      background: #667eea;
+      color: white;
+    }
+    .btn-sample:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    .btn-pdf {
+      background: #ff6b6b;
+      color: white;
+      padding: 10px 20px;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    .btn-pdf:hover {
+      background: #ff5252;
+    }
+    .btn-calc {
+      background: #4caf50;
+      color: white;
+      width: 100%;
+      padding: 12px;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+    .btn-calc:hover {
+      background: #45a049;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #333;
+    }
+    input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    input[type="number"]:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .helper-text {
+      font-size: 12px;
+      color: #999;
+      margin-top: 4px;
+    }
+    #result {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      border: 2px solid #667eea;
+      margin-top: 12px;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .result-value {
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    .result-value.ok {
+      color: #2e7d32;
+      background: #e8f5e9;
+    }
+    .result-value.warn {
+      color: #f57f17;
+      background: #fff3e0;
+    }
+    .result-value.ng {
+      color: #c62828;
+      background: #ffebee;
+    }
+    .result-detail {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.6;
+    }
+    .readresult-list {
+      list-style: none;
+    }
+    .readresult-list li {
+      padding: 10px 0;
+      font-size: 13px;
+      color: #2e7d32;
+      line-height: 1.6;
+      border-bottom: 1px solid #c8e6c9;
+    }
+    .readresult-list li:last-child {
+      border-bottom: none;
+    }
+    .faq-list {
+      display: grid;
+      gap: 12px;
+    }
+    dt {
+      font-weight: 600;
+      color: #667eea;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+    dd {
+      font-size: 13px;
+      color: #666;
+      margin-left: 0;
+      line-height: 1.6;
+    }
+    .disclaimer-text {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    @media print {
+      body {
+        background: white;
+      }
+      .container {
+        box-shadow: none;
+      }
+      .btn-pdf, .back-link {
+        display: none;
+      }
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <link rel="canonical" href="https://nekopoke.jp/%E9%A3%B2%E9%A3%9F%E5%BA%97%E4%BB%95%E5%85%A5%E3%82%8C%E3%82%BF%E3%82%A4%E3%83%9F%E3%83%B3%E3%82%B0%E5%9C%A8%E5%BA%AB%E3%82%A2%E3%83%97%E3%83%AA/">
+  <meta name="description" content="飲食店仕入れタイミング在庫診断。現在の在庫水準と売上ペースから、最適な仕入れサイクルと推奨発注量の目安を診断します。スマホでも快適にご利用いただけます。">
+  <!-- OGP -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://nekopoke.jp/%E9%A3%B2%E9%A3%9F%E5%BA%97%E4%BB%95%E5%85%A5%E3%82%8C%E3%82%BF%E3%82%A4%E3%83%9F%E3%83%B3%E3%82%B0%E5%9C%A8%E5%BA%AB%E3%82%A2%E3%83%97%E3%83%AA/" />
+  <meta property="og:site_name"   content="ネコポケ" />
+  <meta property="og:title"       content="飲食店仕入れタイミング在庫診断" />
+  <meta property="og:description" content="飲食店仕入れタイミング在庫診断。現在の在庫水準と売上ペースから、最適な仕入れサイクルと推奨発注量の目安を診断します。スマホでも快適にご利用いただけます。" />
+  <meta property="og:image"       content="https://nekopoke.jp/assets/mascot/nekopoke-mascot-main.webp" />
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary" />
+  <meta name="twitter:title"       content="飲食店仕入れタイミング在庫診断" />
+  <meta name="twitter:description" content="飲食店仕入れタイミング在庫診断。現在の在庫水準と売上ペースから、最適な仕入れサイクルと推奨発注量の目安を診断します。スマホでも快適にご利用いただけます。" />
+  <meta name="twitter:image"       content="https://nekopoke.jp/assets/mascot/nekopoke-mascot-main.webp" />
+  <!-- SoftwareApplication JSON-LD -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"飲食店仕入れタイミング在庫診断","description":"飲食店仕入れタイミング在庫診断。現在の在庫水準と売上ペースから、最適な仕入れサイクルと推奨発注量の目安を診断します。スマホでも快適にご利用いただけます。","url":"https://nekopoke.jp/%E9%A3%B2%E9%A3%9F%E5%BA%97%E4%BB%95%E5%85%A5%E3%82%8C%E3%82%BF%E3%82%A4%E3%83%9F%E3%83%B3%E3%82%B0%E5%9C%A8%E5%BA%AB%E3%82%A2%E3%83%97%E3%83%AA/","applicationCategory":"UtilityApplication","operatingSystem":"Any"}</script>
+  <!-- BreadcrumbList JSON-LD -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ネコポケ","item":"https://nekopoke.jp/"},{"@type":"ListItem","position":2,"name":"飲食店仕入れタイミング在庫診断","item":"https://nekopoke.jp/%E9%A3%B2%E9%A3%9F%E5%BA%97%E4%BB%95%E5%85%A5%E3%82%8C%E3%82%BF%E3%82%A4%E3%83%9F%E3%83%B3%E3%82%B0%E5%9C%A8%E5%BA%AB%E3%82%A2%E3%83%97%E3%83%AA/"}]}</script>
+</head>
+<body>
+  <div class="container">
+    <h1>飲食店仕入れタイミング在庫診断</h1>
+    <p class="lead-desc">現在の在庫水準と売上ペースから、最適な仕入れサイクルと推奨発注量の目安を診断します。</p>
+
+    <div class="howto-card">
+      <ol class="howto-steps">
+        <li>現在の在庫数、日間販売数量、仕入れリードタイムを入力します</li>
+        <li>保有コスト率と商品単価を設定して計算ボタンをクリック</li>
+        <li>推奨仕入れタイミングと経済発注量の目安を確認できます</li>
+      </ol>
+    </div>
+
+    <div class="sample-input-card">
+      <strong>サンプル入力を使う</strong>
+      <div class="sample-buttons">
+        <button class="btn btn-sample" onclick="loadSample(1)">小規模居酒屋</button>
+        <button class="btn btn-sample" onclick="loadSample(2)">中規模レストラン</button>
+        <button class="btn btn-sample" onclick="loadSample(3)">大型食堂</button>
+      </div>
+    </div>
+
+    <button type="button" onclick="window.print()" class="btn-pdf">PDFで保存</button>
+
+    <div class="input-card">
+      <div class="form-group">
+        <label for="current-inventory">現在の在庫数（個・kg・L等）</label>
+        <input type="number" id="current-inventory" placeholder="例: 50" step="0.1" min="0">
+        <p class="helper-text">仕入れ対象商品の現在の在庫量を入力</p>
+      </div>
+      <div class="form-group">
+        <label for="daily-sales">日間販売数量（個・kg・L等）</label>
+        <input type="number" id="daily-sales" placeholder="例: 5" step="0.1" min="0">
+        <p class="helper-text">この商品の1日あたりの平均販売量</p>
+      </div>
+      <div class="form-group">
+        <label for="lead-time">仕入れリードタイム（日）</label>
+        <input type="number" id="lead-time" placeholder="例: 3" step="0.5" min="0">
+        <p class="helper-text">発注から納品までにかかる日数</p>
+      </div>
+      <div class="form-group">
+        <label for="holding-cost-rate">保有コスト率（% / 年）</label>
+        <input type="number" id="holding-cost-rate" placeholder="例: 20" step="0.1" min="0" max="100">
+        <p class="helper-text">冷蔵・冷凍・保管費用等の年間コスト率（商品単価の何%か）</p>
+      </div>
+      <div class="form-group">
+        <label for="unit-price">商品単価（円）</label>
+        <input type="number" id="unit-price" placeholder="例: 1000" step="1" min="0">
+        <p class="helper-text">この商品の仕入れ単価</p>
+      </div>
+      <button class="btn btn-calc" onclick="calc()">診断する</button>
+    </div>
+
+    <div id="result" class="result-card">
+      <div style="text-align: center; color: #999; font-size: 13px;">計算結果はここに表示されます</div>
+    </div>
+
+    <div id="readresult" class="readresult-card" style="display:none">
+      <ul class="readresult-list">
+        <li>在庫が少なくなる前に仕入れることで、品切れリスクと保有コストのバランスをとることができます</li>
+        <li>リードタイムが長い商品ほど余裕を持った発注が重要です</li>
+        <li>実際の季節変動や曜日パターンに応じて発注量を調整してください</li>
+      </ul>
+    </div>
+
+    <div class="faq-card">
+      <dl class="faq-list">
+        <dt>Q. 入力データは外部に送信されますか？</dt>
+        <dd>A. 送信しません。すべてブラウザ内で計算が完結します。</dd>
+        <dt>Q. 在庫が多い場合のデメリットは何ですか？</dt>
+        <dd>A. 保有コスト（冷蔵・保管費用、廃棄ロス）が増加し、資金繰りが悪化する可能性があります。</dd>
+        <dt>Q. この診断はどの商品に使えますか？</dt>
+        <dd>A. 野菜・肉・魚などの生鮮食品、調味料、酒類など、定期的に仕入れる商品全般に使えます。</dd>
+      </dl>
+    </div>
+
+    <div class="disclaimer-card">
+      <p class="disclaimer-text">本ツールは概算です。正確な金額は給与明細・公式情報・税理士・FP（ファイナンシャルプランナー）にご確認ください。</p>
+    </div>
+  </div>
+
+    <p class="source-note">参考: 一般的な情報をもとにした目安です。必要に応じて各分野の公式情報・専門情報をご確認ください。</p>
+<a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+  <script>
+    function loadSample(n) {
+      if (n === 1) {
+        document.getElementById('current-inventory').value = 45;
+        document.getElementById('daily-sales').value = 8;
+        document.getElementById('lead-time').value = 2;
+        document.getElementById('holding-cost-rate').value = 18;
+        document.getElementById('unit-price').value = 800;
+      } else if (n === 2) {
+        document.getElementById('current-inventory').value = 120;
+        document.getElementById('daily-sales').value = 20;
+        document.getElementById('lead-time').value = 3;
+        document.getElementById('holding-cost-rate').value = 20;
+        document.getElementById('unit-price').value = 1200;
+      } else if (n === 3) {
+        document.getElementById('current-inventory').value = 300;
+        document.getElementById('daily-sales').value = 50;
+        document.getElementById('lead-time').value = 4;
+        document.getElementById('holding-cost-rate').value = 22;
+        document.getElementById('unit-price').value = 1500;
+      }
+    }
+
+    function calc() {
+      const inventory = parseFloat(document.getElementById('current-inventory').value);
+      const dailySales = parseFloat(document.getElementById('daily-sales').value);
+      const leadTime = parseFloat(document.getElementById('lead-time').value);
+      const holdingCostRate = parseFloat(document.getElementById('holding-cost-rate').value);
+      const unitPrice = parseFloat(document.getElementById('unit-price').value);
+
+      if (isNaN(inventory) || isNaN(dailySales) || isNaN(leadTime) || isNaN(holdingCostRate) || isNaN(unitPrice)) {
+        alert('すべての項目を数値で入力してください');
+        return;
+      }
+
+      if (inventory < 0 || dailySales < 0 || leadTime < 0 || holdingCostRate < 0 || unitPrice < 0) {
+        alert('負の数は入力できません');
+        return;
+      }
+
+      // 経済発注量の計算（EOQ）
+      // EOQ = sqrt(2 * D * S / H)
+      // D: 年間需要量, S: 1回発注あたりのコスト, H: 単位当たりの年間保有コスト
+      const annualDemand = dailySales * 365;
+      const orderCost = 500; // 1回発注あたりの固定コスト（目安）
+      const holdingCost = (holdingCostRate / 100) * unitPrice;
+
+      let eoq = 0;
+      if (holdingCost > 0) {
+        eoq = Math.sqrt((2 * annualDemand * orderCost) / holdingCost);
+      }
+
+      // 現在の在庫で何日持つか
+      const daysOfSupply = dailySales > 0 ? inventory / dailySales : 0;
+
+      // 安全在庫の目安（リードタイム分＋安全係数）
+      const safetyStock = dailySales * (leadTime + 1);
+
+      // 再発注点：安全在庫＋リードタイム中の需要
+      const reorderPoint = dailySales * leadTime + safetyStock;
+
+      // 推奨発注量
+      const recommendedOrder = Math.max(eoq, safetyStock * 1.5);
+
+      // 評価判定
+      let level = 'ok';
+      let levelText = '適正';
+      let advice = '';
+
+      if (daysOfSupply < leadTime) {
+        level = 'ng';
+        levelText = '危険';
+        advice = '品切れの危機。早急に発注が必要です。';
+      } else if (daysOfSupply < leadTime + 3) {
+        level = 'warn';
+        levelText = '注意';
+        advice = 'リードタイムに余裕がない状態です。';
+      } else if (daysOfSupply > leadTime + 10) {
+        level = 'warn';
+        levelText = '過剰';
+        advice = '在庫が多めです。保有コスト削減の検討を。';
+      } else {
+        level = 'ok';
+        levelText = '適正';
+        advice = 'バランスが取れた在庫水準です。';
+      }
+
+      // 年間保有コスト
+      const averageInventory = (recommendedOrder / 2) + safetyStock;
+      const annualHoldingCost = averageInventory * holdingCost;
+
+      const resultHtml = `
+        <div class="result-value ${level}">${levelText}</div>
+        <div class="result-detail">
+          <div style="margin: 10px 0;"><strong>現在の在庫日数:</strong> ${daysOfSupply.toFixed(1)}日分</div>
+          <div style="margin: 10px 0;"><strong>推奨発注量:</strong> ${Math.round(recommendedOrder)}個</div>
+          <div style="margin: 10px 0;"><strong>再発注点:</strong> ${Math.round(reorderPoint)}個以下</div>
+          <div style="margin: 10px 0;"><strong>予想年間保有コスト:</strong> ${Math.round(annualHoldingCost).toLocaleString()}円</div>
+          <div style="margin: 10px 0; color: #666; font-size: 12px;">${advice}</div>
+        </div>
+      `;
+
+      document.getElementById('result').innerHTML = resultHtml;
+      document.getElementById('readresult').style.display = '';
+    }
+  </script>
+</body>
+</html>

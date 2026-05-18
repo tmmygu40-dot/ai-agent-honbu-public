@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>バレースコア記録＆勝敗判定 | 試合スコア計算</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 1.5rem;
+      color: #333;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 28px;
+      color: #667eea;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .lead-desc {
+      text-align: center;
+      color: #666;
+      font-size: 15px;
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+    .howto-card {
+      background: #f8f9ff;
+      border-left: 4px solid #667eea;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .howto-card h2 {
+      font-size: 16px;
+      margin-bottom: 1rem;
+      color: #667eea;
+    }
+    .howto-steps {
+      list-style: none;
+      counter-reset: step;
+    }
+    .howto-steps li {
+      counter-increment: step;
+      margin-bottom: 0.8rem;
+      padding-left: 2rem;
+      position: relative;
+      font-size: 14px;
+    }
+    .howto-steps li:before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: -2px;
+      background: #667eea;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .sample-input-card {
+      background: #f0f4ff;
+      border: 1px solid #e0e8ff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .sample-input-card h3 {
+      font-size: 14px;
+      margin-bottom: 1rem;
+      color: #667eea;
+      font-weight: 600;
+    }
+    .sample-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.8rem;
+    }
+    .btn-sample {
+      padding: 0.7rem 0.8rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    .btn-sample:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .input-section {
+      margin-bottom: 2rem;
+    }
+    .input-group {
+      margin-bottom: 1.2rem;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    .score-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1.2rem;
+    }
+    .score-set {
+      background: #f9f9f9;
+      padding: 1rem;
+      border-radius: 6px;
+      border: 1px solid #eee;
+    }
+    .score-set label {
+      font-size: 13px;
+      color: #666;
+    }
+    .btn-calc {
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-calc:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    }
+    .result-card {
+      background: #f0f4ff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      display: none;
+    }
+    .result-card.show {
+      display: block;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    #result {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+    .result-value {
+      font-size: 24px;
+      font-weight: bold;
+      margin: 0.8rem 0;
+    }
+    .result-value.ok {
+      color: #10b981;
+    }
+    .result-value.warn {
+      color: #f59e0b;
+    }
+    .result-value.ng {
+      color: #ef4444;
+    }
+    .result-detail {
+      font-size: 13px;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+    .readresult-card {
+      background: #f0fdf4;
+      border-left: 4px solid #10b981;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .readresult-card h3 {
+      font-size: 14px;
+      color: #10b981;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    .readresult-list {
+      list-style: none;
+    }
+    .readresult-list li {
+      padding: 0.8rem 0;
+      font-size: 13px;
+      color: #333;
+      border-bottom: 1px solid #e0f2e9;
+    }
+    .readresult-list li:last-child {
+      border-bottom: none;
+    }
+    .faq-card {
+      background: #fffbf0;
+      border-left: 4px solid #f59e0b;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .faq-card h3 {
+      font-size: 14px;
+      color: #f59e0b;
+      margin-bottom: 1.2rem;
+      font-weight: 600;
+    }
+    .faq-list {
+      list-style: none;
+    }
+    .faq-list dt {
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+      margin: 1rem 0 0.5rem 0;
+    }
+    .faq-list dd {
+      font-size: 13px;
+      color: #666;
+      margin-left: 0;
+      margin-bottom: 0.8rem;
+    }
+    .disclaimer-card {
+      background: #fff5f5;
+      border-left: 4px solid #ef4444;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border-radius: 8px;
+    }
+    .disclaimer-card h3 {
+      font-size: 14px;
+      color: #ef4444;
+      margin-bottom: 0.8rem;
+      font-weight: 600;
+    }
+    .disclaimer-text {
+      font-size: 12px;
+      color: #333;
+      line-height: 1.5;
+    }
+    .btn-pdf {
+      width: 100%;
+      padding: 0.8rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 1rem;
+      transition: all 0.3s;
+    }
+    .btn-pdf:hover {
+      background: #5568d3;
+    }
+    .back-link {
+      display: inline-block;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 13px;
+      margin-top: 1.5rem;
+      transition: color 0.3s;
+    }
+    .back-link:hover {
+      color: #5568d3;
+    }
+    @media (max-width: 600px) {
+      .container { padding: 1.2rem; }
+      h1 { font-size: 22px; }
+      .sample-buttons { grid-template-columns: 1fr; }
+      .score-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <link rel="canonical" href="https://nekopoke.jp/%E3%83%90%E3%83%AC%E3%83%BC%E3%82%B9%E3%82%B3%E3%82%A2%E8%A8%98%E9%8C%B2%E3%82%A2%E3%83%97%E3%83%AA/">
+  <meta name="description" content="バレースコア記録＆勝敗判定。バレーボール試合の両チーム得点を入力すると、セット勝敗・セット率・ポイント率・総得点などの参考値が自動計算されます。スコア記録や試合結果確認の目安に。">
+  <!-- OGP -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:url"         content="https://nekopoke.jp/%E3%83%90%E3%83%AC%E3%83%BC%E3%82%B9%E3%82%B3%E3%82%A2%E8%A8%98%E9%8C%B2%E3%82%A2%E3%83%97%E3%83%AA/" />
+  <meta property="og:site_name"   content="ネコポケ" />
+  <meta property="og:title"       content="バレースコア記録＆勝敗判定" />
+  <meta property="og:description" content="バレースコア記録＆勝敗判定。バレーボール試合の両チーム得点を入力すると、セット勝敗・セット率・ポイント率・総得点などの参考値が自動計算されます。スコア記録や試合結果確認の目安に。" />
+  <meta property="og:image"       content="https://nekopoke.jp/assets/mascot/nekopoke-mascot-main.webp" />
+  <!-- Twitter Card -->
+  <meta name="twitter:card"        content="summary" />
+  <meta name="twitter:title"       content="バレースコア記録＆勝敗判定" />
+  <meta name="twitter:description" content="バレースコア記録＆勝敗判定。バレーボール試合の両チーム得点を入力すると、セット勝敗・セット率・ポイント率・総得点などの参考値が自動計算されます。スコア記録や試合結果確認の目安に。" />
+  <meta name="twitter:image"       content="https://nekopoke.jp/assets/mascot/nekopoke-mascot-main.webp" />
+  <!-- SoftwareApplication JSON-LD -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"バレースコア記録＆勝敗判定","description":"バレースコア記録＆勝敗判定。バレーボール試合の両チーム得点を入力すると、セット勝敗・セット率・ポイント率・総得点などの参考値が自動計算されます。スコア記録や試合結果確認の目安に。","url":"https://nekopoke.jp/%E3%83%90%E3%83%AC%E3%83%BC%E3%82%B9%E3%82%B3%E3%82%A2%E8%A8%98%E9%8C%B2%E3%82%A2%E3%83%97%E3%83%AA/","applicationCategory":"UtilityApplication","operatingSystem":"Any"}</script>
+  <!-- BreadcrumbList JSON-LD -->
+  <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ネコポケ","item":"https://nekopoke.jp/"},{"@type":"ListItem","position":2,"name":"バレースコア記録＆勝敗判定","item":"https://nekopoke.jp/%E3%83%90%E3%83%AC%E3%83%BC%E3%82%B9%E3%82%B3%E3%82%A2%E8%A8%98%E9%8C%B2%E3%82%A2%E3%83%97%E3%83%AA/"}]}</script>
+</head>
+<body>
+  <div class="container">
+    <h1>バレースコア記録＆勝敗判定</h1>
+    <p class="lead-desc">バレーボール試合の両チーム得点を入力すると、セット勝敗・セット率・ポイント率・総得点などの参考値が自動計算されます。スコア記録や試合結果確認の目安に。</p>
+
+    <div class="howto-card">
+      <h2>使い方</h2>
+      <ol class="howto-steps">
+        <li>チームA・チームBの名前を入力します</li>
+        <li>セット数を選択し、各セットの得点を両チーム分入力します</li>
+        <li>「スコア計算」ボタンを押して、試合結果を確認します</li>
+      </ol>
+    </div>
+
+    <div class="sample-input-card">
+      <h3>サンプルデータを読み込む</h3>
+      <div class="sample-buttons">
+        <button class="btn-sample" onclick="loadSample(1)">サンプル1: 3-0勝利</button>
+        <button class="btn-sample" onclick="loadSample(2)">サンプル2: 3-2勝利</button>
+        <button class="btn-sample" onclick="loadSample(3)">サンプル3: 0-3敗北</button>
+      </div>
+    </div>
+
+    <div class="input-section">
+      <div class="input-group">
+        <label for="teamA">チームA 名前</label>
+        <input type="text" id="teamA" placeholder="例: 自チーム" value="チームA">
+      </div>
+      <div class="input-group">
+        <label for="teamB">チームB 名前</label>
+        <input type="text" id="teamB" placeholder="例: 相手チーム" value="チームB">
+      </div>
+      <div class="input-group">
+        <label for="setCount">セット数</label>
+        <select id="setCount" onchange="updateScoreInputs()">
+          <option value="3">3セット</option>
+          <option value="5">5セット</option>
+        </select>
+      </div>
+      <div id="scoreInputs"></div>
+      <button class="btn-calc" onclick="calc()">スコア計算</button>
+    </div>
+
+    <div id="result" class="result-card"></div>
+
+    <div id="readresult" class="readresult-card" style="display:none">
+      <h3>試合分析</h3>
+      <ul class="readresult-list">
+        <li>セット率が高いほど、チームの安定性が高い傾向です。</li>
+        <li>ポイント率が50%を超えると、試合全体で有利な状況と言えます。</li>
+        <li>得点効率向上のため、サーブ精度やレシーブ安定性を確認しましょう。</li>
+      </ul>
+    </div>
+
+    <div class="faq-card">
+      <h3>よくある質問</h3>
+      <dl class="faq-list">
+        <dt>Q. 入力データは外部に送信されますか？</dt>
+        <dd>A. 送信しません。すべてブラウザ内で計算が完結します。</dd>
+
+        <dt>Q. バレーボールのスコアリングルールは複雑ですが、対応していますか？</dt>
+        <dd>A. 簡略版です。正確なスコアリングは公式ルールブックをご参照ください。</dd>
+
+        <dt>Q. 試合記録を保存できますか？</dt>
+        <dd>A. このツールではブラウザ内計算のみです。結果をスクリーンショット・PDFで保存いただけます。</dd>
+      </dl>
+    </div>
+
+    <div class="disclaimer-card">
+      <h3>免責事項</h3>
+      <p class="disclaimer-text">本ツールは概算です。正確な金額は給与明細・公式情報・税理士・FP（ファイナンシャルプランナー）にご確認ください。</p>
+    </div>
+
+    <button type="button" onclick="window.print()" class="btn-pdf">PDFで保存</button>
+  </div>
+
+  <script>
+    function updateScoreInputs() {
+      const setCount = parseInt(document.getElementById('setCount').value);
+      const container = document.getElementById('scoreInputs');
+      container.innerHTML = '';
+      for (let i = 1; i <= setCount; i++) {
+        const html = `
+          <div class="score-set">
+            <label>第${i}セット</label>
+            <div class="score-grid">
+              <div class="input-group">
+                <label for="setA${i}" style="font-size:12px;">チームA</label>
+                <input type="number" id="setA${i}" min="0" max="99" value="25" placeholder="0">
+              </div>
+              <div class="input-group">
+                <label for="setB${i}" style="font-size:12px;">チームB</label>
+                <input type="number" id="setB${i}" min="0" max="99" value="20" placeholder="0">
+              </div>
+            </div>
+          </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+      }
+    }
+
+    function loadSample(n) {
+      const samples = {
+        1: { name1: 'チームA', name2: 'チームB', sets: 3, scores: [[25,20], [28,26], [30,28]] },
+        2: { name1: 'チームA', name2: 'チームB', sets: 5, scores: [[25,22], [23,25], [25,18], [24,26], [15,10]] },
+        3: { name1: 'チームA', name2: 'チームB', sets: 3, scores: [[20,25], [18,25], [22,25]] }
+      };
+      const sample = samples[n];
+      document.getElementById('teamA').value = sample.name1;
+      document.getElementById('teamB').value = sample.name2;
+      document.getElementById('setCount').value = sample.sets;
+      updateScoreInputs();
+      sample.scores.forEach((score, i) => {
+        document.getElementById(`setA${i+1}`).value = score[0];
+        document.getElementById(`setB${i+1}`).value = score[1];
+      });
+    }
+
+    function calc() {
+      const teamA = document.getElementById('teamA').value || 'チームA';
+      const teamB = document.getElementById('teamB').value || 'チームB';
+      const setCount = parseInt(document.getElementById('setCount').value);
+
+      let winsA = 0, winsB = 0;
+      let totalA = 0, totalB = 0;
+      let resultHtml = `<div class="result-value">試合結果</div>`;
+
+      for (let i = 1; i <= setCount; i++) {
+        const scoreA = parseInt(document.getElementById(`setA${i}`).value) || 0;
+        const scoreB = parseInt(document.getElementById(`setB${i}`).value) || 0;
+        totalA += scoreA;
+        totalB += scoreB;
+        const winA = scoreA > scoreB;
+        if (winA) winsA++;
+        else winsB++;
+      }
+
+      const setRate = (winsA / setCount * 100).toFixed(1);
+      const totalPoints = totalA + totalB;
+      const pointRate = totalPoints > 0 ? (totalA / totalPoints * 100).toFixed(1) : 0;
+      const matchResult = winsA > setCount / 2 ? 'ok' : (winsA === setCount / 2 ? 'warn' : 'ng');
+      const matchText = winsA > setCount / 2 ? '勝利' : (winsA === setCount / 2 ? '引き分け' : '敗北');
+
+      resultHtml += `
+        <div class="result-value ${matchResult}">${teamA} ${winsA}-${winsB} ${teamB}</div>
+        <div class="result-detail">${matchText}</div>
+        <div style="margin-top:1.5rem; display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div>
+            <div class="result-detail">セット率</div>
+            <div class="result-value">${setRate}%</div>
+          </div>
+          <div>
+            <div class="result-detail">ポイント率</div>
+            <div class="result-value">${pointRate}%</div>
+          </div>
+        </div>
+        <div style="margin-top:1.5rem; display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div>
+            <div class="result-detail">${teamA} 総得点</div>
+            <div class="result-value">${totalA}点</div>
+          </div>
+          <div>
+            <div class="result-detail">${teamB} 総得点</div>
+            <div class="result-value">${totalB}点</div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('result').innerHTML = resultHtml;
+      document.getElementById('result').style.display = 'block';
+      document.getElementById('readresult').style.display = '';
+    }
+
+    updateScoreInputs();
+  </script>
+
+    <p class="source-note">参考: 一般的な情報をもとにした目安です。必要に応じて各分野の公式情報・専門情報をご確認ください。</p>
+<a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+  <script src="../fav-widget.js"></script>
+  <script src="../related-widget.js"></script>
+  <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+</body>
+</html>
