@@ -5755,21 +5755,36 @@
 
 <script>
 (function(){
-  var SYNONYM_GROUPS = [
-    ['こども','子ども','子供','育児','子育て','保育','幼児']
+  function toKana(s){ return s.replace(/[ぁ-ゖ]/g,function(c){return String.fromCharCode(c.charCodeAt(0)+0x60);}); }
+
+  // alias groups: 各 group の term の全 prefix → group 全 term を展開
+  // 将来: ai-site-index.json に searchKeywords/yomi を持たせてここを置き換える
+  var ALIAS_GROUPS = [
+    ['こども','子ども','子供','子育て','育児','保育','幼児']
   ];
-  var SYNONYM_MAP = {};
-  SYNONYM_GROUPS.forEach(function(g){ g.forEach(function(t){ SYNONYM_MAP[t]=g; }); });
+  var PREFIX_MAP = {};
+  ALIAS_GROUPS.forEach(function(g){
+    var normTerms = g.map(function(t){ return toKana(t.toLowerCase()); });
+    normTerms.forEach(function(norm){
+      for(var i=1; i<=norm.length; i++){
+        var pfx = norm.slice(0,i);
+        if(!PREFIX_MAP[pfx]) PREFIX_MAP[pfx] = [];
+        normTerms.forEach(function(nt){
+          if(PREFIX_MAP[pfx].indexOf(nt)<0) PREFIX_MAP[pfx].push(nt);
+        });
+      }
+    });
+  });
 
   var inp = document.getElementById('site-search');
   var res = document.getElementById('search-results');
   if(!inp) return;
   inp.addEventListener('input', function(){
-    function toKana(s){ return s.replace(/[ぁ-ゖ]/g,function(c){return String.fromCharCode(c.charCodeAt(0)+0x60);}); }
     var raw = inp.value.trim();
     if(!raw){ res.style.display='none'; res.innerHTML=''; return; }
-    var group = SYNONYM_MAP[raw] || [raw];
-    var queries = group.map(function(t){ return toKana(t.toLowerCase()); });
+    var normQ = toKana(raw.toLowerCase());
+    var queries = [normQ];
+    (PREFIX_MAP[normQ]||[]).forEach(function(q){ if(queries.indexOf(q)<0) queries.push(q); });
     var items = document.querySelectorAll('#all-apps li a');
     var matched = [];
     var seen = {};
