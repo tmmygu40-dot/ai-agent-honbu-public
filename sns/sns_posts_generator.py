@@ -10,7 +10,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent.parent
 SNS_DIR = ROOT / "sns"
 QUEUE_PATH = SNS_DIR / "sns_queue.json"
-BASE_URL = "https://tmmygu40-dot.github.io/ai-agent-honbu-public"
+BASE_URL = "https://nekopoke.jp"
 
 EXCLUDED_DIRS = {
     ".git",

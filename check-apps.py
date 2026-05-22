@@ -3,7 +3,7 @@ from datetime import datetime
 from urllib.parse import quote
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
-BASE = "https://tmmygu40-dot.github.io/ai-agent-honbu-public"
+BASE = "https://nekopoke.jp"
 
 with open("index.html", encoding="utf-8") as f:
     html = f.read()
