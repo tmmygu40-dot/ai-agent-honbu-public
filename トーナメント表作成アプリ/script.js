@@ -239,8 +239,15 @@ function makeSlot(match, teamKey, roundIndex, matchIndex) {
   const otherName = match[otherKey];
 
   if (teamName === null) {
-    slot.classList.add('bye');
-    slot.textContent = 'BYE';
+    if (roundIndex === 0) {
+      // 1回戦の null = 出場枠不足による真の BYE
+      slot.classList.add('bye');
+      slot.textContent = 'BYE';
+    } else {
+      // 2回戦以降の null = 上流の勝者未決着（TBD）
+      slot.classList.add('tbd');
+      slot.textContent = '―';
+    }
   } else if (teamName === undefined || teamName === '') {
     slot.classList.add('empty');
     slot.textContent = '―';
