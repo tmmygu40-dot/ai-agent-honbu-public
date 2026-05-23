@@ -5783,17 +5783,43 @@
     var items = document.querySelectorAll('#all-apps li a');
     var matched = [];
     var seen = {};
-    items.forEach(function(a){
-      var href = a.getAttribute('href') || '';
-      if(seen[href]) return;
-      var tTitle = toKana(a.textContent.toLowerCase());
-      var tHref  = toKana(href.toLowerCase());
-      var hit = queries.some(function(q){ return tTitle.indexOf(q)>=0 || tHref.indexOf(q)>=0; });
-      if(hit){
-        seen[href] = true;
-        matched.push('<li><a href="'+href+'">'+a.textContent+'</a></li>');
-      }
-    });
+    if (raw.length === 1) {
+      // 1文字: スコアリング順（alias/prefix一致を最上位、生1文字 contains は最下位）
+      var aliasQs = queries.slice(1);
+      var scored = [];
+      items.forEach(function(a){
+        var href = a.getAttribute('href') || '';
+        if(seen[href]) return;
+        var tTitle = toKana(a.textContent.toLowerCase());
+        var tHref  = toKana(href.toLowerCase());
+        var score = 0;
+        aliasQs.forEach(function(q){
+          if (tTitle.indexOf(q) === 0) score = Math.max(score, 100);
+          else if (tTitle.indexOf(q) >= 0) score = Math.max(score, 60);
+        });
+        if (tTitle.indexOf(normQ) === 0) score = Math.max(score, 30);
+        else if (tHref.indexOf(normQ) === 0) score = Math.max(score, 20);
+        else if (tTitle.indexOf(normQ) >= 0 || tHref.indexOf(normQ) >= 0) score = Math.max(score, 5);
+        if (score > 0) {
+          seen[href] = true;
+          scored.push({s:score, h:'<li><a href="'+href+'">'+a.textContent+'</a></li>'});
+        }
+      });
+      scored.sort(function(a,b){ return b.s - a.s; });
+      matched = scored.map(function(x){ return x.h; });
+    } else {
+      items.forEach(function(a){
+        var href = a.getAttribute('href') || '';
+        if(seen[href]) return;
+        var tTitle = toKana(a.textContent.toLowerCase());
+        var tHref  = toKana(href.toLowerCase());
+        var hit = queries.some(function(q){ return tTitle.indexOf(q)>=0 || tHref.indexOf(q)>=0; });
+        if(hit){
+          seen[href] = true;
+          matched.push('<li><a href="'+href+'">'+a.textContent+'</a></li>');
+        }
+      });
+    }
     var limit = raw.length===1 ? 30 : 100;
     var show = matched.slice(0,limit);
     if(show.length===0){
