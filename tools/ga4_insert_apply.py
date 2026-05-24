@@ -44,6 +44,10 @@ BACKUP_DIR = ROOT / "tools" / "ga4_apply_backups"
 GITIGNORE_PATH = ROOT / ".gitignore"
 INSERT_LINE = '<script async src="/assets/js/analytics.js"></script>'
 
+# 防御的: 運用・素材・ツール・監査ディレクトリは GA4 対象から強制除外
+# dry-run script 側でも除外しているが、古い JSON / 手動編集に対する2重ガード
+BLOCKED_TOP_DIRS = ("sns/", "brand/", "tools/", "_public_audit/")
+
 # ---- 検証パターン ----
 GA_ID_PATTERN = re.compile(r"^G-[A-Z0-9]{10}$")
 PLACEHOLDER_SUFFIXES = {"X" * 10, "0" * 10, "Y" * 10, "Z" * 10}
@@ -242,6 +246,24 @@ def main(argv=None) -> int:
         print("[ERROR] dry-run report has no targets_all / targets_preview_top20",
               file=sys.stderr)
         return 3
+
+    # 防御的チェック: 運用ディレクトリ混入を絶対に拒否
+    blocked = [t["path"] for t in all_targets
+               if t["path"].startswith(BLOCKED_TOP_DIRS)]
+    if blocked:
+        print(
+            f"[ERROR] targets contain blocked operational dirs "
+            f"({', '.join(BLOCKED_TOP_DIRS)}):",
+            file=sys.stderr,
+        )
+        for b in blocked[:10]:
+            print(f"  - {b}", file=sys.stderr)
+        print(
+            "Re-run tools/ga4_insert_dry_run.py to regenerate "
+            "_public_audit/ga4_dry_run_report.json.",
+            file=sys.stderr,
+        )
+        return 6
 
     if args.all_targets:
         targets = all_targets

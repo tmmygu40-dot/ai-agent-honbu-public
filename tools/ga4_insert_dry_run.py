@@ -26,7 +26,17 @@ from pathlib import Path
 ROOT = Path(r"C:\Users\tmmyg\OneDrive\デスクトップ\ai-agent-honbu-public")
 REPORT_PATH = ROOT / "_public_audit" / "ga4_dry_run_report.json"
 INSERT_LINE = '<script async src="/assets/js/analytics.js"></script>'
-EXCLUDE_DIR_PARTS = {".git", ".claude", "__pycache__"}
+EXCLUDE_DIR_PARTS = {
+    # build / system
+    ".git", ".claude", "__pycache__",
+    # 運用・素材ディレクトリ（GA4対象外）
+    # 再発防止: 過去に sns/preview.html / sns/x_dashboard.html 誤適用あり
+    "sns", "brand",
+    # ツール・監査ディレクトリ（backup HTML を絶対に走査しない）
+    # 再発防止: bulk apply 後に tools/ga4_apply_backups/ 配下の
+    # 4,967件 backup HTML が走査・対象化される事象を確認
+    "tools", "_public_audit",
+}
 SPECIAL_FILE = "google6413fb433ec93152.html"
 
 CLOSE_HEAD_RE = re.compile(r"</head>", re.IGNORECASE)
