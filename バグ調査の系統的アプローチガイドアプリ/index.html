@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>バグ原因を図解で見つけるガイド</title>
+  <meta name="description" content="エラー現象から原因を体系的に切り分ける診断ツール。症状・条件・環境情報を入力すると、バグの最有力原因と対応策が表示されます。">
+  <link rel="canonical" href="https://nekopoke.jp/%E3%83%90%E3%82%B0%E8%AA%BF%E6%9F%BB%E3%81%AE%E7%B3%BB%E7%B5%B1%E7%9A%84%E3%82%A2%E3%83%97%E3%83%AD%E3%83%BC%E3%83%81%E3%82%AC%E3%82%A4%E3%83%89%E3%82%A2%E3%83%97%E3%83%AA/">
+  <meta property="og:title" content="バグ原因を図解で見つけるガイド">
+  <meta property="og:description" content="エラー現象から原因を体系的に切り分ける診断ツール。症状・条件・環境情報を入力すると、バグの最有力原因と対応策が表示されます。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nekopoke.jp/%E3%83%90%E3%82%B0%E8%AA%BA%E6%96%AD/">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="../favicon.ico">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f8f9fa;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 40px 30px;
+    }
+    h1 {
+      font-size: 32px;
+      margin-bottom: 16px;
+      color: #1a1a1a;
+    }
+    .subtitle {
+      font-size: 16px;
+      color: #666;
+      margin-bottom: 20px;
+      font-weight: normal;
+    }
+    .lead-desc {
+      font-size: 15px;
+      color: #555;
+      margin-bottom: 28px;
+      background-color: #f0f7ff;
+      padding: 12px 16px;
+      border-left: 4px solid #0066cc;
+    }
+    .howto-card {
+      background-color: #f5f5f5;
+      padding: 20px;
+      border-radius: 6px;
+      margin-bottom: 32px;
+    }
+    .howto-card h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+    .howto-steps {
+      list-style: decimal;
+      margin-left: 24px;
+    }
+    .howto-steps li {
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .sample-input-card {
+      background-color: #fffbf0;
+      border: 2px solid #ffb84d;
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .sample-input-card h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+    .sample-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    button {
+      padding: 8px 12px;
+      font-size: 13px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f0f0f0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background-color: #e0e0e0;
+    }
+    .input-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #333;
+    }
+    input[type="text"],
+    input[type="email"],
+    select {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+    input[type="text"]:focus,
+    select:focus {
+      outline: none;
+      border-color: #0066cc;
+      box-shadow: 0 0 0 3px rgba(0,102,204,0.1);
+    }
+    .calc-button {
+      background-color: #0066cc;
+      color: white;
+      padding: 12px 24px;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+    }
+    .calc-button:hover {
+      background-color: #0052a3;
+    }
+    .result-card {
+      background-color: #f0f8ff;
+      border-left: 4px solid #0066cc;
+      padding: 20px;
+      margin-bottom: 24px;
+      border-radius: 4px;
+    }
+    .result-text {
+      font-size: 15px;
+      margin-bottom: 12px;
+      color: #333;
+    }
+    .result-value {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      padding: 12px;
+      background-color: white;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .result-value.ok {
+      color: #228b22;
+      border: 2px solid #228b22;
+    }
+    .result-value.warn {
+      color: #ff8c00;
+      border: 2px solid #ff8c00;
+    }
+    .result-value.ng {
+      color: #d9534f;
+      border: 2px solid #d9534f;
+    }
+    .result-detail {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #555;
+      background-color: white;
+      padding: 12px;
+      border-radius: 4px;
+    }
+    .result-detail li {
+      margin-left: 20px;
+      margin-bottom: 8px;
+    }
+    .btn-pdf {
+      display: block;
+      margin: 16px auto 0;
+      padding: 10px 16px;
+      background-color: #666;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-pdf:hover {
+      background-color: #444;
+    }
+    .readresult-card {
+      background-color: #e8f5e9;
+      border: 2px solid #4caf50;
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .readresult-card h3 {
+      font-size: 16px;
+      color: #2e7d32;
+      margin-bottom: 12px;
+    }
+    .readresult-list {
+      list-style: none;
+      padding: 0;
+    }
+    .readresult-list li {
+      background-color: white;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-left: 4px solid #4caf50;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .faq-card {
+      background-color: #fff3e0;
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .faq-card h3 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+    .faq-list {
+      list-style: none;
+    }
+    .faq-list dt {
+      font-weight: 700;
+      color: #333;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+    .faq-list dd {
+      color: #666;
+      margin-left: 0;
+      margin-top: 6px;
+      margin-bottom: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .disclaimer-card {
+      background-color: #fff5e6;
+      border: 1px solid #ffcc99;
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .disclaimer-text {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.6;
+    }
+    .source-note {
+      text-align: center;
+      font-size: 12px;
+      color: #999;
+      margin: 20px 0;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 16px;
+      color: #0066cc;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px 15px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"SoftwareApplication",
+   "name":"バグ原因を図解で見つけるガイド","description":"エラー現象から原因を体系的に切り分ける診断ツール。症状・条件・環境情報を入力すると、バグの最有力原因と対応策が表示されます。",
+   "url":"https://nekopoke.jp/%E3%83%90%E3%82%B0%E8%AA%BA%E6%96%AD/",
+   "applicationCategory":"WebApplication","operatingSystem":"Web","inLanguage":"ja",
+   "isAccessibleForFree":true,
+   "offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},
+   "publisher":{"@type":"Organization","name":"ネコポケ","url":"https://nekopoke.jp/"}}
+  </script>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"BreadcrumbList",
+   "itemListElement":[
+     {"@type":"ListItem","position":1,"name":"ホーム","item":"https://nekopoke.jp/"},
+     {"@type":"ListItem","position":2,"name":"バグ原因を図解で見つけるガイド","item":"https://nekopoke.jp/%E3%83%90%E3%82%B0%E8%AA%BA%E6%96%AD/"}
+   ]}
+  </script>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script async src="/assets/js/analytics.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>バグ原因を図解で見つけるガイド</h1>
+    <p class="subtitle">エラー現象を診断し、最有力の原因と対応策を体系的に見つける</p>
+    
+    <p class="lead-desc">エラーの症状、再現条件、環境情報を入力すると、バグの原因候補を絞り込み、対応方針の優先順位を参考値として表示します。現場のトラブルシューティングの目安にご利用ください。</p>
+    
+    <div class="howto-card">
+      <h2>使い方</h2>
+      <ol class="howto-steps">
+        <li><strong>エラー内容を入力</strong>：発生しているエラーメッセージまたは症状を記入します</li>
+        <li><strong>再現条件を選択</strong>：毎回発生するか、時々かなど再現パターンを指定します</li>
+        <li><strong>環境情報を入力</strong>：実行環境（OS・ブラウザ・言語等）を記入して診断ボタンを押します</li>
+      </ol>
+    </div>
+
+    <div id="sample-input" class="sample-input-card">
+      <h3>サンプル診断ケース</h3>
+      <p style="font-size: 14px; color: #666; margin-bottom: 12px;">下のボタンで診断シナリオを素早く試すことができます</p>
+      <div class="sample-buttons">
+        <button type="button" onclick="loadSample(1)">ネットワークエラー</button>
+        <button type="button" onclick="loadSample(2)">メモリ不足</button>
+        <button type="button" onclick="loadSample(3)">環境依存</button>
+      </div>
+    </div>
+
+    <div style="background-color: #f9f9f9; padding: 20px; border-radius: 6px; margin-bottom: 24px;">
+      <div class="input-group">
+        <label for="error-msg">エラーメッセージ・症状：</label>
+        <input type="text" id="error-msg" placeholder="例: Connection timeout / Segmentation fault / 画面が真っ白">
+      </div>
+      
+      <div class="input-group">
+        <label for="recurrence">再現パターン：</label>
+        <select id="recurrence">
+          <option value="">--選択してください--</option>
+          <option value="always">毎回発生する</option>
+          <option value="intermittent">時々発生する</option>
+          <option value="condition">特定の条件下でのみ発生</option>
+          <option value="random">ランダムに発生</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label for="environment">実行環境（OS・ブラウザ・言語など）：</label>
+        <input type="text" id="environment" placeholder="例: Windows 11 Chrome / Linux Python 3.9 / macOS Safari">
+      </div>
+
+      <button type="button" class="calc-button" onclick="calc()">診断を実行</button>
+    </div>
+
+    <div class="result-card" id="result">
+      <p class="result-text">上記の情報を入力して「診断を実行」ボタンを押すと、原因の分析結果が表示されます。</p>
+    </div>
+
+    <button type="button" onclick="window.print()" class="btn-pdf">PDFで保存</button>
+
+    <div class="readresult-card" id="readresult" style="display:none">
+      <h3>診断ポイント解説</h3>
+      <ul class="readresult-list">
+        <li>【対応順序】最有力の原因から順に対応を試すことで、問題解決の効率が向上します。</li>
+        <li>【環境確認】同じエラーでも環境依存の場合があります。別環境での動作確認も検討してください。</li>
+        <li>【専門家確認】詳細な原因特定や対応が不明な場合は、開発チーム・技術サポートにご相談ください。</li>
+      </ul>
+    </div>
+
+    <div class="faq-card">
+      <h3>よくある質問</h3>
+      <dl class="faq-list">
+        <dt>Q. 入力データは外部に送信されますか？</dt>
+        <dd>A. 送信しません。すべてブラウザ内で計算が完結します。</dd>
+        
+        <dt>Q. この診断で必ず原因が分かりますか？</dt>
+        <dd>A. あくまで目安です。複雑なバグは複数原因が組み合わさっていることもあります。技術者による詳細な調査が必要になる場合があります。</dd>
+        
+        <dt>Q. どのような環境に対応していますか？</dt>
+        <dd>A. Web・モバイル・デスクトップアプリケーション・サーバーサイド言語など、多くの一般的な技術スタックに対応した目安を提供します。</dd>
+      </dl>
+    </div>
+
+    <div class="disclaimer-card">
+      <p class="disclaimer-text">本ツールはバグ調査の目安です。あくまで参考値です。正確な原因特定・対応は開発チーム・技術サポート・プログラミング言語の公式ドキュメント・専門家にご確認ください。</p>
+    </div>
+
+    <p class="source-note">参考: 情報処理推進機構（IPA）・各プログラミング言語公式ドキュメント・ソフトウェア開発標準ガイドラインの公開情報。最新情報は各公式サイトをご確認ください。</p>
+
+    <a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+    <script src="../fav-widget.js"></script>
+    <script src="../related-widget.js"></script>
+    <script src="../comments-widget.js"></script>
+    <p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+  </div>
+
+  <script>
+    function loadSample(n) {
+      if (n === 1) {
+        document.getElementById('error-msg').value = 'Connection timeout / ERR_NETWORK';
+        document.getElementById('recurrence').value = 'intermittent';
+        document.getElementById('environment').value = 'Chrome / Network API Call';
+      } else if (n === 2) {
+        document.getElementById('error-msg').value = 'java.lang.OutOfMemoryError / Heap space';
+        document.getElementById('recurrence').value = 'condition';
+        document.getElementById('environment').value = 'Windows 10 / Java 11 / 大規模ファイル処理';
+      } else if (n === 3) {
+        document.getElementById('error-msg').value = '特定環境でのみエラー発生 / 他環境では正常';
+        document.getElementById('recurrence').value = 'always';
+        document.getElementById('environment').value = 'Linux production / macOS local で異なる';
+      }
+      window.scrollTo(0, 300);
+    }
+
+    function calc() {
+      const errorMsg = document.getElementById('error-msg').value.trim();
+      const recurrence = document.getElementById('recurrence').value;
+      const environment = document.getElementById('environment').value.trim();
+
+      if (!errorMsg || !recurrence || !environment) {
+        alert('すべてのフィールドを入力してください');
+        return;
+      }
+
+      let primaryCause = '';
+      let secondaryCause = '';
+      let tertiaryCase = '';
+      let actionPriority = '';
+      let resultClass = 'warn';
+
+      if (errorMsg.toLowerCase().includes('timeout') || errorMsg.toLowerCase().includes('connection')) {
+        primaryCause = 'ネットワーク接続・タイムアウト';
+        secondaryCause = 'DNS解決遅延またはルーティング問題';
+        tertiaryCase = 'ファイアウォール・プロキシ設定';
+        actionPriority = '①接続先の疎通確認（ping/curl）→ ②タイムアウト値調整 → ③ネットワーク管理者相談';
+        resultClass = 'warn';
+      } else if (errorMsg.toLowerCase().includes('memory') || errorMsg.toLowerCase().includes('heap') || errorMsg.toLowerCase().includes('out of')) {
+        primaryCause = 'メモリ不足・リソースリーク';
+        secondaryCause = 'ポインタ不正参照・無限ループ';
+        tertiaryCase = 'データキャッシュ肥大化';
+        actionPriority = '①メモリ使用量の監視（top/htop）→ ②ガベージコレクション確認 → ③メモリプロファイラで特定';
+        resultClass = 'ng';
+      } else if (errorMsg.toLowerCase().includes('segmentation') || errorMsg.toLowerCase().includes('access violation')) {
+        primaryCause = 'メモリ領域不正アクセス';
+        secondaryCause = 'ポインタバグ・バッファオーバーフロー';
+        tertiaryCase = 'スタック破壊';
+        actionPriority = '①デバッガで実行ステップを追跡 → ②アドレス衛生化ツール導入 → ③コード品質レビュー';
+        resultClass = 'ng';
+      } else if (errorMsg.toLowerCase().includes('undefined') || errorMsg.toLowerCase().includes('null')) {
+        primaryCause = 'Null参照・初期化漏れ';
+        secondaryCause = '不正な型キャスト';
+        tertiaryCase = 'スコープ外参照';
+        actionPriority = '①ヌル値チェック追加 → ②型チェック強化 → ③静的解析ツル実行';
+        resultClass = 'warn';
+      } else if (errorMsg.toLowerCase().includes('permission') || errorMsg.toLowerCase().includes('access denied')) {
+        primaryCause = 'ファイル・フォルダのアクセス権限不足';
+        secondaryCause = 'セキュリティコンテキスト・プロセス権限';
+        tertiaryCase = 'ディレクトリロック';
+        actionPriority = '①ファイル権限確認（ls -la / stat）→ ②実行ユーザー確認 → ③権限変更（chmod/chown）';
+        resultClass = 'ng';
+      } else if (recurrence === 'condition') {
+        primaryCause = 'データ状態依存・エッジケース';
+        secondaryCause = '入力値の境界条件バグ';
+        tertiaryCase = '環境依存の条件分岐';
+        actionPriority = '①再現条件を正確に文書化 → ②テストケース追加 → ③コード見直し';
+        resultClass = 'warn';
+      } else if (environment.includes('Windows') && (errorMsg.toLowerCase().includes('dll') || errorMsg.toLowerCase().includes('driver'))) {
+        primaryCause = 'DLL・ライブラリ依存性問題';
+        secondaryCause = 'バージョン不一致';
+        tertiaryCase = 'PATH設定漏れ';
+        actionPriority = '①依存ライブラリ確認（ldd/Dependency Walker）→ ②PATH更新 → ③再インストール';
+        resultClass = 'warn';
+      } else {
+        primaryCause = '入力値形式・型チェック';
+        secondaryCause = 'データベース接続';
+        tertiaryCase = 'キャッシュ不整合';
+        actionPriority = '①エラーログ詳細確認 → ②再現手順の詳細化 → ③デバッガ・ロギング強化';
+        resultClass = 'warn';
+      }
+
+      const html = `
+        <div class="result-text">診断完了</div>
+        <div class="result-value ${resultClass}">最有力の原因</div>
+        <div class="result-detail">
+          <strong style="color: #d9534f; font-size: 16px;">${primaryCause}</strong>
+          <ul style="margin-top: 12px;">
+            <li><strong>第二候補：</strong> ${secondaryCause}</li>
+            <li><strong>第三候補：</strong> ${tertiaryCase}</li>
+            <li style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #ddd;"><strong>対応優先順：</strong><br>${actionPriority}</li>
+            <li style="margin-top: 12px; color: #666; font-size: 13px;">⚠️ 本診断はあくまで目安です。詳細な原因特定は開発チーム・技術者の詳細調査が必要です。</li>
+          </ul>
+        </div>
+      `;
+      
+      document.getElementById('result').innerHTML = html;
+      document.getElementById('readresult').style.display = '';
+      
+      window.scrollTo(0, document.getElementById('result').offsetTop - 100);
+    }
+  </script>
+</body>
+</html>

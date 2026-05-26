@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スパイス仕入れメモ - 購入予定リスト計算</title>
+  
+  <meta name="description" content="スパイス専門店の仕入れ予定リストを作成し、品目ごとの数量・単価から合計金額を計算。発注メールに貼り付けできる完成テキスト出力機能付き。">
+  <link rel="canonical" href="https://nekopoke.jp/%E3%82%B9%E3%83%91%E3%82%A4%E3%82%B9%E5%B0%82%E9%96%80%E5%BA%97%E4%BB%95%E5%85%A5%E3%82%8C%E3%83%A1%E3%83%A2%E3%82%A2%E3%83%97%E3%83%AA/">
+  
+  <meta property="og:title" content="スパイス仕入れメモ - 購入予定リスト計算">
+  <meta property="og:description" content="複数品目の仕入れ金額を一括計算。発注確認テキストをコピーして使える実務ツール。">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://nekopoke.jp/spice-procurement-memo/">
+  <meta name="twitter:card" content="summary">
+  
+  <link rel="icon" href="../favicon.ico">
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9f9f9; padding: 1rem; color: #333; max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 1.8rem; margin-bottom: 0.5rem; color: #2c3e50; }
+    .subtitle { font-size: 1rem; color: #666; margin-bottom: 1rem; line-height: 1.5; }
+    .lead-desc { font-size: 0.95rem; color: #555; margin-bottom: 2rem; line-height: 1.6; background: #f0f4f8; padding: 1rem; border-radius: 4px; }
+    
+    .howto-card { background: #fff; border-radius: 6px; padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid #ff9800; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .howto-card h3 { font-size: 1.1rem; margin-bottom: 0.8rem; color: #2c3e50; }
+    .howto-steps { padding-left: 1.5rem; }
+    .howto-steps li { margin-bottom: 0.6rem; line-height: 1.6; }
+    
+    .sample-input-card { background: #fff; border-radius: 6px; padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid #4caf50; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .sample-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+    .btn { padding: 0.6rem 1rem; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+    .btn:hover { background: #f5f5f5; border-color: #aaa; }
+    
+    .input-section { background: #fff; border-radius: 6px; padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid #2196f3; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .input-section h3 { font-size: 1.1rem; margin-bottom: 1rem; color: #2c3e50; }
+    .input-rows { margin-bottom: 1rem; }
+    .input-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: 0.8rem; margin-bottom: 0.8rem; align-items: end; }
+    @media (max-width: 768px) { .input-row { grid-template-columns: 1fr; } }
+    .input-row input, .input-row select { padding: 0.6rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem; }
+    .input-row input:focus, .input-row select:focus { outline: none; border-color: #2196f3; box-shadow: 0 0 0 3px rgba(33,150,243,0.1); }
+    
+    .btn-add { padding: 0.6rem 1rem; background: #2196f3; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+    .btn-add:hover { background: #1976d2; }
+    
+    .btn-remove { padding: 0.4rem 0.8rem; background: #f44336; color: #fff; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
+    .btn-remove:hover { background: #da190b; }
+    
+    .btn-calc { padding: 0.8rem 2rem; background: #4caf50; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: bold; transition: all 0.2s; display: block; margin: 0 auto 2rem; }
+    .btn-calc:hover { background: #45a049; }
+    
+    .result-card { background: #fff; border-radius: 6px; padding: 1.5rem; margin-bottom: 1rem; border-left: 4px solid #9c27b0; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .result-card h3 { font-size: 1.1rem; margin-bottom: 1rem; color: #2c3e50; }
+    .result-card h4 { font-size: 1rem; margin: 0.8rem 0 0.5rem; color: #555; }
+    
+    .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .result-item { background: #f9f9f9; padding: 1rem; border-radius: 4px; border: 1px solid #eee; text-align: center; }
+    .result-item-label { font-size: 0.85rem; color: #999; margin-bottom: 0.5rem; }
+    .result-item-value { font-size: 1.5rem; font-weight: bold; color: #2c3e50; }
+    
+    .result-detail { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #eee; }
+    .result-detail table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .result-detail table th, .result-detail table td { padding: 0.6rem; text-align: left; border-bottom: 1px solid #eee; }
+    .result-detail table th { background: #f0f0f0; font-weight: bold; color: #333; }
+    
+    .result-text { color: #555; line-height: 1.6; }
+    .confirm-box { margin-top: 1.5rem; background: #f0f0f0; padding: 1rem; border-radius: 4px; border: 1px solid #ddd; }
+    .confirm-box textarea { width: 100%; height: 140px; padding: 0.8rem; border: 1px solid #ccc; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 0.85rem; resize: none; }
+    
+    .btn-pdf { padding: 0.6rem 1.2rem; background: #ff5722; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin-top: 1rem; transition: all 0.2s; }
+    .btn-pdf:hover { background: #e64a19; }
+    
+    .btn-copy { padding: 0.6rem 1rem; background: #2196f3; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; margin-top: 0.8rem; transition: all 0.2s; }
+    .btn-copy:hover { background: #1976d2; }
+    .btn-copy.copied { background: #4caf50; }
+    
+    .readresult-card { background: #e8f5e9; border-radius: 6px; padding: 1.5rem; border-left: 4px solid #4caf50; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 2rem; }
+    .readresult-card h3 { font-size: 1.1rem; margin-bottom: 1rem; color: #2c3e50; }
+    .readresult-list { padding-left: 1.5rem; }
+    .readresult-list li { margin-bottom: 0.8rem; line-height: 1.7; color: #2c3e50; }
+    
+    .faq-card { background: #fff; border-radius: 6px; padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid #ff9800; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .faq-card h3 { font-size: 1.1rem; margin-bottom: 1rem; color: #2c3e50; }
+    .faq-list { list-style: none; }
+    .faq-list dt { font-weight: bold; margin-top: 1rem; color: #2c3e50; }
+    .faq-list dt:first-child { margin-top: 0; }
+    .faq-list dd { margin-left: 0; padding-left: 1.5rem; color: #666; margin-bottom: 0.8rem; line-height: 1.6; }
+    
+    .disclaimer-card { background: #fff3e0; border-radius: 6px; padding: 1.5rem; margin-bottom: 2rem; border-left: 4px solid #ff9800; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .disclaimer-text { font-size: 0.9rem; color: #666; line-height: 1.7; }
+    
+    .source-note { text-align: center; font-size: 0.8rem; color: #999; margin-bottom: 2rem; line-height: 1.5; }
+    .back-link { display: block; text-align: center; margin-bottom: 1.5rem; color: #2196f3; text-decoration: none; font-size: 0.9rem; transition: all 0.2s; }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+  
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"SoftwareApplication",
+   "name":"スパイス仕入れメモ - 購入予定リスト計算","description":"スパイス専門店の仕入れ予定リストを作成し、品目ごとの数量・単価から合計金額を計算。発注メールに貼り付けできる完成テキスト出力機能付き。",
+   "url":"https://nekopoke.jp/spice-procurement-memo/",
+   "applicationCategory":"WebApplication","operatingSystem":"Web","inLanguage":"ja",
+   "isAccessibleForFree":true,
+   "offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},
+   "publisher":{"@type":"Organization","name":"ネコポケ","url":"https://nekopoke.jp/"}}
+  </script>
+  
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"BreadcrumbList",
+   "itemListElement":[
+     {"@type":"ListItem","position":1,"name":"ホーム","item":"https://nekopoke.jp/"},
+     {"@type":"ListItem","position":2,"name":"スパイス仕入れメモ - 購入予定リスト計算","item":"https://nekopoke.jp/spice-procurement-memo/"}
+   ]}
+  </script>
+  
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script async src="/assets/js/analytics.js"></script>
+</head>
+<body>
+
+<h1>スパイス仕入れメモ</h1>
+
+<p class="subtitle">複数品目の仕入れ金額を一括計算し、発注確認テキストを自動生成する実務向けメモツール。</p>
+
+<p class="lead-desc">購入予定のスパイス品目・数量・単価を入力すると、品目ごとの小計と全体合計金額を計算します。計算結果から発注メールやメモに直接貼り付けられる確認テキストを生成でき、複雑な計算と記入作業を簡素化。複数スパイスの仕入れ管理を参考資料としてご活用ください。</p>
+
+<div class="howto-card">
+  <h3>使い方</h3>
+  <ol class="howto-steps">
+    <li><strong>品目情報を入力:</strong> 購入予定のスパイス名・数量・単価・単位をフォームに記入します。複数品目がある場合は「行を追加」で増やしてください。</li>
+    <li><strong>計算を実行:</strong> すべての品目を入力した後、「金額を計算」ボタンを押すと、品目ごとの小計と全体合計金額が自動計算されます。</li>
+    <li><strong>テキストをコピー:</strong> 生成された発注確認テキストを「テキストをコピー」ボタンで複製し、メールやメモに貼り付けてご利用ください。</li>
+  </ol>
+</div>
+
+<div id="sample-input" class="sample-input-card">
+  <h3>サンプルデータで試す</h3>
+  <p style="margin-bottom: 1rem; font-size: 0.9rem; color: #666;">以下のボタンをクリックするとサンプル仕入れデータが自動入力されます。機能をご確認ください。</p>
+  <div class="sample-buttons">
+    <button class="btn" onclick="loadSample(1)">サンプル1: 基本3品目</button>
+    <button class="btn" onclick="loadSample(2)">サンプル2: 複数品目セット</button>
+    <button class="btn" onclick="loadSample(3)">サンプル3: 詰め合わせ例</button>
+  </div>
+</div>
+
+<div class="input-section">
+  <h3>仕入れ品目リスト</h3>
+  <div class="input-rows" id="inputRows">
+    <div class="input-row">
+      <input type="text" placeholder="品目名（例：ガラムマサラ）" class="item-name">
+      <input type="number" placeholder="数量" class="item-quantity" min="0.1" step="0.1">
+      <input type="number" placeholder="単価（円）" class="item-price" min="0" step="10">
+      <select class="item-unit">
+        <option value="g">g</option>
+        <option value="kg">kg</option>
+        <option value="本" selected>本</option>
+        <option value="袋">袋</option>
+        <option value="パック">パック</option>
+        <option value="箱">箱</option>
+      </select>
+      <button type="button" class="btn-remove" onclick="removeRow(this)">削除</button>
+    </div>
+    <div class="input-row">
+      <input type="text" placeholder="品目名" class="item-name">
+      <input type="number" placeholder="数量" class="item-quantity" min="0.1" step="0.1">
+      <input type="number" placeholder="単価（円）" class="item-price" min="0" step="10">
+      <select class="item-unit">
+        <option value="g">g</option>
+        <option value="kg">kg</option>
+        <option value="本" selected>本</option>
+        <option value="袋">袋</option>
+        <option value="パック">パック</option>
+        <option value="箱">箱</option>
+      </select>
+      <button type="button" class="btn-remove" onclick="removeRow(this)">削除</button>
+    </div>
+    <div class="input-row">
+      <input type="text" placeholder="品目名" class="item-name">
+      <input type="number" placeholder="数量" class="item-quantity" min="0.1" step="0.1">
+      <input type="number" placeholder="単価（円）" class="item-price" min="0" step="10">
+      <select class="item-unit">
+        <option value="g">g</option>
+        <option value="kg">kg</option>
+        <option value="本" selected>本</option>
+        <option value="袋">袋</option>
+        <option value="パック">パック</option>
+        <option value="箱">箱</option>
+      </select>
+      <button type="button" class="btn-remove" onclick="removeRow(this)">削除</button>
+    </div>
+  </div>
+  <button type="button" class="btn-add" onclick="addRow()">＋ 行を追加</button>
+</div>
+
+<button type="button" class="btn-calc" onclick="calc()">金額を計算</button>
+
+<div class="result-card" id="result">
+  <div class="result-text">上記の品目を入力して「金額を計算」ボタンを押すと、仕入れ予定金額の内訳と合計金額が表示されます。</div>
+</div>
+
+<button type="button" onclick="window.print()" class="btn-pdf">PDFで保存</button>
+
+<div class="readresult-card" id="readresult" style="display:none">
+  <h3>仕入れ確認のポイント</h3>
+  <ul class="readresult-list">
+    <li>入力した品目・数量・単価が仕入先の見積書と一致していることを改めて確認してください。発注担当者と金額・品目内容を二重チェックし、数量不足や過剰発注を事前に防ぐことが重要です。</li>
+    <li>本ツール出力の発注確認テキストを仕入先に送付する前に、合計金額と品目別の小計を必ず複数回確認してください。計算ミスや入力誤りを減らすための追加検証手順をお勧めします。</li>
+    <li>スパイスの相場・季節要因・仕入元の在庫状況や割引条件により単価が変わります。本ツールの計算結果と共に、常に仕入先から最新の見積情報・納期・送料・最小発注数量等の補足条件を確認し、実発注前に公式情報で最終確認してください。</li>
+  </ul>
+</div>
+
+<div class="faq-card">
+  <h3>よくある質問</h3>
+  <dl class="faq-list">
+    <dt>Q. 入力データは外部に送信されますか？</dt>
+    <dd>A. 送信しません。すべてブラウザ内で計算が完結します。入力情報はお客様のデバイス内でのみ処理されます。</dd>
+    
+    <dt>Q. 消費税や送料は含まれていますか？</dt>
+    <dd>A. 本ツールは商品代金のみの計算で、消費税・送料・手数料は含まれません。これらは別途、仕入先からの請求書や最新見積書で確認してください。</dd>
+    
+    <dt>Q. 大量の品目（100個以上）を入力したいのですが使えますか？</dt>
+    <dd>A. 技術的には対応していますが、50品目以上の場合は Excel 等の表計算ソフトや専用の仕入管理システムの使用をお勧めします。本ツールは日常的な小～中規模仕入れの参考・メモ用途を想定しています。</dd>
+  </dl>
+</div>
+
+<div class="disclaimer-card">
+  <p class="disclaimer-text">本ツールは仕入れ金額の概算計算用です。あくまで目安としてご利用ください。正確な発注金額・消費税・送料・納期・手数料・割引条件等については、常に仕入先からの最新見積書・請求書・公式情報に基づいて確認してください。本ツールの利用に伴う誤発注・金銭的損失・トラブル等について、提供者は責任を負いません。</p>
+</div>
+
+<p class="source-note">参考: スパイス業界の一般的な仕入管理実務。スパイスの仕入単価・相場は季節・仕入元・市況・ロット等により変動するため、常に最新の正確な情報をご確認ください。詳細は各仕入先の公式情報をご参照ください。</p>
+
+<a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+<script src="../fav-widget.js"></script>
+<script src="../related-widget.js"></script>
+<script src="../comments-widget.js"></script>
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+<script>
+function addRow() {
+  const inputRows = document.getElementById('inputRows');
+  const newRow = document.createElement('div');
+  newRow.className = 'input-row';
+  newRow.innerHTML = `
+    <input type="text" placeholder="品目名" class="item-name">
+    <input type="number" placeholder="数量" class="item-quantity" min="0.1" step="0.1">
+    <input type="number" placeholder="単価（円）" class="item-price" min="0" step="10">
+    <select class="item-unit">
+      <option value="g">g</option>
+      <option value="kg">kg</option>
+      <option value="本" selected>本</option>
+      <option value="袋">袋</option>
+      <option value="パック">パック</option>
+      <option value="箱">箱</option>
+    </select>
+    <button type="button" class="btn-remove" onclick="removeRow(this)">削除</button>
+  `;
+  inputRows.appendChild(newRow);
+}
+
+function removeRow(button) {
+  button.parentElement.remove();
+}
+
+function loadSample(n) {
+  const inputRows = document.getElementById('inputRows');
+  inputRows.innerHTML = '';
+  
+  const samples = [
+    [
+      {name: 'ガラムマサラ', qty: 2, price: 850, unit: '本'},
+      {name: 'ターメリックパウダー', qty: 3, price: 680, unit: '本'},
+      {name: 'クミンシード', qty: 1, price: 950, unit: '本'}
+    ],
+    [
+      {name: 'ガラムマサラ', qty: 5, price: 800, unit: '本'},
+      {name: 'ターメリックパウダー', qty: 4, price: 700, unit: '本'},
+      {name: 'クミンシード', qty: 3, price: 900, unit: '本'},
+      {name: 'コリアンダーパウダー', qty: 2, price: 750, unit: '本'},
+      {name: 'レッドチリパウダー', qty: 1, price: 1200, unit: '本'}
+    ],
+    [
+      {name: 'スパイスセット詰合A（5種）', qty: 10, price: 1600, unit: '袋'},
+      {name: 'スパイスセット詰合B（3種）', qty: 8, price: 1100, unit: '袋'},
+      {name: 'ピュアガラムマサラ大容量', qty: 2, price: 5200, unit: 'kg'}
+    ]
+  ];
+  
+  const data = samples[n - 1];
+  data.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'input-row';
+    row.innerHTML = `
+      <input type="text" class="item-name" value="${item.name}">
+      <input type="number" class="item-quantity" value="${item.qty}" min="0.1" step="0.1">
+      <input type="number" class="item-price" value="${item.price}" min="0" step="10">
+      <select class="item-unit">
+        <option value="g" ${item.unit === 'g' ? 'selected' : ''}>g</option>
+        <option value="kg" ${item.unit === 'kg' ? 'selected' : ''}>kg</option>
+        <option value="本" ${item.unit === '本' ? 'selected' : ''}>本</option>
+        <option value="袋" ${item.unit === '袋' ? 'selected' : ''}>袋</option>
+        <option value="パック" ${item.unit === 'パック' ? 'selected' : ''}>パック</option>
+        <option value="箱" ${item.unit === '箱' ? 'selected' : ''}>箱</option>
+      </select>
+      <button type="button" class="btn-remove" onclick="removeRow(this)">削除</button>
+    `;
+    inputRows.appendChild(row);
+  });
+}
+
+function calc() {
+  const rows = document.querySelectorAll('#inputRows .input-row');
+  let totalAmount = 0;
+  let itemList = [];
+  let hasError = false;
+  
+  rows.forEach((row) => {
+    const name = row.querySelector('.item-name').value.trim();
+    const qtyStr = row.querySelector('.item-quantity').value.trim();
+    const priceStr = row.querySelector('.item-price').value.trim();
+    const unit = row.querySelector('.item-unit').value;
+    
+    if (!name || !qtyStr || !priceStr) {
+      return;
+    }
+    
+    const qty = parseFloat(qtyStr);
+    const price = parseFloat(priceStr);
+    
+    if (isNaN(qty) || isNaN(price) || qty <= 0 || price < 0) {
+      hasError = true;
+      return;
+    }
+    
+    const subtotal = qty * price;
+    totalAmount += subtotal;
+    itemList.push({name, qty, price, unit, subtotal});
+  });
+  
+  if (hasError) {
+    alert('入力に誤りがあります。数量と単価は正の数を入力してください。');
+    return;
+  }
+  
+  if (itemList.length === 0) {
+    alert('最低1品目の情報を入力してください。');
+    return;
+  }
+  
+  let confirmText = '【スパイス仕入れ確認リスト】\n生成日時: ' + new Date().toLocaleString() + '\n\n';
+  confirmText += '─────────────────────────────────────\n';
+  itemList.forEach((item, idx) => {
+    confirmText += (idx + 1) + '. ' + item.name + '\n';
+    confirmText += '   数量: ' + item.qty + item.unit + ' × 単価: ￥' + item.price.toLocaleString() + ' = ￥' + item.subtotal.toLocaleString() + '\n';
+  });
+  confirmText += '─────────────────────────────────────\n';
+  confirmText += '品目数: ' + itemList.length + '件\n';
+  confirmText += '合計金額: ￥' + totalAmount.toLocaleString() + '\n\n';
+  confirmText += '※本ツールは概算です。消費税・送料・手数料は別途ご確認ください。\n';
+  confirmText += '※仕入先の見積書と金額・品目内容を必ず再度確認してください。';
+  
+  let resultHtml = '<div class="result-grid">';
+  resultHtml += '<div class="result-item"><div class="result-item-label">品目数</div><div class="result-item-value">' + itemList.length + '</div></div>';
+  resultHtml += '<div class="result-item"><div class="result-item-label">合計金額</div><div class="result-item-value">￥' + totalAmount.toLocaleString() + '</div></div>';
+  resultHtml += '<div class="result-item"><div class="result-item-label">平均単価</div><div class="result-item-value">￥' + Math.round(totalAmount / itemList.length).toLocaleString() + '</div></div>';
+  resultHtml += '</div>';
+  
+  resultHtml += '<div class="result-detail"><h4>品目別内訳</h4><table>';
+  resultHtml += '<tr><th>品目</th><th>数量</th><th>単価</th><th>小計</th></tr>';
+  itemList.forEach(item => {
+    resultHtml += '<tr>';
+    resultHtml += '<td>' + item.name + '</td>';
+    resultHtml += '<td>' + item.qty + item.unit + '</td>';
+    resultHtml += '<td>￥' + item.price.toLocaleString() + '</td>';
+    resultHtml += '<td>￥' + item.subtotal.toLocaleString() + '</td>';
+    resultHtml += '</tr>';
+  });
+  resultHtml += '</table></div>';
+  
+  resultHtml += '<div class="confirm-box"><h4>発注確認テキスト（コピー用）</h4><textarea readonly id="confirmTextarea">' + confirmText + '</textarea><button type="button" class="btn-copy" onclick="copyText()">テキストをコピー</button></div>';
+  
+  document.getElementById('result').innerHTML = resultHtml;
+  document.getElementById('readresult').style.display = '';
+}
+
+function copyText() {
+  const textarea = document.getElementById('confirmTextarea');
+  const text = textarea.value;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = 'コピーしました！';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.classList.remove('copied');
+    }, 2000);
+  }).catch(() => {
+    alert('コピーに失敗しました。お手数ですが手動でコピーしてください。');
+  });
+}
+</script>
+
+</body>
+</html>

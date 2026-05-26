@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中断割込み記録：作業効率分析ツール</title>
+<meta name="description" content="作業時間と割り込み情報を入力して、実作業率と集中度を分析。割り込みパターンから効率改善の参考値を算出するツール。">
+<link rel="canonical" href="https://nekopoke.jp/%E4%B8%AD%E6%96%AD%E5%89%B2%E8%BE%BC%E3%81%BF%E8%A8%98%E9%8C%B2%E3%82%A2%E3%83%97%E3%83%AA/" />
+<meta property="og:title" content="中断割込み記録：作業効率分析ツール">
+<meta property="og:description" content="作業時間と割り込み情報を入力して、実作業率と集中度を分析。割り込みパターンから効率改善の参考値を算出するツール。">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://nekopoke.jp/%E4%B8%AD%E6%96%AD%E5%89%B2%E8%BE%BC%E3%81%BF%E8%A8%98%E9%8C%B2/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="../favicon.ico">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; background: #f9f9f9; }
+main { max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
+h1 { font-size: 2rem; margin-bottom: 0.5rem; color: #222; }
+.subtitle { font-size: 0.95rem; color: #666; margin-bottom: 1rem; }
+.lead-desc { font-size: 0.9rem; color: #777; margin-bottom: 1.5rem; }
+.card { background: #fff; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.howto-card { background: #f0f8ff; }
+.howto-steps { list-style: decimal inside; margin-left: 0.5rem; }
+.howto-steps li { margin-bottom: 0.5rem; }
+label { display: block; margin-top: 1rem; font-weight: 600; }
+input, select { display: block; width: 100%; padding: 0.75rem; margin-top: 0.5rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; }
+.input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.input-row label { margin-top: 0; }
+.input-row input { margin-top: 0.5rem; }
+button { padding: 0.75rem 1.5rem; margin-top: 1rem; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; transition: 0.2s; }
+.btn-calc { background: #007bff; color: white; width: 100%; }
+.btn-calc:hover { background: #0056b3; }
+.btn-sample { background: #6c757d; color: white; width: 32%; margin-right: 1%; margin-top: 0.5rem; }
+.btn-sample:hover { background: #545b62; }
+.btn-pdf { background: #28a745; color: white; }
+.btn-pdf:hover { background: #218838; }
+.sample-input-card { background: #f5f5f5; }
+.sample-buttons { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.result-card { background: #fff3cd; padding: 1.5rem; border-left: 4px solid #ffc107; }
+.result-card.ng { background: #f8d7da; border-left-color: #dc3545; }
+.result-card.ok { background: #d4edda; border-left-color: #28a745; }
+.result-value { font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem; }
+.result-detail { font-size: 0.9rem; color: #555; }
+.result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+.result-item { padding: 1rem; background: rgba(255,255,255,0.5); border-radius: 4px; }
+.result-item .label { font-size: 0.85rem; color: #666; font-weight: 600; }
+.result-item .value { font-size: 1.5rem; font-weight: bold; margin-top: 0.5rem; }
+.readresult-card { background: #e7f3ff; border-left: 4px solid #0066cc; padding: 1.5rem; margin-bottom: 1.5rem; }
+.readresult-list { list-style: none; }
+.readresult-list li { margin-bottom: 1rem; padding-left: 1.5rem; position: relative; }
+.readresult-list li:before { content: "→"; position: absolute; left: 0; color: #0066cc; font-weight: bold; }
+.faq-card { background: #f5f5f5; }
+.faq-list { margin: 0; }
+.faq-list dt { font-weight: 600; margin-top: 1rem; color: #222; }
+.faq-list dt:first-of-type { margin-top: 0; }
+.faq-list dd { margin-left: 1rem; margin-top: 0.5rem; color: #666; }
+.disclaimer-card { background: #fff8e1; border-left: 4px solid #ff9800; padding: 1.5rem; }
+.disclaimer-text { font-size: 0.9rem; color: #555; }
+.source-note { text-align: center; font-size: 0.8rem; color: #999; margin: 2rem 0 1rem; }
+.back-link { display: block; text-align: center; margin: 2rem 0 1rem; color: #007bff; text-decoration: none; }
+.back-link:hover { text-decoration: underline; }
+p[style*="text-align:center"] { text-align: center; margin: 2rem 0 0.5rem; font-size: 0.82rem; }
+p[style*="text-align:center"] a { color: #bbb; }
+p[style*="text-align:center"] a:hover { color: #666; }
+</style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"中断割込み記録：作業効率分析ツール","description":"作業時間と割り込み情報を入力して、実作業率と集中度を分析。割り込みパターンから効率改善の参考値を算出するツール。","url":"https://nekopoke.jp/%E4%B8%AD%E6%96%AD%E5%89%B2%E8%BE%BC%E3%81%BF%E8%A8%98%E9%8C%B2/","applicationCategory":"WebApplication","operatingSystem":"Web","inLanguage":"ja","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"publisher":{"@type":"Organization","name":"ネコポケ","url":"https://nekopoke.jp/"}}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://nekopoke.jp/"},{"@type":"ListItem","position":2,"name":"中断割込み記録：作業効率分析ツール","item":"https://nekopoke.jp/%E4%B8%AD%E6%96%AD%E5%89%B2%E8%BE%BC%E3%81%BF%E8%A8%98%E9%8C%B2/"}]}
+</script>
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2840085836089282" crossorigin="anonymous"></script>
+  <script async src="/assets/js/analytics.js"></script>
+</head>
+<body>
+<main>
+<h1>中断割込み記録</h1>
+<p class="subtitle">作業中の割り込みを記録し、実作業率と集中度を分析するツール</p>
+<p class="lead-desc">総作業時間、割り込み回数、割り込み総時間を入力すると、実作業率や割り込みパターンが参考値として表示されます。</p>
+
+<div class="card howto-card">
+  <h2>使い方</h2>
+  <ol class="howto-steps">
+    <li>作業開始時刻と終了時刻（または総作業時間）を入力します</li>
+    <li>その間に発生した割り込み回数と総時間を入力します</li>
+    <li>計算ボタンを押して、実作業率と割り込みパターンを確認します</li>
+  </ol>
+</div>
+
+<div class="card sample-input-card" id="sample-input">
+  <h3>サンプルデータを試す</h3>
+  <div class="sample-buttons">
+    <button type="button" class="btn-sample" onclick="loadSample(1)">パターンA：割り込み多い</button>
+    <button type="button" class="btn-sample" onclick="loadSample(2)">パターンB：割り込み少ない</button>
+    <button type="button" class="btn-sample" onclick="loadSample(3)">パターンC：中程度</button>
+  </div>
+</div>
+
+<div class="card">
+  <h2>入力フォーム</h2>
+  <div class="input-row">
+    <div>
+      <label for="workStart">作業開始時刻</label>
+      <input type="time" id="workStart" value="09:00">
+    </div>
+    <div>
+      <label for="workEnd">作業終了時刻</label>
+      <input type="time" id="workEnd" value="17:00">
+    </div>
+  </div>
+  <label for="breakTime">休憩時間（分）</label>
+  <input type="number" id="breakTime" value="60" min="0" step="5">
+  <label for="interruptCount">割り込み回数</label>
+  <input type="number" id="interruptCount" value="5" min="0" step="1">
+  <label for="interruptTime">割り込み総時間（分）</label>
+  <input type="number" id="interruptTime" value="45" min="0" step="5">
+  <button type="button" class="btn-calc" onclick="calc()">計算する</button>
+  <button type="button" onclick="window.print()" class="btn-pdf">PDFで保存</button>
+</div>
+
+<div class="card result-card" id="result">
+  <div class="result-text">入力後に結果が表示されます</div>
+</div>
+
+<div class="card readresult-card" id="readresult" style="display:none">
+  <h3>診断結果の見方</h3>
+  <ul class="readresult-list">
+    <li>実作業率が60%未満の場合は、割り込み原因の記録と優先度整理をお勧めします</li>
+    <li>平均割り込み間隔が30分以内の場合は、割り込み対応時間のブロック化を検討しましょう</li>
+    <li>割り込みあたりの平均時間が短い場合は、複数の割り込みをまとめて対応する工夫をお勧めします</li>
+  </ul>
+</div>
+
+<div class="card faq-card">
+  <h2>よくある質問</h2>
+  <dl class="faq-list">
+    <dt>Q. 入力データは外部に送信されますか？</dt>
+    <dd>A. 送信しません。すべてブラウザ内で計算が完結します。</dd>
+    <dt>Q. 正確な実作業率を知りたいのですが？</dt>
+    <dd>A. 本ツールはあくまで目安です。より正確な分析には、作業ログツールやタイムトラッキングアプリの導入をお勧めします。</dd>
+    <dt>Q. 休憩時間は計算に含まれますか？</dt>
+    <dd>A. 休憩時間は総作業時間から差し引かれ、実作業時間の計算に含まれます。</dd>
+  </dl>
+</div>
+
+<div class="card disclaimer-card">
+  <p class="disclaimer-text">本ツールは参考値です。実際の業務改善には、個別の状況に応じた分析をお勧めします。割り込み対応の効率化については、専門家や管理者にご相談ください。</p>
+</div>
+
+<p class="source-note">参考: 厚生労働省・内閣府の働き方改革関連情報。最新情報は各公式サイトをご確認ください。</p>
+
+<a class="back-link" href="../index.html">← アプリ一覧に戻る</a>
+<script src="../fav-widget.js"></script>
+<script src="../related-widget.js"></script>
+<script src="../comments-widget.js"></script>
+
+<p style="text-align:center;margin:2rem 0 0.5rem;font-size:0.82rem;"><a href="https://docs.google.com/forms/d/e/1FAIpQLSe3_2Hr02GBpDgTRbP4DmqkRAB_1Expe84k-YKV6KQyNvNAfQ/viewform?usp=publish-editor" target="_blank" rel="noopener" style="color:#bbb;">改善案・不具合報告はこちら</a></p>
+
+<script>
+function loadSample(pattern) {
+  if (pattern === 1) {
+    document.getElementById('workStart').value = '09:00';
+    document.getElementById('workEnd').value = '17:00';
+    document.getElementById('breakTime').value = '60';
+    document.getElementById('interruptCount').value = '8';
+    document.getElementById('interruptTime').value = '80';
+  } else if (pattern === 2) {
+    document.getElementById('workStart').value = '09:00';
+    document.getElementById('workEnd').value = '17:00';
+    document.getElementById('breakTime').value = '60';
+    document.getElementById('interruptCount').value = '2';
+    document.getElementById('interruptTime').value = '20';
+  } else if (pattern === 3) {
+    document.getElementById('workStart').value = '09:00';
+    document.getElementById('workEnd').value = '17:00';
+    document.getElementById('breakTime').value = '60';
+    document.getElementById('interruptCount').value = '5';
+    document.getElementById('interruptTime').value = '45';
+  }
+  calc();
+}
+
+function calc() {
+  const workStart = document.getElementById('workStart').value;
+  const workEnd = document.getElementById('workEnd').value;
+  const breakTime = parseFloat(document.getElementById('breakTime').value) || 0;
+  const interruptCount = parseFloat(document.getElementById('interruptCount').value) || 0;
+  const interruptTime = parseFloat(document.getElementById('interruptTime').value) || 0;
+
+  if (!workStart || !workEnd) {
+    document.getElementById('result').innerHTML = '<div class="result-text">開始時刻と終了時刻を入力してください</div>';
+    return;
+  }
+
+  const [startH, startM] = workStart.split(':').map(Number);
+  const [endH, endM] = workEnd.split(':').map(Number);
+  const startMin = startH * 60 + startM;
+  const endMin = endH * 60 + endM;
+  let totalMin = endMin - startMin;
+  if (totalMin <= 0) totalMin += 24 * 60;
+
+  const effectiveMin = totalMin - breakTime - interruptTime;
+  const effectiveRate = (effectiveMin / (totalMin - breakTime) * 100).toFixed(1);
+  const avgIntervalMin = interruptCount > 0 ? ((totalMin - breakTime) / interruptCount).toFixed(1) : '-';
+  const avgInterruptMin = interruptCount > 0 ? (interruptTime / interruptCount).toFixed(1) : '-';
+
+  let resultClass = 'ok';
+  let resultMsg = '集中力が維持されている傾向です';
+  if (effectiveRate < 60) {
+    resultClass = 'ng';
+    resultMsg = '割り込みが多く、実作業率が低い傾向です';
+  } else if (effectiveRate < 75) {
+    resultClass = 'warn';
+    resultMsg = '実作業率が中程度。改善の余地があります';
+  }
+
+  let resultHtml = `
+    <div class="result-grid">
+      <div class="result-item">
+        <div class="label">総作業時間</div>
+        <div class="value">${totalMin}分</div>
+      </div>
+      <div class="result-item">
+        <div class="label">実作業時間</div>
+        <div class="value">${effectiveMin}分</div>
+      </div>
+      <div class="result-item">
+        <div class="label">実作業率</div>
+        <div class="value ${resultClass}">${effectiveRate}%</div>
+      </div>
+      <div class="result-item">
+        <div class="label">割り込み回数</div>
+        <div class="value">${interruptCount}回</div>
+      </div>
+      <div class="result-item">
+        <div class="label">割り込み総時間</div>
+        <div class="value">${interruptTime}分</div>
+      </div>
+      <div class="result-item">
+        <div class="label">平均割り込み間隔</div>
+        <div class="value">${avgIntervalMin !== '-' ? avgIntervalMin + '分' : '-'}</div>
+      </div>
+      <div class="result-item">
+        <div class="label">割り込みあたり平均時間</div>
+        <div class="value">${avgInterruptMin !== '-' ? avgInterruptMin + '分' : '-'}</div>
+      </div>
+    </div>
+    <div class="result-detail" style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(0,0,0,0.1);">${resultMsg}</div>
+  `;
+
+  document.getElementById('result').innerHTML = resultHtml;
+  document.getElementById('result').className = 'card result-card ' + resultClass;
+  document.getElementById('readresult').style.display = '';
+}
+
+window.addEventListener('load', function() {
+  calc();
+});
+</script>
+
+</main>
+</body>
+</html>
