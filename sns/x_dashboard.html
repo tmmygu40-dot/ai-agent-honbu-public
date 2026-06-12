@@ -215,6 +215,103 @@
       place-items: center;
       text-align: center;
     }
+    /* マンネリ打破モード（未開拓・ネタ・実用フリマ・建築DIY・地域・定番の6分類） */
+    .genreMode {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #142b48, #0c1730);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+    .genreModeHeader { display: grid; gap: 6px; }
+    .genreModeTitle {
+      margin: 0;
+      font-size: 18px;
+      color: var(--warn);
+      letter-spacing: .02em;
+    }
+    .genreModeSub { color: var(--muted); font-size: 12px; }
+    .genreTabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .genreTab {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #182542;
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .genreTab.active { background: var(--accent); color: #07142b; border-color: var(--accent); }
+    .genreSections { display: grid; gap: 10px; }
+    .genreSection {
+      border: 1px solid #2b3b60;
+      border-radius: 12px;
+      padding: 10px;
+      background: #0e1a35;
+    }
+    .genreSection h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      letter-spacing: .02em;
+      color: var(--accent);
+    }
+    .genreSection.unexplored h3 { color: #ffcf65; }
+    .genreSection.neta       h3 { color: #ff85c1; }
+    .genreSection.utility    h3 { color: #38c785; }
+    .genreSection.flea       h3 { color: #62d6a4; }
+    .genreSection.diy        h3 { color: #4ea3ff; }
+    .genreSection.local      h3 { color: #b6cbef; }
+    .genreSection.classic    h3 { color: #9caed3; }
+    .genreList { display: grid; gap: 6px; }
+    .genreItem {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 8px;
+      background: #122042;
+      border: 1px solid #1f2f55;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .genreItem .gName { font-weight: 600; }
+    .genreItem .gAngle { color: var(--muted); font-size: 11px; margin-top: 2px; line-height: 1.4; }
+    .genreItem .gMeta { display: flex; gap: 6px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .genreItem .gActions { display: flex; gap: 4px; }
+    .genreItem .gBtn {
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #182542;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .genreItem .gBtn:hover:not(:disabled) { filter: brightness(1.15); }
+    .genreItem .gBtn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      background: #1a2336;
+    }
+    .genreItem .gBtnOpen { background: #225aa9; border-color: #2e70cc; }
+    .genreItem .gBtnDone { background: #694b76; border-color: #9c73af; }
+    .genreItem .gBtnSkip { background: #3a4558; border-color: #5a6785; font-size: 10px; }
+    .genreItem.queueMatch { border-left: 3px solid var(--ok); }
+    .genreItem.unexploredOnly { border-left: 3px solid var(--warn); }
+    .genreItem.posted { opacity: 0.55; filter: grayscale(0.3); }
+    .genreItem.posted .gName::after {
+      content: " ✓";
+      color: var(--ok);
+      font-weight: 700;
+    }
+    .genreEmpty {
+      color: var(--muted);
+      font-size: 12px;
+      padding: 6px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -243,14 +340,26 @@
       <div class="notice" id="noticeText">読み込み中...</div>
     </section>
 
+    <!-- マンネリ打破モード（K-156 後追加 / 占い・推し活偏重を打破して未開拓・ネタ・実用を前面に） -->
+    <section class="genreMode" id="genreMode">
+      <div class="genreModeHeader">
+        <h2 class="genreModeTitle">🌟 マンネリ打破モード</h2>
+        <div class="genreModeSub">占い・推し活・診断・脳トレ・クイズ偏重をやめ、未開拓ジャンルを優先表示</div>
+        <div class="genreTabs" id="genreTabs"></div>
+      </div>
+      <div class="genreSections" id="genreSections"></div>
+    </section>
+
     <section class="hero" id="hero"></section>
     <section class="slots" id="slots"></section>
   </div>
 
   <script>
     const QUEUE_PATH = "./sns_queue.json";
+    const UNEXPLORED_PATH = "./x_unexplored_candidates.json";
     const POSTED_KEY = "x_dashboard_posted_ids_v2";
     const SKIPPED_KEY = "x_dashboard_skipped_ids_v1";
+    const GENRE_TAB_KEY = "x_dashboard_genre_tab_v1";
     const SLOT_DEFS = [
       { key: "08:00", label: "朝 08:00" },
       { key: "12:30", label: "昼 12:30" },
@@ -262,6 +371,14 @@
     const noticeEl = document.getElementById("noticeText");
     const heroEl = document.getElementById("hero");
     const slotsEl = document.getElementById("slots");
+    const genreTabsEl = document.getElementById("genreTabs");
+    const genreSectionsEl = document.getElementById("genreSections");
+    let unexploredCandidates = [];
+    let activeGenreTab = "all";
+    try {
+      const saved = localStorage.getItem(GENRE_TAB_KEY);
+      if (saved) activeGenreTab = saved;
+    } catch {}
     const reloadBtn = document.getElementById("reloadBtn");
     const resetPostedBtn = document.getElementById("resetPostedBtn");
     const copyMarkPostedCmdBtn = document.getElementById("copyMarkPostedCmdBtn");
@@ -1277,6 +1394,375 @@
       }
     }
 
+    // ---- マンネリ打破モード（K-156） ----
+    const GENRE_SECTION_DEFS = [
+      { key: "unexplored", label: "🆕 未開拓おすすめ",       cls: "unexplored", limit: 10 },
+      { key: "ネタ",       label: "😂 ネタ枠",                cls: "neta",       limit: 5 },
+      { key: "フリマ",     label: "🛍️ 実用・フリマ枠",        cls: "flea",       limit: 8 },
+      { key: "建築DIY",    label: "🏗️ 建築DIY・現場枠",       cls: "diy",        limit: 8 },
+      { key: "地域",       label: "🗾 地域・自治会・PTA枠",    cls: "local",      limit: 6 },
+      { key: "実用",       label: "🧰 実用枠",                 cls: "utility",    limit: 6 },
+      { key: "定番",       label: "📝 定番枠（占い・推し活）", cls: "classic",    limit: 5 },
+    ];
+
+    async function loadUnexplored() {
+      try {
+        const res = await fetch(UNEXPLORED_PATH, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        unexploredCandidates = Array.isArray(data?.candidates) ? data.candidates : [];
+      } catch (e) {
+        unexploredCandidates = [];
+      }
+    }
+
+    // unex候補 → 既存ロジックが扱える item オブジェクトへ変換
+    // x_text は空のまま渡す（旧テンプレート format に落とさず、buildUnexPostText を使う想定）
+    function synthesizeItemFromUnex(entry) {
+      const app = String(entry?.app_name || "").trim();
+      const url = String(entry?.url || "").trim();
+      const shortUrl = String(entry?.short_url || "").trim();
+      return {
+        id: `unex-${entry?.rank || entry?.app_name || Math.random()}`,
+        app_name: app,
+        app_path: app,
+        url: url,
+        short_url: shortUrl,
+        x_text: "",
+        category_guess: entry?.genre_class || "",
+        status: "draft",
+        _isUnexploredOnly: true,
+      };
+    }
+
+    // 未開拓候補が投稿に使える短縮URLを持つか判定
+    // 必須条件:
+    //  1. short_url が "/s/" 形式の短縮URL である
+    //  2. candidate.url_verified === true（HTTP実在確認済み）
+    // 日本語パスURL（例: https://nekopoke.jp/メルカリ.../）は **絶対に使わない**
+    // 未デプロイURL（HTTP 404）も投稿対象外 → そうしないとXで「ページが見つかりません」になる
+    function unexPostableShortUrl(candidate) {
+      const su = String(candidate?.short_url || "").trim();
+      if (!su) return "";
+      if (!/\/s\//.test(su)) return "";
+      if (candidate?.url_verified !== true) return ""; // 実在確認できないURLは投稿NG
+      return su;
+    }
+
+    // 未開拓候補専用 投稿文テンプレート（既存 buildAppPostTemplate と同フォーマット）
+    // 【今日のチェック】 / 空行 / hook / 空行 / description / 空行 / app_name / ↓　↓　↓ / URL
+    // 短縮URL（/s/形式）が無い場合は null を返す（投稿不可）
+    function buildUnexPostText(candidate) {
+      const url = unexPostableShortUrl(candidate);
+      if (!url) return null; // 投稿不可（呼び出し側でガード）
+      const app = formatAppLineForPost(String(candidate?.app_name || ""));
+      const hook = String(candidate?.hook || candidate?.angle || "").trim();
+      const desc = String(candidate?.description || "").trim();
+      const out = ["【今日のチェック】", "", hook];
+      if (desc) out.push("", desc);
+      out.push("", app, "↓　↓　↓", url);
+      return out.join("\n");
+    }
+
+    function buildGenreItem(entry, kind) {
+      // entry は queue item or unexplored candidate
+      const isUnex = kind === "unex";
+      const item = isUnex ? synthesizeItemFromUnex(entry) : entry;
+      const url = String(item.url || "").trim();
+      const shortUrl = String(item.short_url || "").trim();
+      const isQueueItem = !isUnex;
+      const posted = postedSet();
+      const isPosted = isQueueItem && posted.has(String(item.id || ""));
+
+      // 投稿可否判定:
+      // - queue 由来: 既存と同じ（hasAppAndUrl で判定・日本語パスでも needsShortUrlForX 警告で投稿可）
+      // - unex 由来: short_url が /s/ 形式の場合のみ投稿可（日本語パスURLは投稿不可）
+      const unexShort = isUnex ? unexPostableShortUrl(entry) : "";
+      const isPostable = isQueueItem ? hasAppAndUrl(item) : !!unexShort;
+      // URLコピーに使う URL（投稿可否とは別。閲覧用は url を許可・なければ short）
+      const copyableUrl = isUnex
+        ? (unexShort || "")  // unex は /s/ 形式のみ・日本語パスは閲覧してもトップへ飛ぶので除外
+        : (shortUrl || url);
+
+      // 投稿文生成器: unex は buildUnexPostText / queue は既存 buildDashboardPostText
+      const getPostText = () => {
+        if (isUnex) return buildUnexPostText(entry); // 投稿不可なら null
+        return buildDashboardPostText(item, true);
+      };
+
+      const wrap = document.createElement("div");
+      wrap.className = "genreItem " + (isUnex ? "unexploredOnly" : "queueMatch");
+      if (isPosted) wrap.classList.add("posted");
+
+      // --- 左カラム: 名前 + 角度 + メタ ---
+      const left = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "gName";
+      name.textContent = displayName(item) || item.app_name || "(no name)";
+      left.appendChild(name);
+
+      const angle = (entry?.angle || item.x_text || "").toString();
+      if (angle) {
+        const a = document.createElement("div");
+        a.className = "gAngle";
+        a.textContent = angle.slice(0, 120);
+        left.appendChild(a);
+      }
+
+      const meta = document.createElement("div");
+      meta.className = "gMeta";
+      const tags = [];
+      const gc = entry?.genre_class || item?.genre_class;
+      if (gc) tags.push(gc);
+      if (isUnex) tags.push("未開拓");
+      if (entry?.queue_match === false) tags.push("queue未投入");
+      if (isUnex) {
+        if (unexShort) {
+          tags.push("✓ 公開確認済");
+        } else {
+          // 細分化: short_url がそもそも無い / /s/ 形式でない / url_verified false
+          const su = String(entry?.short_url || "").trim();
+          if (!su) tags.push("⚠ 短縮URL未整備（投稿不可）");
+          else if (!/\/s\//.test(su)) tags.push("⚠ 短縮URL形式不正（投稿不可）");
+          else if (entry?.url_verified !== true) tags.push(`⚠ 未デプロイ/未確認（${entry?.url_check_status || "unknown"}・投稿不可）`);
+          else tags.push("⚠ 投稿不可");
+        }
+      }
+      if (!isUnex && shortUrl) tags.push("短縮URLあり");
+      if (!isUnex && !shortUrl && !url) tags.push("URL未設定");
+      if (typeof entry?.priority === "number") tags.push(`P${entry.priority}`);
+      if (item?.sns_priority_score) tags.push(`score${item.sns_priority_score}`);
+      if (isPosted) tags.push("投稿済み(local)");
+      meta.textContent = tags.join(" / ");
+      left.appendChild(meta);
+      wrap.appendChild(left);
+
+      // --- 右カラム: アクションボタン群 ---
+      const actions = document.createElement("div");
+      actions.className = "gActions";
+
+      // 投稿文コピー（投稿可能URL必須）
+      const copyTextBtn = document.createElement("button");
+      copyTextBtn.className = "gBtn";
+      copyTextBtn.textContent = "投稿文コピー";
+      copyTextBtn.disabled = !isPostable;
+      if (isPostable) {
+        copyTextBtn.addEventListener("click", async () => {
+          const text = getPostText();
+          if (!text) {
+            copyTextBtn.textContent = "✗ 投稿不可";
+            setTimeout(() => { copyTextBtn.textContent = "投稿文コピー"; }, 1500);
+            return;
+          }
+          const ok = await copyText(text);
+          copyTextBtn.textContent = ok ? "✓ コピー完了" : "✗ 失敗";
+          setTimeout(() => { copyTextBtn.textContent = "投稿文コピー"; }, 1200);
+        });
+      } else {
+        copyTextBtn.title = isUnex
+          ? "短縮URL（/s/形式）が未整備のため投稿不可。日本語パスURLは使えません。"
+          : "URL未設定のため投稿不可";
+      }
+      actions.appendChild(copyTextBtn);
+
+      // Xを開く（投稿可能URL必須）
+      const openXBtn = document.createElement("button");
+      openXBtn.className = "gBtn gBtnOpen";
+      openXBtn.textContent = "Xを開く";
+      openXBtn.disabled = !isPostable;
+      if (isPostable) {
+        openXBtn.addEventListener("click", () => {
+          const postText = getPostText();
+          if (!postText) return; // unex で short_url 無の場合の safety
+          if (isUnex) {
+            // unex は短縮URLが /s/ 形式である前提・追加確認を簡素化
+            const msg = `投稿前URL確認\n\nX投稿に入るURL:\n${unexShort}\n\nこの内容でX投稿画面を開きますか？`;
+            if (!window.confirm(msg)) return;
+          } else {
+            const checkUrl = url;
+            const xLine =
+              checkUrl && hasAppAndUrl(item)
+                ? (shortUrl || toXPostUrl(checkUrl))
+                : (checkUrl || shortUrl);
+            if (checkUrl) {
+              const risky = needsShortUrlForX(item);
+              let msg = hasAppAndUrl(item)
+                ? `投稿前URL確認\n\n表示（ブラウザ用）:\n${checkUrl}\n\nX投稿に入るURL:\n${xLine}\n\nこの内容でX投稿画面を開きますか？`
+                : `投稿前URL確認:\n${checkUrl}\n\nこのURLでX投稿画面を開きますか？`;
+              if (risky) msg = `${msg}\n\n【警告】日本語パスで short_url がありません。Xでリンク欠損のリスクがあります。`;
+              if (!window.confirm(msg)) return;
+            }
+          }
+          openX(postText);
+        });
+      } else {
+        openXBtn.title = isUnex
+          ? "短縮URL（/s/形式）が未整備のため投稿不可"
+          : "URL未設定のため投稿不可";
+      }
+      actions.appendChild(openXBtn);
+
+      // URLコピー（投稿可能URLのみ・閲覧用 url は除外）
+      const copyUrlBtn = document.createElement("button");
+      copyUrlBtn.className = "gBtn";
+      copyUrlBtn.textContent = "URLコピー";
+      copyUrlBtn.disabled = !copyableUrl;
+      if (copyableUrl) {
+        copyUrlBtn.addEventListener("click", async () => {
+          const ok = await copyText(copyableUrl);
+          copyUrlBtn.textContent = ok ? "✓" : "✗";
+          setTimeout(() => { copyUrlBtn.textContent = "URLコピー"; }, 1200);
+        });
+      } else {
+        copyUrlBtn.title = isUnex
+          ? "短縮URL未整備（日本語パスURLはコピーしません）"
+          : "URL未設定";
+      }
+      actions.appendChild(copyUrlBtn);
+
+      // queue 候補のみ: 投稿済み / 今は出さない
+      if (isQueueItem) {
+        const doneBtn = document.createElement("button");
+        doneBtn.className = "gBtn gBtnDone";
+        doneBtn.textContent = isPosted ? "投稿済み(解除)" : "投稿済みにする";
+        doneBtn.addEventListener("click", () => {
+          const set = postedSet();
+          const id = String(item.id || "");
+          if (!id) return;
+          if (set.has(id)) set.delete(id);
+          else set.add(id);
+          savePosted(set);
+          render();
+        });
+        actions.appendChild(doneBtn);
+
+        if (!isPosted) {
+          const skipBtn = document.createElement("button");
+          skipBtn.className = "gBtn gBtnSkip";
+          skipBtn.textContent = "今は出さない";
+          skipBtn.addEventListener("click", () => {
+            const sk = skippedSet();
+            const id = String(item.id || "").trim();
+            if (!id) return;
+            sk.add(id);
+            saveSkipped(sk);
+            render();
+          });
+          actions.appendChild(skipBtn);
+        }
+      }
+
+      wrap.appendChild(actions);
+      return wrap;
+    }
+
+    function getQueueByGenreClass(genre, posted, skipped) {
+      const items = Array.isArray(nextCandidateItems) ? nextCandidateItems : [];
+      return items
+        .filter(x => x && x.status === "draft")
+        .filter(x => !posted.has(String(x.id || "")))
+        .filter(x => !skipped.has(String(x.id || "").trim()))
+        .filter(x => (x.genre_class || "") === genre)
+        .map(x => ({
+          app_name: x.app_name,
+          url: x.url,
+          short_url: x.short_url,
+          angle: x.x_text,
+          genre_class: x.genre_class,
+          sns_priority_score: x.sns_priority_score,
+        }))
+        .sort((a, b) => (b.sns_priority_score || 0) - (a.sns_priority_score || 0));
+    }
+
+    function getUnexploredByGenreClass(genre) {
+      if (!Array.isArray(unexploredCandidates) || unexploredCandidates.length === 0) return [];
+      return unexploredCandidates
+        .filter(c => (c.genre_class || "") === genre)
+        .sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    }
+
+    function getAllUnexploredSorted() {
+      if (!Array.isArray(unexploredCandidates) || unexploredCandidates.length === 0) return [];
+      return [...unexploredCandidates].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    }
+
+    function renderGenreTabs() {
+      genreTabsEl.innerHTML = "";
+      const tabs = [
+        { key: "all",        label: "🌟 おすすめTOP" },
+        { key: "unexplored", label: "🆕 未開拓" },
+        { key: "ネタ",       label: "😂 ネタ" },
+        { key: "フリマ",     label: "🛍️ フリマ" },
+        { key: "建築DIY",    label: "🏗️ 建築DIY" },
+        { key: "地域",       label: "🗾 地域" },
+        { key: "実用",       label: "🧰 実用" },
+        { key: "定番",       label: "📝 定番" },
+      ];
+      for (const t of tabs) {
+        const b = document.createElement("button");
+        b.className = "genreTab" + (activeGenreTab === t.key ? " active" : "");
+        b.textContent = t.label;
+        b.addEventListener("click", () => {
+          activeGenreTab = t.key;
+          try { localStorage.setItem(GENRE_TAB_KEY, t.key); } catch {}
+          renderGenreMode();
+        });
+        genreTabsEl.appendChild(b);
+      }
+    }
+
+    function renderGenreMode() {
+      renderGenreTabs();
+      genreSectionsEl.innerHTML = "";
+      const posted = postedSet();
+      const skipped = skippedSet();
+
+      const renderOneSection = (def) => {
+        const sec = document.createElement("div");
+        sec.className = "genreSection " + def.cls;
+        const h = document.createElement("h3");
+        h.textContent = def.label;
+        sec.appendChild(h);
+        const list = document.createElement("div");
+        list.className = "genreList";
+
+        let items = [];
+        if (def.key === "unexplored") {
+          items = getAllUnexploredSorted();
+        } else {
+          // queue (draft) と unexplored の両方から該当 genre_class を集める
+          const q = getQueueByGenreClass(def.key, posted, skipped);
+          const u = getUnexploredByGenreClass(def.key);
+          // queue を優先表示 → 未開拓 で補完
+          items = [
+            ...q.map(x => ({ ...x, _kind: "queue" })),
+            ...u.map(x => ({ ...x, _kind: "unex" })),
+          ];
+        }
+        items = items.slice(0, def.limit);
+        if (items.length === 0) {
+          const e = document.createElement("div");
+          e.className = "genreEmpty";
+          e.textContent = "（候補なし）";
+          list.appendChild(e);
+        } else {
+          for (const it of items) {
+            list.appendChild(buildGenreItem(it, it._kind || (def.key === "unexplored" ? "unex" : "queue")));
+          }
+        }
+        sec.appendChild(list);
+        genreSectionsEl.appendChild(sec);
+      };
+
+      if (activeGenreTab === "all") {
+        for (const def of GENRE_SECTION_DEFS) renderOneSection(def);
+      } else {
+        const def = GENRE_SECTION_DEFS.find(d => d.key === activeGenreTab);
+        if (def) renderOneSection(def);
+      }
+    }
+    // ---- end マンネリ打破モード ----
+
     function render() {
       const posted = postedSet();
       const shown = scheduledItems.filter(x => String(x.scheduled_at || "").startsWith(targetDate));
@@ -1287,6 +1773,7 @@
       const riskyShortMissing = visibleActiveCandidateItems().filter((x) => needsShortUrlForX(x)).length;
       renderMeta(absoluteNext);
       renderNotice(fallback, allPosted, riskyShortMissing);
+      renderGenreMode();
       renderHero(nextInfo ? nextInfo.item : null, posted);
       renderSlots(shown, posted);
       renderStatsSummary();
@@ -1294,6 +1781,7 @@
 
     async function load() {
       try {
+        await loadUnexplored();
         const res = await fetch(QUEUE_PATH, { cache: "no-store" });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
