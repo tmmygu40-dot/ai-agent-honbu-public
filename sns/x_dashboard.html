@@ -359,6 +359,8 @@
     const UNEXPLORED_PATH = "./x_unexplored_candidates.json";
     const POSTED_KEY = "x_dashboard_posted_ids_v2";
     const SKIPPED_KEY = "x_dashboard_skipped_ids_v1";
+    const UNEX_POSTED_KEY = "x_dashboard_unex_posted_ids_v1";
+    const UNEX_SKIPPED_KEY = "x_dashboard_unex_skipped_ids_v1";
     const GENRE_TAB_KEY = "x_dashboard_genre_tab_v1";
     const SLOT_DEFS = [
       { key: "08:00", label: "朝 08:00" },
@@ -481,6 +483,45 @@
 
     function saveSkipped(set) {
       localStorage.setItem(SKIPPED_KEY, JSON.stringify([...set]));
+    }
+
+    function unexPostedSet() {
+      try {
+        const raw = localStorage.getItem(UNEX_POSTED_KEY);
+        const arr = JSON.parse(raw || "[]");
+        return new Set(Array.isArray(arr) ? arr : []);
+      } catch {
+        return new Set();
+      }
+    }
+
+    function saveUnexPosted(set) {
+      localStorage.setItem(UNEX_POSTED_KEY, JSON.stringify([...set]));
+    }
+
+    function unexSkippedSet() {
+      try {
+        const raw = localStorage.getItem(UNEX_SKIPPED_KEY);
+        const arr = JSON.parse(raw || "[]");
+        return new Set(Array.isArray(arr) ? arr : []);
+      } catch {
+        return new Set();
+      }
+    }
+
+    function saveUnexSkipped(set) {
+      localStorage.setItem(UNEX_SKIPPED_KEY, JSON.stringify([...set]));
+    }
+
+    function unexId(entry) {
+      if (!entry) return "";
+      const rank = entry.rank;
+      if (rank != null && rank !== "") return `unex:rank:${rank}`;
+      const su = String(entry.short_url || "").trim();
+      if (su) return `unex:url:${su}`;
+      const app = String(entry.app_name || "").trim();
+      if (app) return `unex:app:${app}`;
+      return "";
     }
 
     /** 表示用: draft/scheduled かつローカルで「今は出さない」にしていない候補 */
@@ -1472,7 +1513,8 @@
       const shortUrl = String(item.short_url || "").trim();
       const isQueueItem = !isUnex;
       const posted = postedSet();
-      const isPosted = isQueueItem && posted.has(String(item.id || ""));
+      const opsId = isUnex ? unexId(entry) : String(item.id || "").trim();
+      const isPosted = !!opsId && (isUnex ? unexPostedSet().has(opsId) : posted.has(opsId));
 
       // 投稿可否判定:
       // - queue 由来: 既存と同じ（hasAppAndUrl で判定・日本語パスでも needsShortUrlForX 警告で投稿可）
@@ -1620,18 +1662,22 @@
       }
       actions.appendChild(copyUrlBtn);
 
-      // queue 候補のみ: 投稿済み / 今は出さない
-      if (isQueueItem) {
+      // 投稿済み / 今は出さない（queue & unex 両方）
+      // 投稿不可（URL未確認等）でも候補リスト整理用に押下可能にする
+      if (opsId) {
+        const getPosted = () => isUnex ? unexPostedSet() : postedSet();
+        const setPosted = (s) => isUnex ? saveUnexPosted(s) : savePosted(s);
+        const getSkipped = () => isUnex ? unexSkippedSet() : skippedSet();
+        const setSkipped = (s) => isUnex ? saveUnexSkipped(s) : saveSkipped(s);
+
         const doneBtn = document.createElement("button");
         doneBtn.className = "gBtn gBtnDone";
         doneBtn.textContent = isPosted ? "投稿済み(解除)" : "投稿済みにする";
         doneBtn.addEventListener("click", () => {
-          const set = postedSet();
-          const id = String(item.id || "");
-          if (!id) return;
-          if (set.has(id)) set.delete(id);
-          else set.add(id);
-          savePosted(set);
+          const set = getPosted();
+          if (set.has(opsId)) set.delete(opsId);
+          else set.add(opsId);
+          setPosted(set);
           render();
         });
         actions.appendChild(doneBtn);
@@ -1641,11 +1687,9 @@
           skipBtn.className = "gBtn gBtnSkip";
           skipBtn.textContent = "今は出さない";
           skipBtn.addEventListener("click", () => {
-            const sk = skippedSet();
-            const id = String(item.id || "").trim();
-            if (!id) return;
-            sk.add(id);
-            saveSkipped(sk);
+            const sk = getSkipped();
+            sk.add(opsId);
+            setSkipped(sk);
             render();
           });
           actions.appendChild(skipBtn);
@@ -1664,6 +1708,7 @@
         .filter(x => !skipped.has(String(x.id || "").trim()))
         .filter(x => (x.genre_class || "") === genre)
         .map(x => ({
+          id: x.id,
           app_name: x.app_name,
           url: x.url,
           short_url: x.short_url,
@@ -1676,14 +1721,27 @@
 
     function getUnexploredByGenreClass(genre) {
       if (!Array.isArray(unexploredCandidates) || unexploredCandidates.length === 0) return [];
+      const posted = unexPostedSet();
+      const skipped = unexSkippedSet();
       return unexploredCandidates
         .filter(c => (c.genre_class || "") === genre)
+        .filter(c => {
+          const uid = unexId(c);
+          return !uid || (!posted.has(uid) && !skipped.has(uid));
+        })
         .sort((a, b) => (b.priority || 0) - (a.priority || 0));
     }
 
     function getAllUnexploredSorted() {
       if (!Array.isArray(unexploredCandidates) || unexploredCandidates.length === 0) return [];
-      return [...unexploredCandidates].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+      const posted = unexPostedSet();
+      const skipped = unexSkippedSet();
+      return [...unexploredCandidates]
+        .filter(c => {
+          const uid = unexId(c);
+          return !uid || (!posted.has(uid) && !skipped.has(uid));
+        })
+        .sort((a, b) => (b.priority || 0) - (a.priority || 0));
     }
 
     function renderGenreTabs() {
