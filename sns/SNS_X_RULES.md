@@ -219,16 +219,42 @@ TCG カテゴリ内でも以下は**別 hook プール**を持つ:
 [6] queue 投入 (兄貴 GO 後のみ)
     ↓ public/sns/sns_queue.json append (status=draft)
     ↓ public/sns/SNS_DEDUP_REGISTRY.json entries に追加
+[6.5] X投稿文ゲート (必須・queue投入後 / 投稿開始前)
+    ↓ python3 sns/check_x_post_text_gate.py --batch <source_batch>
+    ↓ exit 0 で初めて [7] commit & push へ進める
+    ↓ exit 1 (NG検出) なら原因修正→再実行
 [7] commit & push (兄貴 GO 後のみ・明示ファイルのみ)
 ```
 
 ### ゲート遵守事項
 - **dry-run なしで queue 投入禁止**
+- **`sns/check_x_post_text_gate.py` で PASS が出るまで投稿開始しない**
 - **commit/push は兄貴の明示 GO 後のみ**
 - `git add . / -A / -u / -f` 絶対禁止
 - 既存 M / 既存 ?? を勝手に stage しない
 - public/backup repo の無断変更禁止
 - `factory_state_v2.json` / baseline JSON は stage 禁止
+
+### X投稿文ゲート (`sns/check_x_post_text_gate.py`)
+- **役割**: queue内の `x_text` が dashboard表示後も崩れていないかを機械検出
+- **背景**: 2026-06-17 LIFE200 投入時、`getQueueByGenreClass()` の `.map()` で `x_text` を `angle` にリネームして削っていたため、画面で「フック未計算」「今日のチェック」が hook 行に漏れた事故あり
+- **検査項目**:
+  1. `x_text` 構造（【今日のチェック】/ hook / desc / app_name / 矢印 / URL）
+  2. hook 行が空でない・「今日のチェック」だけでない
+  3. NG文字列（フック未計算 / 再読み込みしてください / フック未決定 / 決まりませんでした / undefined / NaN）
+  4. URL ドメイン（`https://nekopoke.jp/`）
+  5. dashboard 側で `getQueueByGenreClass` などの `.map()` から `x_text` が落ちていないか
+- **実行タイミング**:
+  - queue 投入直後（必須）
+  - 投稿開始前（必須）
+  - dashboard.html の表示変換ロジック改修後（必須）
+- **使い方**:
+  ```bash
+  python3 sns/check_x_post_text_gate.py                                          # 全 draft/scheduled 検査
+  python3 sns/check_x_post_text_gate.py --batch x_life_200_phase1_20260617       # 特定 source_batch のみ
+  python3 sns/check_x_post_text_gate.py --report                                  # _reports/x_gate_*.md 出力
+  ```
+- **exit code**: 0 = PASS（投稿開始可）/ 1 = FAIL（修正必須）
 
 ---
 
