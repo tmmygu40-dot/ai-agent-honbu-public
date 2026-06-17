@@ -748,6 +748,13 @@
     }
 
     function buildAppPostTemplate(item) {
+      // K-XT-PRIO: queue の x_text が既に「【今日のチェック】」形式で揃っているなら優先使用。
+      // dashboard 側の hook 再計算 (resolveHookForItem の非同期) が間に合わずに
+      //「（フック未計算: 再読み込みしてください）」が漏れるのを根本防止。
+      const existingXText = String(item?.x_text || "").trim();
+      if (existingXText.startsWith("【今日のチェック】")) {
+        return existingXText;
+      }
       const app = formatAppLineForPost(String(item?.app_name || ""));
       const short = String(item?.short_url || "").trim();
       const hook = pickHook(item);
@@ -922,7 +929,17 @@
 
     function pickHook(item) {
       if (item && item._hookCached !== undefined) return item._hookCached;
-      return "（フック未計算: 再読み込みしてください）";
+      // K-XT-PRIO フォールバック: queue の x_text から hook 行を抽出。
+      // 「【今日のチェック】 / 空 / <hook> / 空 / desc ...」形式を期待。
+      const xt = String(item?.x_text || "").trim();
+      if (xt) {
+        const lines = xt.split("\n");
+        if (lines[0] && lines[0].includes("今日のチェック") && lines[2]) {
+          const h = lines[2].trim();
+          if (h) return h;
+        }
+      }
+      return "今日のチェック";
     }
 
     function pickDescription(item) {
