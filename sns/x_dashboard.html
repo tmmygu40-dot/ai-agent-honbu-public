@@ -731,7 +731,9 @@
         merged = merged.split(raw).join(postUrl);
       }
       if (merged.includes(postUrl)) {
-        const markerRe = new RegExp(`\\n(?:\\n)?(?:↓↓↓|↓ ↓ ↓|↓　↓　↓)\\n${escPost}$`);
+        // K-XT-DUPARROW: URL 直前の改行が 1 個でも 2 個でも矢印を重複追加しないよう \n+ で許容。
+        // queue x_text が `↓　↓　↓\n\nURL`（空行込み）でも markerRe にヒットさせる。
+        const markerRe = new RegExp(`\\n+(?:↓↓↓|↓ ↓ ↓|↓　↓　↓)\\n+${escPost}$`);
         if (markerRe.test(merged)) return merged;
         const tailUrlRe = new RegExp(`\\n${escPost}$`);
         if (tailUrlRe.test(merged)) return merged.replace(tailUrlRe, `\n\n${arrowLine}\n${postUrl}`);
@@ -1021,6 +1023,12 @@
 
       // 2. 矢印を ↓　↓　↓ に統一
       s = s.replace(/↓[\s　]*↓[\s　]*↓/gu, "↓　↓　↓");
+
+      // 2-1. K-XT-DUPARROW: 連続する矢印行を1つに縮約（fitTweetLength 二重挿入への最終防御）
+      s = s.replace(/↓　↓　↓([\s\n]*↓　↓　↓)+/gu, "↓　↓　↓");
+
+      // 2-2. K-XT-URLGAP: 矢印行と URL の間の空行を除去（URL は矢印行直後に詰める）
+      s = s.replace(/↓　↓　↓\n+(https?:\/\/)/gu, "↓　↓　↓\n$1");
 
       // 3. 1行目の見出しを【今日のチェック】に統一
       const lines = s.split(/\r?\n/);

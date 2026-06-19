@@ -27,6 +27,7 @@ Exit code:
 """
 
 import json, os, re, sys, argparse
+from collections import Counter
 from datetime import datetime, timezone, timedelta
 
 # Windows cp932 環境でも安全に絵文字を出すため stdout を UTF-8 化（影響範囲は本スクリプト内のみ）
@@ -56,6 +57,104 @@ HOOK_FORBIDDEN = {
     '【今日のチェック】',
     '',
 }
+
+# ---- K-XT-DUPARROW / K-XT-DRIFT 追加検査ヘルパー ----
+
+# 矢印ブロック検出（表記ゆれ: ↓↓↓ / ↓ ↓ ↓ / ↓　↓　↓ をすべて1ブロックとして数える）
+ARROW_BLOCK_RE = re.compile(r'↓[\s　]*↓[\s　]*↓')
+
+
+def count_arrow_blocks(text):
+    return len(ARROW_BLOCK_RE.findall(text or ''))
+
+
+# theme drift 判定用: app_name から有意トークンを抽出
+APP_SUFFIX_RE = re.compile(
+    r'(アプリ|ツール|診断|ジェネレーター|チェッカー|計算機|計算|シミュレーター|プランナー|タイマー|カウンター|メーカー|テスト|ガイド|早見表)$'
+)
+
+
+def extract_app_tokens(app_name):
+    """app_name から hook/desc 内で照合する有意トークン集合を返す。
+
+    - 末尾の汎用語（アプリ/ツール/診断 等）を剥がす
+    - 区切り（・/空白/、）で分割
+    - 分割後の各 token と、その内部の連続2文字 window をすべて候補化
+    """
+    name = APP_SUFFIX_RE.sub('', str(app_name or '').strip()).strip()
+    out = set()
+    for p in re.split(r'[・\s/／、]+', name):
+        p = p.strip()
+        if len(p) >= 2:
+            out.add(p)
+        for i in range(len(p) - 1):
+            seg = p[i:i + 2]
+            if seg.strip():
+                out.add(seg)
+    return out
+
+
+def simulate_dashboard_text(item):
+    """dashboard buildDashboardPostText（STEP A 修正後）を Python で簡易再現。
+
+    目的: queue x_text を dashboard が整形した後の最終本文を組み立てて、
+         矢印ブロック数が 1 になるか検査する。
+
+    再現するロジック:
+      - buildTweetText(skipAppNameInject=true): app 注入はスキップ
+      - raw URL → post URL 置換
+      - fitTweetLength: markerRe = \\n+arrow\\n+URL$ で既に末尾にあるなら無加工
+      - normalizePostFormat: 矢印表記統一 / 連続矢印行縮約 / 3+ 改行を 2 に
+    """
+    x_text = str(item.get('x_text') or '').strip()
+    short = str(item.get('short_url') or '').strip()
+    url = str(item.get('url') or '').strip()
+    post_url = short or url
+    if not x_text:
+        return ''
+    merged = x_text
+    if url and post_url and url != post_url and url in merged:
+        merged = merged.replace(url, post_url)
+    arrow = '↓　↓　↓'
+    if post_url:
+        esc = re.escape(post_url)
+        if post_url in merged:
+            marker_re = re.compile(r'\n+(?:↓↓↓|↓ ↓ ↓|↓　↓　↓)\n+' + esc + r'$')
+            if marker_re.search(merged):
+                out = merged
+            else:
+                tail_re = re.compile(r'\n+' + esc + r'$')
+                if tail_re.search(merged):
+                    out = tail_re.sub('\n\n' + arrow + '\n' + post_url, merged)
+                else:
+                    out = merged + '\n\n' + arrow + '\n' + post_url
+        else:
+            out = (merged + '\n\n' + arrow + '\n' + post_url) if merged else (arrow + '\n' + post_url)
+    else:
+        out = merged
+    # normalizePostFormat: 矢印表記統一
+    out = re.sub(r'↓[\s　]*↓[\s　]*↓', '↓　↓　↓', out)
+    # 連続矢印行を縮約
+    out = re.sub(r'↓　↓　↓([\s\n]*↓　↓　↓)+', '↓　↓　↓', out)
+    # 矢印行と URL の間の空行を除去（URL は矢印行直後に詰める）
+    out = re.sub(r'↓　↓　↓\n+(https?://)', r'↓　↓　↓\n\1', out)
+    # 3+ 改行を 2 に
+    out = re.sub(r'\n{3,}', '\n\n', out)
+    return out
+
+
+def check_theme_drift(item):
+    """app_name の有意トークンが hook/desc に1つも含まれない場合 True（WARN対象）"""
+    app = str(item.get('app_name') or '').strip()
+    x_text = str(item.get('x_text') or '')
+    lines = x_text.split('\n')
+    hook = lines[2].strip() if len(lines) >= 3 else ''
+    desc = lines[4].strip() if len(lines) >= 5 else ''
+    blob = hook + ' ' + desc
+    toks = extract_app_tokens(app)
+    if not toks or not blob.strip():
+        return False
+    return not any(t in blob for t in toks)
 
 
 def fail(reasons, item_id, title=''):
@@ -137,6 +236,16 @@ def check_x_text(item):
     if title and title not in x_text:
         reasons.append(f'app_name "{title}" が x_text に含まれていない')
 
+    # K-XT-DUPARROW: dashboard 表示 simulate 後の矢印ブロック数 != 1 は NG
+    sim = simulate_dashboard_text(item)
+    blocks = count_arrow_blocks(sim)
+    if blocks != 1:
+        reasons.append(f'dashboard表示simulate後の矢印ブロック数={blocks} (期待1・二重矢印バグ再発)')
+
+    # K-XT-URLGAP: 矢印行と URL 行の間に空行があると NG (dashboard 表示 simulate 後)
+    if re.search(r'↓　↓　↓\n[ \t　]*\n+[ \t　]*https?://', sim):
+        reasons.append('矢印行とURLの間に空行あり (dashboard表示simulate後)')
+
     if reasons:
         return fail(reasons, eid, title)
     return None
@@ -167,7 +276,36 @@ def check_dashboard_x_text_preservation(dashboard_path):
                         'reason': 'x_text: x.x_text が無い (queue x_text 削除リスク・2026-06-17 事故再発防止)',
                     })
 
-    # 他にも item を再構築する .map() があれば検査追加可
+    # K-XT-DUPARROW 再発検査: fitTweetLength の markerRe が \n+ で URL 前複数改行を許容するか
+    m2 = re.search(r'markerRe\s*=\s*new RegExp\(`([^`]+)`\)', h)
+    if not m2:
+        findings.append({
+            'where': 'fitTweetLength markerRe',
+            'reason': 'markerRe 定義が見つからない',
+        })
+    else:
+        pat = m2.group(1)
+        # 旧バグ: \n${escPost}$ (URL前が \n 一個のみ) → queue x_text の空行ありで矢印二重化
+        if r'\n${escPost}$' in pat:
+            findings.append({
+                'where': 'fitTweetLength markerRe',
+                'reason': 'URL前が \\n のみ (queue x_text の空行ありで矢印二重化バグ再発)',
+            })
+
+    # K-XT-DUPARROW 再発検査: normalizePostFormat に連続矢印行縮約の replace があるか
+    if r'↓　↓　↓([\s\n]*↓　↓　↓)' not in h:
+        findings.append({
+            'where': 'normalizePostFormat arrow collapse',
+            'reason': '連続矢印行を縮約する replace パターンが無い (二重挿入の最終防御欠落)',
+        })
+
+    # K-XT-URLGAP 再発検査: normalizePostFormat に矢印行とURL間の空行除去 replace があるか
+    if r'↓　↓　↓\n+(https?:' not in h:
+        findings.append({
+            'where': 'normalizePostFormat URL gap collapse',
+            'reason': '矢印行と URL の間の空行を除去する replace パターンが無い',
+        })
+
     return findings
 
 
@@ -200,6 +338,29 @@ def main():
     # Dashboard preservation check
     dash_findings = check_dashboard_x_text_preservation(dashboard_path)
 
+    # K-XT-DRIFT WARN: theme drift (hook/desc が app_name と意味的に乖離)
+    warns_theme = []
+    for x in targets:
+        if check_theme_drift(x):
+            lines = (x.get('x_text') or '').split('\n')
+            hook = lines[2].strip() if len(lines) >= 3 else ''
+            warns_theme.append({
+                'id': x.get('id'),
+                'title': x.get('app_name', ''),
+                'hook': hook,
+                'source_batch': x.get('source_batch', ''),
+            })
+
+    # WARN: hook 重複 (同一 hook が複数 entry に再利用されていないか)
+    hook_counter = Counter()
+    for x in targets:
+        lines = (x.get('x_text') or '').split('\n')
+        if len(lines) >= 3:
+            h = lines[2].strip()
+            if h:
+                hook_counter[h] += 1
+    hook_dups = [(h, c) for h, c in hook_counter.most_common() if c > 1]
+
     # Stats
     life_count = sum(1 for x in queue if isinstance(x, dict) and x.get('source_batch') == 'x_life_200_phase1_20260617')
 
@@ -213,6 +374,9 @@ def main():
     print('====================================================')
     print(f'queue NG: {len(failures)} 件')
     print(f'dashboard NG: {len(dash_findings)} 件')
+    print(f'theme drift WARN: {len(warns_theme)} 件')
+    hook_dup_total = sum(c for _, c in hook_dups)
+    print(f'hook 重複 WARN: {len(hook_dups)} 種類 ({hook_dup_total} 件にまたがる)')
     print()
 
     if failures:
@@ -231,8 +395,25 @@ def main():
             print(f'  [{d["where"]}] {d["reason"]}')
         print()
 
+    if warns_theme:
+        print('=== WARN: theme drift (hook/desc が app_name と意味的に乖離) ===')
+        for w in warns_theme[:8]:
+            print(f'  [{w["id"]}] {w["title"]}')
+            print(f'     hook: "{w["hook"]}"')
+        if len(warns_theme) > 8:
+            print(f'  ... 他 {len(warns_theme) - 8} 件省略')
+        print('  ※ 投稿は止めない (WARN)。本文再生成 STEP C の対象。')
+        print()
+
+    if hook_dups:
+        print('=== WARN: hook 重複 TOP10 (同じhookが何件のentryで使われているか) ===')
+        for h, c in hook_dups[:10]:
+            print(f'  ×{c}: "{h}"')
+        print('  ※ 投稿は止めない (WARN)。プール選択の見直し対象。')
+        print()
+
     if not failures and not dash_findings:
-        print('✅ PASS — 投稿開始可能')
+        print('✅ PASS — 投稿開始可能 (NG 0 件)')
         # Sample 5 (random first 5 LIFE)
         life_sample = [x for x in targets if x.get('source_batch') == 'x_life_200_phase1_20260617'][:5]
         if life_sample:
@@ -256,6 +437,8 @@ def main():
             f.write(f'- 検査対象: {len(targets)}\n')
             f.write(f'- NG (queue): {len(failures)}\n')
             f.write(f'- NG (dashboard): {len(dash_findings)}\n')
+            f.write(f'- WARN (theme drift): {len(warns_theme)}\n')
+            f.write(f'- WARN (hook 重複): {len(hook_dups)} 種類 / {hook_dup_total} 件\n')
             if failures:
                 f.write('\n## queue NG\n')
                 for fl in failures:
@@ -266,6 +449,14 @@ def main():
                 f.write('\n## dashboard NG\n')
                 for d in dash_findings:
                     f.write(f'- {d["where"]}: {d["reason"]}\n')
+            if warns_theme:
+                f.write('\n## WARN: theme drift\n')
+                for w in warns_theme:
+                    f.write(f'- `{w["id"]}` {w["title"]} — hook: "{w["hook"]}"\n')
+            if hook_dups:
+                f.write('\n## WARN: hook 重複\n')
+                for h, c in hook_dups:
+                    f.write(f'- ×{c}: "{h}"\n')
         print(f'\nレポート出力: {rpath}')
 
     sys.exit(0 if (not failures and not dash_findings) else 1)

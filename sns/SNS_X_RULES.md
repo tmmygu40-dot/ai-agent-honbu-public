@@ -33,7 +33,6 @@ X投稿候補を扱う**全ての工程**で本ファイルを参照する。
 
 アプリ名
 ↓　↓　↓
-
 https://nekopoke.jp/s/<slug>/
 ```
 
@@ -45,8 +44,9 @@ https://nekopoke.jp/s/<slug>/
 - 空行 1
 - 4行目: アプリ名（コピペしやすい単独行）
 - 5行目: `↓　↓　↓` 固定（全角矢印3個 + 全角スペース区切り）
-- 空行 1
-- 最終行: short_url
+- 最終行: short_url（**矢印行の直後・空行を挟まない**）
+
+> ⚠️ 文末 3行 (アプリ名 / 矢印 / URL) は **空行を入れない** のが正。2026-06-19 K-XPOST-MISMATCH で「矢印と URL の間に空行」「矢印が 2 段」事故が発生したため、本ルールを§5.Bへ恒久化。
 
 ---
 
@@ -143,6 +143,66 @@ TCG カテゴリ内でも以下は**別 hook プール**を持つ:
 
 ---
 
+## 5.B. 🔥 ハマった失敗ルール (2026-06-19 K-XPOST-MISMATCH)
+
+### 失敗事案
+LIFE200 (`source_batch: x_life_200_phase1_20260617`) 投入後、兄貴の実投稿前目視で**3つの本文崩れ**が連続発見:
+
+| # | 事象 | 件数 |
+|---|---|---|
+| 1 | hook/desc が app_name と意味的にズレ | **138/200** |
+| 2 | dashboard 上で `↓　↓　↓` が **2 段** 表示 | 200/200 |
+| 3 | `↓　↓　↓` と URL の間に **空行** | 200/200 |
+
+URL / app_name / `/s/` redirect 先は**全部正しく一致**していたが、本文の意味と矢印の見た目が崩れていた。  
+1件具体例（LIFE-009）:
+- app_name: `肩こり対策ストレッチ提案アプリ`
+- hook (実態): `"ジム行く前の準備、地味に毎回ぬける。"` ← ジム筋トレ genre プールから機械選択
+- URL: `https://nekopoke.jp/s/gym-02b518/`（redirect 先は app_name と一致）
+
+### 原因
+- queue 側: hook polish が `genre_class` プールから機械的にローテーション選択（app_name 未参照）
+- dashboard 側: `fitTweetLength` `markerRe` が URL 前 1 改行のみ許容 → queue x_text の `↓　↓　↓\n\nURL` (空行込み) で match 失敗 → 矢印を追加挿入
+- dashboard 側: normalize に「矢印行と URL 間の空行除去」ルール無し → queue 仕様（空行込み）と表示仕様（空行なし）が定義レベルで不一致
+
+### 再発防止ルール（必須）
+
+#### R-XPOST-1: URL/app_name/redirect が合っていても本文が崩れる前提で一体検査する
+- URL や app_name が正しいだけでは投稿可ではない
+- **hook / desc / app_name / title / slug / redirect 先まで一体でゲート検査**
+- 「URL OK だから投稿可」と判断しない
+
+#### R-XPOST-2: hook/desc は genre_class だけで作らず app_name 駆動
+- genre プールからの単純ローテーション選択は意味ズレを大量生成する
+- 必ず app_name から有意トークンを抽出（compound word boundary + script transition）して hook の {T} に挿入
+- 生成器側で app_name token が hook/desc に必ず含まれることを保証する
+
+#### R-XPOST-3: 同一 hook の多重再利用は禁止 or WARN
+- 同一 batch 内で 2件以上同一 hook → ゲート WARN
+- 5件以上 → 修正必須（人間レビュー）
+- 生成器側で `used_hooks` set を seed 込みで管理し、ローテーションで回避
+
+#### R-XPOST-4: 投稿文末は「アプリ名 / 矢印 / URL」3行固定（空行なし）
+```text
+アプリ名
+↓　↓　↓
+https://nekopoke.jp/s/xxxx/
+```
+- 矢印と URL の間に空行を入れない
+- アプリ名と矢印の間に空行を入れない
+- 矢印は `↓　↓　↓`（全角矢印3個 + 全角スペース区切り）固定
+
+#### R-XPOST-5: dashboard 改修後は gate の simulate を同期する
+- dashboard の表示変換ロジック (`fitTweetLength` / `normalizePostFormat`) を変えたら、`check_x_post_text_gate.py` の `simulate_dashboard_text()` も同期更新する
+- 同期忘れを防ぐため、`check_dashboard_x_text_preservation()` で dashboard source の正規表現パターンを検査して regression 検出する
+
+#### R-XPOST-6: 投稿開始判断は source_batch 単位で gate PASS
+- batch 全体が `--batch` フィルタで PASS して初めて投稿開始可
+- 1件でも NG なら投稿開始しない（修正→再実行）
+- legacy 既知 NG は別 batch として分離 / WAIT 扱い
+
+---
+
 ## 6. ジャンル別トーン
 
 | ジャンル | トーン | 理由 |
@@ -236,17 +296,26 @@ TCG カテゴリ内でも以下は**別 hook プール**を持つ:
 - `factory_state_v2.json` / baseline JSON は stage 禁止
 
 ### X投稿文ゲート (`sns/check_x_post_text_gate.py`)
-- **役割**: queue内の `x_text` が dashboard表示後も崩れていないかを機械検出
-- **背景**: 2026-06-17 LIFE200 投入時、`getQueueByGenreClass()` の `.map()` で `x_text` を `angle` にリネームして削っていたため、画面で「フック未計算」「今日のチェック」が hook 行に漏れた事故あり
-- **検査項目**:
+- **役割**: queue内の `x_text` が dashboard 表示後も崩れていないかを機械検出（**source_batch 単位で PASS が出るまで投稿開始禁止**）
+- **背景**: 2026-06-17 LIFE200 投入時、`getQueueByGenreClass()` の `.map()` で `x_text` を `angle` にリネームして削っていたため、画面で「フック未計算」が hook 行に漏れた事故あり。さらに 2026-06-19 K-XPOST-MISMATCH (§5.B) で theme drift・矢印二重化・URL gap の3崩れが連続発生し、本ゲートを 4 検査拡張。
+- **NG 検査項目（exit=1）**:
   1. `x_text` 構造（【今日のチェック】/ hook / desc / app_name / 矢印 / URL）
   2. hook 行が空でない・「今日のチェック」だけでない
   3. NG文字列（フック未計算 / 再読み込みしてください / フック未決定 / 決まりませんでした / undefined / NaN）
   4. URL ドメイン（`https://nekopoke.jp/`）
-  5. dashboard 側で `getQueueByGenreClass` などの `.map()` から `x_text` が落ちていないか
+  5. `K-XT-DUPARROW`: **dashboard 表示 simulate 後の矢印ブロック数 != 1** で NG（2026-06-19 追加）
+  6. `K-XT-URLGAP`: **dashboard 表示 simulate 後の矢印行と URL の間に空行**があれば NG（2026-06-19 追加）
+- **WARN 検査項目（exit には影響しない・情報提示）**:
+  - `K-XT-DRIFT`: app_name の有意トークン（smart_split で抽出）が hook/desc に1つも含まれない場合 WARN（2026-06-19 追加）
+  - hook 重複: 同一 hook が複数 entry で再利用されている場合 WARN（2026-06-19 追加）
+- **dashboard regression 検査（exit=1 寄与）**:
+  - `getQueueByGenreClass` などの `.map()` から `x_text` が落ちていないか
+  - `fitTweetLength markerRe` が `\\n+` で URL 前複数改行を許容するか
+  - `normalizePostFormat` に **連続矢印行縮約** ルールがあるか
+  - `normalizePostFormat` に **矢印-URL 間空行除去** ルールがあるか
 - **実行タイミング**:
   - queue 投入直後（必須）
-  - 投稿開始前（必須）
+  - 投稿開始前（必須・source_batch 単位）
   - dashboard.html の表示変換ロジック改修後（必須）
 - **使い方**:
   ```bash
