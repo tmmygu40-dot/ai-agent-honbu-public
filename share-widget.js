@@ -108,7 +108,7 @@
   copyBtn.textContent = 'リンクをコピー';
   copyBtn.style.cssText = btnCss('#f5f0e8', '#1c1917') + 'border:1px solid #e8ddd0;';
   copyBtn.addEventListener('click', function(){
-    copyText(title + ' ' + url, function(ok){
+    copyText(url, function(ok){
       showToast(ok ? 'リンクをコピーしました' : 'コピーできませんでした');
     });
   });
