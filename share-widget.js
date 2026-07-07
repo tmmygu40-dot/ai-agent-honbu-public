@@ -25,7 +25,7 @@
       + '&hashtags=' + encodeURIComponent(SITE_TAG);
   }
   function buildLineUrl(url){
-    return 'https://social-plugins.line.me/lineit/share?url=' + encodeURIComponent(url);
+    return 'https://line.me/R/share?text=' + encodeURIComponent(url);
   }
 
   function copyText(text, cb){
